@@ -179,24 +179,29 @@ public class GameState : MonoBehaviour
         lastRun.buddiesStart = runStartBuddyIds.Count;
     }
 
+
+    public bool HasRunSnapshot()
+    {
+        return runStartGobboSnapshot != null;
+    }
+
     public void CaptureCurrentRunStartState()
     {
         GobboController player = Object.FindAnyObjectByType<GobboController>();
-        BuddyRoster roster = Object.FindAnyObjectByType<BuddyRoster>();
 
         if (player != null)
             SavePlayer(player);
 
-        if (roster != null)
-            SaveRoster(roster);
-
+        // GameState owns the roster. Do not pull a scene BuddyRoster here, because
+        // an empty SampleScene roster can wipe the camp-selected squad.
+        RepairRosterState();
         BeginRunSnapshot();
     }
 
     public void SaveFromRun()
     {
         GobboController player = Object.FindAnyObjectByType<GobboController>();
-        BuddyRoster roster = Object.FindAnyObjectByType<BuddyRoster>();
+        BuddyRoster sceneRoster = Object.FindAnyObjectByType<BuddyRoster>();
 
         GobboSaveData before = runStartGobboSnapshot != null
             ? runStartGobboSnapshot
@@ -213,8 +218,10 @@ public class GameState : MonoBehaviour
         if (player != null)
             SavePlayer(player);
 
-        if (roster != null)
-            SaveRoster(roster);
+        // Merge scene-created buddies, but never let an empty scene roster replace
+        // the saved camp roster. This keeps camp squad selection stable.
+        MergeRosterFromScene(sceneRoster);
+        RepairRosterState();
 
         BuddyProgression.DistributeEndRunFoodXP(this, lastRun != null ? lastRun.foodValueGained : 0);
 
@@ -336,7 +343,7 @@ public class GameState : MonoBehaviour
 
         roster.RepairRosterState();
 
-        maxActiveSquad = roster.maxActiveSquad;
+        maxActiveSquad = Mathf.Max(1, roster.maxActiveSquad);
         ownedBuddies.Clear();
         activeSquadIds.Clear();
 
@@ -360,6 +367,8 @@ public class GameState : MonoBehaviour
             if (!activeSquadIds.Contains(buddy.uniqueId))
                 activeSquadIds.Add(buddy.uniqueId);
         }
+
+        RepairRosterState();
     }
 
     public void ApplyToRoster(BuddyRoster roster)
@@ -540,27 +549,6 @@ public class GameState : MonoBehaviour
         buddy.buddyName = newName.Trim();
     }
 
-    public BuddyData FindBuddy(string buddyId)
-    {
-        if (string.IsNullOrWhiteSpace(buddyId))
-            return null;
-
-        foreach (BuddyData buddy in ownedBuddies)
-        {
-            if (buddy == null)
-                continue;
-
-            buddy.EnsureId();
-            buddy.EnsureRuntimeDefaults();
-
-            if (buddy.uniqueId == buddyId)
-                return buddy;
-        }
-
-        return null;
-    }
-
-
     public void RepairRosterState()
     {
         if (ownedBuddies == null)
@@ -569,6 +557,7 @@ public class GameState : MonoBehaviour
         if (activeSquadIds == null)
             activeSquadIds = new List<string>();
 
+        maxActiveSquad = Mathf.Max(1, maxActiveSquad);
         ownedBuddies.RemoveAll(b => b == null);
 
         foreach (BuddyData buddy in ownedBuddies)
@@ -601,6 +590,115 @@ public class GameState : MonoBehaviour
         activeSquadIds = cleanedActiveIds;
     }
 
+    public BuddyData FindBuddy(string buddyId)
+    {
+        if (string.IsNullOrWhiteSpace(buddyId) || ownedBuddies == null)
+            return null;
+
+        foreach (BuddyData buddy in ownedBuddies)
+        {
+            if (buddy == null)
+                continue;
+
+            buddy.EnsureId();
+            buddy.EnsureRuntimeDefaults();
+
+            if (buddy.uniqueId == buddyId)
+                return buddy;
+        }
+
+        return null;
+    }
+
+    public void AddOrUpdateBuddy(BuddyData source, bool addToActiveIfRequested)
+    {
+        if (source == null)
+            return;
+
+        source.EnsureId();
+        source.EnsureRuntimeDefaults();
+
+        BuddyData existing = FindBuddy(source.uniqueId);
+        if (existing == null)
+        {
+            ownedBuddies.Add(source.Clone());
+        }
+        else
+        {
+            CopyBuddyRuntimeData(source, existing);
+        }
+
+        if (addToActiveIfRequested)
+            MoveBuddyToActiveSquad(source.uniqueId);
+        else
+            RepairRosterState();
+    }
+
+    public void MergeRosterFromScene(BuddyRoster roster)
+    {
+        if (roster == null || roster.ownedBuddies == null || roster.ownedBuddies.Count == 0)
+            return;
+
+        roster.RepairRosterState();
+        maxActiveSquad = Mathf.Max(maxActiveSquad, roster.maxActiveSquad);
+
+        foreach (BuddyData buddy in roster.ownedBuddies)
+        {
+            if (buddy == null)
+                continue;
+
+            buddy.EnsureId();
+            bool wantsActive = buddy.isInActiveSquad || roster.activeSquad.Contains(buddy);
+            AddOrUpdateBuddy(buddy, wantsActive);
+        }
+
+        RepairRosterState();
+    }
+
+    void CopyBuddyRuntimeData(BuddyData source, BuddyData target)
+    {
+        if (source == null || target == null)
+            return;
+
+        bool wasActive = target.isInActiveSquad;
+        string id = target.uniqueId;
+
+        BuddyData copy = source.Clone();
+        target.uniqueId = id;
+        target.buddyName = copy.buddyName;
+        target.buddyType = copy.buddyType;
+        target.ageStage = copy.ageStage;
+        target.level = copy.level;
+        target.xp = copy.xp;
+        target.xpToNextLevel = copy.xpToNextLevel;
+        target.campLevel = copy.campLevel;
+        target.pendingEvolution = copy.pendingEvolution;
+        target.evolutionLevelWaiting = copy.evolutionLevelWaiting;
+        target.runsWaitingForEvolution = copy.runsWaitingForEvolution;
+        target.neglectedElder = copy.neglectedElder;
+        target.happiness = copy.happiness;
+        target.loyalty = copy.loyalty;
+        target.maxHealth = copy.maxHealth;
+        target.health = copy.health;
+        target.damage = copy.damage;
+        target.defense = copy.defense;
+        target.moveSpeed = copy.moveSpeed;
+        target.attackCooldown = copy.attackCooldown;
+        target.onlyFightsAfterHit = copy.onlyFightsAfterHit;
+        target.collectsFood = copy.collectsFood;
+        target.hasBeenHit = copy.hasBeenHit;
+        target.survivedLastRun = copy.survivedLastRun;
+        target.bodyColor = copy.bodyColor;
+        target.visualSetId = copy.visualSetId;
+        target.portraitId = copy.portraitId;
+        target.equippedHat = copy.equippedHat;
+        target.chosenCardIds = copy.chosenCardIds;
+        target.mutationIds = copy.mutationIds;
+        target.upgradeIds = copy.upgradeIds;
+        target.equippedItem = copy.equippedItem;
+        target.isInActiveSquad = wasActive;
+    }
+
     public void RemoveBuddy(string buddyId)
     {
         if (string.IsNullOrWhiteSpace(buddyId))
@@ -623,7 +721,6 @@ public class GameState : MonoBehaviour
         foreach (string id in activeSquadIds)
         {
             BuddyData buddy = FindBuddy(id);
-
             if (buddy != null)
                 result.Add(buddy);
         }
@@ -685,6 +782,7 @@ public class GameState : MonoBehaviour
 
     public bool SwapBuddies(string activeBuddyId, string reserveBuddyId)
     {
+        RepairRosterState();
         BuddyData activeBuddy = FindBuddy(activeBuddyId);
         BuddyData reserveBuddy = FindBuddy(reserveBuddyId);
 
@@ -692,13 +790,13 @@ public class GameState : MonoBehaviour
             return false;
 
         int index = activeSquadIds.IndexOf(activeBuddyId);
-
         if (index < 0)
             return false;
 
         activeSquadIds[index] = reserveBuddyId;
         activeBuddy.isInActiveSquad = false;
         reserveBuddy.isInActiveSquad = true;
+        RepairRosterState();
         return true;
     }
 
@@ -710,11 +808,7 @@ public class GameState : MonoBehaviour
             return null;
 
         BuddyData buddy = reserve[0];
-
-        if (MoveBuddyToActiveSquad(buddy.uniqueId))
-            return buddy;
-
-        return null;
+        return MoveBuddyToActiveSquad(buddy.uniqueId) ? buddy : null;
     }
 
     public bool HasReserveBuddy()

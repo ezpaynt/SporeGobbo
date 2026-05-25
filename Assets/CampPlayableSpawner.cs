@@ -112,7 +112,8 @@ public class CampPlayableSpawner : MonoBehaviour
         if (controller != null)
         {
             GameState.Instance.ApplyToPlayer(controller);
-            controller.health = controller.maxHealth;
+            // Do not heal here. Camp recovery happens at the fire so the return-to-camp
+            // ritual can show hurt/tired gobbos before Eat/Rest.
             controller.followersFollowing = false;
             controller.followersAggressive = false;
 
@@ -184,8 +185,7 @@ public class CampPlayableSpawner : MonoBehaviour
 
         data.EnsureId();
         data.EnsureRuntimeDefaults();
-        data.health = data.maxHealth;
-        data.hasBeenHit = false;
+        // Do not heal here. The campfire recovery owns healing.
 
         position.z = 0f;
         GameObject buddyObject = Instantiate(prefab, position, Quaternion.identity);

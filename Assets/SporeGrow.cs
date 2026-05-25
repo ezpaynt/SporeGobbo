@@ -81,7 +81,10 @@ public class SporeGrow : MonoBehaviour
         }
 
         if (GameState.Instance != null)
+        {
+            GameState.Instance.AddOrUpdateBuddy(data, data != null && data.isInActiveSquad);
             GameState.Instance.RegisterBuddyFound(data);
+        }
 
         Destroy(gameObject);
     }

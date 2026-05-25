@@ -3,56 +3,52 @@ using UnityEngine;
 
 public class RunStartInitializer : MonoBehaviour
 {
+    [Header("Apply Saved State")]
     public bool applySavedPlayerStats = true;
-    public bool applySavedRoster = false;
-    public bool beginRunSnapshotOnStart = false;
-    public bool ensureRunSquadSpawner = true;
-    public GameObject buddyPrefabOverride;
+    [Tooltip("Normally false. GameState owns the roster; SampleScene should read it, not overwrite it from a scene BuddyRoster.")]
+    public bool applySavedRosterToSceneRoster = false;
+
+    [Header("Run Snapshot")]
+    [Tooltip("CampRunPortal normally starts the snapshot before loading the run. This only starts one for direct SampleScene testing if none exists.")]
+    public bool beginSnapshotIfMissing = true;
+
+    [Header("Squad")]
+    public RunSquadSpawner runSquadSpawner;
+    public bool spawnSquadAfterPlayerLoad = true;
 
     IEnumerator Start()
     {
         GameState state = EnsureGameState();
 
-        // Wait one frame so MapGenerator has time to spawn Gobbo/BuddyRoster.
+        // Wait one frame so scene objects or MapGenerator-spawned objects exist.
         yield return null;
 
         GobboController player = Object.FindAnyObjectByType<GobboController>();
-        BuddyRoster roster = Object.FindAnyObjectByType<BuddyRoster>();
-
         if (applySavedPlayerStats && player != null)
             state.ApplyToPlayer(player);
 
-        // Default is OFF now. Camp squad select edits GameState directly, and applying an
-        // empty scene roster here can wipe the selected active squad.
-        if (applySavedRoster && roster != null && state.ownedBuddies != null && state.ownedBuddies.Count > 0)
-            state.ApplyToRoster(roster);
+        if (applySavedRosterToSceneRoster)
+        {
+            BuddyRoster roster = Object.FindAnyObjectByType<BuddyRoster>();
+            if (roster != null && state.ownedBuddies.Count > 0)
+                state.ApplyToRoster(roster);
+        }
 
-        if (ensureRunSquadSpawner)
-            EnsureRunSquadSpawner(player);
+        state.RepairRosterState();
 
-        if (beginRunSnapshotOnStart)
+        if (beginSnapshotIfMissing && !state.HasRunSnapshot())
             state.BeginRunSnapshot();
-    }
 
-    void EnsureRunSquadSpawner(GobboController player)
-    {
-        RunSquadSpawner spawner = Object.FindAnyObjectByType<RunSquadSpawner>(FindObjectsInactive.Include);
-        if (spawner == null)
+        if (spawnSquadAfterPlayerLoad)
         {
-            GameObject obj = new GameObject("RunSquadSpawner_AUTO");
-            spawner = obj.AddComponent<RunSquadSpawner>();
-        }
+            if (runSquadSpawner == null)
+                runSquadSpawner = Object.FindAnyObjectByType<RunSquadSpawner>(FindObjectsInactive.Include);
 
-        if (spawner.buddyPrefab == null)
-        {
-            if (buddyPrefabOverride != null)
-                spawner.buddyPrefab = buddyPrefabOverride;
-            else if (player != null)
-                spawner.buddyPrefab = player.buddyPrefab;
+            if (runSquadSpawner != null)
+                runSquadSpawner.SpawnActiveSquad();
+            else
+                Debug.LogWarning("RunStartInitializer: no RunSquadSpawner assigned/found. Add one scene object to SampleScene.", this);
         }
-
-        spawner.spawnOnStart = false;
-        spawner.SpawnActiveSquad();
     }
 
     GameState EnsureGameState()
