@@ -1,0 +1,314 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &7125385173725763870
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2070678871444494356}
+  - component: {fileID: 137536792100803441}
+  - component: {fileID: 3227033257857752979}
+  - component: {fileID: 4670259816790271871}
+  - component: {fileID: 5042957094003877609}
+  - component: {fileID: 3854806104738089663}
+  - component: {fileID: 884882588081231362}
+  - component: {fileID: 1351511839599536508}
+  m_Layer: 3
+  m_Name: CampGobbo
+  m_TagString: Player
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2070678871444494356
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7125385173725763870}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!212 &137536792100803441
+SpriteRenderer:
+  serializedVersion: 2
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7125385173725763870}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 0
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_Sprite: {fileID: -1647743069318256835, guid: cf0fa01702b09f44cb29d096616bd7be, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_FlipX: 0
+  m_FlipY: 0
+  m_DrawMode: 0
+  m_Size: {x: 1, y: 1}
+  m_AdaptiveModeThreshold: 0.5
+  m_SpriteTileMode: 0
+  m_WasSpriteAssigned: 1
+  m_SpriteSortPoint: 0
+--- !u!61 &3227033257857752979
+BoxCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7125385173725763870}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_CompositeOperation: 0
+  m_CompositeOrder: 0
+  m_Offset: {x: 0, y: 0}
+  m_SpriteTilingProperty:
+    border: {x: 0, y: 0, z: 0, w: 0}
+    pivot: {x: 0.5, y: 0.5}
+    oldSize: {x: 1.6511111, y: 1.9333333}
+    newSize: {x: 1, y: 1}
+    adaptiveTilingThreshold: 0.5
+    drawMode: 0
+    adaptiveTiling: 0
+  m_AutoTiling: 0
+  m_Size: {x: 1, y: 1}
+  m_EdgeRadius: 0
+--- !u!50 &4670259816790271871
+Rigidbody2D:
+  serializedVersion: 5
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7125385173725763870}
+  m_BodyType: 0
+  m_Simulated: 1
+  m_UseFullKinematicContacts: 0
+  m_UseAutoMass: 0
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0
+  m_GravityScale: 0
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_Interpolate: 0
+  m_SleepingMode: 1
+  m_CollisionDetection: 0
+  m_Constraints: 4
+--- !u!114 &5042957094003877609
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7125385173725763870}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 791225f492e811242becd9440ad4e1d5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SporeInventory
+  spores: 0
+  sporeText: {fileID: 0}
+--- !u!114 &3854806104738089663
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7125385173725763870}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7fd2037c5cc0c454b869300371eab57b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GobboController
+  gobboType: 0
+  ageStage: 0
+  visualSetId: baby
+  pendingEvolution: 0
+  evolutionLevelWaiting: 0
+  chosenCardIds: []
+  level: 1
+  xp: 0
+  xpToNextLevel: 10
+  maxHealth: 100
+  health: 100
+  attack: 5
+  defense: 2
+  digPower: 1
+  attackRange: 0.85
+  attackRadius: 0.45
+  attackCooldown: 0.7
+  critChance: 0
+  critDamageMultiplier: 1.5
+  moveSpeed: 5
+  dashSpeed: 12
+  dashDuration: 0.12
+  dashCooldown: 0.7
+  bodyRadius: 0.32
+  faceCursor: 0
+  front: {fileID: -1647743069318256835, guid: cf0fa01702b09f44cb29d096616bd7be, type: 3}
+  frontLeft: {fileID: 5815247894529160560, guid: a7edeeb76aaf7354d99e6d8bf88b36a6, type: 3}
+  frontRight: {fileID: -3239841170075284220, guid: 2cfcecef3851cfc4f8b294270adc7b6d, type: 3}
+  back: {fileID: 1931723117781632034, guid: d244fb54f3b4abd46ae9d28336c08f6b, type: 3}
+  backLeft: {fileID: -958872580517964384, guid: 10ce77c8f40b18d4b82d7d3f5cee303a, type: 3}
+  backRight: {fileID: -5897826424011949532, guid: cc5377d4cbd96074783ba0cb50a53e7e, type: 3}
+  digRange: 0.8
+  digRadius: 0.65
+  digTickRate: 0.05
+  diggableLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  enemyLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  attackDebugPrefab: {fileID: 8827658244673422344, guid: dbbd08ef34b1a094aa88f5d62d34f168, type: 3}
+  currentAttackTarget: {fileID: 0}
+  interactRange: 1.2
+  holdInteractTime: 0.45
+  followerCount: 0
+  maxFollowers: 999
+  followersFollowing: 1
+  followersAggressive: 1
+  buddyPrefab: {fileID: 4202540240149813293, guid: ac9d9833c2b88ed45ab9df32192431a7, type: 3}
+  buddyRoster: {fileID: 0}
+  buddySpawnRadius: 1.2
+  buddyFormationSpread: 1.2
+  baseSize: 1
+  sizePerFollower: 0.05
+  maxSize: 1.5
+  healthControlsSize: 0
+  healthSizeMultiplier: 0
+  maxHealthSizeBonus: 0.6
+  sporeCount: 0
+  sporePlaceRange: 1.5
+  plantedSporePrefab: {fileID: 7970629155490306082, guid: ec4487276c30b074880b9f1aebfac9fd, type: 3}
+  levelUpScreen: {fileID: 0}
+  xpCurveMultiplier: 1.45
+  hasSporeMend: 0
+  hasDashBite: 0
+  sporeMendAmount: 25
+  sporeMendCooldown: 8
+  dashBiteRange: 4
+  dashBiteStopDistance: 0.55
+  dashBiteDamageMultiplier: 1.25
+  dashBiteCooldown: 1.2
+  roarType: tiny
+  roarCooldown: 0.5
+  roarAudio: {fileID: 0}
+  spriteRenderer: {fileID: 0}
+  visualController: {fileID: 0}
+  hurtColor: {r: 1, g: 0, b: 0, a: 1}
+  hurtFlashTime: 0.08
+  deathSplatPrefab: {fileID: 7385056872454191158, guid: 8428b66b675f36249b4a3cc059b23e74, type: 3}
+  knockbackForce: 6
+  knockbackDuration: 0.12
+  isPoisoned: 0
+  poisonColor: {r: 0.6, g: 1, b: 0.25, a: 1}
+--- !u!114 &884882588081231362
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7125385173725763870}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b984a938c499534791c41bbd4fbe508, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GobboVisualController
+  spriteRenderer: {fileID: 137536792100803441}
+  currentState: 0
+  gobboType: 0
+  ageStage: 0
+  visualSetId: baby
+--- !u!114 &1351511839599536508
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7125385173725763870}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ece03ce043c8e1047835ac94e1b80ef7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BuddyRoster
+  maxActiveSquad: 5
+  buddyTypes: []
+  ownedBuddies: []
+  activeSquad: []

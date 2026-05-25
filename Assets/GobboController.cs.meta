@@ -1,0 +1,27 @@
+fileFormatVersion: 2
+guid: 7fd2037c5cc0c454b869300371eab57b
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - front: {instanceID: 0}
+  - frontLeft: {instanceID: 0}
+  - frontRight: {instanceID: 0}
+  - back: {instanceID: 0}
+  - backLeft: {instanceID: 0}
+  - backRight: {instanceID: 0}
+  - attackDebugPrefab: {fileID: 8827658244673422344, guid: dbbd08ef34b1a094aa88f5d62d34f168, type: 3}
+  - currentAttackTarget: {instanceID: 0}
+  - buddyPrefab: {fileID: 4202540240149813293, guid: ac9d9833c2b88ed45ab9df32192431a7, type: 3}
+  - buddyRoster: {instanceID: 0}
+  - plantedSporePrefab: {fileID: 7970629155490306082, guid: ec4487276c30b074880b9f1aebfac9fd, type: 3}
+  - levelUpScreen: {instanceID: 0}
+  - roarAudio: {instanceID: 0}
+  - spriteRenderer: {instanceID: 0}
+  - visualController: {instanceID: 0}
+  - deathSplatPrefab: {fileID: 7385056872454191158, guid: 8428b66b675f36249b4a3cc059b23e74, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

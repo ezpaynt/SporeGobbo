@@ -1,0 +1,375 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &4202540240149813293
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2894310815997287461}
+  - component: {fileID: 1192659877100446874}
+  - component: {fileID: 2737044762086598875}
+  - component: {fileID: 6023990841477756701}
+  - component: {fileID: 4104174008056883796}
+  - component: {fileID: 5913229172689951968}
+  - component: {fileID: 2655419936622350761}
+  - component: {fileID: 8278558320599509318}
+  - component: {fileID: -6907530319455529678}
+  - component: {fileID: 7139639939689234594}
+  - component: {fileID: 5148437327211732900}
+  m_Layer: 6
+  m_Name: CampActiveBuddy
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2894310815997287461
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4202540240149813293}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.13705, y: 0.07595, z: 0}
+  m_LocalScale: {x: 0.5, y: 0.5, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!212 &1192659877100446874
+SpriteRenderer:
+  serializedVersion: 2
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4202540240149813293}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 0
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 3
+  m_MaskInteraction: 0
+  m_Sprite: {fileID: 3885210015122890571, guid: c29c900ca3120a34582b5ceb69229750, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_FlipX: 0
+  m_FlipY: 0
+  m_DrawMode: 0
+  m_Size: {x: 1, y: 1}
+  m_AdaptiveModeThreshold: 0.5
+  m_SpriteTileMode: 0
+  m_WasSpriteAssigned: 1
+  m_SpriteSortPoint: 0
+--- !u!50 &2737044762086598875
+Rigidbody2D:
+  serializedVersion: 5
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4202540240149813293}
+  m_BodyType: 0
+  m_Simulated: 1
+  m_UseFullKinematicContacts: 0
+  m_UseAutoMass: 0
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0
+  m_GravityScale: 0
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_Interpolate: 0
+  m_SleepingMode: 1
+  m_CollisionDetection: 0
+  m_Constraints: 4
+--- !u!61 &6023990841477756701
+BoxCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4202540240149813293}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_CompositeOperation: 0
+  m_CompositeOrder: 0
+  m_Offset: {x: 0, y: 0}
+  m_SpriteTilingProperty:
+    border: {x: 0, y: 0, z: 0, w: 0}
+    pivot: {x: 0.5, y: 0.5}
+    oldSize: {x: 1.454, y: 1.082}
+    newSize: {x: 1, y: 1}
+    adaptiveTilingThreshold: 0.5
+    drawMode: 0
+    adaptiveTiling: 0
+  m_AutoTiling: 0
+  m_Size: {x: 1, y: 1}
+  m_EdgeRadius: 0
+--- !u!114 &4104174008056883796
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4202540240149813293}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b9a2c5550f467b44b11a2c510c5d614, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BuddyFollow
+  brainAllowsMovement: 1
+  player: {fileID: 0}
+  followSpeed: 3.5
+  stopDistance: 0.45
+  teleportDistance: 18
+  formationOffset: {x: 0, y: 0}
+  offsetStrength: 0
+  repathTime: 0.25
+  repathDistance: 0.8
+  waypointReachDistance: 0.85
+  usePathfinding: 1
+  physicalBodyRadius: 0.28
+  useGobboDance: 1
+  randomDanceMinTime: 1
+  randomDanceMaxTime: 2.4
+  randomDanceDuration: 0.12
+  stuckCheckTime: 0.55
+  stuckMoveThreshold: 0.045
+  stuckDanceDuration: 0.35
+  stuckBackstepDuration: 0.18
+  danceStrength: 0.85
+  separationRadius: 0.75
+  separationForce: 0.08
+  buddyLayer:
+    serializedVersion: 2
+    m_Bits: 64
+--- !u!114 &5913229172689951968
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4202540240149813293}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c06c5870decd89743acb0b04c0cd93b9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BuddyCombat
+  brainAllowsMovement: 0
+  enemyLayer:
+    serializedVersion: 2
+    m_Bits: 128
+  aggroRange: 6
+  attackRange: 0.75
+  requireLineOfSightToTarget: 1
+  requireReachableTarget: 1
+  damage: 2
+  attackCooldown: 0.8
+  chaseSpeed: 4
+  selfKnockbackForce: 2
+  enemyKnockbackForce: 3
+  selfBounceDuration: 0.12
+  onlyFightNearPlayer: 1
+  maxDistanceFromPlayerToFight: 7
+  bodyRadius: 0.28
+  repathTime: 0.25
+  repathDistance: 0.8
+  waypointReachDistance: 0.75
+--- !u!114 &2655419936622350761
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4202540240149813293}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7ae57fc45b03524fac0f5e19af99384, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BuddyDirectionalSprite
+  front: {fileID: 3885210015122890571, guid: c29c900ca3120a34582b5ceb69229750, type: 3}
+  frontLeft: {fileID: -5826212342737812818, guid: 36b8f885d25b42b4897b6868ebb8cd3f, type: 3}
+  frontRight: {fileID: -7400180107184549874, guid: c6d2ec76f7d9f92449667d10ac1d5e3c, type: 3}
+  back: {fileID: 8644657325774186217, guid: f0ba23926b891a14b9f58815c174c764, type: 3}
+  backLeft: {fileID: -2243539594619317532, guid: d4f98ad61a078874faa28a111a82288b, type: 3}
+  backRight: {fileID: 5426386610347156489, guid: b0bd383bbf91da04b9d0bf5a2e189b97, type: 3}
+  spriteRenderer: {fileID: 1192659877100446874}
+--- !u!114 &8278558320599509318
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4202540240149813293}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2727093d26c3d8e40a7acacc3c00ffa9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BuddyScavenger
+  brainAllowsMovement: 0
+  scanRange: 4
+  pickupRange: 0.45
+  maxDistanceFromPlayer: 5
+  abandonFoodDistance: 6
+  foodLayer:
+    serializedVersion: 2
+    m_Bits: 256
+  bodyRadius: 0.28
+  repathTime: 0.35
+  repathDistance: 0.8
+  waypointReachDistance: 0.75
+--- !u!114 &-6907530319455529678
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4202540240149813293}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e4bb86221bf89d4fa34b564a93fe087, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BuddyBrain
+  allowCombat: 1
+  allowScavenging: 1
+  allowFollowing: 1
+  currentTask: Follow
+--- !u!114 &7139639939689234594
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4202540240149813293}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1355bd31172b5914a9115fbc78b78309, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BuddyUnit
+  data:
+    uniqueId: 
+    buddyName: Gobbo
+    buddyType: 0
+    ageStage: 0
+    level: 1
+    xp: 0
+    xpToNextLevel: 10
+    campLevel: 1
+    pendingEvolution: 0
+    evolutionLevelWaiting: 0
+    runsWaitingForEvolution: 0
+    neglectedElder: 0
+    happiness: 100
+    loyalty: 100
+    maxHealth: 5
+    health: 5
+    damage: 1
+    defense: 0
+    moveSpeed: 3.5
+    attackCooldown: 0.8
+    onlyFightsAfterHit: 0
+    collectsFood: 0
+    hasBeenHit: 0
+    isInActiveSquad: 0
+    survivedLastRun: 1
+    bodyColor: {r: 0, g: 1, b: 0, a: 1}
+    visualSetId: baby
+    portraitId: 
+    equippedHat: 
+    chosenCardIds: []
+    mutationIds: []
+    upgradeIds: []
+    equippedItem: 
+  follow: {fileID: 0}
+  combat: {fileID: 0}
+  scavenger: {fileID: 0}
+  spriteRenderer: {fileID: 0}
+  visualController: {fileID: 0}
+  hurtColor: {r: 1, g: 0, b: 0, a: 1}
+  poisonColor: {r: 0.6, g: 1, b: 0.25, a: 1}
+  flashTime: 0.08
+--- !u!114 &5148437327211732900
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4202540240149813293}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4b984a938c499534791c41bbd4fbe508, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GobboVisualController
+  spriteRenderer: {fileID: 1192659877100446874}
+  currentState: 0
+  gobboType: 0
+  ageStage: 0
+  visualSetId: baby
