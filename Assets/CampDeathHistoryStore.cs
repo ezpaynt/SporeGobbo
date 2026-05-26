@@ -4,33 +4,66 @@ using UnityEngine;
 [System.Serializable]
 public class DeadBuddyRecord
 {
-    public string uniqueId = "";
-    public string buddyName = "Gobbo";
-    public BuddyType buddyType = BuddyType.Baby;
-    public GobboAgeStage ageStage = GobboAgeStage.Baby;
+    public string buddyName = "Unknown Gobbo";
+    public string buddyType = "Gobbo";
+    public string ageStage = "";
     public int level = 1;
-    public int runNumberDied = 1;
+    public int runNumber = 1;
     public string causeOfDeath = "Lost in the caves";
     public bool memorialSeen = false;
+    public bool wasPlayerLeader = false;
 
     public string GetDisplayLine()
     {
-        return "☠ " + buddyName +
-               " the " + buddyType +
-               " — " + ageStage +
-               " Lv " + level +
-               "\n   Run " + runNumberDied + " · " + causeOfDeath;
+        string safeName = string.IsNullOrWhiteSpace(buddyName) ? "Unknown Gobbo" : buddyName;
+        string safeType = string.IsNullOrWhiteSpace(buddyType) ? "Gobbo" : buddyType;
+        string typePart = string.IsNullOrWhiteSpace(ageStage) ? safeType : safeType + " / " + ageStage;
+        string leaderPart = wasPlayerLeader ? "Leader " : "";
+        string cause = string.IsNullOrWhiteSpace(causeOfDeath) ? "Lost in the caves" : causeOfDeath;
+
+        return leaderPart + safeName + " the " + typePart +
+               "\nLv " + Mathf.Max(1, level) + "   Run " + Mathf.Max(1, runNumber) +
+               "\n" + cause;
     }
 }
 
-/// <summary>
-/// Additive death-history store that lives on the GameState object.
-/// This avoids needing to heavily rewrite GameState right now.
-/// CampBonesMemorialManager creates it automatically if missing.
-/// </summary>
 public class CampDeathHistoryStore : MonoBehaviour
 {
+    public static CampDeathHistoryStore Instance { get; private set; }
+
+    [Header("Permanent Death History")]
     public List<DeadBuddyRecord> deadBuddyHistory = new List<DeadBuddyRecord>();
+
+    void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+
+        if (deadBuddyHistory == null)
+            deadBuddyHistory = new List<DeadBuddyRecord>();
+    }
+
+    public static CampDeathHistoryStore GetOrCreate()
+    {
+        if (Instance != null)
+            return Instance;
+
+        CampDeathHistoryStore found = Object.FindAnyObjectByType<CampDeathHistoryStore>(FindObjectsInactive.Include);
+        if (found != null)
+        {
+            Instance = found;
+            return Instance;
+        }
+
+        GameObject obj = new GameObject("CampDeathHistoryStore");
+        return obj.AddComponent<CampDeathHistoryStore>();
+    }
 
     public bool HasAnyDeaths()
     {
@@ -51,22 +84,6 @@ public class CampDeathHistoryStore : MonoBehaviour
         return false;
     }
 
-    public int CountUnseenMemorials()
-    {
-        int count = 0;
-
-        if (deadBuddyHistory == null)
-            return count;
-
-        foreach (DeadBuddyRecord record in deadBuddyHistory)
-        {
-            if (record != null && !record.memorialSeen)
-                count++;
-        }
-
-        return count;
-    }
-
     public void MarkAllSeen()
     {
         if (deadBuddyHistory == null)
@@ -79,97 +96,128 @@ public class CampDeathHistoryStore : MonoBehaviour
         }
     }
 
-    public void AddFromBuddy(BuddyData buddy, int runNumber, string cause = "Lost in the caves")
+    public DeadBuddyRecord AddFromLabel(string label)
+    {
+        return AddFromLabel(label, GetCurrentRunNumber(), "Lost in the caves");
+    }
+
+    public DeadBuddyRecord AddFromLabel(string label, int runNumber)
+    {
+        return AddFromLabel(label, runNumber, "Lost in the caves");
+    }
+
+    public DeadBuddyRecord AddFromLabel(string label, int runNumber, string causeOfDeath)
+    {
+        DeadBuddyRecord record = new DeadBuddyRecord
+        {
+            buddyName = string.IsNullOrWhiteSpace(label) ? "Unknown Gobbo" : label.Trim(),
+            buddyType = "Gobbo",
+            ageStage = "",
+            level = 1,
+            runNumber = Mathf.Max(1, runNumber),
+            causeOfDeath = string.IsNullOrWhiteSpace(causeOfDeath) ? "Lost in the caves" : causeOfDeath.Trim(),
+            memorialSeen = false,
+            wasPlayerLeader = false
+        };
+
+        AddRecordIfNotDuplicate(record);
+        return record;
+    }
+
+    public DeadBuddyRecord AddFromBuddy(BuddyData buddy, int runNumber, string causeOfDeath)
     {
         if (buddy == null)
-            return;
+            return AddFromLabel("Unknown Gobbo", runNumber, causeOfDeath);
 
-        buddy.EnsureId();
         buddy.EnsureRuntimeDefaults();
 
-        if (HasRecordForId(buddy.uniqueId))
-            return;
-
-        DeadBuddyRecord record = new DeadBuddyRecord();
-        record.uniqueId = buddy.uniqueId;
-        record.buddyName = buddy.buddyName;
-        record.buddyType = buddy.buddyType;
-        record.ageStage = buddy.ageStage;
-        record.level = buddy.level;
-        record.runNumberDied = Mathf.Max(1, runNumber);
-        record.causeOfDeath = string.IsNullOrWhiteSpace(cause) ? "Lost in the caves" : cause;
-        record.memorialSeen = false;
-
-        deadBuddyHistory.Add(record);
-    }
-
-    public void AddFromLabel(string label, int runNumber, string cause = "Lost in the caves")
-    {
-        if (string.IsNullOrWhiteSpace(label))
-            return;
-
-        string safeName = label.Trim();
-
-        // Avoid duplicates from the same summary label.
-        if (HasRecordForLabel(safeName, runNumber))
-            return;
-
-        DeadBuddyRecord record = new DeadBuddyRecord();
-        record.uniqueId = "summary_" + runNumber + "_" + safeName;
-        record.buddyName = safeName;
-        record.buddyType = BuddyType.Baby;
-        record.ageStage = GobboAgeStage.Baby;
-        record.level = 1;
-        record.runNumberDied = Mathf.Max(1, runNumber);
-        record.causeOfDeath = string.IsNullOrWhiteSpace(cause) ? "Lost in the caves" : cause;
-        record.memorialSeen = false;
-
-        deadBuddyHistory.Add(record);
-    }
-
-    bool HasRecordForId(string id)
-    {
-        if (string.IsNullOrWhiteSpace(id) || deadBuddyHistory == null)
-            return false;
-
-        foreach (DeadBuddyRecord record in deadBuddyHistory)
+        DeadBuddyRecord record = new DeadBuddyRecord
         {
-            if (record != null && record.uniqueId == id)
-                return true;
-        }
+            buddyName = string.IsNullOrWhiteSpace(buddy.buddyName) ? "Unknown Gobbo" : buddy.buddyName,
+            buddyType = buddy.buddyType.ToString(),
+            ageStage = buddy.ageStage.ToString(),
+            level = Mathf.Max(1, buddy.level),
+            runNumber = Mathf.Max(1, runNumber),
+            causeOfDeath = string.IsNullOrWhiteSpace(causeOfDeath) ? "Lost in the caves" : causeOfDeath.Trim(),
+            memorialSeen = false,
+            wasPlayerLeader = false
+        };
 
-        return false;
+        AddRecordIfNotDuplicate(record);
+        return record;
     }
 
-    bool HasRecordForLabel(string label, int runNumber)
+    public DeadBuddyRecord AddDeadLeaderFromPendingStore()
     {
+        return AddDeadLeaderFromPendingStore(PlayerDeathRunStore.Instance);
+    }
+
+    // Compatibility overload for CampSuccessionUI versions that pass the pending store in.
+    public DeadBuddyRecord AddDeadLeaderFromPendingStore(PlayerDeathRunStore pending)
+    {
+        if (pending == null)
+            pending = PlayerDeathRunStore.GetOrCreate();
+
+        if (pending == null)
+            return AddLeaderRecord("The old leader", "Gobbo", 1, GetCurrentRunNumber(), "Fell leading the horde");
+
+        // Keep either naming style working.
+        string name = !string.IsNullOrWhiteSpace(pending.deadLeaderName) ? pending.deadLeaderName : pending.deadPlayerName;
+        string type = !string.IsNullOrWhiteSpace(pending.deadLeaderType) ? pending.deadLeaderType : pending.deadPlayerType;
+        int level = Mathf.Max(pending.deadLeaderLevel, pending.deadPlayerLevel);
+        int run = Mathf.Max(pending.deadLeaderRunNumber, pending.runNumber);
+        string cause = pending.deathCause;
+
+        return AddLeaderRecord(name, type, level, run, cause);
+    }
+
+    DeadBuddyRecord AddLeaderRecord(string name, string type, int level, int runNumber, string causeOfDeath)
+    {
+        DeadBuddyRecord record = new DeadBuddyRecord
+        {
+            buddyName = string.IsNullOrWhiteSpace(name) ? "The old leader" : name.Trim(),
+            buddyType = string.IsNullOrWhiteSpace(type) ? "Gobbo" : type.Trim(),
+            ageStage = "Leader",
+            level = Mathf.Max(1, level),
+            runNumber = Mathf.Max(1, runNumber),
+            causeOfDeath = string.IsNullOrWhiteSpace(causeOfDeath) ? "Fell leading the horde" : causeOfDeath.Trim(),
+            memorialSeen = false,
+            wasPlayerLeader = true
+        };
+
+        AddRecordIfNotDuplicate(record);
+        return record;
+    }
+
+    void AddRecordIfNotDuplicate(DeadBuddyRecord record)
+    {
+        if (record == null)
+            return;
+
         if (deadBuddyHistory == null)
-            return false;
+            deadBuddyHistory = new List<DeadBuddyRecord>();
 
-        foreach (DeadBuddyRecord record in deadBuddyHistory)
+        foreach (DeadBuddyRecord existing in deadBuddyHistory)
         {
-            if (record == null)
+            if (existing == null)
                 continue;
 
-            if (record.buddyName == label && record.runNumberDied == runNumber)
-                return true;
+            bool sameName = existing.buddyName == record.buddyName;
+            bool sameRun = existing.runNumber == record.runNumber;
+            bool sameLeaderState = existing.wasPlayerLeader == record.wasPlayerLeader;
+
+            if (sameName && sameRun && sameLeaderState)
+                return;
         }
 
-        return false;
+        deadBuddyHistory.Add(record);
     }
 
-    public static CampDeathHistoryStore GetOrCreate()
+    int GetCurrentRunNumber()
     {
-        if (GameState.Instance == null)
-            return null;
+        if (GameState.Instance != null)
+            return Mathf.Max(1, GameState.Instance.currentRunNumber);
 
-        CampDeathHistoryStore store = GameState.Instance.GetComponent<CampDeathHistoryStore>();
-        if (store == null)
-            store = GameState.Instance.gameObject.AddComponent<CampDeathHistoryStore>();
-
-        if (store.deadBuddyHistory == null)
-            store.deadBuddyHistory = new List<DeadBuddyRecord>();
-
-        return store;
+        return 1;
     }
 }
