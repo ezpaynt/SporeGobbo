@@ -1,5 +1,7 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 /// <summary>
 /// Camp portal as a clean camp interactable.
@@ -14,12 +16,12 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
     [Header("Interaction")]
     public string interactPrompt = "Enter tunnel";
 
-    [Header("Confirmation")]
+    [Header("Confirmation UI")]
     public bool useConfirmationPanel = true;
     public GameObject promptPanel;
-    public TMPro.TMP_Text promptText;
-    public UnityEngine.UI.Button goButton;
-    public UnityEngine.UI.Button cancelButton;
+    public TMP_Text promptText;
+    public Button goButton;
+    public Button cancelButton;
     public string promptMessage = "To the next cave?";
     public string goButtonText = "Go";
     public string cancelButtonText = "Not yet";
@@ -43,6 +45,15 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
         HidePrompt();
     }
 
+    void Update()
+    {
+        if (!promptOpen)
+            return;
+
+        if (Input.GetKeyDown(KeyCode.Escape))
+            HidePrompt();
+    }
+
     public string GetInteractPrompt()
     {
         return interactPrompt;
@@ -52,17 +63,16 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
     {
         currentPlayer = player;
 
-        if (useConfirmationPanel)
+        if (!useConfirmationPanel)
         {
-            if (promptOpen)
-                HidePrompt();
-            else
-                ShowPrompt();
-
+            StartNextRun();
             return;
         }
 
-        StartNextRun();
+        if (promptOpen)
+            HidePrompt();
+        else
+            ShowPrompt();
     }
 
     void HookButtons()
@@ -72,7 +82,7 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
             goButton.onClick.RemoveAllListeners();
             goButton.onClick.AddListener(StartNextRun);
 
-            TMPro.TMP_Text text = goButton.GetComponentInChildren<TMPro.TMP_Text>(true);
+            TMP_Text text = goButton.GetComponentInChildren<TMP_Text>(true);
             if (text != null)
                 text.text = goButtonText;
         }
@@ -82,7 +92,7 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
             cancelButton.onClick.RemoveAllListeners();
             cancelButton.onClick.AddListener(HidePrompt);
 
-            TMPro.TMP_Text text = cancelButton.GetComponentInChildren<TMPro.TMP_Text>(true);
+            TMP_Text text = cancelButton.GetComponentInChildren<TMP_Text>(true);
             if (text != null)
                 text.text = cancelButtonText;
         }
@@ -102,7 +112,7 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
         }
         else
         {
-            Debug.Log("Camp portal confirmation missing. Starting next run directly.");
+            Debug.LogWarning("CampRunPortal has no confirmation Prompt Panel assigned. Starting next run directly.");
             StartNextRun();
         }
     }
@@ -128,9 +138,9 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
                 if (playerController != null)
                     GameState.Instance.SavePlayer(playerController);
 
-                BuddyRoster roster = Object.FindAnyObjectByType<BuddyRoster>(FindObjectsInactive.Include);
-                if (roster != null)
-                    GameState.Instance.SaveRoster(roster);
+                // GameState owns the roster. Do not save a scene BuddyRoster here;
+                // stale/empty scene rosters can wipe the camp-selected active squad.
+                GameState.Instance.RepairRosterState();
             }
 
             if (beginRunSnapshotBeforeLeaving)

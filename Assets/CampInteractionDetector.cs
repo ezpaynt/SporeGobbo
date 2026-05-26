@@ -4,7 +4,7 @@ using UnityEngine;
 /// <summary>
 /// Put this on a scene object like CampInteractionSystem, NOT on the player prefab.
 /// It finds the spawned camp player by tag, checks nearby camp objects,
-/// shows the prompt, handles press E, and handles hold E placeholders.
+/// shows the prompt, and sends E interactions to ICampInteractable objects.
 ///
 /// Long-term goal: every camp object only implements ICampInteractable / ICampHoldInteractable.
 /// Objects should not run their own distance checks or key checks.
@@ -30,6 +30,9 @@ public class CampInteractionDetector : MonoBehaviour
     public TMP_Text promptText;
     public string pressPrefix = "E - ";
     public string holdPrefix = "Hold E - ";
+
+    [Header("Menu Safety")]
+    public bool useKeyDownForNormalInteract = true;
 
     [Header("Debug")]
     public bool drawDebugRadius = true;
@@ -102,7 +105,7 @@ public class CampInteractionDetector : MonoBehaviour
             if (interactable == null)
                 continue;
 
-            float distance = Vector2.Distance(playerTransform.position, hit.transform.position);
+            float distance = Vector2.Distance(playerTransform.position, hit.ClosestPoint(playerTransform.position));
             if (distance >= closestDistance)
                 continue;
 
@@ -172,13 +175,23 @@ public class CampInteractionDetector : MonoBehaviour
             return;
         }
 
-        if (Input.GetKeyDown(interactKey))
+        bool keyDown = Input.GetKeyDown(interactKey);
+        bool keyHeld = Input.GetKey(interactKey);
+        bool keyUp = Input.GetKeyUp(interactKey);
+
+        if (keyDown)
         {
             holdTimer = 0f;
             holdTriggered = false;
+
+            if (useKeyDownForNormalInteract)
+            {
+                currentInteractable.Interact(player);
+                return;
+            }
         }
 
-        if (Input.GetKey(interactKey))
+        if (keyHeld)
         {
             holdTimer += Time.deltaTime;
 
@@ -193,7 +206,7 @@ public class CampInteractionDetector : MonoBehaviour
             }
         }
 
-        if (Input.GetKeyUp(interactKey))
+        if (!useKeyDownForNormalInteract && keyUp)
         {
             bool wasHold = holdTriggered;
             holdTimer = 0f;
@@ -201,6 +214,12 @@ public class CampInteractionDetector : MonoBehaviour
 
             if (!wasHold && currentInteractable != null)
                 currentInteractable.Interact(player);
+        }
+
+        if (keyUp)
+        {
+            holdTimer = 0f;
+            holdTriggered = false;
         }
     }
 
