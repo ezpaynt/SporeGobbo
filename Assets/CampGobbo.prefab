@@ -221,6 +221,7 @@ MonoBehaviour:
   dashCooldown: 0.7
   bodyRadius: 0.32
   faceCursor: 0
+  faceMovementWhenNotFacingCursor: 1
   front: {fileID: -1647743069318256835, guid: cf0fa01702b09f44cb29d096616bd7be, type: 3}
   frontLeft: {fileID: 5815247894529160560, guid: a7edeeb76aaf7354d99e6d8bf88b36a6, type: 3}
   frontRight: {fileID: -3239841170075284220, guid: 2cfcecef3851cfc4f8b294270adc7b6d, type: 3}
@@ -239,7 +240,6 @@ MonoBehaviour:
   attackDebugPrefab: {fileID: 8827658244673422344, guid: dbbd08ef34b1a094aa88f5d62d34f168, type: 3}
   currentAttackTarget: {fileID: 0}
   interactRange: 1.2
-  holdInteractTime: 0.45
   followerCount: 0
   maxFollowers: 999
   followersFollowing: 1

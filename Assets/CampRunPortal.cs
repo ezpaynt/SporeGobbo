@@ -3,15 +3,14 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-public class CampRunPortal : MonoBehaviour
+[RequireComponent(typeof(Collider2D))]
+public class CampRunPortal : MonoBehaviour, ICampInteractable
 {
     [Header("Run Scene")]
     public string runSceneName = "SampleScene";
 
     [Header("Interaction")]
-    public float interactRange = 1.35f;
-    public KeyCode interactKey = KeyCode.E;
-    public bool requireKeyPress = true;
+    public string interactPrompt = "Enter tunnel";
 
     [Header("Prompt UI")]
     public GameObject promptPanel;
@@ -26,8 +25,7 @@ public class CampRunPortal : MonoBehaviour
     public bool savePlayerBeforeLeaving = true;
     public bool beginRunSnapshotBeforeLeaving = true;
 
-    private Transform player;
-    private bool promptOpen;
+    private bool promptOpen = false;
 
     void Start()
     {
@@ -35,23 +33,16 @@ public class CampRunPortal : MonoBehaviour
         HookButtons();
     }
 
-    void Update()
+    public string GetInteractPrompt()
     {
-        FindPlayerIfMissing();
+        return promptOpen ? "Close tunnel prompt" : interactPrompt;
+    }
 
-        if (player == null)
-            return;
-
-        bool closeEnough = Vector2.Distance(transform.position, player.position) <= interactRange;
-
-        if (!closeEnough)
-        {
-            if (promptOpen)
-                HidePrompt();
-            return;
-        }
-
-        if (!requireKeyPress || Input.GetKeyDown(interactKey))
+    public void Interact(GobboController player)
+    {
+        if (promptOpen)
+            HidePrompt();
+        else
             ShowPrompt();
     }
 
@@ -61,25 +52,21 @@ public class CampRunPortal : MonoBehaviour
         {
             goButton.onClick.RemoveAllListeners();
             goButton.onClick.AddListener(StartNextRun);
-            SetButtonText(goButton, goButtonText);
+
+            TMP_Text text = goButton.GetComponentInChildren<TMP_Text>(true);
+            if (text != null)
+                text.text = goButtonText;
         }
 
         if (cancelButton != null)
         {
             cancelButton.onClick.RemoveAllListeners();
             cancelButton.onClick.AddListener(HidePrompt);
-            SetButtonText(cancelButton, cancelButtonText);
+
+            TMP_Text text = cancelButton.GetComponentInChildren<TMP_Text>(true);
+            if (text != null)
+                text.text = cancelButtonText;
         }
-    }
-
-    void SetButtonText(Button button, string text)
-    {
-        if (button == null)
-            return;
-
-        TMP_Text label = button.GetComponentInChildren<TMP_Text>(true);
-        if (label != null)
-            label.text = text;
     }
 
     void ShowPrompt()
@@ -96,7 +83,7 @@ public class CampRunPortal : MonoBehaviour
         }
         else
         {
-            Debug.Log("Camp portal ready. Assign Prompt Panel for confirmation UI.");
+            Debug.Log("Camp portal ready. Assign Prompt Panel for confirmation UI, or wire StartNextRun directly to a button.");
         }
     }
 
@@ -117,11 +104,11 @@ public class CampRunPortal : MonoBehaviour
                 GobboController playerController = Object.FindAnyObjectByType<GobboController>();
                 if (playerController != null)
                     GameState.Instance.SavePlayer(playerController);
-            }
 
-            // GameState owns the roster. Do NOT save a scene BuddyRoster here.
-            // The squad menu edits GameState directly, and scene rosters can be stale/empty.
-            GameState.Instance.RepairRosterState();
+                BuddyRoster roster = Object.FindAnyObjectByType<BuddyRoster>(FindObjectsInactive.Include);
+                if (roster != null)
+                    GameState.Instance.SaveRoster(roster);
+            }
 
             if (beginRunSnapshotBeforeLeaving)
                 GameState.Instance.BeginRunSnapshot();
@@ -131,19 +118,11 @@ public class CampRunPortal : MonoBehaviour
         SceneManager.LoadScene(runSceneName);
     }
 
-    void FindPlayerIfMissing()
-    {
-        if (player != null)
-            return;
-
-        GameObject found = GameObject.FindGameObjectWithTag("Player");
-        if (found != null)
-            player = found.transform;
-    }
-
     void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.cyan;
-        Gizmos.DrawWireSphere(transform.position, interactRange);
+        Collider2D col = GetComponent<Collider2D>();
+        if (col != null)
+            Gizmos.DrawWireCube(col.bounds.center, col.bounds.size);
     }
 }
