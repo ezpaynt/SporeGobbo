@@ -1,8 +1,10 @@
-using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.UI;
 
+/// <summary>
+/// Camp portal as a clean camp interactable.
+/// Distance checks, prompt display, and E input are handled by CampInteractionDetector.
+/// </summary>
 [RequireComponent(typeof(Collider2D))]
 public class CampRunPortal : MonoBehaviour, ICampInteractable
 {
@@ -12,11 +14,12 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
     [Header("Interaction")]
     public string interactPrompt = "Enter tunnel";
 
-    [Header("Prompt UI")]
+    [Header("Confirmation")]
+    public bool useConfirmationPanel = true;
     public GameObject promptPanel;
-    public TMP_Text promptText;
-    public Button goButton;
-    public Button cancelButton;
+    public TMPro.TMP_Text promptText;
+    public UnityEngine.UI.Button goButton;
+    public UnityEngine.UI.Button cancelButton;
     public string promptMessage = "To the next cave?";
     public string goButtonText = "Go";
     public string cancelButtonText = "Not yet";
@@ -25,25 +28,41 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
     public bool savePlayerBeforeLeaving = true;
     public bool beginRunSnapshotBeforeLeaving = true;
 
+    private GobboController currentPlayer;
     private bool promptOpen = false;
+
+    void Awake()
+    {
+        HookButtons();
+        HidePrompt();
+    }
 
     void Start()
     {
-        HidePrompt();
         HookButtons();
+        HidePrompt();
     }
 
     public string GetInteractPrompt()
     {
-        return promptOpen ? "Close tunnel prompt" : interactPrompt;
+        return interactPrompt;
     }
 
     public void Interact(GobboController player)
     {
-        if (promptOpen)
-            HidePrompt();
-        else
-            ShowPrompt();
+        currentPlayer = player;
+
+        if (useConfirmationPanel)
+        {
+            if (promptOpen)
+                HidePrompt();
+            else
+                ShowPrompt();
+
+            return;
+        }
+
+        StartNextRun();
     }
 
     void HookButtons()
@@ -53,7 +72,7 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
             goButton.onClick.RemoveAllListeners();
             goButton.onClick.AddListener(StartNextRun);
 
-            TMP_Text text = goButton.GetComponentInChildren<TMP_Text>(true);
+            TMPro.TMP_Text text = goButton.GetComponentInChildren<TMPro.TMP_Text>(true);
             if (text != null)
                 text.text = goButtonText;
         }
@@ -63,7 +82,7 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
             cancelButton.onClick.RemoveAllListeners();
             cancelButton.onClick.AddListener(HidePrompt);
 
-            TMP_Text text = cancelButton.GetComponentInChildren<TMP_Text>(true);
+            TMPro.TMP_Text text = cancelButton.GetComponentInChildren<TMPro.TMP_Text>(true);
             if (text != null)
                 text.text = cancelButtonText;
         }
@@ -83,7 +102,8 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
         }
         else
         {
-            Debug.Log("Camp portal ready. Assign Prompt Panel for confirmation UI, or wire StartNextRun directly to a button.");
+            Debug.Log("Camp portal confirmation missing. Starting next run directly.");
+            StartNextRun();
         }
     }
 
@@ -101,7 +121,10 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
         {
             if (savePlayerBeforeLeaving)
             {
-                GobboController playerController = Object.FindAnyObjectByType<GobboController>();
+                GobboController playerController = currentPlayer != null
+                    ? currentPlayer
+                    : Object.FindAnyObjectByType<GobboController>();
+
                 if (playerController != null)
                     GameState.Instance.SavePlayer(playerController);
 
@@ -116,13 +139,5 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
 
         Time.timeScale = 1f;
         SceneManager.LoadScene(runSceneName);
-    }
-
-    void OnDrawGizmosSelected()
-    {
-        Gizmos.color = Color.cyan;
-        Collider2D col = GetComponent<Collider2D>();
-        if (col != null)
-            Gizmos.DrawWireCube(col.bounds.center, col.bounds.size);
     }
 }

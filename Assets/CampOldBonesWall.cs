@@ -1,6 +1,4 @@
-using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,8 +9,7 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
     [Header("Interaction")]
     public string interactPrompt = "Read old bones";
 
-    [Header("Assigned UI")]
-    [Tooltip("Optional. If assigned, the wall opens this panel. If missing, it falls back to CampMessageUI.")]
+    [Header("UI")]
     public GameObject panel;
     public TMP_Text titleText;
     public TMP_Text bodyText;
@@ -20,65 +17,62 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
 
     [Header("Text")]
     public string title = "Old Bones Wall";
-    [TextArea(2, 5)] public string emptyMessage = "No little bones yet. Somehow.";
-    public int maxEntriesShownInMessageFallback = 6;
+    public string emptyMessage = "No little bones remembered yet.";
+    public string unknownCauseText = "Cause unknown";
 
-    private bool isOpen;
+    private bool isOpen = false;
+
+    void Awake()
+    {
+        HookButtons();
+        CloseMenu();
+    }
 
     void Start()
     {
-        if (closeButton != null)
-        {
-            closeButton.onClick.RemoveAllListeners();
-            closeButton.onClick.AddListener(Close);
-        }
-
-        Close();
+        HookButtons();
+        CloseMenu();
     }
 
     void Update()
     {
-        if (isOpen && Input.GetKeyDown(KeyCode.Escape))
-            Close();
+        if (!isOpen)
+            return;
+
+        if (Input.GetKeyDown(KeyCode.Escape))
+            CloseMenu();
     }
 
     public string GetInteractPrompt()
     {
-        return isOpen ? "Close old bones" : interactPrompt;
+        return interactPrompt;
     }
 
     public void Interact(GobboController player)
     {
         if (isOpen)
-            Close();
+            CloseMenu();
         else
-            Open();
+            OpenMenu();
     }
 
-    public void Open()
+    public void OpenMenu()
     {
-        List<string> entries = BuildDeathEntries();
-        string body = BuildBody(entries);
+        isOpen = true;
 
-        if (panel != null && bodyText != null)
+        if (panel != null)
         {
-            isOpen = true;
             panel.SetActive(true);
             panel.transform.SetAsLastSibling();
-
-            if (titleText != null)
-                titleText.text = title;
-
-            bodyText.text = body;
         }
-        else
-        {
-            isOpen = false;
-            CampMessageUI.Show(BuildFallbackMessage(entries));
-        }
+
+        if (titleText != null)
+            titleText.text = title;
+
+        RefreshText();
     }
 
-    public void Close()
+    public void CloseMenu()
     {
         isOpen = false;
 
@@ -86,244 +80,177 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
             panel.SetActive(false);
     }
 
-    string BuildBody(List<string> entries)
+    void HookButtons()
     {
-        if (entries == null || entries.Count == 0)
-            return emptyMessage;
+        if (closeButton == null)
+            return;
 
-        string text = "The camp remembers:";
-        for (int i = 0; i < entries.Count; i++)
-            text += "\n• " + entries[i];
-
-        return text;
+        closeButton.onClick.RemoveAllListeners();
+        closeButton.onClick.AddListener(CloseMenu);
     }
 
-    string BuildFallbackMessage(List<string> entries)
+    void RefreshText()
     {
-        if (entries == null || entries.Count == 0)
-            return emptyMessage;
-
-        string text = title + ":";
-        int count = Mathf.Min(entries.Count, maxEntriesShownInMessageFallback);
-
-        for (int i = 0; i < count; i++)
-            text += "\n• " + entries[i];
-
-        if (entries.Count > count)
-            text += "\n...and more.";
-
-        return text;
-    }
-
-    List<string> BuildDeathEntries()
-    {
-        List<string> entries = new List<string>();
+        if (bodyText == null)
+            return;
 
         if (GameState.Instance == null)
-            return entries;
+        {
+            bodyText.text = "No GameState found.";
+            return;
+        }
 
-        // Known current run summary path. This is definitely present in your camp report flow.
-        AddRunSummaryDeadNames(entries);
+        string text = BuildBonesText();
 
-        // Future-proof path: if GameState later exposes fallen/dead/bones lists, this wall will find many of them
-        // without needing a rewrite. Duplicate text is filtered.
-        AddReflectedDeathLikeEntries(GameState.Instance, entries, 0);
+        if (string.IsNullOrWhiteSpace(text))
+            text = emptyMessage;
 
-        return Deduplicate(entries);
+        bodyText.text = text;
     }
 
-    void AddRunSummaryDeadNames(List<string> entries)
+    string BuildBonesText()
     {
+        // This uses flexible SendMessage-style fallback because your GameState death-history
+        // field names may change while the camp system is still being built.
+        // First it tries common public list names with reflection.
         object state = GameState.Instance;
-        object lastRun = GetMemberValue(state, "lastRun");
+        System.Type type = state.GetType();
 
-        if (lastRun == null)
-            return;
-
-        object deadBuddyNames = GetMemberValue(lastRun, "deadBuddyNames");
-        AddEnumerableEntries(deadBuddyNames, entries, "buddy");
-    }
-
-    void AddReflectedDeathLikeEntries(object source, List<string> entries, int depth)
-    {
-        if (source == null || depth > 1)
-            return;
-
-        System.Type type = source.GetType();
-        BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-
-        foreach (FieldInfo field in type.GetFields(flags))
+        string[] possibleFieldNames =
         {
-            if (!LooksDeathRelated(field.Name))
+            "deadBuddies",
+            "fallenBuddies",
+            "deadBuddyHistory",
+            "fallenBuddyHistory",
+            "oldBones",
+            "oldBonesRecords"
+        };
+
+        foreach (string fieldName in possibleFieldNames)
+        {
+            System.Reflection.FieldInfo field = type.GetField(fieldName);
+            if (field == null)
                 continue;
 
-            object value = field.GetValue(source);
-            AddObjectOrEnumerable(value, entries, depth + 1);
+            object value = field.GetValue(state);
+            string built = BuildTextFromListObject(value);
+            if (!string.IsNullOrWhiteSpace(built))
+                return built;
         }
 
-        foreach (PropertyInfo prop in type.GetProperties(flags))
+        // Fallback: last run names at least prove the wall is hooked up.
+        RunSummaryData lastRun = GameState.Instance.lastRun;
+        if (lastRun != null && lastRun.deadBuddyNames != null && lastRun.deadBuddyNames.Count > 0)
         {
-            if (!prop.CanRead || prop.GetIndexParameters().Length > 0 || !LooksDeathRelated(prop.Name))
-                continue;
+            string text = "";
+            foreach (string name in lastRun.deadBuddyNames)
+                text += "☠ " + name + "\n";
 
-            object value = null;
-            try { value = prop.GetValue(source, null); }
-            catch { continue; }
-
-            AddObjectOrEnumerable(value, entries, depth + 1);
+            return text.TrimEnd();
         }
+
+        return "";
     }
 
-    bool LooksDeathRelated(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-            return false;
-
-        string lower = name.ToLowerInvariant();
-        return lower.Contains("dead") ||
-               lower.Contains("death") ||
-               lower.Contains("fallen") ||
-               lower.Contains("lost") ||
-               lower.Contains("bone") ||
-               lower.Contains("grave");
-    }
-
-    void AddObjectOrEnumerable(object value, List<string> entries, int depth)
+    string BuildTextFromListObject(object value)
     {
         if (value == null)
-            return;
+            return "";
 
-        if (value is string singleString)
-        {
-            AddEntry(entries, singleString);
-            return;
-        }
+        System.Collections.IEnumerable enumerable = value as System.Collections.IEnumerable;
+        if (enumerable == null)
+            return "";
 
-        if (value is BuddyData buddy)
-        {
-            AddBuddyEntry(entries, buddy);
-            return;
-        }
-
-        if (value is IEnumerable enumerable)
-        {
-            AddEnumerableEntries(enumerable, entries, "buddy");
-            return;
-        }
-
-        AddReflectedDeathLikeEntries(value, entries, depth);
-    }
-
-    void AddEnumerableEntries(object enumerableObject, List<string> entries, string fallbackType)
-    {
-        if (enumerableObject == null)
-            return;
-
-        if (!(enumerableObject is IEnumerable enumerable) || enumerableObject is string)
-            return;
+        string text = "";
 
         foreach (object item in enumerable)
         {
             if (item == null)
                 continue;
 
-            if (item is string name)
-            {
-                AddEntry(entries, name);
-            }
-            else if (item is BuddyData buddy)
-            {
-                AddBuddyEntry(entries, buddy);
-            }
-            else
-            {
-                string reflected = BuildReflectedEntry(item, fallbackType);
-                AddEntry(entries, reflected);
-            }
+            text += BuildLineFromRecord(item) + "\n";
         }
+
+        return text.TrimEnd();
     }
 
-    void AddBuddyEntry(List<string> entries, BuddyData buddy)
+    string BuildLineFromRecord(object record)
     {
-        if (buddy == null)
-            return;
+        if (record == null)
+            return "";
 
-        buddy.EnsureRuntimeDefaults();
-        AddEntry(entries, buddy.buddyName + " the " + buddy.buddyType + " — Lv " + buddy.level);
+        System.Type type = record.GetType();
+
+        string name = GetStringFieldOrProperty(type, record, "buddyName");
+        if (string.IsNullOrWhiteSpace(name))
+            name = GetStringFieldOrProperty(type, record, "name");
+        if (string.IsNullOrWhiteSpace(name))
+            name = GetStringFieldOrProperty(type, record, "deadBuddyName");
+        if (string.IsNullOrWhiteSpace(name))
+            name = "Unknown Gobbo";
+
+        string kind = GetStringFieldOrProperty(type, record, "type");
+        if (string.IsNullOrWhiteSpace(kind))
+            kind = GetStringFieldOrProperty(type, record, "buddyType");
+
+        string cause = GetStringFieldOrProperty(type, record, "causeOfDeath");
+        if (string.IsNullOrWhiteSpace(cause))
+            cause = GetStringFieldOrProperty(type, record, "deathCause");
+        if (string.IsNullOrWhiteSpace(cause))
+            cause = unknownCauseText;
+
+        int runs = GetIntFieldOrProperty(type, record, "runsSurvived", -1);
+
+        string line = "☠ " + name;
+
+        if (!string.IsNullOrWhiteSpace(kind))
+            line += " the " + kind;
+
+        if (runs >= 0)
+            line += " — " + runs + " runs";
+
+        line += "\n   " + cause;
+
+        return line;
     }
 
-    string BuildReflectedEntry(object item, string fallbackType)
+    string GetStringFieldOrProperty(System.Type type, object obj, string name)
     {
-        string name = GetStringMember(item, "buddyName");
-        if (string.IsNullOrWhiteSpace(name)) name = GetStringMember(item, "name");
-        if (string.IsNullOrWhiteSpace(name)) name = GetStringMember(item, "leaderName");
-        if (string.IsNullOrWhiteSpace(name)) name = "Unknown " + fallbackType;
-
-        string type = GetStringMember(item, "buddyType");
-        if (string.IsNullOrWhiteSpace(type)) type = GetStringMember(item, "type");
-
-        string cause = GetStringMember(item, "causeOfDeath");
-        if (string.IsNullOrWhiteSpace(cause)) cause = GetStringMember(item, "deathCause");
-
-        string runs = GetStringMember(item, "runsSurvived");
-
-        string text = name;
-        if (!string.IsNullOrWhiteSpace(type)) text += " the " + type;
-        if (!string.IsNullOrWhiteSpace(runs)) text += " — runs survived: " + runs;
-        if (!string.IsNullOrWhiteSpace(cause)) text += " — " + cause;
-        return text;
-    }
-
-    object GetMemberValue(object source, string memberName)
-    {
-        if (source == null || string.IsNullOrWhiteSpace(memberName))
-            return null;
-
-        System.Type type = source.GetType();
-        BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-
-        FieldInfo field = type.GetField(memberName, flags);
+        System.Reflection.FieldInfo field = type.GetField(name);
         if (field != null)
-            return field.GetValue(source);
-
-        PropertyInfo prop = type.GetProperty(memberName, flags);
-        if (prop != null && prop.CanRead && prop.GetIndexParameters().Length == 0)
         {
-            try { return prop.GetValue(source, null); }
-            catch { return null; }
+            object value = field.GetValue(obj);
+            return value != null ? value.ToString() : "";
         }
 
-        return null;
-    }
-
-    string GetStringMember(object source, string memberName)
-    {
-        object value = GetMemberValue(source, memberName);
-        return value != null ? value.ToString() : "";
-    }
-
-    void AddEntry(List<string> entries, string entry)
-    {
-        if (string.IsNullOrWhiteSpace(entry))
-            return;
-
-        entries.Add(entry.Trim());
-    }
-
-    List<string> Deduplicate(List<string> raw)
-    {
-        List<string> clean = new List<string>();
-        HashSet<string> seen = new HashSet<string>();
-
-        foreach (string entry in raw)
+        System.Reflection.PropertyInfo prop = type.GetProperty(name);
+        if (prop != null)
         {
-            if (string.IsNullOrWhiteSpace(entry))
-                continue;
-
-            if (seen.Add(entry))
-                clean.Add(entry);
+            object value = prop.GetValue(obj, null);
+            return value != null ? value.ToString() : "";
         }
 
-        return clean;
+        return "";
+    }
+
+    int GetIntFieldOrProperty(System.Type type, object obj, string name, int fallback)
+    {
+        System.Reflection.FieldInfo field = type.GetField(name);
+        if (field != null)
+        {
+            object value = field.GetValue(obj);
+            if (value is int intValue)
+                return intValue;
+        }
+
+        System.Reflection.PropertyInfo prop = type.GetProperty(name);
+        if (prop != null)
+        {
+            object value = prop.GetValue(obj, null);
+            if (value is int intValue)
+                return intValue;
+        }
+
+        return fallback;
     }
 }

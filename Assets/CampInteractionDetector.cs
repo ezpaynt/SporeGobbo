@@ -2,7 +2,8 @@ using TMPro;
 using UnityEngine;
 
 /// <summary>
-/// Put this on the camp player prefab. It is the one place that checks nearby camp objects,
+/// Put this on a scene object like CampInteractionSystem, NOT on the player prefab.
+/// It finds the spawned camp player by tag, checks nearby camp objects,
 /// shows the prompt, handles press E, and handles hold E placeholders.
 ///
 /// Long-term goal: every camp object only implements ICampInteractable / ICampHoldInteractable.
@@ -10,6 +11,11 @@ using UnityEngine;
 /// </summary>
 public class CampInteractionDetector : MonoBehaviour
 {
+    [Header("Player")]
+    public Transform playerTransform;
+    public bool findPlayerByTag = true;
+    public string playerTag = "Player";
+
     [Header("Input")]
     public KeyCode interactKey = KeyCode.E;
     public float interactRadius = 1.15f;
@@ -37,20 +43,50 @@ public class CampInteractionDetector : MonoBehaviour
 
     void Awake()
     {
-        player = GetComponent<GobboController>();
         HidePrompt();
     }
 
     void Update()
     {
+        RefreshPlayerReference();
+
+        if (playerTransform == null)
+        {
+            ClearCurrent();
+            HidePrompt();
+            return;
+        }
+
         FindBestInteractable();
         UpdatePrompt();
         HandleInput();
     }
 
+    void RefreshPlayerReference()
+    {
+        if (playerTransform != null)
+        {
+            if (player == null)
+                player = playerTransform.GetComponent<GobboController>();
+
+            return;
+        }
+
+        if (!findPlayerByTag)
+            return;
+
+        GameObject found = GameObject.FindGameObjectWithTag(playerTag);
+
+        if (found == null)
+            return;
+
+        playerTransform = found.transform;
+        player = found.GetComponent<GobboController>();
+    }
+
     void FindBestInteractable()
     {
-        Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, interactRadius, interactableLayers);
+        Collider2D[] hits = Physics2D.OverlapCircleAll(playerTransform.position, interactRadius, interactableLayers);
 
         float closestDistance = Mathf.Infinity;
         ICampInteractable bestInteractable = null;
@@ -66,7 +102,7 @@ public class CampInteractionDetector : MonoBehaviour
             if (interactable == null)
                 continue;
 
-            float distance = Vector2.Distance(transform.position, hit.transform.position);
+            float distance = Vector2.Distance(playerTransform.position, hit.transform.position);
             if (distance >= closestDistance)
                 continue;
 
@@ -168,6 +204,15 @@ public class CampInteractionDetector : MonoBehaviour
         }
     }
 
+    void ClearCurrent()
+    {
+        currentInteractable = null;
+        currentHoldInteractable = null;
+        currentObject = null;
+        holdTimer = 0f;
+        holdTriggered = false;
+    }
+
     void HidePrompt()
     {
         if (promptPanel != null)
@@ -201,7 +246,9 @@ public class CampInteractionDetector : MonoBehaviour
         if (!drawDebugRadius)
             return;
 
+        Vector3 center = playerTransform != null ? playerTransform.position : transform.position;
+
         Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, interactRadius);
+        Gizmos.DrawWireSphere(center, interactRadius);
     }
 }
