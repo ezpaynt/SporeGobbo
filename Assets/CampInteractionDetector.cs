@@ -4,7 +4,6 @@ using UnityEngine;
 /// <summary>
 /// Scene-level camp interaction system.
 /// Put this on a scene object like CampInteractionSystem, not on the player prefab.
-/// It finds the spawned player by tag and calls ICampInteractable on nearby objects.
 /// </summary>
 public class CampInteractionDetector : MonoBehaviour
 {
@@ -28,13 +27,18 @@ public class CampInteractionDetector : MonoBehaviour
     public string pressPrefix = "E - ";
     public string holdPrefix = "Hold E - ";
 
+    [Header("Prompt Auto-Find")]
+    public bool autoFindPromptUi = true;
+    public string promptPanelObjectName = "CampInteractPrompt";
+    public string promptTextObjectName = "PromptText";
+
     [Header("Input Safety")]
-    [Tooltip("Tiny delay after one interaction so menus cannot immediately toggle from the same key press.")]
     public float interactionCooldown = 0.15f;
 
     [Header("Debug")]
     public bool drawDebugRadius = true;
     public bool logInteractions = true;
+    public bool logPromptWarnings = true;
 
     private ICampInteractable currentInteractable;
     private ICampHoldInteractable currentHoldInteractable;
@@ -47,6 +51,13 @@ public class CampInteractionDetector : MonoBehaviour
 
     void Awake()
     {
+        TryAutoFindPromptUi();
+        HidePrompt();
+    }
+
+    void Start()
+    {
+        TryAutoFindPromptUi();
         HidePrompt();
     }
 
@@ -57,6 +68,19 @@ public class CampInteractionDetector : MonoBehaviour
 
         RefreshPlayerReference();
 
+        // If any camp menu is open, no new prompts/interactions should show.
+        // But pressing E/Escape should close that menu.
+        if (CampMenuModal.IsOpen)
+        {
+            ClearCurrent();
+            HidePrompt();
+
+            if (Input.GetKeyDown(interactKey) || Input.GetKeyDown(KeyCode.Escape))
+                CampMenuModal.CloseCurrent();
+
+            return;
+        }
+
         if (playerTransform == null)
         {
             ClearCurrent();
@@ -64,9 +88,38 @@ public class CampInteractionDetector : MonoBehaviour
             return;
         }
 
+        if (autoFindPromptUi && (promptPanel == null || promptText == null))
+            TryAutoFindPromptUi();
+
         FindBestInteractable();
         UpdatePrompt();
         HandleInput();
+    }
+
+    void TryAutoFindPromptUi()
+    {
+        if (!autoFindPromptUi)
+            return;
+
+        if (promptPanel == null && !string.IsNullOrWhiteSpace(promptPanelObjectName))
+        {
+            GameObject foundPanel = GameObject.Find(promptPanelObjectName);
+            if (foundPanel != null)
+                promptPanel = foundPanel;
+        }
+
+        if (promptText == null)
+        {
+            if (!string.IsNullOrWhiteSpace(promptTextObjectName))
+            {
+                GameObject foundTextObject = GameObject.Find(promptTextObjectName);
+                if (foundTextObject != null)
+                    promptText = foundTextObject.GetComponent<TMP_Text>();
+            }
+
+            if (promptText == null && promptPanel != null)
+                promptText = promptPanel.GetComponentInChildren<TMP_Text>(true);
+        }
     }
 
     void RefreshPlayerReference()
@@ -83,7 +136,6 @@ public class CampInteractionDetector : MonoBehaviour
             return;
 
         GameObject found = GameObject.FindGameObjectWithTag(playerTag);
-
         if (found == null)
             return;
 
@@ -106,7 +158,6 @@ public class CampInteractionDetector : MonoBehaviour
                 continue;
 
             ICampInteractable interactable = FindInterface<ICampInteractable>(hit.gameObject);
-
             if (interactable == null)
                 continue;
 
@@ -170,7 +221,14 @@ public class CampInteractionDetector : MonoBehaviour
             promptText.text = finalText;
 
         if (promptPanel != null)
+        {
             promptPanel.SetActive(true);
+            promptPanel.transform.SetAsLastSibling();
+        }
+        else if (logPromptWarnings)
+        {
+            Debug.LogWarning("CampInteractionDetector found an interactable but has no Prompt Panel assigned/found.", this);
+        }
     }
 
     void HandleInput()

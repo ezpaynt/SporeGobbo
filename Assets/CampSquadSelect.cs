@@ -9,8 +9,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
     [Header("Interaction")]
     public string interactPrompt = "Choose who comes";
 
-    [Header("Assigned UI Only")]
-    [Tooltip("Assign the squad panel you made in the scene. This script will not create a backup panel.")]
+    [Header("Assigned UI")]
     public GameObject panel;
     public TMP_Text titleText;
     public Transform activeListParent;
@@ -22,6 +21,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
     public bool refreshCampVisualsAfterChange = false;
 
     private bool isOpen;
+    private GobboController currentPlayer;
     private readonly List<GameObject> spawnedRows = new List<GameObject>();
 
     void Awake()
@@ -34,7 +34,6 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
     {
         HookCloseButton();
         CloseMenu();
-        WarnIfUiMissing();
     }
 
     void Update()
@@ -45,37 +44,43 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
 
     public string GetInteractPrompt()
     {
-        return isOpen ? "Close squad menu" : interactPrompt;
+        return interactPrompt;
     }
 
     public void Interact(GobboController player)
     {
-        if (isOpen)
-            CloseMenu();
-        else
+        currentPlayer = player;
+
+        if (!isOpen)
             OpenMenu();
     }
 
     public void OpenMenu()
     {
-        if (!HasRequiredUi())
+        if (panel == null)
         {
-            Debug.LogError("CampSquadSelect is missing assigned UI references. Assign Panel, Active List Parent, Reserve List Parent, and Close Button in the Inspector.");
+            Debug.LogWarning("CampSquadSelect has no assigned Panel. Assign your handmade squad UI in the inspector.", this);
             CampMessageUI.Show("Squad menu is not wired yet.");
             return;
         }
 
         isOpen = true;
+        CampMenuModal.Open(currentPlayer, this, CloseMenu);
+
         panel.SetActive(true);
         panel.transform.SetAsLastSibling();
+
         RefreshMenu();
     }
 
     public void CloseMenu()
     {
         isOpen = false;
+
         if (panel != null)
             panel.SetActive(false);
+
+        CampMenuModal.Close(this);
     }
 
     void HookCloseButton()
@@ -85,17 +90,6 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
 
         closeButton.onClick.RemoveAllListeners();
         closeButton.onClick.AddListener(CloseMenu);
-    }
-
-    bool HasRequiredUi()
-    {
-        return panel != null && activeListParent != null && reserveListParent != null && closeButton != null;
-    }
-
-    void WarnIfUiMissing()
-    {
-        if (!HasRequiredUi())
-            Debug.LogWarning("CampSquadSelect will use only assigned UI. No UI will be auto-created. Missing references need to be assigned in the scene.");
     }
 
     void RefreshMenu()
@@ -150,8 +144,8 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         btn.onClick.AddListener(() => ToggleBuddy(buddy.uniqueId, currentlyActive));
 
         TMP_Text txt = CreateText(row.transform, "Label", TextAlignmentOptions.Left, 16, FontStyles.Normal);
-        txt.rectTransform.anchorMin = Vector2.zero;
-        txt.rectTransform.anchorMax = Vector2.one;
+        txt.rectTransform.anchorMin = new Vector2(0f, 0f);
+        txt.rectTransform.anchorMax = new Vector2(1f, 1f);
         txt.rectTransform.offsetMin = new Vector2(12f, 3f);
         txt.rectTransform.offsetMax = new Vector2(-12f, -3f);
         txt.color = Color.white;
@@ -178,7 +172,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         {
             bool moved = GameState.Instance.MoveBuddyToActiveSquad(buddyId);
             if (!moved)
-                CampMessageUI.Show("Active squad is full.");
+                Debug.Log("Active squad is full.");
         }
 
         RefreshMenu();
@@ -195,11 +189,12 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         GameObject box = new GameObject(title + " Header", typeof(RectTransform));
         box.transform.SetParent(parent, false);
         spawnedRows.Add(box);
-        box.GetComponent<RectTransform>().sizeDelta = new Vector2(0f, 60f);
+        RectTransform rt = box.GetComponent<RectTransform>();
+        rt.sizeDelta = new Vector2(0f, 60f);
 
         TMP_Text text = CreateText(box.transform, "Text", TextAlignmentOptions.Center, 18, FontStyles.Bold);
-        text.rectTransform.anchorMin = Vector2.zero;
-        text.rectTransform.anchorMax = Vector2.one;
+        text.rectTransform.anchorMin = new Vector2(0f, 0f);
+        text.rectTransform.anchorMax = new Vector2(1f, 1f);
         text.rectTransform.offsetMin = Vector2.zero;
         text.rectTransform.offsetMax = Vector2.zero;
         text.color = new Color(1f, 0.92f, 0.72f, 1f);
@@ -232,6 +227,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
             if (spawnedRows[i] != null)
                 Destroy(spawnedRows[i]);
         }
+
         spawnedRows.Clear();
     }
 

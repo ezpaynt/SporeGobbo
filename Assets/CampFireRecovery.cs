@@ -44,10 +44,10 @@ public class CampFireRecovery : MonoBehaviour, ICampInteractable
         CloseMenu();
     }
 
-    void Start()
+    void Update()
     {
-        HookButtons();
-        RefreshMenuText();
+        if (menuOpen && Input.GetKeyDown(KeyCode.Escape))
+            CloseMenu();
     }
 
     void HookButtons()
@@ -93,26 +93,20 @@ public class CampFireRecovery : MonoBehaviour, ICampInteractable
     {
         currentPlayer = player;
 
-        if (menuOpen)
-            CloseMenu();
-        else
+        if (!menuOpen)
             OpenMenu();
     }
 
     public void OpenMenu()
     {
-        if (fireMenuPanel == null)
-        {
-            Debug.LogWarning("CampFireRecovery has no Fire Menu Panel assigned.", this);
-            CampMessageUI.Show("Campfire menu is not wired yet.");
-            return;
-        }
-
-        HookButtons();
         menuOpen = true;
+        CampMenuModal.Open(currentPlayer, this, CloseMenu);
 
-        fireMenuPanel.SetActive(true);
-        fireMenuPanel.transform.SetAsLastSibling();
+        if (fireMenuPanel != null)
+        {
+            fireMenuPanel.SetActive(true);
+            fireMenuPanel.transform.SetAsLastSibling();
+        }
 
         if (titleText != null)
             titleText.text = title;
@@ -129,6 +123,8 @@ public class CampFireRecovery : MonoBehaviour, ICampInteractable
 
         if (upgradesPanel != null)
             upgradesPanel.SetActive(false);
+
+        CampMenuModal.Close(this);
     }
 
     void RefreshMenuText()

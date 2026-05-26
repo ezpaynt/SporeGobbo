@@ -3,11 +3,6 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-/// <summary>
-/// Clean camp portal interactable.
-/// CampInteractionDetector handles range, prompt, and E input.
-/// This script only opens/closes the portal confirmation UI or starts the run.
-/// </summary>
 [RequireComponent(typeof(Collider2D))]
 public class CampRunPortal : MonoBehaviour, ICampInteractable
 {
@@ -16,7 +11,6 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
 
     [Header("Interaction")]
     public string interactPrompt = "Enter tunnel";
-    public string closePrompt = "Close tunnel menu";
 
     [Header("Confirmation UI")]
     public bool useConfirmationPanel = true;
@@ -41,12 +35,6 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
         HidePrompt();
     }
 
-    void Start()
-    {
-        HookButtons();
-        HidePrompt();
-    }
-
     void Update()
     {
         if (promptOpen && Input.GetKeyDown(KeyCode.Escape))
@@ -55,7 +43,7 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
 
     public string GetInteractPrompt()
     {
-        return promptOpen ? closePrompt : interactPrompt;
+        return interactPrompt;
     }
 
     public void Interact(GobboController player)
@@ -68,9 +56,7 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
             return;
         }
 
-        if (promptOpen)
-            HidePrompt();
-        else
+        if (!promptOpen)
             ShowPrompt();
     }
 
@@ -100,6 +86,7 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
     void ShowPrompt()
     {
         promptOpen = true;
+        CampMenuModal.Open(currentPlayer, this, HidePrompt);
 
         if (promptText != null)
             promptText.text = promptMessage;
@@ -108,7 +95,6 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
         {
             promptPanel.SetActive(true);
             promptPanel.transform.SetAsLastSibling();
-            Debug.Log("Opened portal menu.", this);
         }
         else
         {
@@ -123,10 +109,14 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
 
         if (promptPanel != null)
             promptPanel.SetActive(false);
+
+        CampMenuModal.Close(this);
     }
 
     public void StartNextRun()
     {
+        CampMenuModal.Close(this);
+
         if (GameState.Instance != null)
         {
             if (savePlayerBeforeLeaving)
