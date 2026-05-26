@@ -3,51 +3,43 @@ using UnityEngine;
 
 public class RunStartInitializer : MonoBehaviour
 {
-    [Header("Apply Saved State")]
+    [Header("Run Setup")]
     public bool applySavedPlayerStats = true;
-    [Tooltip("Normally false. GameState owns the roster; SampleScene should read it, not overwrite it from a scene BuddyRoster.")]
+    [Tooltip("Leave this OFF unless you intentionally have a scene BuddyRoster you want to load from GameState. GameState is the real roster owner.")]
     public bool applySavedRosterToSceneRoster = false;
+    [Tooltip("Usually OFF. CampRunPortal should begin the run snapshot before loading SampleScene.")]
+    public bool beginRunSnapshotOnStart = false;
 
-    [Header("Run Snapshot")]
-    [Tooltip("CampRunPortal normally starts the snapshot before loading the run. This only starts one for direct SampleScene testing if none exists.")]
-    public bool beginSnapshotIfMissing = true;
-
-    [Header("Squad")]
+    [Header("Scene-authored References")]
     public RunSquadSpawner runSquadSpawner;
-    public bool spawnSquadAfterPlayerLoad = true;
 
     IEnumerator Start()
     {
         GameState state = EnsureGameState();
-
-        // Wait one frame so scene objects or MapGenerator-spawned objects exist.
         yield return null;
 
         GobboController player = Object.FindAnyObjectByType<GobboController>();
+        BuddyRoster roster = Object.FindAnyObjectByType<BuddyRoster>();
+
         if (applySavedPlayerStats && player != null)
             state.ApplyToPlayer(player);
 
-        if (applySavedRosterToSceneRoster)
-        {
-            BuddyRoster roster = Object.FindAnyObjectByType<BuddyRoster>();
-            if (roster != null && state.ownedBuddies.Count > 0)
-                state.ApplyToRoster(roster);
-        }
+        if (applySavedRosterToSceneRoster && roster != null && state.ownedBuddies != null && state.ownedBuddies.Count > 0)
+            state.ApplyToRoster(roster);
 
-        state.RepairRosterState();
-
-        if (beginSnapshotIfMissing && !state.HasRunSnapshot())
+        if (beginRunSnapshotOnStart)
             state.BeginRunSnapshot();
 
-        if (spawnSquadAfterPlayerLoad)
-        {
-            if (runSquadSpawner == null)
-                runSquadSpawner = Object.FindAnyObjectByType<RunSquadSpawner>(FindObjectsInactive.Include);
+        if (runSquadSpawner == null)
+            runSquadSpawner = Object.FindAnyObjectByType<RunSquadSpawner>(FindObjectsInactive.Include);
 
-            if (runSquadSpawner != null)
-                runSquadSpawner.SpawnActiveSquad();
-            else
-                Debug.LogWarning("RunStartInitializer: no RunSquadSpawner assigned/found. Add one scene object to SampleScene.", this);
+        if (runSquadSpawner != null)
+        {
+            runSquadSpawner.SpawnActiveSquad();
+        }
+        else
+        {
+            Debug.LogWarning("RunStartInitializer: add one RunSquadSpawner scene object and assign its buddy prefab.", this);
         }
     }
 

@@ -9,24 +9,22 @@ public class CampBedExpansionStep
     public string stationId = "beds_1";
     public int requiredOwnedBuddies = 1;
 
-    [Header("Required Scene Objects")]
-    [Tooltip("Scene object that becomes visible after this expansion unlocks. Usually a parent with bed art/anchors inside.")]
+    [Header("Scene Objects")]
+    [Tooltip("Object that becomes visible after this expansion unlocks. Usually an empty parent with bed art/anchors inside.")]
     public GameObject hiddenAreaToReveal;
-    [Tooltip("Scene object that disappears when this expansion unlocks. Usually dirt/cover art.")]
+    [Tooltip("Optional dirt/cover/placeholder object that should disappear when the beds are revealed.")]
     public GameObject coverObjectToHideWhenRevealed;
-    [Tooltip("Real scene object buddies walk to before the beds reveal. This is never auto-created.")]
     public Transform digWalkTarget;
-    [Tooltip("Real scene anchors buddies wander around after recovery.")]
     public Transform[] bedAnchors;
 
     [Header("Popup / Voice")]
     [TextArea(2, 5)] public string popupText = "The little guys need somewhere to sleep.";
     public AudioClip voiceLine;
-    [Tooltip("Seconds to let the first popup breathe before the digging message can replace it.")]
-    public float firstPopupSeconds = 1.5f;
+    [Tooltip("How long the first expansion message stays visible before the digging walk starts.")]
+    public float firstMessageSeconds = 1.25f;
 
     [Header("Timing")]
-    [Tooltip("How long buddies get to walk up to the blocked bed spot before the digging moment starts.")]
+    [Tooltip("How long the buddies get to walk up to the blocked bed spot before the digging moment starts.")]
     public float maxWaitForBuddiesToArrive = 4f;
     [Tooltip("Even if buddies arrive instantly, wait this long so the walk/dig moment can be seen.")]
     public float minimumWalkTimeBeforeDig = 1.5f;
@@ -49,13 +47,11 @@ public class CampStartRoutineManager : MonoBehaviour
     public bool runRoutineOnCampOpen = true;
     public bool sendBuddiesToFireOnNormalVisits = true;
     public bool waitForFireRecoveryBeforeFreeWander = true;
-    [Tooltip("After a new bed area is revealed, send buddies to the fire instead of immediately free wandering.")]
+    [Tooltip("After a new bed area is revealed, send the buddies back to the fire instead of immediately free wandering.")]
     public bool sendToFireAfterBedExpansion = true;
 
-    [Header("Required Scene Locations")]
-    [Tooltip("Real scene object used as the temporary fire gather anchor.")]
+    [Header("Core Locations")]
     public Transform fireGatherPoint;
-    [Tooltip("Real scene anchors used if no bed anchors are available yet.")]
     public Transform[] defaultWanderAnchors;
 
     [Header("Bed Expansions")]
@@ -68,13 +64,14 @@ public class CampStartRoutineManager : MonoBehaviour
     public AudioSource voiceSource;
 
     [Header("Movement")]
+    [Tooltip("Small delay after camp spawn so spawned buddies exist before the routine checks them.")]
     public float startRoutineDelay = 0.25f;
     public float directedWalkSpeed = 1.5f;
     public float fireWanderRadius = 0.9f;
     public float bedWanderRadius = 1.4f;
 
-    private bool routineStarted;
-    private bool waitingForRecovery;
+    private bool routineStarted = false;
+    private bool waitingForRecovery = false;
 
     void Awake()
     {
@@ -84,7 +81,6 @@ public class CampStartRoutineManager : MonoBehaviour
     void Start()
     {
         ApplyUnlockedAreaVisibility();
-        ValidateSceneReferences();
     }
 
     public void BeginCampVisit()
@@ -103,6 +99,7 @@ public class CampStartRoutineManager : MonoBehaviour
         yield return WaitForSpawnedBuddiesIfAny();
 
         CampBedExpansionStep expansion = GetNextNeededExpansion();
+
         if (expansion != null)
         {
             yield return RunBedExpansion(expansion);
@@ -123,28 +120,25 @@ public class CampStartRoutineManager : MonoBehaviour
 
     IEnumerator RunBedExpansion(CampBedExpansionStep step)
     {
-        if (!ValidateBedStep(step))
+        string firstMessage = string.IsNullOrWhiteSpace(step.popupText)
+            ? "The little guys need somewhere to sleep."
+            : step.popupText;
+
+        CampMessageUI.Show(firstMessage);
+        PlayVoice(step.voiceLine);
+
+        if (step.firstMessageSeconds > 0f)
+            yield return new WaitForSeconds(step.firstMessageSeconds);
+
+        Transform target = step.digWalkTarget;
+        if (target == null)
         {
-            CampMessageUI.Show("Camp bed expansion is missing scene references.");
+            Debug.LogWarning("Camp bed expansion has no Dig Walk Target assigned for station: " + step.stationId + ". Assign a real scene object in the Inspector.", this);
             yield break;
         }
 
-        CampMessageUI.Show(step.popupText);
-        PlayVoice(step.voiceLine);
-
-        SendAllBuddiesDirected(step.digWalkTarget);
-
-        float firstPopupSeconds = Mathf.Max(0f, step.firstPopupSeconds);
-        if (firstPopupSeconds > 0f)
-            yield return new WaitForSeconds(firstPopupSeconds);
-
-        yield return WaitForBuddiesToReachTarget(
-            step.digWalkTarget,
-            step.maxWaitForBuddiesToArrive,
-            step.minimumWalkTimeBeforeDig,
-            step.arriveDistance,
-            step.percentNeededToArrive
-        );
+        SendAllBuddiesDirected(target);
+        yield return WaitForBuddiesToReachTarget(target, step.maxWaitForBuddiesToArrive, step.minimumWalkTimeBeforeDig, step.arriveDistance, step.percentNeededToArrive);
 
         if (!string.IsNullOrWhiteSpace(step.diggingPopupText))
             CampMessageUI.Show(step.diggingPopupText);
@@ -171,42 +165,6 @@ public class CampStartRoutineManager : MonoBehaviour
             ReleaseBuddiesToBedStep(step);
             waitingForRecovery = false;
         }
-    }
-
-    bool ValidateBedStep(CampBedExpansionStep step)
-    {
-        if (step == null)
-            return false;
-
-        bool ok = true;
-        if (string.IsNullOrWhiteSpace(step.stationId))
-        {
-            Debug.LogWarning("CampStartRoutineManager bed expansion has no Station Id.", this);
-            ok = false;
-        }
-
-        if (step.digWalkTarget == null)
-        {
-            Debug.LogWarning("CampStartRoutineManager bed expansion '" + step.stationId + "' has no Dig Walk Target. Place a real scene object and assign it.", this);
-            ok = false;
-        }
-
-        if (step.hiddenAreaToReveal == null)
-            Debug.LogWarning("CampStartRoutineManager bed expansion '" + step.stationId + "' has no Hidden Area To Reveal assigned.", this);
-
-        if (step.coverObjectToHideWhenRevealed == null)
-            Debug.LogWarning("CampStartRoutineManager bed expansion '" + step.stationId + "' has no Cover Object To Hide assigned.", this);
-
-        return ok;
-    }
-
-    void ValidateSceneReferences()
-    {
-        if (fireGatherPoint == null)
-            Debug.LogWarning("CampStartRoutineManager needs a real Fire Gather Point assigned. It will not auto-create one.", this);
-
-        foreach (CampBedExpansionStep step in bedExpansionSteps)
-            ValidateBedStep(step);
     }
 
     IEnumerator WaitForSpawnedBuddiesIfAny()
@@ -240,6 +198,7 @@ public class CampStartRoutineManager : MonoBehaviour
         while (timer < maxWait)
         {
             BuddyUnit[] buddies = Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None);
+
             if (buddies.Length == 0)
             {
                 timer += Time.deltaTime;
@@ -256,11 +215,15 @@ public class CampStartRoutineManager : MonoBehaviour
                     continue;
                 }
 
-                if (Vector2.Distance(buddy.transform.position, target.position) <= arriveDistance)
+                float distance = Vector2.Distance(buddy.transform.position, target.position);
+                if (distance <= arriveDistance)
                     arrived++;
             }
 
             int needed = Mathf.Max(1, Mathf.CeilToInt(buddies.Length * percentNeeded));
+
+            // This keeps the moment readable: they must at least spend a little time
+            // walking/scratching before the bed reveal can fire.
             if (timer >= minimumWalkTime && arrived >= needed)
                 yield break;
 
@@ -284,7 +247,6 @@ public class CampStartRoutineManager : MonoBehaviour
         if (GameState.Instance == null)
             return null;
 
-        GameState.Instance.RepairRosterState();
         int buddyCount = GameState.Instance.ownedBuddies != null ? GameState.Instance.ownedBuddies.Count : 0;
 
         foreach (CampBedExpansionStep step in bedExpansionSteps)
@@ -328,13 +290,14 @@ public class CampStartRoutineManager : MonoBehaviour
                 continue;
 
             CampWander wander = buddy.GetComponent<CampWander>();
-            float speed = buddy.data != null ? Mathf.Max(0.2f, buddy.data.moveSpeed * 0.45f) : directedWalkSpeed;
+            float speed = directedWalkSpeed;
+            if (buddy.data != null)
+                speed = Mathf.Max(0.2f, buddy.data.moveSpeed * 0.45f);
 
             CampDirectedWalk walker = buddy.GetComponent<CampDirectedWalk>();
             if (walker == null)
                 walker = buddy.gameObject.AddComponent<CampDirectedWalk>();
 
-            walker.enabled = true;
             walker.BeginWalk(target, speed);
 
             if (wander != null)
@@ -344,9 +307,6 @@ public class CampStartRoutineManager : MonoBehaviour
 
     void SendAllBuddiesToTemporaryAnchor(Transform anchor, float radius, bool disableFreeWanderUntilArrived)
     {
-        if (anchor == null)
-            return;
-
         BuddyUnit[] buddies = Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None);
         foreach (BuddyUnit buddy in buddies)
         {
@@ -365,7 +325,6 @@ public class CampStartRoutineManager : MonoBehaviour
             if (walker == null)
                 walker = buddy.gameObject.AddComponent<CampDirectedWalk>();
 
-            walker.enabled = true;
             walker.BeginWalk(anchor, speed);
         }
     }
@@ -373,6 +332,7 @@ public class CampStartRoutineManager : MonoBehaviour
     void ReleaseBuddiesToBedsOrDefaultAnchors()
     {
         CampBedExpansionStep bestStep = GetHighestUnlockedBedStepWithAnchors();
+
         if (bestStep != null)
         {
             ReleaseBuddiesToBedStep(bestStep);
@@ -413,6 +373,7 @@ public class CampStartRoutineManager : MonoBehaviour
     CampBedExpansionStep GetHighestUnlockedBedStepWithAnchors()
     {
         CampBedExpansionStep best = null;
+
         foreach (CampBedExpansionStep step in bedExpansionSteps)
         {
             if (step == null || step.bedAnchors == null || step.bedAnchors.Length == 0)
@@ -459,6 +420,7 @@ public class CampStartRoutineManager : MonoBehaviour
         if (clip == null || voiceSource == null)
             return;
 
-        voiceSource.PlayOneShot(clip);
+        voiceSource.clip = clip;
+        voiceSource.Play();
     }
 }

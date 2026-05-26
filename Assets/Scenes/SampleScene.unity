@@ -360,8 +360,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RunStartInitializer
   applySavedPlayerStats: 1
-  applySavedRoster: 1
+  applySavedRosterToSceneRoster: 0
   beginRunSnapshotOnStart: 1
+  runSquadSpawner: {fileID: 0}
 --- !u!4 &274008005
 Transform:
   m_ObjectHideFlags: 0
@@ -5561,6 +5562,60 @@ MonoBehaviour:
   rerollButton: {fileID: 0}
   rerollText: {fileID: 0}
   startingRerollCost: 1
+--- !u!1 &1182256288
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1182256290}
+  - component: {fileID: 1182256289}
+  m_Layer: 0
+  m_Name: RunSquadSpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1182256289
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1182256288}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a31d9c0f9a8a4e03a49f112abc001002, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RunSquadSpawner
+  buddyPrefab: {fileID: 4202540240149813293, guid: ac9d9833c2b88ed45ab9df32192431a7, type: 3}
+  spawnOnStart: 1
+  startDelay: 0.15
+  waitForPlayerSeconds: 3
+  spawnRadius: 1.25
+  formationSpread: 1.2
+  enableBrain: 1
+  enableFollow: 1
+  enableCombat: 1
+  enableScavengerIfBuddyCollectsFood: 1
+--- !u!4 &1182256290
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1182256288}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 906.5893, y: 486.36078, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1331014191
 GameObject:
   m_ObjectHideFlags: 0
@@ -6950,3 +7005,4 @@ SceneRoots:
   - {fileID: 1689070427}
   - {fileID: 774846473}
   - {fileID: 1347083520}
+  - {fileID: 1182256290}

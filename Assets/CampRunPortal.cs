@@ -114,9 +114,8 @@ public class CampRunPortal : MonoBehaviour
                 if (playerController != null)
                     GameState.Instance.SavePlayer(playerController);
 
-                // GameState owns the roster now. Camp squad select edits GameState directly.
-                // Do not save a scene BuddyRoster here, because an empty/old scene roster can
-                // overwrite the camp-selected active squad.
+                // GameState owns the roster. Do not save a scene BuddyRoster here;
+                // an empty test roster can wipe the camp-selected active squad.
                 GameState.Instance.RepairRosterState();
             }
 

@@ -8,11 +8,10 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
 {
     [Header("Interaction")]
     public string interactPrompt = "Choose who comes";
-    [Tooltip("Extra distance beyond this object's collider where interaction is still accepted. Keep this small so the station matches the visible art.")]
-    public float interactBuffer = 0.15f;
+    [Tooltip("Extra distance outside the collider where E still works. Keep this small so the object feels honest.")]
+    public float interactBuffer = 0.2f;
 
     [Header("Required Scene UI")]
-    [Tooltip("Scene-authored panel. This script no longer creates panels/canvases for you.")]
     public GameObject panel;
     public TMP_Text titleText;
     public Transform activeListParent;
@@ -20,19 +19,20 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
     public Button closeButton;
 
     [Header("Generated Rows Only")]
-    public float rowHeight = 44f;
+    public float rowHeight = 48f;
     public int rowFontSize = 16;
     public Color activeRowColor = new Color(0.24f, 0.42f, 0.25f, 0.95f);
     public Color reserveRowColor = new Color(0.30f, 0.28f, 0.20f, 0.95f);
     public Color headerColor = new Color(1f, 0.92f, 0.72f, 1f);
 
     [Header("Optional Refresh")]
-    [Tooltip("Leave off unless you want the visible camp buddies to respawn immediately after squad changes.")]
     public bool refreshCampVisualsAfterChange = false;
     public CampPlayableSpawner campPlayableSpawner;
 
+    private Transform player;
     private Collider2D stationCollider;
     private bool isOpen;
+    private float openedAtTime = -99f;
     private readonly List<GameObject> spawnedRows = new List<GameObject>();
 
     void Awake()
@@ -47,16 +47,19 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
     {
         HookCloseButton();
         CloseMenu();
-        ValidateSetup();
+        ValidateSceneSetup();
     }
 
     void Update()
     {
-        if (!isOpen)
-            return;
+        FindPlayerIfMissing();
 
-        if (Input.GetKeyDown(KeyCode.Escape))
-            CloseMenu();
+        if (isOpen)
+        {
+            if (Input.GetKeyDown(KeyCode.Escape))
+                CloseMenu();
+            return;
+        }
     }
 
     public string GetInteractPrompt()
@@ -64,15 +67,12 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         return interactPrompt;
     }
 
-    public void Interact(GobboController player)
+    public void Interact(GobboController playerController)
     {
-        if (isOpen)
-        {
-            CloseMenu();
-            return;
-        }
+        if (playerController != null)
+            player = playerController.transform;
 
-        if (!IsPlayerCloseEnough(player))
+        if (!IsPlayerCloseEnough())
             return;
 
         OpenMenu();
@@ -80,14 +80,19 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
 
     public void OpenMenu()
     {
-        if (!HasRequiredUi())
+        if (Time.unscaledTime - openedAtTime < 0.1f)
+            return;
+
+        if (!HasRequiredUI())
         {
-            Debug.LogWarning("CampSquadSelect needs a scene-authored Panel, Title Text, Active List Parent, Reserve List Parent, and Close Button assigned in the inspector.", this);
-            CampMessageUI.Show("Squad select UI is not assigned yet.");
+            Debug.LogWarning("CampSquadSelect is missing assigned scene UI. Assign Panel, Title Text, Active List Parent, Reserve List Parent, and Close Button.", this);
+            CampMessageUI.Show("Squad board has no menu wired yet.");
             return;
         }
 
         isOpen = true;
+        openedAtTime = Time.unscaledTime;
+
         panel.SetActive(true);
         panel.transform.SetAsLastSibling();
         RefreshMenu();
@@ -99,30 +104,6 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
 
         if (panel != null)
             panel.SetActive(false);
-    }
-
-    bool IsPlayerCloseEnough(GobboController player)
-    {
-        if (player == null)
-            return false;
-
-        if (stationCollider == null)
-            return true;
-
-        Vector2 closest = stationCollider.ClosestPoint(player.transform.position);
-        float distance = Vector2.Distance(closest, player.transform.position);
-        return distance <= Mathf.Max(0.01f, interactBuffer);
-    }
-
-    bool HasRequiredUi()
-    {
-        return panel != null && titleText != null && activeListParent != null && reserveListParent != null && closeButton != null;
-    }
-
-    void ValidateSetup()
-    {
-        if (!HasRequiredUi())
-            Debug.LogWarning("CampSquadSelect is scene-authored now. Assign its Panel, Title Text, Active List Parent, Reserve List Parent, and Close Button. It will not auto-create them.", this);
     }
 
     void HookCloseButton()
@@ -138,6 +119,9 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
     {
         ClearRows();
 
+        if (!HasRequiredUI())
+            return;
+
         if (GameState.Instance == null)
         {
             titleText.text = "Choose Who Comes\nNo GameState found.";
@@ -145,19 +129,18 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         }
 
         GameState.Instance.RepairRosterState();
-
         List<BuddyData> active = GameState.Instance.GetActiveSquad();
         List<BuddyData> reserve = GameState.Instance.GetReserveBuddies();
 
         titleText.text = "Choose Who Comes  (" + active.Count + " / " + GameState.Instance.maxActiveSquad + ")";
 
-        AddHeader(activeListParent, "ACTIVE SQUAD", "Click to leave at camp.");
+        AddHeader(activeListParent, "ACTIVE SQUAD", "Click a buddy to leave them at camp.");
         if (active.Count == 0)
             AddInfoRow(activeListParent, "Nobody selected.");
         foreach (BuddyData buddy in active)
             AddBuddyRow(activeListParent, buddy, true);
 
-        AddHeader(reserveListParent, "CAMP RESERVE", "Click to bring next run.");
+        AddHeader(reserveListParent, "CAMP RESERVE", "Click a buddy to bring them next run.");
         if (reserve.Count == 0)
             AddInfoRow(reserveListParent, "Nobody waiting.");
         foreach (BuddyData buddy in reserve)
@@ -171,12 +154,13 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
 
         buddy.EnsureRuntimeDefaults();
 
-        GameObject row = new GameObject((currentlyActive ? "Active_" : "Reserve_") + buddy.buddyName, typeof(RectTransform), typeof(Image), typeof(Button));
+        GameObject row = new GameObject((currentlyActive ? "Active_" : "Reserve_") + buddy.buddyName, typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
         row.transform.SetParent(parent, false);
         spawnedRows.Add(row);
 
-        RectTransform rt = row.GetComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(0f, rowHeight);
+        LayoutElement layout = row.GetComponent<LayoutElement>();
+        layout.preferredHeight = rowHeight;
+        layout.minHeight = rowHeight;
 
         Image bg = row.GetComponent<Image>();
         bg.color = currentlyActive ? activeRowColor : reserveRowColor;
@@ -206,24 +190,21 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         if (GameState.Instance == null || string.IsNullOrWhiteSpace(buddyId))
             return;
 
-        bool changed;
         if (currentlyActive)
         {
-            changed = GameState.Instance.MoveBuddyToReserve(buddyId);
+            GameState.Instance.MoveBuddyToReserve(buddyId);
         }
         else
         {
-            changed = GameState.Instance.MoveBuddyToActiveSquad(buddyId);
-            if (!changed)
+            bool moved = GameState.Instance.MoveBuddyToActiveSquad(buddyId);
+            if (!moved)
                 CampMessageUI.Show("Active squad is full.");
         }
 
-        if (changed)
-            GameState.Instance.RepairRosterState();
-
+        GameState.Instance.RepairRosterState();
         RefreshMenu();
 
-        if (changed && refreshCampVisualsAfterChange && campPlayableSpawner != null)
+        if (refreshCampVisualsAfterChange && campPlayableSpawner != null)
             campPlayableSpawner.SpawnPlayableCamp();
     }
 
@@ -232,12 +213,13 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         if (parent == null)
             return;
 
-        GameObject box = new GameObject(title + " Header", typeof(RectTransform));
+        GameObject box = new GameObject(title + " Header", typeof(RectTransform), typeof(LayoutElement));
         box.transform.SetParent(parent, false);
         spawnedRows.Add(box);
 
-        RectTransform rt = box.GetComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(0f, 60f);
+        LayoutElement layout = box.GetComponent<LayoutElement>();
+        layout.preferredHeight = 62f;
+        layout.minHeight = 62f;
 
         TMP_Text text = CreateText(box.transform, "Text", TextAlignmentOptions.Center, 18, FontStyles.Bold);
         text.rectTransform.anchorMin = Vector2.zero;
@@ -253,12 +235,13 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         if (parent == null)
             return;
 
-        GameObject row = new GameObject("Info", typeof(RectTransform));
+        GameObject row = new GameObject("Info", typeof(RectTransform), typeof(LayoutElement));
         row.transform.SetParent(parent, false);
         spawnedRows.Add(row);
 
-        RectTransform rt = row.GetComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(0f, 36f);
+        LayoutElement layout = row.GetComponent<LayoutElement>();
+        layout.preferredHeight = 36f;
+        layout.minHeight = 36f;
 
         TMP_Text text = CreateText(row.transform, "Text", TextAlignmentOptions.Center, 15, FontStyles.Italic);
         text.rectTransform.anchorMin = Vector2.zero;
@@ -294,14 +277,47 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         return text;
     }
 
+    bool HasRequiredUI()
+    {
+        return panel != null && titleText != null && activeListParent != null && reserveListParent != null && closeButton != null;
+    }
+
+    void ValidateSceneSetup()
+    {
+        if (!HasRequiredUI())
+            Debug.LogWarning("CampSquadSelect needs real scene UI assigned. It will not auto-create a panel anymore.", this);
+    }
+
+    bool IsPlayerCloseEnough()
+    {
+        if (player == null)
+            return false;
+
+        if (stationCollider == null)
+            return Vector2.Distance(transform.position, player.position) <= 1.25f;
+
+        Vector2 closest = stationCollider.ClosestPoint(player.position);
+        float distance = Vector2.Distance(closest, player.position);
+        return distance <= Mathf.Max(0.02f, interactBuffer);
+    }
+
+    void FindPlayerIfMissing()
+    {
+        if (player != null)
+            return;
+
+        GameObject found = GameObject.FindGameObjectWithTag("Player");
+        if (found != null)
+            player = found.transform;
+    }
+
     void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.green;
-
         Collider2D col = GetComponent<Collider2D>();
         if (col != null)
-            Gizmos.DrawWireCube(col.bounds.center, col.bounds.size + Vector3.one * interactBuffer * 2f);
+            Gizmos.DrawWireCube(col.bounds.center, col.bounds.size);
         else
-            Gizmos.DrawWireSphere(transform.position, 1f);
+            Gizmos.DrawWireSphere(transform.position, 1.25f);
     }
 }
