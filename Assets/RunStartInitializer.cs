@@ -16,6 +16,8 @@ public class RunStartInitializer : MonoBehaviour
     IEnumerator Start()
     {
         GameState state = EnsureGameState();
+
+        // Wait one frame so MapGenerator/player scene setup has time to finish.
         yield return null;
 
         GobboController player = Object.FindAnyObjectByType<GobboController>();
@@ -34,13 +36,9 @@ public class RunStartInitializer : MonoBehaviour
             runSquadSpawner = Object.FindAnyObjectByType<RunSquadSpawner>(FindObjectsInactive.Include);
 
         if (runSquadSpawner != null)
-        {
             runSquadSpawner.SpawnActiveSquad();
-        }
         else
-        {
-            Debug.LogWarning("RunStartInitializer: add one RunSquadSpawner scene object and assign its buddy prefab.", this);
-        }
+            Debug.LogWarning("RunStartInitializer: add one real RunSquadSpawner scene object and assign its buddy prefab.", this);
     }
 
     GameState EnsureGameState()

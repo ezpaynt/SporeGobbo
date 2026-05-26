@@ -8,10 +8,11 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
 {
     [Header("Interaction")]
     public string interactPrompt = "Choose who comes";
-    [Tooltip("Extra distance outside the collider where E still works. Keep this small so the object feels honest.")]
-    public float interactBuffer = 0.2f;
+    [Tooltip("Extra distance outside this object's collider where E still works. Keep it small so the world object feels honest.")]
+    public float interactBuffer = 0.25f;
 
     [Header("Required Scene UI")]
+    [Tooltip("A real panel you created under Canvas. This script will not make one.")]
     public GameObject panel;
     public TMP_Text titleText;
     public Transform activeListParent;
@@ -19,6 +20,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
     public Button closeButton;
 
     [Header("Generated Rows Only")]
+    [Tooltip("The script only generates buddy rows inside the assigned list parents. It does not generate panels, canvases, or world objects.")]
     public float rowHeight = 48f;
     public int rowFontSize = 16;
     public Color activeRowColor = new Color(0.24f, 0.42f, 0.25f, 0.95f);
@@ -32,15 +34,13 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
     private Transform player;
     private Collider2D stationCollider;
     private bool isOpen;
-    private float openedAtTime = -99f;
     private readonly List<GameObject> spawnedRows = new List<GameObject>();
 
     void Awake()
     {
         stationCollider = GetComponent<Collider2D>();
-
-        if (campPlayableSpawner == null)
-            campPlayableSpawner = Object.FindAnyObjectByType<CampPlayableSpawner>(FindObjectsInactive.Include);
+        // Important: do NOT force collider trigger/solid here.
+        // You control that on the scene object.
     }
 
     void Start()
@@ -52,14 +52,11 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
 
     void Update()
     {
-        FindPlayerIfMissing();
-
-        if (isOpen)
-        {
-            if (Input.GetKeyDown(KeyCode.Escape))
-                CloseMenu();
+        if (!isOpen)
             return;
-        }
+
+        if (Input.GetKeyDown(KeyCode.Escape))
+            CloseMenu();
     }
 
     public string GetInteractPrompt()
@@ -75,24 +72,22 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         if (!IsPlayerCloseEnough())
             return;
 
-        OpenMenu();
+        if (isOpen)
+            CloseMenu();
+        else
+            OpenMenu();
     }
 
     public void OpenMenu()
     {
-        if (Time.unscaledTime - openedAtTime < 0.1f)
-            return;
-
         if (!HasRequiredUI())
         {
-            Debug.LogWarning("CampSquadSelect is missing assigned scene UI. Assign Panel, Title Text, Active List Parent, Reserve List Parent, and Close Button.", this);
+            Debug.LogWarning("CampSquadSelect is missing scene UI. Assign Panel, Title Text, Active List Parent, Reserve List Parent, and Close Button.", this);
             CampMessageUI.Show("Squad board has no menu wired yet.");
             return;
         }
 
         isOpen = true;
-        openedAtTime = Time.unscaledTime;
-
         panel.SetActive(true);
         panel.transform.SetAsLastSibling();
         RefreshMenu();
@@ -101,6 +96,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
     public void CloseMenu()
     {
         isOpen = false;
+        ClearRows();
 
         if (panel != null)
             panel.SetActive(false);
@@ -129,6 +125,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         }
 
         GameState.Instance.RepairRosterState();
+
         List<BuddyData> active = GameState.Instance.GetActiveSquad();
         List<BuddyData> reserve = GameState.Instance.GetReserveBuddies();
 
@@ -299,16 +296,6 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         Vector2 closest = stationCollider.ClosestPoint(player.position);
         float distance = Vector2.Distance(closest, player.position);
         return distance <= Mathf.Max(0.02f, interactBuffer);
-    }
-
-    void FindPlayerIfMissing()
-    {
-        if (player != null)
-            return;
-
-        GameObject found = GameObject.FindGameObjectWithTag("Player");
-        if (found != null)
-            player = found.transform;
     }
 
     void OnDrawGizmosSelected()

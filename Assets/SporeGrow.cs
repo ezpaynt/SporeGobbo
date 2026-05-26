@@ -27,9 +27,10 @@ public class SporeGrow : MonoBehaviour
     {
         hasGrown = true;
 
+        // Spores hatch Baby gobbos. Type/class is chosen later at camp after XP.
         if (openNamingScreen)
         {
-            BuddyChoiceScreen screen = Object.FindAnyObjectByType<BuddyChoiceScreen>(FindObjectsInactive.Include);
+            BuddyChoiceScreen screen = UnityEngine.Object.FindAnyObjectByType<BuddyChoiceScreen>(FindObjectsInactive.Include);
 
             if (screen != null)
             {
@@ -51,62 +52,52 @@ public class SporeGrow : MonoBehaviour
         hatchFinished = true;
         Time.timeScale = 1f;
 
-        BuddyData data = CreateBabyData(chosenName);
-        bool activeInRun = false;
+        BuddyRoster roster = UnityEngine.Object.FindAnyObjectByType<BuddyRoster>();
 
-        if (GameState.Instance != null)
+        BuddyData data = null;
+
+        if (roster != null)
         {
-            GameState.Instance.AddOrUpdateBuddy(data, true);
-            BuddyData saved = GameState.Instance.FindBuddy(data.uniqueId);
-            if (saved != null)
-                data = saved;
+            // CreateNewBuddy already handles active vs reserve based on maxActiveSquad.
+            data = roster.CreateNewBuddy(BuddyType.Baby, chosenName);
 
-            activeInRun = data != null && GameState.Instance.activeSquadIds != null && GameState.Instance.activeSquadIds.Contains(data.uniqueId);
-            GameState.Instance.RegisterBuddyFound(data);
+            if (GameState.Instance != null && data != null)
+                GameState.Instance.AddBuddy(data, data.isInActiveSquad);
+        }
+        else if (GameState.Instance != null)
+        {
+            data = new BuddyData();
+            BuddyProgression.PrepareNewBaby(data);
+            if (!string.IsNullOrWhiteSpace(chosenName))
+                data.buddyName = chosenName;
+
+            GameState.Instance.AddBuddy(data, true);
         }
         else
         {
-            BuddyRoster roster = Object.FindAnyObjectByType<BuddyRoster>();
-            if (roster != null)
-            {
-                data = roster.CreateNewBuddy(BuddyType.Baby, chosenName);
-                activeInRun = data != null && data.isInActiveSquad;
-            }
-            else
-            {
-                Debug.LogWarning("No GameState or BuddyRoster found. Baby hatched but cannot be saved.");
-            }
+            Debug.LogError("No BuddyRoster or GameState found for new buddy.");
+            Destroy(gameObject);
+            return;
         }
 
-        GobboController player = Object.FindAnyObjectByType<GobboController>();
+        GobboController player = UnityEngine.Object.FindAnyObjectByType<GobboController>();
 
-        if (player != null && data != null && activeInRun)
+        if (player != null && data != null && data.isInActiveSquad)
         {
             player.SpawnBuddy(data, transform.position);
         }
-        else if (data != null && !activeInRun)
+        else if (data != null && !data.isInActiveSquad)
         {
             Debug.Log(data.buddyName + " joined the camp reserve.");
         }
         else if (player == null)
         {
-            Debug.LogWarning("No GobboController found. Buddy was saved but not spawned into this run.");
+            Debug.LogWarning("No GobboController found. Buddy was saved to roster but not spawned into run.");
         }
 
+        if (GameState.Instance != null)
+            GameState.Instance.RegisterBuddyFound(data);
+
         Destroy(gameObject);
-    }
-
-    BuddyData CreateBabyData(string chosenName)
-    {
-        BuddyData buddy = new BuddyData();
-        BuddyProgression.PrepareNewBaby(buddy);
-        buddy.buddyName = string.IsNullOrWhiteSpace(chosenName) ? GetRandomBuddyName() : chosenName.Trim();
-        return buddy;
-    }
-
-    string GetRandomBuddyName()
-    {
-        string[] names = { "Grub", "Pip", "Mug", "Bunk", "Snorp", "Wim", "Grot", "Nub", "Boil", "Lump" };
-        return names[Random.Range(0, names.Length)];
     }
 }

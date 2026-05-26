@@ -27,7 +27,7 @@ public class CampRunPortal : MonoBehaviour
     public bool beginRunSnapshotBeforeLeaving = true;
 
     private Transform player;
-    private bool promptOpen = false;
+    private bool promptOpen;
 
     void Start()
     {
@@ -61,21 +61,25 @@ public class CampRunPortal : MonoBehaviour
         {
             goButton.onClick.RemoveAllListeners();
             goButton.onClick.AddListener(StartNextRun);
-
-            TMP_Text text = goButton.GetComponentInChildren<TMP_Text>(true);
-            if (text != null)
-                text.text = goButtonText;
+            SetButtonText(goButton, goButtonText);
         }
 
         if (cancelButton != null)
         {
             cancelButton.onClick.RemoveAllListeners();
             cancelButton.onClick.AddListener(HidePrompt);
-
-            TMP_Text text = cancelButton.GetComponentInChildren<TMP_Text>(true);
-            if (text != null)
-                text.text = cancelButtonText;
+            SetButtonText(cancelButton, cancelButtonText);
         }
+    }
+
+    void SetButtonText(Button button, string text)
+    {
+        if (button == null)
+            return;
+
+        TMP_Text label = button.GetComponentInChildren<TMP_Text>(true);
+        if (label != null)
+            label.text = text;
     }
 
     void ShowPrompt()
@@ -92,7 +96,7 @@ public class CampRunPortal : MonoBehaviour
         }
         else
         {
-            Debug.Log("Camp portal ready. Assign Prompt Panel for confirmation UI, or click Go Button if assigned elsewhere.");
+            Debug.Log("Camp portal ready. Assign Prompt Panel for confirmation UI.");
         }
     }
 
@@ -110,14 +114,14 @@ public class CampRunPortal : MonoBehaviour
         {
             if (savePlayerBeforeLeaving)
             {
-                GobboController playerController = UnityEngine.Object.FindAnyObjectByType<GobboController>();
+                GobboController playerController = Object.FindAnyObjectByType<GobboController>();
                 if (playerController != null)
                     GameState.Instance.SavePlayer(playerController);
-
-                // GameState owns the roster. Do not save a scene BuddyRoster here;
-                // an empty test roster can wipe the camp-selected active squad.
-                GameState.Instance.RepairRosterState();
             }
+
+            // GameState owns the roster. Do NOT save a scene BuddyRoster here.
+            // The squad menu edits GameState directly, and scene rosters can be stale/empty.
+            GameState.Instance.RepairRosterState();
 
             if (beginRunSnapshotBeforeLeaving)
                 GameState.Instance.BeginRunSnapshot();
