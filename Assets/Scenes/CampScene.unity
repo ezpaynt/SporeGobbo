@@ -137,7 +137,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &17495636
 RectTransform:
   m_ObjectHideFlags: 0
@@ -155,7 +155,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: -328, y: -413}
   m_SizeDelta: {x: 160, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &17495637
@@ -252,7 +252,7 @@ GameObject:
   - component: {fileID: 46430513}
   - component: {fileID: 46430512}
   m_Layer: 5
-  m_Name: ActiveList
+  m_Name: BuddiesLeftList
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -274,7 +274,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -737, y: -16}
+  m_AnchoredPosition: {x: -8, y: 47}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &46430512
@@ -745,6 +745,7 @@ Transform:
   - {fileID: 912582198}
   - {fileID: 1138965591}
   - {fileID: 1534979553}
+  - {fileID: 714760109}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &227819281
@@ -1931,6 +1932,84 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f17b6869fca0aa444a8ddfd862236b83, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameState
+  currentRunNumber: 1
+  gobbo:
+    level: 1
+    xp: 0
+    xpToNextLevel: 10
+    gobboType: 0
+    ageStage: 0
+    visualSetId: baby
+    pendingEvolution: 0
+    evolutionLevelWaiting: 0
+    maxHealth: 100
+    health: 100
+    attack: 5
+    defense: 2
+    attackRange: 0.85
+    attackRadius: 0.45
+    attackCooldown: 0.7
+    critChance: 0
+    critDamageMultiplier: 1.5
+    knockbackForce: 6
+    moveSpeed: 5
+    dashSpeed: 12
+    dashDuration: 0.12
+    dashCooldown: 0.7
+    digPower: 1
+    digRadius: 0.65
+    digRange: 0.8
+    digTickRate: 0.05
+    hasSporeMend: 0
+    hasDashBite: 0
+    healthControlsSize: 0
+    healthSizeMultiplier: 0
+    spores: 0
+    mushrooms: 0
+    money: 0
+    shinies: 0
+    unlockedUpgrades: []
+    unlockedAbilities: []
+    unlockedCosmetics: []
+    equippedCosmetics: []
+    unlockedItems: []
+    chosenCardIds: []
+  maxActiveSquad: 5
+  ownedBuddies: []
+  activeSquadIds: []
+  campLevel: 1
+  unlockedStations: []
+  decorationsUnlocked: []
+  lastRun:
+    survived: 1
+    timeSpent: 0
+    runNumber: 1
+    playerLevelStart: 1
+    playerLevelEnd: 1
+    xpStart: 0
+    xpEnd: 0
+    xpGained: 0
+    sporesStart: 0
+    sporesEnd: 0
+    sporesGained: 0
+    mushroomsStart: 0
+    mushroomsEnd: 0
+    mushroomsGained: 0
+    moneyStart: 0
+    moneyEnd: 0
+    moneyGained: 0
+    foodValueGained: 0
+    shiniesStart: 0
+    shiniesEnd: 0
+    shiniesGained: 0
+    buddiesStart: 0
+    buddiesEnd: 0
+    buddiesFound: 0
+    buddiesLost: 0
+    enemiesKilled: 0
+    newBuddyNames: []
+    deadBuddyNames: []
+    upgradesChosen: []
 --- !u!4 &488311636
 Transform:
   m_ObjectHideFlags: 0
@@ -2893,6 +2972,103 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 695350333}
   m_CullTransparentMesh: 1
+--- !u!1 &714760108
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 714760109}
+  - component: {fileID: 714760112}
+  - component: {fileID: 714760111}
+  - component: {fileID: 714760110}
+  m_Layer: 0
+  m_Name: CampDeathSystems
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &714760109
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 714760108}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 227819280}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &714760110
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 714760108}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e2fb367f22f4b3f43b9ec10dda323e2d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CampSuccessionUI
+  panel: {fileID: 802840055}
+  titleText: {fileID: 2041873662}
+  bodyText: {fileID: 1554175913}
+  successorListParent: {fileID: 46430511}
+  successorButtonPrefab: {fileID: 17495637}
+  letThemChooseButton: {fileID: 802041545}
+  gameOverButton: {fileID: 0}
+  title: The leader is bones now.
+  body: The camp scratches a name into the old bones. Pick who gets shoved into being
+    leader next.
+  letThemChooseText: Let Them Choose
+  gameOverText: No Gobbos Left
+  openAutomaticallyOnCampLoad: 1
+  pauseWhileOpen: 1
+  includeReserveIfNoRunSurvivors: 1
+--- !u!114 &714760111
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 714760108}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 705342ac2826edf4da088af6eb362f7c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CampDeathHistoryStore
+  deadBuddyHistory: []
+--- !u!114 &714760112
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 714760108}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a66af32ca6cc72a4dbde261b132b3813, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerDeathRunStore
+  playerDiedThisRun: 1
+  deadLeaderName: Gobbo
+  deadLeaderType: Gobbo
+  deadLeaderLevel: 1
+  deadLeaderRunNumber: 1
+  deathCause: Got squished in the dirt.
+  deadPlayerName: Gobbo
+  deadPlayerType: Gobbo
+  deadPlayerLevel: 1
+  runNumber: 1
+  eligibleSuccessorIds: []
 --- !u!1 &736936374
 GameObject:
   m_ObjectHideFlags: 0
@@ -3580,7 +3756,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 342, y: -405}
   m_SizeDelta: {x: 160, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &802041545
@@ -3682,7 +3858,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &802840056
 RectTransform:
   m_ObjectHideFlags: 0
@@ -3720,7 +3896,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.392}
+  m_Color: {r: 0, g: 0, b: 0, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -9004,7 +9180,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: -22, y: 319}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1554175913
@@ -9027,7 +9203,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: New Text
+  m_text: New Guy In Charge
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -9093,7 +9269,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_margin: {x: -725.60205, y: 0, z: -793.28906, w: 0}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
@@ -11546,7 +11722,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: -18, y: 440}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2041873662
@@ -11569,7 +11745,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: New Text
+  m_text: You DIed
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}

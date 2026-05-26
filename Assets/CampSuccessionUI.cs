@@ -1,303 +1,240 @@
 using System.Collections.Generic;
-using System.Reflection;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class CampSuccessionUI : MonoBehaviour
 {
-    [Header("UI")]
-    public GameObject panel;
+    [Header("Succession Panel")]
+    public GameObject successionPanel;
     public TMP_Text titleText;
     public TMP_Text bodyText;
-    public Transform successorListParent;
-    public Button successorButtonPrefab;
-    public Button letThemChooseButton;
-    public Button gameOverButton;
+    public Button acceptMarkedSuccessorButton;
+    public Button letCampChooseButton;
+
+    [Header("Game Over Panel")]
+    public GameObject gameOverPanel;
+    public TMP_Text gameOverText;
+    public Button returnToMainMenuButton;
+    public string mainMenuSceneName = "MainMenu";
 
     [Header("Text")]
-    public string title = "The leader is bones now.";
-    [TextArea(2, 6)] public string body = "The camp scratches a name into the old bones. Pick who gets shoved into being leader next.";
-    public string letThemChooseText = "Let Them Choose";
-    public string gameOverText = "No Gobbos Left";
+    public string title = "The leader is dead";
+    [TextArea(2, 5)] public string markedSuccessorBody = "{0} was marked to take over.";
+    [TextArea(2, 5)] public string noMarkedSuccessorBody = "No gobbo was marked as successor. The camp has to choose.";
+    [TextArea(2, 5)] public string gameOverMessage = "GAME OVER\n\nNo gobbos are left to remember the camp.";
 
-    [Header("Behavior")]
-    public bool openAutomaticallyOnCampLoad = true;
-    public bool pauseWhileOpen = true;
-    public bool includeReserveIfNoRunSurvivors = true;
-
-    private readonly List<GameObject> spawnedRows = new List<GameObject>();
+    private BuddyData markedSuccessor;
 
     void Start()
     {
         HookButtons();
-        ClosePanel(false);
-
-        if (openAutomaticallyOnCampLoad)
-            TryOpenForPendingDeath();
+        HideAll();
+        TryOpenDeathFlow();
     }
 
     void HookButtons()
     {
-        if (letThemChooseButton != null)
+        if (acceptMarkedSuccessorButton != null)
         {
-            letThemChooseButton.onClick.RemoveAllListeners();
-            letThemChooseButton.onClick.AddListener(LetThemChoose);
-            SetButtonText(letThemChooseButton, letThemChooseText);
+            acceptMarkedSuccessorButton.onClick.RemoveAllListeners();
+            acceptMarkedSuccessorButton.onClick.AddListener(AcceptMarkedSuccessor);
         }
 
-        if (gameOverButton != null)
+        if (letCampChooseButton != null)
         {
-            gameOverButton.onClick.RemoveAllListeners();
-            gameOverButton.onClick.AddListener(() => CampMessageUI.Show("No gobbos left. Later this can open a real Game Over screen."));
-            SetButtonText(gameOverButton, gameOverText);
+            letCampChooseButton.onClick.RemoveAllListeners();
+            letCampChooseButton.onClick.AddListener(LetCampChoose);
+        }
+
+        if (returnToMainMenuButton != null)
+        {
+            returnToMainMenuButton.onClick.RemoveAllListeners();
+            returnToMainMenuButton.onClick.AddListener(ReturnToMainMenu);
         }
     }
 
-    void SetButtonText(Button button, string text)
+    void HideAll()
     {
-        if (button == null)
-            return;
+        if (successionPanel != null)
+            successionPanel.SetActive(false);
 
-        TMP_Text label = button.GetComponentInChildren<TMP_Text>(true);
-        if (label != null)
-            label.text = text;
+        if (gameOverPanel != null)
+            gameOverPanel.SetActive(false);
     }
 
-    public void TryOpenForPendingDeath()
+    public void TryOpenDeathFlow()
     {
         PlayerDeathRunStore pending = PlayerDeathRunStore.Instance;
         if (pending == null || !pending.playerDiedThisRun)
             return;
 
         CampDeathHistoryStore.GetOrCreate().AddDeadLeaderFromPendingStore(pending);
-        OpenPanel();
-    }
 
-    void OpenPanel()
-    {
-        if (panel == null)
+        if (!HasAnyEligibleGobbo())
         {
-            Debug.LogWarning("CampSuccessionUI needs a Panel assigned.", this);
+            OpenGameOver();
             return;
         }
 
-        if (pauseWhileOpen)
-            Time.timeScale = 0f;
+        OpenSuccessionPanel();
+    }
 
-        panel.SetActive(true);
-        panel.transform.SetAsLastSibling();
+    void OpenSuccessionPanel()
+    {
+        markedSuccessor = CampSuccessorPreferenceStore.GetOrCreate().GetMarkedSuccessor();
+
+        if (successionPanel != null)
+            successionPanel.SetActive(true);
+
+        if (gameOverPanel != null)
+            gameOverPanel.SetActive(false);
 
         if (titleText != null)
             titleText.text = title;
 
+        bool hasMarked = markedSuccessor != null;
+
         if (bodyText != null)
-            bodyText.text = body;
-
-        RefreshSuccessorButtons();
-    }
-
-    void ClosePanel(bool restoreTime)
-    {
-        if (restoreTime)
-            Time.timeScale = 1f;
-
-        if (panel != null)
-            panel.SetActive(false);
-    }
-
-    void RefreshSuccessorButtons()
-    {
-        ClearRows();
-
-        List<BuddyData> candidates = GetCandidates();
-        bool hasCandidates = candidates.Count > 0;
-
-        if (letThemChooseButton != null)
-            letThemChooseButton.gameObject.SetActive(hasCandidates);
-
-        if (gameOverButton != null)
-            gameOverButton.gameObject.SetActive(!hasCandidates);
-
-        if (!hasCandidates)
         {
-            if (bodyText != null)
-                bodyText.text = "No one is left to take the torch. The little camp goes quiet.";
+            bodyText.text = hasMarked
+                ? string.Format(markedSuccessorBody, markedSuccessor.buddyName)
+                : noMarkedSuccessorBody;
+        }
+
+        if (acceptMarkedSuccessorButton != null)
+        {
+            acceptMarkedSuccessorButton.gameObject.SetActive(hasMarked);
+            acceptMarkedSuccessorButton.interactable = hasMarked;
+
+            TMP_Text label = acceptMarkedSuccessorButton.GetComponentInChildren<TMP_Text>(true);
+            if (label != null && hasMarked)
+                label.text = "Accept " + markedSuccessor.buddyName;
+        }
+
+        if (letCampChooseButton != null)
+        {
+            letCampChooseButton.gameObject.SetActive(true);
+            letCampChooseButton.interactable = true;
+        }
+    }
+
+    void OpenGameOver()
+    {
+        if (successionPanel != null)
+            successionPanel.SetActive(false);
+
+        if (gameOverPanel != null)
+            gameOverPanel.SetActive(true);
+
+        if (gameOverText != null)
+            gameOverText.text = gameOverMessage;
+    }
+
+    void AcceptMarkedSuccessor()
+    {
+        if (markedSuccessor == null)
+        {
+            OpenSuccessionPanel();
             return;
         }
 
-        foreach (BuddyData buddy in candidates)
-            AddSuccessorButton(buddy);
+        PromoteSuccessor(markedSuccessor);
     }
 
-    List<BuddyData> GetCandidates()
+    void LetCampChoose()
     {
-        List<BuddyData> result = new List<BuddyData>();
+        BuddyData chosen = ChooseStrongestGobbo();
+        if (chosen == null)
+        {
+            OpenGameOver();
+            return;
+        }
 
+        PromoteSuccessor(chosen);
+    }
+
+    BuddyData ChooseStrongestGobbo()
+    {
         if (GameState.Instance == null || GameState.Instance.ownedBuddies == null)
-            return result;
+            return null;
 
-        PlayerDeathRunStore pending = PlayerDeathRunStore.Instance;
-        List<string> allowedIds = pending != null ? pending.eligibleSuccessorIds : null;
+        BuddyData best = null;
+        int bestScore = int.MinValue;
 
         foreach (BuddyData buddy in GameState.Instance.ownedBuddies)
         {
             if (buddy == null)
                 continue;
 
-            buddy.EnsureId();
             buddy.EnsureRuntimeDefaults();
 
-            bool allowedByRun = allowedIds == null || allowedIds.Count == 0 || allowedIds.Contains(buddy.uniqueId);
-            if (!allowedByRun && !includeReserveIfNoRunSurvivors)
-                continue;
-
-            if (buddy.health > 0)
-                result.Add(buddy);
-        }
-
-        return result;
-    }
-
-    void AddSuccessorButton(BuddyData buddy)
-    {
-        if (successorListParent == null || successorButtonPrefab == null || buddy == null)
-            return;
-
-        Button button = Instantiate(successorButtonPrefab, successorListParent);
-        spawnedRows.Add(button.gameObject);
-
-        TMP_Text text = button.GetComponentInChildren<TMP_Text>(true);
-        if (text != null)
-        {
-            text.text = buddy.buddyName + "  " + buddy.buddyType + " / " + buddy.ageStage +
-                        "  Lv " + buddy.level + "  HP " + buddy.health + "/" + buddy.maxHealth;
-        }
-
-        string id = buddy.uniqueId;
-        button.onClick.RemoveAllListeners();
-        button.onClick.AddListener(() => ChooseSuccessor(id));
-    }
-
-    void LetThemChoose()
-    {
-        List<BuddyData> candidates = GetCandidates();
-        if (candidates.Count == 0)
-            return;
-
-        BuddyData best = candidates[0];
-        int bestScore = GetAutoChoiceScore(best);
-
-        for (int i = 1; i < candidates.Count; i++)
-        {
-            int score = GetAutoChoiceScore(candidates[i]);
-            if (score > bestScore)
+            int score = buddy.level * 10000 + buddy.maxHealth * 100 + buddy.damage * 50 + buddy.defense * 25 + buddy.loyalty;
+            if (best == null || score > bestScore)
             {
-                best = candidates[i];
+                best = buddy;
                 bestScore = score;
             }
         }
 
-        ChooseSuccessor(best.uniqueId);
+        return best;
     }
 
-    int GetAutoChoiceScore(BuddyData buddy)
+    bool HasAnyEligibleGobbo()
     {
-        if (buddy == null)
-            return int.MinValue;
-
-        return buddy.level * 10 + buddy.loyalty + buddy.happiness + Random.Range(0, 12);
+        return GameState.Instance != null && GameState.Instance.ownedBuddies != null && GameState.Instance.ownedBuddies.Count > 0;
     }
 
-    void ChooseSuccessor(string buddyId)
+    void PromoteSuccessor(BuddyData successor)
     {
-        if (GameState.Instance == null || string.IsNullOrWhiteSpace(buddyId))
+        if (successor == null || GameState.Instance == null || GameState.Instance.gobbo == null)
             return;
 
-        BuddyData successor = GameState.Instance.FindBuddy(buddyId);
-        if (successor == null)
-        {
-            Debug.LogWarning("Could not find successor buddy: " + buddyId);
-            RefreshSuccessorButtons();
-            return;
-        }
+        successor.EnsureId();
+        successor.EnsureRuntimeDefaults();
 
-        ConvertBuddyToPlayer(successor);
-        RemoveSuccessorFromRoster(successor.uniqueId);
+        GobboSaveData player = GameState.Instance.gobbo;
+
+        player.level = Mathf.Max(1, successor.level);
+        player.xp = Mathf.Max(0, successor.xp);
+        player.xpToNextLevel = Mathf.Max(1, successor.xpToNextLevel);
+        player.gobboType = successor.buddyType;
+        player.ageStage = successor.ageStage;
+        player.visualSetId = string.IsNullOrWhiteSpace(successor.visualSetId) ? successor.buddyType.ToString().ToLowerInvariant() : successor.visualSetId;
+        player.pendingEvolution = successor.pendingEvolution;
+        player.evolutionLevelWaiting = successor.evolutionLevelWaiting;
+
+        player.maxHealth = Mathf.Max(1, successor.maxHealth);
+        player.health = player.maxHealth;
+        player.attack = Mathf.Max(1, successor.damage);
+        player.defense = Mathf.Max(0, successor.defense);
+        player.moveSpeed = Mathf.Max(1f, successor.moveSpeed);
+        player.attackCooldown = Mathf.Max(0.1f, successor.attackCooldown);
+
+        if (successor.chosenCardIds != null)
+            player.chosenCardIds = new List<string>(successor.chosenCardIds);
+
+        string id = successor.uniqueId;
+        GameState.Instance.ownedBuddies.RemoveAll(b => b == null || b.uniqueId == id);
+        GameState.Instance.activeSquadIds.RemoveAll(activeId => activeId == id);
+
+        CampSuccessorPreferenceStore.GetOrCreate().ClearSuccessor();
 
         PlayerDeathRunStore pending = PlayerDeathRunStore.Instance;
         if (pending != null)
             pending.ClearPendingDeath();
 
-        CampMessageUI.Show(successor.buddyName + " gets shoved forward. New leader.");
-        ClosePanel(true);
+        HideAll();
+
+        CampSceneController camp = Object.FindAnyObjectByType<CampSceneController>(FindObjectsInactive.Include);
+        if (camp != null)
+            camp.RevealCampVisuals();
     }
 
-    void ConvertBuddyToPlayer(BuddyData buddy)
+    void ReturnToMainMenu()
     {
-        if (GameState.Instance.gobbo == null)
-            GameState.Instance.gobbo = new GobboSaveData();
-
-        object gobbo = GameState.Instance.gobbo;
-
-        SetField(gobbo, "level", Mathf.Max(1, buddy.level));
-        SetField(gobbo, "maxHealth", Mathf.Max(1, buddy.maxHealth));
-        SetField(gobbo, "health", Mathf.Max(1, buddy.maxHealth));
-        SetField(gobbo, "attack", Mathf.Max(1, buddy.damage));
-        SetField(gobbo, "defense", Mathf.Max(0, buddy.defense));
-
-        // Player-only defaults. Reflection keeps this safe if your save class changes names later.
-        SetFieldIfExists(gobbo, "digPower", 1);
-        SetFieldIfExists(gobbo, "digRadius", 1f);
-        SetFieldIfExists(gobbo, "moveSpeed", Mathf.Max(3f, buddy.moveSpeed));
-
-        Debug.Log("Successor chosen: " + buddy.buddyName + " became player gobbo.");
-    }
-
-    void RemoveSuccessorFromRoster(string buddyId)
-    {
-        if (string.IsNullOrWhiteSpace(buddyId) || GameState.Instance == null)
-            return;
-
-        if (GameState.Instance.ownedBuddies != null)
-            GameState.Instance.ownedBuddies.RemoveAll(b => b == null || b.uniqueId == buddyId);
-
-        if (GameState.Instance.activeSquadIds != null)
-            GameState.Instance.activeSquadIds.RemoveAll(id => id == buddyId);
-    }
-
-    void SetField(object target, string fieldName, object value)
-    {
-        SetFieldIfExists(target, fieldName, value);
-    }
-
-    void SetFieldIfExists(object target, string fieldName, object value)
-    {
-        if (target == null || string.IsNullOrWhiteSpace(fieldName))
-            return;
-
-        FieldInfo field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        if (field == null)
-            return;
-
-        if (field.FieldType == typeof(int))
-            field.SetValue(target, Mathf.RoundToInt(System.Convert.ToSingle(value)));
-        else if (field.FieldType == typeof(float))
-            field.SetValue(target, System.Convert.ToSingle(value));
-        else if (field.FieldType == typeof(string))
-            field.SetValue(target, value != null ? value.ToString() : "");
-        else
-            field.SetValue(target, value);
-    }
-
-    void ClearRows()
-    {
-        for (int i = spawnedRows.Count - 1; i >= 0; i--)
-        {
-            if (spawnedRows[i] != null)
-                Destroy(spawnedRows[i]);
-        }
-
-        spawnedRows.Clear();
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(mainMenuSceneName);
     }
 }
