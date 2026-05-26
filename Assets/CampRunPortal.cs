@@ -56,7 +56,7 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
 
     public string GetInteractPrompt()
     {
-        return interactPrompt;
+        return promptOpen ? "Close tunnel menu" : interactPrompt;
     }
 
     public void Interact(GobboController player)
@@ -112,7 +112,7 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
         }
         else
         {
-            Debug.LogWarning("CampRunPortal has no confirmation Prompt Panel assigned. Starting next run directly.");
+            Debug.LogWarning("CampRunPortal has no confirmation Prompt Panel assigned. Starting next run directly.", this);
             StartNextRun();
         }
     }
@@ -138,8 +138,6 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
                 if (playerController != null)
                     GameState.Instance.SavePlayer(playerController);
 
-                // GameState owns the roster. Do not save a scene BuddyRoster here;
-                // stale/empty scene rosters can wipe the camp-selected active squad.
                 GameState.Instance.RepairRosterState();
             }
 

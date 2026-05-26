@@ -17,6 +17,7 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
     [Header("Text")]
     public string title = "Old Bones Wall";
     public string emptyMessage = "No little bones remembered yet.";
+    public string unknownCauseText = "Cause unknown";
 
     private bool isOpen = false;
 
@@ -43,7 +44,7 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
 
     public string GetInteractPrompt()
     {
-        return interactPrompt;
+        return isOpen ? "Close old bones" : interactPrompt;
     }
 
     public void Interact(GobboController player)
@@ -56,13 +57,16 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
 
     public void OpenMenu()
     {
-        isOpen = true;
-
-        if (panel != null)
+        if (panel == null)
         {
-            panel.SetActive(true);
-            panel.transform.SetAsLastSibling();
+            Debug.LogWarning("CampOldBonesWall has no Panel assigned.", this);
+            CampMessageUI.Show("Old Bones wall menu is not wired yet.");
+            return;
         }
+
+        isOpen = true;
+        panel.SetActive(true);
+        panel.transform.SetAsLastSibling();
 
         if (titleText != null)
             titleText.text = title;
@@ -90,7 +94,10 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
     void RefreshText()
     {
         if (bodyText == null)
+        {
+            Debug.LogWarning("CampOldBonesWall has no Body Text assigned.", this);
             return;
+        }
 
         if (GameState.Instance == null)
         {
@@ -98,19 +105,153 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
             return;
         }
 
-        string text = "";
-
-        if (GameState.Instance.lastRun != null &&
-            GameState.Instance.lastRun.deadBuddyNames != null &&
-            GameState.Instance.lastRun.deadBuddyNames.Count > 0)
-        {
-            foreach (string name in GameState.Instance.lastRun.deadBuddyNames)
-                text += "☠ " + name + "\n";
-        }
+        string text = BuildBonesText();
 
         if (string.IsNullOrWhiteSpace(text))
             text = emptyMessage;
 
-        bodyText.text = text.TrimEnd();
+        bodyText.text = text;
+    }
+
+    string BuildBonesText()
+    {
+        object state = GameState.Instance;
+        System.Type type = state.GetType();
+
+        string[] possibleFieldNames =
+        {
+            "deadBuddies",
+            "fallenBuddies",
+            "deadBuddyHistory",
+            "fallenBuddyHistory",
+            "oldBones",
+            "oldBonesRecords"
+        };
+
+        foreach (string fieldName in possibleFieldNames)
+        {
+            System.Reflection.FieldInfo field = type.GetField(fieldName);
+            if (field == null)
+                continue;
+
+            object value = field.GetValue(state);
+            string built = BuildTextFromListObject(value);
+            if (!string.IsNullOrWhiteSpace(built))
+                return built;
+        }
+
+        RunSummaryData lastRun = GameState.Instance.lastRun;
+        if (lastRun != null && lastRun.deadBuddyNames != null && lastRun.deadBuddyNames.Count > 0)
+        {
+            string text = "";
+            foreach (string name in lastRun.deadBuddyNames)
+                text += "☠ " + name + "\n";
+
+            return text.TrimEnd();
+        }
+
+        return "";
+    }
+
+    string BuildTextFromListObject(object value)
+    {
+        if (value == null)
+            return "";
+
+        System.Collections.IEnumerable enumerable = value as System.Collections.IEnumerable;
+        if (enumerable == null)
+            return "";
+
+        string text = "";
+
+        foreach (object item in enumerable)
+        {
+            if (item == null)
+                continue;
+
+            text += BuildLineFromRecord(item) + "\n";
+        }
+
+        return text.TrimEnd();
+    }
+
+    string BuildLineFromRecord(object record)
+    {
+        if (record == null)
+            return "";
+
+        System.Type type = record.GetType();
+
+        string name = GetStringFieldOrProperty(type, record, "buddyName");
+        if (string.IsNullOrWhiteSpace(name))
+            name = GetStringFieldOrProperty(type, record, "name");
+        if (string.IsNullOrWhiteSpace(name))
+            name = GetStringFieldOrProperty(type, record, "deadBuddyName");
+        if (string.IsNullOrWhiteSpace(name))
+            name = "Unknown Gobbo";
+
+        string kind = GetStringFieldOrProperty(type, record, "type");
+        if (string.IsNullOrWhiteSpace(kind))
+            kind = GetStringFieldOrProperty(type, record, "buddyType");
+
+        string cause = GetStringFieldOrProperty(type, record, "causeOfDeath");
+        if (string.IsNullOrWhiteSpace(cause))
+            cause = GetStringFieldOrProperty(type, record, "deathCause");
+        if (string.IsNullOrWhiteSpace(cause))
+            cause = unknownCauseText;
+
+        int runs = GetIntFieldOrProperty(type, record, "runsSurvived", -1);
+
+        string line = "☠ " + name;
+
+        if (!string.IsNullOrWhiteSpace(kind))
+            line += " the " + kind;
+
+        if (runs >= 0)
+            line += " — " + runs + " runs";
+
+        line += "\n   " + cause;
+
+        return line;
+    }
+
+    string GetStringFieldOrProperty(System.Type type, object obj, string name)
+    {
+        System.Reflection.FieldInfo field = type.GetField(name);
+        if (field != null)
+        {
+            object value = field.GetValue(obj);
+            return value != null ? value.ToString() : "";
+        }
+
+        System.Reflection.PropertyInfo prop = type.GetProperty(name);
+        if (prop != null)
+        {
+            object value = prop.GetValue(obj, null);
+            return value != null ? value.ToString() : "";
+        }
+
+        return "";
+    }
+
+    int GetIntFieldOrProperty(System.Type type, object obj, string name, int fallback)
+    {
+        System.Reflection.FieldInfo field = type.GetField(name);
+        if (field != null)
+        {
+            object value = field.GetValue(obj);
+            if (value is int intValue)
+                return intValue;
+        }
+
+        System.Reflection.PropertyInfo prop = type.GetProperty(name);
+        if (prop != null)
+        {
+            object value = prop.GetValue(obj, null);
+            if (value is int intValue)
+                return intValue;
+        }
+
+        return fallback;
     }
 }

@@ -4,10 +4,7 @@ using UnityEngine;
 /// <summary>
 /// Put this on a scene object like CampInteractionSystem, NOT on the player prefab.
 /// It finds the spawned camp player by tag, checks nearby camp objects,
-/// shows the prompt, and sends E interactions to ICampInteractable objects.
-///
-/// Long-term goal: every camp object only implements ICampInteractable / ICampHoldInteractable.
-/// Objects should not run their own distance checks or key checks.
+/// shows the prompt, and calls ICampInteractable.Interact on E DOWN.
 /// </summary>
 public class CampInteractionDetector : MonoBehaviour
 {
@@ -31,11 +28,9 @@ public class CampInteractionDetector : MonoBehaviour
     public string pressPrefix = "E - ";
     public string holdPrefix = "Hold E - ";
 
-    [Header("Menu Safety")]
-    public bool useKeyDownForNormalInteract = true;
-
     [Header("Debug")]
     public bool drawDebugRadius = true;
+    public bool logInteractions = true;
 
     private ICampInteractable currentInteractable;
     private ICampHoldInteractable currentHoldInteractable;
@@ -79,7 +74,6 @@ public class CampInteractionDetector : MonoBehaviour
             return;
 
         GameObject found = GameObject.FindGameObjectWithTag(playerTag);
-
         if (found == null)
             return;
 
@@ -105,7 +99,9 @@ public class CampInteractionDetector : MonoBehaviour
             if (interactable == null)
                 continue;
 
-            float distance = Vector2.Distance(playerTransform.position, hit.ClosestPoint(playerTransform.position));
+            Vector2 closestPoint = hit.ClosestPoint(playerTransform.position);
+            float distance = Vector2.Distance(playerTransform.position, closestPoint);
+
             if (distance >= closestDistance)
                 continue;
 
@@ -175,29 +171,26 @@ public class CampInteractionDetector : MonoBehaviour
             return;
         }
 
-        bool keyDown = Input.GetKeyDown(interactKey);
-        bool keyHeld = Input.GetKey(interactKey);
-        bool keyUp = Input.GetKeyUp(interactKey);
-
-        if (keyDown)
+        if (Input.GetKeyDown(interactKey))
         {
             holdTimer = 0f;
             holdTriggered = false;
 
-            if (useKeyDownForNormalInteract)
-            {
-                currentInteractable.Interact(player);
-                return;
-            }
+            if (logInteractions && currentObject != null)
+                Debug.Log("CampInteractionDetector interacting with: " + currentObject.name, currentObject);
+
+            currentInteractable.Interact(player);
+            return;
         }
 
-        if (keyHeld)
+        if (Input.GetKey(interactKey))
         {
             holdTimer += Time.deltaTime;
 
             if (allowHoldInteractions && !holdTriggered && currentHoldInteractable != null && holdTimer >= holdSeconds)
             {
                 string holdPrompt = currentHoldInteractable.GetHoldPrompt();
+
                 if (!string.IsNullOrWhiteSpace(holdPrompt))
                 {
                     holdTriggered = true;
@@ -206,17 +199,7 @@ public class CampInteractionDetector : MonoBehaviour
             }
         }
 
-        if (!useKeyDownForNormalInteract && keyUp)
-        {
-            bool wasHold = holdTriggered;
-            holdTimer = 0f;
-            holdTriggered = false;
-
-            if (!wasHold && currentInteractable != null)
-                currentInteractable.Interact(player);
-        }
-
-        if (keyUp)
+        if (Input.GetKeyUp(interactKey))
         {
             holdTimer = 0f;
             holdTriggered = false;
