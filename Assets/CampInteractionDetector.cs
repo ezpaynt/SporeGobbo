@@ -2,9 +2,9 @@ using TMPro;
 using UnityEngine;
 
 /// <summary>
-/// Put this on a scene object like CampInteractionSystem, NOT on the player prefab.
-/// It finds the spawned camp player by tag, checks nearby camp objects,
-/// shows the prompt, and calls ICampInteractable.Interact on E DOWN.
+/// Scene-level camp interaction system.
+/// Put this on a scene object like CampInteractionSystem, not on the player prefab.
+/// It finds the spawned player by tag and calls ICampInteractable on nearby objects.
 /// </summary>
 public class CampInteractionDetector : MonoBehaviour
 {
@@ -28,6 +28,10 @@ public class CampInteractionDetector : MonoBehaviour
     public string pressPrefix = "E - ";
     public string holdPrefix = "Hold E - ";
 
+    [Header("Input Safety")]
+    [Tooltip("Tiny delay after one interaction so menus cannot immediately toggle from the same key press.")]
+    public float interactionCooldown = 0.15f;
+
     [Header("Debug")]
     public bool drawDebugRadius = true;
     public bool logInteractions = true;
@@ -36,8 +40,10 @@ public class CampInteractionDetector : MonoBehaviour
     private ICampHoldInteractable currentHoldInteractable;
     private GameObject currentObject;
     private GobboController player;
+
     private float holdTimer;
     private bool holdTriggered;
+    private float cooldownTimer;
 
     void Awake()
     {
@@ -46,6 +52,9 @@ public class CampInteractionDetector : MonoBehaviour
 
     void Update()
     {
+        if (cooldownTimer > 0f)
+            cooldownTimer -= Time.deltaTime;
+
         RefreshPlayerReference();
 
         if (playerTransform == null)
@@ -74,6 +83,7 @@ public class CampInteractionDetector : MonoBehaviour
             return;
 
         GameObject found = GameObject.FindGameObjectWithTag(playerTag);
+
         if (found == null)
             return;
 
@@ -96,6 +106,7 @@ public class CampInteractionDetector : MonoBehaviour
                 continue;
 
             ICampInteractable interactable = FindInterface<ICampInteractable>(hit.gameObject);
+
             if (interactable == null)
                 continue;
 
@@ -176,10 +187,15 @@ public class CampInteractionDetector : MonoBehaviour
             holdTimer = 0f;
             holdTriggered = false;
 
-            if (logInteractions && currentObject != null)
-                Debug.Log("CampInteractionDetector interacting with: " + currentObject.name, currentObject);
+            if (cooldownTimer <= 0f)
+            {
+                if (logInteractions && currentObject != null)
+                    Debug.Log("CampInteractionDetector interacting with: " + currentObject.name, currentObject);
 
-            currentInteractable.Interact(player);
+                currentInteractable.Interact(player);
+                cooldownTimer = interactionCooldown;
+            }
+
             return;
         }
 
@@ -187,7 +203,11 @@ public class CampInteractionDetector : MonoBehaviour
         {
             holdTimer += Time.deltaTime;
 
-            if (allowHoldInteractions && !holdTriggered && currentHoldInteractable != null && holdTimer >= holdSeconds)
+            if (allowHoldInteractions &&
+                !holdTriggered &&
+                cooldownTimer <= 0f &&
+                currentHoldInteractable != null &&
+                holdTimer >= holdSeconds)
             {
                 string holdPrompt = currentHoldInteractable.GetHoldPrompt();
 
@@ -195,6 +215,7 @@ public class CampInteractionDetector : MonoBehaviour
                 {
                     holdTriggered = true;
                     currentHoldInteractable.HoldInteract(player);
+                    cooldownTimer = interactionCooldown;
                 }
             }
         }

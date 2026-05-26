@@ -7,6 +7,7 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
 {
     [Header("Interaction")]
     public string interactPrompt = "Read old bones";
+    public string closePrompt = "Close old bones";
 
     [Header("UI")]
     public GameObject panel;
@@ -35,16 +36,13 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
 
     void Update()
     {
-        if (!isOpen)
-            return;
-
-        if (Input.GetKeyDown(KeyCode.Escape))
+        if (isOpen && Input.GetKeyDown(KeyCode.Escape))
             CloseMenu();
     }
 
     public string GetInteractPrompt()
     {
-        return isOpen ? "Close old bones" : interactPrompt;
+        return isOpen ? closePrompt : interactPrompt;
     }
 
     public void Interact(GobboController player)
@@ -72,6 +70,7 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
             titleText.text = title;
 
         RefreshText();
+        Debug.Log("Opened old bones wall.", this);
     }
 
     public void CloseMenu()

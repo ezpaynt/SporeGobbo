@@ -4,8 +4,9 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
-/// Camp portal as a clean camp interactable.
-/// Distance checks, prompt display, and E input are handled by CampInteractionDetector.
+/// Clean camp portal interactable.
+/// CampInteractionDetector handles range, prompt, and E input.
+/// This script only opens/closes the portal confirmation UI or starts the run.
 /// </summary>
 [RequireComponent(typeof(Collider2D))]
 public class CampRunPortal : MonoBehaviour, ICampInteractable
@@ -15,6 +16,7 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
 
     [Header("Interaction")]
     public string interactPrompt = "Enter tunnel";
+    public string closePrompt = "Close tunnel menu";
 
     [Header("Confirmation UI")]
     public bool useConfirmationPanel = true;
@@ -47,16 +49,13 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
 
     void Update()
     {
-        if (!promptOpen)
-            return;
-
-        if (Input.GetKeyDown(KeyCode.Escape))
+        if (promptOpen && Input.GetKeyDown(KeyCode.Escape))
             HidePrompt();
     }
 
     public string GetInteractPrompt()
     {
-        return promptOpen ? "Close tunnel menu" : interactPrompt;
+        return promptOpen ? closePrompt : interactPrompt;
     }
 
     public void Interact(GobboController player)
@@ -109,6 +108,7 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
         {
             promptPanel.SetActive(true);
             promptPanel.transform.SetAsLastSibling();
+            Debug.Log("Opened portal menu.", this);
         }
         else
         {
