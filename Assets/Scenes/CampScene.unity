@@ -2474,7 +2474,7 @@ GameObject:
   - component: {fileID: 609549350}
   - component: {fileID: 609549349}
   - component: {fileID: 609549348}
-  m_Layer: 0
+  m_Layer: 20
   m_Name: CampFire
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3058,7 +3058,7 @@ GameObject:
   - component: {fileID: 745327672}
   - component: {fileID: 745327671}
   - component: {fileID: 745327674}
-  m_Layer: 0
+  m_Layer: 20
   m_Name: CampPortal
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3079,7 +3079,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CampRunPortal
   runSceneName: SampleScene
   interactPrompt: Enter tunnel
-  closePrompt: Close tunnel menu
   useConfirmationPanel: 1
   promptPanel: {fileID: 905886036}
   promptText: {fileID: 1969653623}
@@ -4543,7 +4542,7 @@ GameObject:
   - component: {fileID: 930000062}
   - component: {fileID: 930000063}
   - component: {fileID: 930000064}
-  m_Layer: 0
+  m_Layer: 20
   m_Name: SquadSelectSpot
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -8171,9 +8170,13 @@ MonoBehaviour:
   promptText: {fileID: 2009909610}
   pressPrefix: 'E - '
   holdPrefix: 'Hold E - '
+  autoFindPromptUi: 1
+  promptPanelObjectName: CampInteractPrompt
+  promptTextObjectName: PromptText
   interactionCooldown: 0.15
   drawDebugRadius: 1
   logInteractions: 1
+  logPromptWarnings: 1
 --- !u!4 &1523657117
 Transform:
   m_ObjectHideFlags: 0
@@ -10844,7 +10847,7 @@ GameObject:
   - component: {fileID: 2130448051}
   - component: {fileID: 2130448050}
   - component: {fileID: 2130448049}
-  m_Layer: 0
+  m_Layer: 20
   m_Name: OldBonesWall
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -10864,7 +10867,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CampOldBonesWall
   interactPrompt: Read old bones
-  closePrompt: Close old bones
   panel: {fileID: 1995234855}
   titleText: {fileID: 153949711}
   bodyText: {fileID: 1616227534}
