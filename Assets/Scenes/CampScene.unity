@@ -546,6 +546,7 @@ Transform:
   m_Children:
   - {fileID: 912582198}
   - {fileID: 1138965591}
+  - {fileID: 1534979553}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &227819281
@@ -8192,6 +8193,63 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1534979552
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1534979553}
+  - component: {fileID: 1534979554}
+  m_Layer: 0
+  m_Name: CampBonesMemorialManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1534979553
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1534979552}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -3.85, y: 4.04, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 227819280}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1534979554
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1534979552}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f737df19d5eb58d4a99fd8f72a91c9e2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CampBonesMemorialManager
+  bonesWallObject: {fileID: 2130448048}
+  bonesWall: {fileID: 2130448049}
+  hideWallUntilFirstDeath: 1
+  runOnStart: 1
+  startDelay: 0.45
+  freezeSeconds: 2
+  freezePlayerDuringRitual: 1
+  firstDeathMessage: Someone should remember them.
+  addedBoneMessage: You press a little bone into the wall.
+  repeatDeathMessage: The camp grows quiet. Another bone belongs on the wall.
+  repeatAddedBoneMessage: Another little bone joins the others.
+  attentionMarker: {fileID: 0}
+  markerSeconds: 4
 --- !u!1 &1554174808
 GameObject:
   m_ObjectHideFlags: 0
@@ -9676,7 +9734,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1853039409
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9689,11 +9747,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ce839243cc665ba4d95e7722443522d4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CampTestRosterSeeder
-  seedOnAwake: 0
+  seedOnAwake: 1
   onlyIfRosterEmpty: 0
-  activeBuddies: 0
-  reserveBuddies: 0
-  includeHurtBuddies: 0
+  activeBuddies: 2
+  reserveBuddies: 2
+  includeHurtBuddies: 1
   includePendingEvolutionBuddy: 0
   hurtPlayerForCampTest: 0
   testPlayerHealth: 0
@@ -10873,7 +10931,7 @@ MonoBehaviour:
   closeButton: {fileID: 300817213}
   title: Old Bones Wall
   emptyMessage: No little bones yet. Somehow.
-  unknownCauseText: Cause unknown
+  hideWhenNoDeaths: 1
 --- !u!61 &2130448050
 BoxCollider2D:
   m_ObjectHideFlags: 0
