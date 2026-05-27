@@ -28,6 +28,27 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
         LoadFromGameState();
     }
 
+    public static CampSuccessorPreferenceStore GetOrCreate()
+    {
+        if (Instance != null)
+        {
+            Instance.LoadFromGameState();
+            return Instance;
+        }
+
+        CampSuccessorPreferenceStore found = Object.FindAnyObjectByType<CampSuccessorPreferenceStore>(FindObjectsInactive.Include);
+        if (found != null)
+        {
+            Instance = found;
+            Instance.LoadFromGameState();
+            return Instance;
+        }
+
+        GameObject obj = new GameObject("CampSuccessorPreferenceStore");
+        Instance = obj.AddComponent<CampSuccessorPreferenceStore>();
+        return Instance;
+    }
+
     public void MarkSuccessor(BuddyData buddy)
     {
         if (buddy == null)
@@ -38,6 +59,23 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
     }
 
     public void MarkSuccessor(string buddyId)
+    {
+        SetMarkedSuccessor(buddyId);
+    }
+
+    public void SetMarkedSuccessor(BuddyData buddy)
+    {
+        if (buddy == null)
+        {
+            ClearSuccessor();
+            return;
+        }
+
+        buddy.EnsureId();
+        SetMarkedSuccessor(buddy.uniqueId);
+    }
+
+    public void SetMarkedSuccessor(string buddyId)
     {
         markedSuccessorId = string.IsNullOrWhiteSpace(buddyId) ? "" : buddyId.Trim();
         SaveToGameState();
@@ -51,15 +89,11 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
         Debug.Log("[CampSuccessorPreferenceStore] Cleared successor.");
     }
 
-    // This signature is for CampSquadSelect, which expects a BuddyData.
     public BuddyData GetMarkedSuccessor()
     {
         LoadFromGameState();
 
-        if (string.IsNullOrWhiteSpace(markedSuccessorId))
-            return null;
-
-        if (GameState.Instance == null)
+        if (string.IsNullOrWhiteSpace(markedSuccessorId) || GameState.Instance == null)
             return null;
 
         BuddyData buddy = GameState.Instance.FindBuddy(markedSuccessorId);
@@ -72,7 +106,6 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
         return buddy;
     }
 
-    // Use this when another script only needs the id.
     public string GetMarkedSuccessorId()
     {
         LoadFromGameState();
@@ -85,9 +118,29 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
         return !string.IsNullOrWhiteSpace(buddyId) && buddyId == markedSuccessorId;
     }
 
+    public bool IsMarked(BuddyData buddy)
+    {
+        if (buddy == null)
+            return false;
+
+        buddy.EnsureId();
+        return IsMarked(buddy.uniqueId);
+    }
+
     public bool HasMarkedSuccessor()
     {
         return GetMarkedSuccessor() != null;
+    }
+
+    public void ValidateAgainstRoster()
+    {
+        LoadFromGameState();
+
+        if (string.IsNullOrWhiteSpace(markedSuccessorId))
+            return;
+
+        if (GameState.Instance == null || GameState.Instance.FindBuddy(markedSuccessorId) == null)
+            ClearSuccessor();
     }
 
     public void LoadFromGameState()
@@ -95,7 +148,6 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
         if (GameState.Instance == null)
             return;
 
-        // Reflection keeps this compatible even if GameState does not have the field yet.
         System.Reflection.FieldInfo field = typeof(GameState).GetField("markedSuccessorId");
         if (field != null)
         {
