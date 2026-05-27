@@ -1,17 +1,16 @@
-using System;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// Save-slot layer around the existing GameState singleton.
-/// GameState still owns runtime data during play; this bridge turns that runtime data into named JSON saves.
+/// Thin runtime bridge for the current numbered save slot.
+/// SporeSaveManager owns the actual full slot JSON.
 /// </summary>
 public class GameStateSaveBridge : MonoBehaviour
 {
     public static GameStateSaveBridge Instance { get; private set; }
 
     [Header("Current Save")]
+    public int currentSlotIndex = 0;
     public string currentSaveId = "";
     public string currentPlayerName = "Gobbo";
     public string currentSaveName = "Gobbo's Camp";
@@ -53,133 +52,94 @@ public class GameStateSaveBridge : MonoBehaviour
 
     public void CreateNewGameAndLoad(string playerName)
     {
-        CreateNewGame(playerName);
-        SceneManager.LoadScene(newGameSceneName);
+        SporeSaveSlotData data = CreateNewGame(playerName);
+        if (data != null) SceneManager.LoadScene(newGameSceneName);
     }
 
-    public SaveSlotData CreateNewGame(string playerName)
+    public SporeSaveSlotData CreateNewGame(string playerName)
     {
-        EnsureGameStateExists();
+        SporeSaveSlotData data = SporeSaveManager.CreateNewGameInFirstEmptySlot(newGameSceneName, playerName);
+        if (data == null)
+        {
+            Log("No empty save slots. New game refused.");
+            return null;
+        }
 
-        playerName = string.IsNullOrWhiteSpace(playerName) ? "Gobbo" : playerName.Trim();
-        SaveSlotData save = new SaveSlotData();
-        save.playerName = playerName;
-        save.saveName = playerName + "'s Camp";
-        save.saveId = GobboSaveSystem.CreateSaveId(playerName);
-        save.createdUtcTicks = DateTime.UtcNow.Ticks;
-        save.lastPlayedUtcTicks = save.createdUtcTicks;
-        save.currentRunNumber = 1;
-        save.maxActiveSquad = 5;
-        save.campLevel = 1;
-        save.player = new GobboSaveData();
-        save.ownedBuddies = new List<BuddyData>();
-        save.activeSquadIds = new List<string>();
-        save.markedSuccessorId = "";
-        save.lastRun = new RunSummaryData();
-
-        ApplySaveToGameState(save);
-        GobboSaveSystem.WriteSave(save);
-        Log("Created new save " + save.saveId + " for " + playerName);
-        return save;
+        SetCurrentSlotWithoutSaving(data.slotIndex, data.playerName, data.saveName, data.markedSuccessorId);
+        Log("Created new save slot " + data.slotIndex + " for " + data.playerName);
+        return data;
     }
 
     public bool LoadSaveAndLoadScene(string saveId, string sceneName)
     {
-        bool loaded = LoadSave(saveId);
+        if (!int.TryParse((saveId ?? "").Replace("slot_", ""), out int slot)) slot = SporeSaveManager.GetLastPlayedSlot();
+        bool loaded = LoadSaveSlot(slot);
         if (loaded) SceneManager.LoadScene(string.IsNullOrWhiteSpace(sceneName) ? campSceneName : sceneName);
         return loaded;
     }
 
     public bool LoadSave(string saveId)
     {
-        SaveSlotData save = GobboSaveSystem.ReadSave(saveId);
-        if (save == null) return false;
-        ApplySaveToGameState(save);
-        Log("Loaded save " + save.saveId + " for " + save.playerName);
+        if (!int.TryParse((saveId ?? "").Replace("slot_", ""), out int slot)) return false;
+        return LoadSaveSlot(slot);
+    }
+
+    public bool LoadSaveSlot(int slotIndex)
+    {
+        SporeSaveSlotData data = SporeSaveManager.LoadSlot(slotIndex);
+        if (data == null || !data.hasSave) return false;
+        SporeSaveManager.ApplySlotToGameState(data);
+        Log("Loaded slot " + data.slotIndex + " for " + data.playerName);
         return true;
     }
 
     public bool LoadLastSave()
     {
-        SaveSlotData save = GobboSaveSystem.ReadLastLoadedSave();
-        if (save == null) return false;
-        ApplySaveToGameState(save);
-        Log("Loaded last save " + save.saveId + " for " + save.playerName);
+        SporeSaveSlotData data = SporeSaveManager.LoadLastPlayedSlot();
+        if (data == null || !data.hasSave) return false;
+        SporeSaveManager.ApplySlotToGameState(data);
+        Log("Loaded most recent slot " + data.slotIndex + " for " + data.playerName);
         return true;
     }
 
     public void SaveCurrentGame()
     {
-        SaveSlotData save = BuildSaveFromGameState();
-        if (save == null) return;
-        GobboSaveSystem.WriteSave(save);
+        if (currentSlotIndex <= 0) currentSlotIndex = SporeSaveManager.GetLastPlayedSlot();
+        if (currentSlotIndex <= 0) currentSlotIndex = SporeSaveManager.GetFirstEmptySlotIndex();
+        if (currentSlotIndex <= 0) currentSlotIndex = 1;
+        SporeSaveManager.SaveCurrentGameToSlot(currentSlotIndex);
     }
 
-    public SaveSlotData BuildSaveFromGameState()
+    public SporeSaveSlotData BuildSaveFromGameState()
     {
-        EnsureGameStateExists();
-        GameState gs = GameState.Instance;
-        if (gs == null) return null;
-
-        gs.RepairRosterState();
-
-        SaveSlotData save = new SaveSlotData();
-        save.saveId = string.IsNullOrWhiteSpace(currentSaveId) ? GobboSaveSystem.CreateSaveId(currentPlayerName) : currentSaveId;
-        save.playerName = string.IsNullOrWhiteSpace(currentPlayerName) ? "Gobbo" : currentPlayerName;
-        save.saveName = string.IsNullOrWhiteSpace(currentSaveName) ? save.playerName + "'s Camp" : currentSaveName;
-        save.createdUtcTicks = GetExistingCreatedTicks(save.saveId);
-        save.lastPlayedUtcTicks = DateTime.UtcNow.Ticks;
-
-        save.currentRunNumber = gs.currentRunNumber;
-        save.maxActiveSquad = gs.maxActiveSquad;
-        save.campLevel = gs.campLevel;
-        save.player = CloneGobbo(gs.gobbo);
-        save.ownedBuddies = CloneBuddyList(gs.ownedBuddies);
-        save.activeSquadIds = new List<string>(gs.activeSquadIds);
-        save.unlockedStations = gs.unlockedStations != null ? new List<string>(gs.unlockedStations) : new List<string>();
-        save.decorationsUnlocked = gs.decorationsUnlocked != null ? new List<string>(gs.decorationsUnlocked) : new List<string>();
-        save.lastRun = gs.lastRun != null ? gs.lastRun : new RunSummaryData();
-        save.markedSuccessorId = markedSuccessorId;
-
-        return save;
+        int slot = currentSlotIndex > 0 ? currentSlotIndex : SporeSaveManager.GetLastPlayedSlot();
+        if (slot <= 0) slot = 1;
+        return SporeSaveManager.BuildSlotFromGameState(slot);
     }
 
-    public void ApplySaveToGameState(SaveSlotData save)
+    public void ApplySaveToGameState(SporeSaveSlotData save)
     {
         if (save == null) return;
-        GobboSaveSystem.NormalizeSave(save);
-        EnsureGameStateExists();
-        GameState gs = GameState.Instance;
-        if (gs == null) return;
+        SporeSaveManager.ApplySlotToGameState(save);
+    }
 
-        currentSaveId = save.saveId;
-        currentPlayerName = save.playerName;
-        currentSaveName = save.saveName;
-        markedSuccessorId = save.markedSuccessorId;
-
-        gs.currentRunNumber = save.currentRunNumber;
-        gs.maxActiveSquad = save.maxActiveSquad;
-        gs.campLevel = save.campLevel;
-        gs.gobbo = CloneGobbo(save.player);
-        gs.ownedBuddies = CloneBuddyList(save.ownedBuddies);
-        gs.activeSquadIds = save.activeSquadIds != null ? new List<string>(save.activeSquadIds) : new List<string>();
-        gs.unlockedStations = save.unlockedStations != null ? new List<string>(save.unlockedStations) : new List<string>();
-        gs.decorationsUnlocked = save.decorationsUnlocked != null ? new List<string>(save.decorationsUnlocked) : new List<string>();
-        gs.lastRun = save.lastRun != null ? save.lastRun : new RunSummaryData();
-        gs.RepairRosterState();
+    public void SetCurrentSlotWithoutSaving(int slotIndex, string playerName, string saveName, string successorId)
+    {
+        currentSlotIndex = Mathf.Clamp(slotIndex, 1, SporeSaveManager.SlotCount);
+        currentSaveId = "slot_" + currentSlotIndex;
+        currentPlayerName = string.IsNullOrWhiteSpace(playerName) ? "Gobbo" : playerName;
+        currentSaveName = string.IsNullOrWhiteSpace(saveName) ? currentPlayerName + "'s Camp" : saveName;
+        markedSuccessorId = string.IsNullOrWhiteSpace(successorId) ? "" : successorId.Trim();
     }
 
     public void SetMarkedSuccessor(string buddyId, bool writeImmediately = true)
     {
         markedSuccessorId = string.IsNullOrWhiteSpace(buddyId) ? "" : buddyId.Trim();
         Log("Marked successor now: " + (string.IsNullOrWhiteSpace(markedSuccessorId) ? "none" : markedSuccessorId));
-        if (writeImmediately && !string.IsNullOrWhiteSpace(currentSaveId)) SaveCurrentGame();
+        if (writeImmediately && currentSlotIndex > 0) SaveCurrentGame();
     }
 
-    public string GetMarkedSuccessorId()
-    {
-        return markedSuccessorId;
-    }
+    public string GetMarkedSuccessorId() => markedSuccessorId;
 
     public void ClearMarkedSuccessor(bool writeImmediately = true)
     {
@@ -194,42 +154,6 @@ public class GameStateSaveBridge : MonoBehaviour
             Log("Marked successor no longer exists. Clearing: " + markedSuccessorId);
             ClearMarkedSuccessor(writeImmediately);
         }
-    }
-
-    long GetExistingCreatedTicks(string saveId)
-    {
-        SaveSlotData existing = GobboSaveSystem.ReadSave(saveId);
-        if (existing != null && existing.createdUtcTicks > 0) return existing.createdUtcTicks;
-        return DateTime.UtcNow.Ticks;
-    }
-
-    static void EnsureGameStateExists()
-    {
-        if (GameState.Instance != null) return;
-        GameObject obj = new GameObject("GameState");
-        obj.AddComponent<GameState>();
-    }
-
-    static List<BuddyData> CloneBuddyList(List<BuddyData> source)
-    {
-        List<BuddyData> result = new List<BuddyData>();
-        if (source == null) return result;
-        foreach (BuddyData buddy in source)
-        {
-            if (buddy == null) continue;
-            buddy.EnsureId();
-            buddy.EnsureRuntimeDefaults();
-            result.Add(buddy.Clone());
-        }
-        return result;
-    }
-
-    static GobboSaveData CloneGobbo(GobboSaveData source)
-    {
-        GobboSaveData copy = new GobboSaveData();
-        if (source == null) return copy;
-        JsonUtility.FromJsonOverwrite(JsonUtility.ToJson(source), copy);
-        return copy;
     }
 
     void Log(string message)

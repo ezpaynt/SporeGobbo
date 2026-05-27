@@ -4,9 +4,9 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
-/// Put this on a Main Menu object or on the New Game button.
-/// For now it can use a default name because you do not have name-entry UI yet.
-/// Later, assign playerNameInput and it will use the typed name.
+/// Optional direct New Game button helper.
+/// MainMenuController is preferred for the 3-slot UI, but this supports your current NewGameSystem object too.
+/// It creates the first empty slot and refuses if all 3 are full.
 /// </summary>
 public class NewGameButton : MonoBehaviour
 {
@@ -16,15 +16,8 @@ public class NewGameButton : MonoBehaviour
     public TMP_InputField playerNameInput;
     public Button newGameButton;
 
-    void Start()
-    {
-        HookButton();
-    }
-
-    void OnEnable()
-    {
-        HookButton();
-    }
+    void Start() => HookButton();
+    void OnEnable() => HookButton();
 
     void HookButton()
     {
@@ -32,6 +25,7 @@ public class NewGameButton : MonoBehaviour
         if (newGameButton == null) return;
         newGameButton.onClick.RemoveListener(StartNewGame);
         newGameButton.onClick.AddListener(StartNewGame);
+        newGameButton.interactable = SporeSaveManager.HasOpenSlot();
     }
 
     public void StartNewGame()
@@ -39,11 +33,19 @@ public class NewGameButton : MonoBehaviour
         string playerName = defaultPlayerName;
         if (playerNameInput != null && !string.IsNullOrWhiteSpace(playerNameInput.text)) playerName = playerNameInput.text.Trim();
 
+        SporeSaveSlotData save = SporeSaveManager.CreateNewGameInFirstEmptySlot(firstSceneName, playerName);
+        if (save == null)
+        {
+            Debug.LogWarning("[NewGameButton] All three save slots are full. New game refused.");
+            HookButton();
+            return;
+        }
+
         GameStateSaveBridge bridge = GameStateSaveBridge.GetOrCreate();
         bridge.newGameSceneName = firstSceneName;
-        bridge.CreateNewGame(playerName);
+        bridge.SetCurrentSlotWithoutSaving(save.slotIndex, save.playerName, save.saveName, save.markedSuccessorId);
 
-        Debug.Log("[NewGameButton] New game for " + playerName + ". Loading " + firstSceneName);
+        Debug.Log("[NewGameButton] New game in slot " + save.slotIndex + " for " + playerName + ". Loading " + firstSceneName);
         SceneManager.LoadScene(firstSceneName);
     }
 }

@@ -1,8 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// Optional helper: add to CampScene systems if you want a save write when camp opens.
-/// Not required, but useful while testing named saves.
+/// Optional helper for CampScene.
+/// Saves current camp state when camp opens. This should not be used in SampleScene.
 /// </summary>
 public class SaveCurrentOnCampReturn : MonoBehaviour
 {
@@ -12,6 +12,6 @@ public class SaveCurrentOnCampReturn : MonoBehaviour
     {
         if (!saveOnStart) return;
         if (GameState.Instance == null) return;
-        GameStateSaveBridge.GetOrCreate().SaveCurrentGame();
+        SporeSaveManager.SaveCurrentGameToCurrentSlot();
     }
 }

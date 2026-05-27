@@ -24,6 +24,7 @@ public class CampRunPortal : MonoBehaviour
 
     [Header("Save")]
     public bool savePlayerBeforeLeaving = true;
+    public bool saveCampBeforeLeaving = true;
     public bool beginRunSnapshotBeforeLeaving = true;
 
     private Transform player;
@@ -35,10 +36,7 @@ public class CampRunPortal : MonoBehaviour
         HookButtons();
     }
 
-    void OnEnable()
-    {
-        HookButtons();
-    }
+    void OnEnable() => HookButtons();
 
     void Update()
     {
@@ -52,8 +50,7 @@ public class CampRunPortal : MonoBehaviour
             return;
         }
 
-        if (!requireKeyPress || Input.GetKeyDown(interactKey))
-            ShowPrompt();
+        if (!requireKeyPress || Input.GetKeyDown(interactKey)) ShowPrompt();
     }
 
     void HookButtons()
@@ -82,18 +79,11 @@ public class CampRunPortal : MonoBehaviour
     void ShowPrompt()
     {
         promptOpen = true;
-
-        if (promptText != null)
-            promptText.text = promptMessage;
-
+        if (promptText != null) promptText.text = promptMessage;
         if (promptPanel != null)
         {
             promptPanel.SetActive(true);
             promptPanel.transform.SetAsLastSibling();
-        }
-        else
-        {
-            Debug.Log("Camp portal ready. Assign Prompt Panel for confirmation UI, or click Go Button if assigned elsewhere.");
         }
     }
 
@@ -111,45 +101,40 @@ public class CampRunPortal : MonoBehaviour
         {
             if (savePlayerBeforeLeaving)
             {
-                GobboController playerController = Object.FindAnyObjectByType<GobboController>();
-                if (playerController != null)
-                    GameState.Instance.SavePlayer(playerController);
+                GobboController playerController = FindAnyObjectByType<GobboController>();
+                if (playerController != null) GameState.Instance.SavePlayer(playerController);
             }
 
-            CampSuccessorPreferenceStore pref = CampSuccessorPreferenceStore.Instance;
+            CampSuccessorPreferenceStore pref = CampSuccessorPreferenceStore.GetOrCreate();
             if (pref != null)
             {
                 pref.ValidateAgainstRoster();
                 markedSuccessorId = pref.GetMarkedSuccessorId();
             }
 
+            GameStateSaveBridge bridge = GameStateSaveBridge.GetOrCreate();
+            bridge.SetMarkedSuccessor(markedSuccessorId, false);
+
+            // This is the safe camp state. If the player quits during the run,
+            // load/continue returns to this camp save.
+            if (saveCampBeforeLeaving) SporeSaveManager.SaveCurrentGameToCurrentSlot();
+
             PlayerDeathRunStore.GetOrCreate().LockSuccessorForRun(markedSuccessorId);
+            if (beginRunSnapshotBeforeLeaving) GameState.Instance.BeginRunSnapshot();
 
-            if (beginRunSnapshotBeforeLeaving)
-                GameState.Instance.BeginRunSnapshot();
-
-            Debug.Log("[CampRunPortal] Starting run. Roster: " + CountRoster() +
+            Debug.Log("[CampRunPortal] Saved camp and starting run. Roster: " + CountRoster() +
                       ", active: " + CountActive() +
                       ", marked successor: " + (string.IsNullOrWhiteSpace(markedSuccessorId) ? "none" : markedSuccessorId));
         }
 
         HidePrompt();
         Time.timeScale = 1f;
-
-        // This is a clean camp -> run scene load, not death.
         PlayerDeathWatcher.SuppressDeathHandlingForSceneChange();
         SceneManager.LoadScene(runSceneName);
     }
 
-    int CountRoster()
-    {
-        return GameState.Instance != null && GameState.Instance.ownedBuddies != null ? GameState.Instance.ownedBuddies.Count : 0;
-    }
-
-    int CountActive()
-    {
-        return GameState.Instance != null && GameState.Instance.activeSquadIds != null ? GameState.Instance.activeSquadIds.Count : 0;
-    }
+    int CountRoster() => GameState.Instance != null && GameState.Instance.ownedBuddies != null ? GameState.Instance.ownedBuddies.Count : 0;
+    int CountActive() => GameState.Instance != null && GameState.Instance.activeSquadIds != null ? GameState.Instance.activeSquadIds.Count : 0;
 
     void FindPlayerIfMissing()
     {

@@ -4,23 +4,20 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
-/// Drop this on a MainMenuController object in your MainMenu scene.
-/// It can auto-find your current button names:
-/// NewGameButton, ContinueButton, LoadGameButton, CollectionBookButton,
-/// GobboDeedsButton, ShopButton, SettingsButton, QuitButton,
-/// SlotButton1, SlotButton2, SlotButton3, BackButton.
+/// Main menu now treats saves as 3 full camp slots.
+/// New Game creates only in empty slots. Continue/Load always resume to CampScene.
 /// </summary>
 public class MainMenuController : MonoBehaviour
 {
-    private enum SlotMode
-    {
-        NewGame,
-        LoadGame
-    }
+    private enum SlotMode { NewGame, LoadGame }
 
     [Header("Scenes")]
     public string firstSceneName = "SampleScene";
-    public string fallbackContinueSceneName = "CampScene";
+    public string campSceneName = "CampScene";
+
+    [Header("New Game")]
+    public string defaultPlayerName = "Gobbo";
+    public TMP_InputField playerNameInput;
 
     [Header("Panels")]
     public GameObject mainMenuPanel;
@@ -56,9 +53,7 @@ public class MainMenuController : MonoBehaviour
 
     void Awake()
     {
-        if (autoFindReferences)
-            AutoFindReferences();
-
+        if (autoFindReferences) AutoFindReferences();
         HookButtons();
     }
 
@@ -71,18 +66,10 @@ public class MainMenuController : MonoBehaviour
 
     void AutoFindReferences()
     {
-        if (mainMenuPanel == null)
-            mainMenuPanel = GameObject.Find("MainMenuPanel");
-
-        if (saveSlotPanel == null)
-            saveSlotPanel = GameObject.Find("SaveSlotPanel");
-
-        if (settingsPanel == null)
-            settingsPanel = GameObject.Find("SettingsPanel");
-
-        if (placeholderPanel == null)
-            placeholderPanel = GameObject.Find("PlaceholderPanel");
-
+        if (mainMenuPanel == null) mainMenuPanel = GameObject.Find("MainMenuPanel");
+        if (saveSlotPanel == null) saveSlotPanel = GameObject.Find("SaveSlotPanel");
+        if (settingsPanel == null) settingsPanel = GameObject.Find("SettingsPanel");
+        if (placeholderPanel == null) placeholderPanel = GameObject.Find("PlaceholderPanel");
         if (newGameButton == null) newGameButton = FindButton("NewGameButton");
         if (continueButton == null) continueButton = FindButton("ContinueButton");
         if (loadGameButton == null) loadGameButton = FindButton("LoadGameButton");
@@ -91,21 +78,16 @@ public class MainMenuController : MonoBehaviour
         if (shopButton == null) shopButton = FindButton("ShopButton");
         if (settingsButton == null) settingsButton = FindButton("SettingsButton");
         if (quitButton == null) quitButton = FindButton("QuitButton");
-
         if (slotButton1 == null) slotButton1 = FindButton("SlotButton1");
         if (slotButton2 == null) slotButton2 = FindButton("SlotButton2");
         if (slotButton3 == null) slotButton3 = FindButton("SlotButton3");
         if (backButton == null) backButton = FindButton("BackButton");
-
         if (titleText == null)
         {
             GameObject foundTitle = GameObject.Find("TitleText");
-            if (foundTitle != null)
-                titleText = foundTitle.GetComponent<TMP_Text>();
+            if (foundTitle != null) titleText = foundTitle.GetComponent<TMP_Text>();
         }
-
-        if (placeholderText == null && placeholderPanel != null)
-            placeholderText = placeholderPanel.GetComponentInChildren<TMP_Text>(true);
+        if (placeholderText == null && placeholderPanel != null) placeholderText = placeholderPanel.GetComponentInChildren<TMP_Text>(true);
     }
 
     Button FindButton(string objectName)
@@ -124,7 +106,6 @@ public class MainMenuController : MonoBehaviour
         Hook(shopButton, () => ShowPlaceholder("Shop coming soon."));
         Hook(settingsButton, ShowSettings);
         Hook(quitButton, QuitGame);
-
         Hook(slotButton1, () => ChooseSlot(1));
         Hook(slotButton2, () => ChooseSlot(2));
         Hook(slotButton3, () => ChooseSlot(3));
@@ -133,18 +114,15 @@ public class MainMenuController : MonoBehaviour
 
     void Hook(Button button, UnityEngine.Events.UnityAction action)
     {
-        if (button == null)
-            return;
-
+        if (button == null) return;
         button.onClick.RemoveAllListeners();
         button.onClick.AddListener(action);
     }
 
     void RefreshContinueButton()
     {
-        if (continueButton != null)
-            continueButton.interactable = SporeSaveManager.LoadLastPlayedSlot() != null;
-
+        if (continueButton != null) continueButton.interactable = SporeSaveManager.LoadLastPlayedSlot() != null;
+        if (newGameButton != null) newGameButton.interactable = SporeSaveManager.HasOpenSlot();
         if (disableFutureButtons)
         {
             if (collectionBookButton != null) collectionBookButton.interactable = false;
@@ -164,6 +142,11 @@ public class MainMenuController : MonoBehaviour
 
     public void OpenNewGameSlots()
     {
+        if (!SporeSaveManager.HasOpenSlot())
+        {
+            ShowPlaceholder("All three save slots are full. Delete/overwrite support comes later.");
+            return;
+        }
         currentSlotMode = SlotMode.NewGame;
         OpenSlotPanel();
     }
@@ -180,7 +163,6 @@ public class MainMenuController : MonoBehaviour
         SetPanel(saveSlotPanel, true);
         SetPanel(settingsPanel, false);
         SetPanel(placeholderPanel, false);
-
         RefreshSlotButtons();
     }
 
@@ -193,79 +175,59 @@ public class MainMenuController : MonoBehaviour
 
     void RefreshSlotButton(Button button, int slotIndex)
     {
-        if (button == null)
-            return;
-
+        if (button == null) return;
         SporeSaveSlotData data = SporeSaveManager.LoadSlot(slotIndex);
         bool hasSave = data != null && data.hasSave;
-
         TMP_Text label = button.GetComponentInChildren<TMP_Text>(true);
         if (label != null)
         {
-            if (currentSlotMode == SlotMode.NewGame)
-                label.text = hasSave ? data.GetButtonLabel() + "\nOverwrite" : "Slot " + slotIndex + " — New Game";
-            else
-                label.text = hasSave ? data.GetButtonLabel() : "Slot " + slotIndex + " — Empty";
+            if (currentSlotMode == SlotMode.NewGame) label.text = hasSave ? data.GetButtonLabel() + "\nFULL" : "Slot " + slotIndex + " — New Game";
+            else label.text = hasSave ? data.GetButtonLabel() : "Slot " + slotIndex + " — Empty";
         }
-
-        button.interactable = currentSlotMode == SlotMode.NewGame || hasSave;
+        button.interactable = currentSlotMode == SlotMode.NewGame ? !hasSave : hasSave;
     }
 
     void ChooseSlot(int slotIndex)
     {
-        if (currentSlotMode == SlotMode.NewGame)
-        {
-            StartNewGame(slotIndex);
-            return;
-        }
-
-        LoadGame(slotIndex);
+        if (currentSlotMode == SlotMode.NewGame) StartNewGame(slotIndex);
+        else LoadGame(slotIndex);
     }
 
     public void StartNewGame(int slotIndex)
     {
-        SporeSaveSlotData data = SporeSaveManager.CreateNewGame(slotIndex, firstSceneName);
-        LoadSceneFromSave(data, firstSceneName);
+        string playerName = defaultPlayerName;
+        if (playerNameInput != null && !string.IsNullOrWhiteSpace(playerNameInput.text)) playerName = playerNameInput.text.Trim();
+        SporeSaveSlotData data = SporeSaveManager.CreateNewGame(slotIndex, firstSceneName, playerName, false);
+        if (data == null)
+        {
+            ShowPlaceholder("That slot is full.");
+            return;
+        }
+        SceneManager.LoadScene(firstSceneName);
     }
 
     public void ContinueLastGame()
     {
         SporeSaveSlotData data = SporeSaveManager.LoadLastPlayedSlot();
-
         if (data == null || !data.hasSave)
         {
             ShowPlaceholder("No save found yet.");
             return;
         }
-
-        LoadSceneFromSave(data, fallbackContinueSceneName);
+        SporeSaveManager.ApplySlotToGameState(data);
+        SceneManager.LoadScene(campSceneName);
     }
 
     public void LoadGame(int slotIndex)
     {
         SporeSaveSlotData data = SporeSaveManager.LoadSlot(slotIndex);
-
         if (data == null || !data.hasSave)
         {
             ShowPlaceholder("That slot is empty.");
             return;
         }
-
-        SporeSaveManager.SetLastPlayedSlot(slotIndex);
-        LoadSceneFromSave(data, fallbackContinueSceneName);
-    }
-
-    void LoadSceneFromSave(SporeSaveSlotData data, string fallbackScene)
-    {
-        string sceneToLoad = fallbackScene;
-
-        if (data != null && !string.IsNullOrWhiteSpace(data.nextSceneName))
-            sceneToLoad = data.nextSceneName;
-
-        if (string.IsNullOrWhiteSpace(sceneToLoad))
-            sceneToLoad = firstSceneName;
-
-        SceneManager.LoadScene(sceneToLoad);
+        SporeSaveManager.ApplySlotToGameState(data);
+        SceneManager.LoadScene(campSceneName);
     }
 
     public void ShowSettings()
@@ -278,7 +240,6 @@ public class MainMenuController : MonoBehaviour
             SetPanel(placeholderPanel, false);
             return;
         }
-
         ShowPlaceholder("Settings coming soon.");
     }
 
@@ -287,23 +248,18 @@ public class MainMenuController : MonoBehaviour
         SetPanel(mainMenuPanel, true);
         SetPanel(saveSlotPanel, false);
         SetPanel(settingsPanel, false);
-
         if (placeholderPanel != null)
         {
             placeholderPanel.SetActive(true);
             placeholderPanel.transform.SetAsLastSibling();
         }
-
-        if (placeholderText != null)
-            placeholderText.text = message;
-
+        if (placeholderText != null) placeholderText.text = message;
         Debug.Log(message);
     }
 
     public void QuitGame()
     {
         Debug.Log("Quit game requested.");
-
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #else
@@ -313,7 +269,6 @@ public class MainMenuController : MonoBehaviour
 
     void SetPanel(GameObject panel, bool visible)
     {
-        if (panel != null)
-            panel.SetActive(visible);
+        if (panel != null) panel.SetActive(visible);
     }
 }
