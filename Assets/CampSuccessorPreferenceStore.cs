@@ -4,8 +4,13 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
 {
     public static CampSuccessorPreferenceStore Instance { get; private set; }
 
+    private const string PlayerPrefsKey = "SporeGobbo.MarkedSuccessorId";
+
     [Header("Chosen Successor")]
     public string markedSuccessorId = "";
+
+    [Header("Debug")]
+    public bool logDebugMessages = true;
 
     void Awake()
     {
@@ -17,7 +22,7 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
-        LoadFromGameState();
+        LoadSavedSuccessorId();
     }
 
     void OnEnable()
@@ -25,14 +30,14 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
         if (Instance == null)
             Instance = this;
 
-        LoadFromGameState();
+        LoadSavedSuccessorId();
     }
 
     public static CampSuccessorPreferenceStore GetOrCreate()
     {
         if (Instance != null)
         {
-            Instance.LoadFromGameState();
+            Instance.LoadSavedSuccessorId();
             return Instance;
         }
 
@@ -40,7 +45,7 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
         if (found != null)
         {
             Instance = found;
-            Instance.LoadFromGameState();
+            Instance.LoadSavedSuccessorId();
             return Instance;
         }
 
@@ -51,11 +56,7 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
 
     public void MarkSuccessor(BuddyData buddy)
     {
-        if (buddy == null)
-            return;
-
-        buddy.EnsureId();
-        MarkSuccessor(buddy.uniqueId);
+        SetMarkedSuccessor(buddy);
     }
 
     public void MarkSuccessor(string buddyId)
@@ -78,20 +79,24 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
     public void SetMarkedSuccessor(string buddyId)
     {
         markedSuccessorId = string.IsNullOrWhiteSpace(buddyId) ? "" : buddyId.Trim();
-        SaveToGameState();
-        Debug.Log("[CampSuccessorPreferenceStore] Marked successor id: " + (string.IsNullOrWhiteSpace(markedSuccessorId) ? "none" : markedSuccessorId));
+        SaveSuccessorId();
+
+        if (logDebugMessages)
+            Debug.Log("[CampSuccessorPreferenceStore] Marked successor id: " + (string.IsNullOrWhiteSpace(markedSuccessorId) ? "none" : markedSuccessorId));
     }
 
     public void ClearSuccessor()
     {
         markedSuccessorId = "";
-        SaveToGameState();
-        Debug.Log("[CampSuccessorPreferenceStore] Cleared successor.");
+        SaveSuccessorId();
+
+        if (logDebugMessages)
+            Debug.Log("[CampSuccessorPreferenceStore] Cleared successor.");
     }
 
     public BuddyData GetMarkedSuccessor()
     {
-        LoadFromGameState();
+        LoadSavedSuccessorId();
 
         if (string.IsNullOrWhiteSpace(markedSuccessorId) || GameState.Instance == null)
             return null;
@@ -99,6 +104,7 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
         BuddyData buddy = GameState.Instance.FindBuddy(markedSuccessorId);
         if (buddy == null)
         {
+            // The selected gobbo no longer exists, so clear the stored id.
             ClearSuccessor();
             return null;
         }
@@ -108,13 +114,13 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
 
     public string GetMarkedSuccessorId()
     {
-        LoadFromGameState();
+        LoadSavedSuccessorId();
         return markedSuccessorId;
     }
 
     public bool IsMarked(string buddyId)
     {
-        LoadFromGameState();
+        LoadSavedSuccessorId();
         return !string.IsNullOrWhiteSpace(buddyId) && buddyId == markedSuccessorId;
     }
 
@@ -134,7 +140,7 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
 
     public void ValidateAgainstRoster()
     {
-        LoadFromGameState();
+        LoadSavedSuccessorId();
 
         if (string.IsNullOrWhiteSpace(markedSuccessorId))
             return;
@@ -143,27 +149,28 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
             ClearSuccessor();
     }
 
+    // Backwards-compatible names older scripts may still call.
     public void LoadFromGameState()
     {
-        if (GameState.Instance == null)
-            return;
-
-        System.Reflection.FieldInfo field = typeof(GameState).GetField("markedSuccessorId");
-        if (field != null)
-        {
-            string value = field.GetValue(GameState.Instance) as string;
-            if (!string.IsNullOrWhiteSpace(value))
-                markedSuccessorId = value;
-        }
+        LoadSavedSuccessorId();
     }
 
     public void SaveToGameState()
     {
-        if (GameState.Instance == null)
-            return;
+        SaveSuccessorId();
+    }
 
-        System.Reflection.FieldInfo field = typeof(GameState).GetField("markedSuccessorId");
-        if (field != null)
-            field.SetValue(GameState.Instance, markedSuccessorId);
+    void LoadSavedSuccessorId()
+    {
+        string saved = PlayerPrefs.GetString(PlayerPrefsKey, "");
+
+        if (!string.IsNullOrWhiteSpace(saved))
+            markedSuccessorId = saved;
+    }
+
+    void SaveSuccessorId()
+    {
+        PlayerPrefs.SetString(PlayerPrefsKey, markedSuccessorId ?? "");
+        PlayerPrefs.Save();
     }
 }
