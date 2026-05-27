@@ -25,6 +25,7 @@ public class CampRunPortal : MonoBehaviour
     [Header("Save")]
     public bool savePlayerBeforeLeaving = true;
     public bool beginRunSnapshotBeforeLeaving = true;
+
     [Tooltip("Leave this OFF for the current camp. Scene BuddyRoster objects can be stale/empty and wipe GameState.")]
     public bool saveSceneBuddyRosterBeforeLeaving = false;
 
@@ -129,13 +130,21 @@ public class CampRunPortal : MonoBehaviour
                 }
             }
 
-            if (CampSuccessorPreferenceStore.Instance != null)
-                CampSuccessorPreferenceStore.Instance.ValidateAgainstRoster();
+            CampSuccessorPreferenceStore pref = CampSuccessorPreferenceStore.GetOrCreate();
+            pref.ValidateAgainstRoster();
+
+            string markedId = pref.GetMarkedSuccessorId();
+            BuddyData markedBuddy = GameState.Instance.FindBuddy(markedId);
+            string markedName = markedBuddy != null ? markedBuddy.buddyName : "";
+
+            PlayerDeathRunStore.GetOrCreate().LockMarkedSuccessorForRun(markedId, markedName);
 
             if (beginRunSnapshotBeforeLeaving)
                 GameState.Instance.BeginRunSnapshot();
 
-            Debug.Log("[CampRunPortal] Starting run. Roster: " + CountRoster() + ", active: " + CountActive() + ", marked successor: " + GetMarkedSuccessorDebug());
+            Debug.Log("[CampRunPortal] Starting run. Roster: " + CountRoster() +
+                      ", active: " + CountActive() +
+                      ", locked successor: " + (string.IsNullOrWhiteSpace(markedId) ? "none" : markedName + " / " + markedId));
         }
 
         Time.timeScale = 1f;
@@ -150,11 +159,6 @@ public class CampRunPortal : MonoBehaviour
     int CountActive()
     {
         return GameState.Instance != null && GameState.Instance.activeSquadIds != null ? GameState.Instance.activeSquadIds.Count : 0;
-    }
-
-    string GetMarkedSuccessorDebug()
-    {
-        return CampSuccessorPreferenceStore.Instance != null ? CampSuccessorPreferenceStore.Instance.GetMarkedSuccessorId() : "none";
     }
 
     void FindPlayerIfMissing()

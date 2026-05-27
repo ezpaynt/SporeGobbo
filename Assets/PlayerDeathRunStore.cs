@@ -22,6 +22,11 @@ public class PlayerDeathRunStore : MonoBehaviour
     public int deadPlayerLevel = 1;
     public int runNumber = 1;
 
+    [Header("Successor Lock")]
+    [Tooltip("The successor id that was marked when the run started. This should not change during the death reload.")]
+    public string lockedMarkedSuccessorId = "";
+    public string lockedMarkedSuccessorName = "";
+
     [Header("Survivors")]
     public List<string> eligibleSuccessorIds = new List<string>();
 
@@ -54,6 +59,20 @@ public class PlayerDeathRunStore : MonoBehaviour
         return obj.AddComponent<PlayerDeathRunStore>();
     }
 
+    public void LockMarkedSuccessorForRun(string successorId, string successorName = "")
+    {
+        lockedMarkedSuccessorId = string.IsNullOrWhiteSpace(successorId) ? "" : successorId.Trim();
+        lockedMarkedSuccessorName = string.IsNullOrWhiteSpace(successorName) ? "" : successorName.Trim();
+
+        Debug.Log("[PlayerDeathRunStore] Locked run successor: " +
+                  (string.IsNullOrWhiteSpace(lockedMarkedSuccessorId) ? "none" : lockedMarkedSuccessorName + " / " + lockedMarkedSuccessorId));
+    }
+
+    public string GetLockedMarkedSuccessorId()
+    {
+        return lockedMarkedSuccessorId;
+    }
+
     public void BeginPlayerDeath(string leaderName, int leaderLevel, int currentRunNumber, string cause, List<string> successorIds)
     {
         BeginPlayerDeath(leaderName, "Gobbo", leaderLevel, currentRunNumber, cause, successorIds);
@@ -72,6 +91,10 @@ public class PlayerDeathRunStore : MonoBehaviour
         eligibleSuccessorIds = successorIds != null ? new List<string>(successorIds) : new List<string>();
 
         SyncCompatibilityFields();
+
+        Debug.Log("[PlayerDeathRunStore] BeginPlayerDeath. Locked successor: " +
+                  (string.IsNullOrWhiteSpace(lockedMarkedSuccessorId) ? "none" : lockedMarkedSuccessorId) +
+                  ", eligible: " + eligibleSuccessorIds.Count);
     }
 
     public void ClearPendingDeath()
@@ -79,16 +102,21 @@ public class PlayerDeathRunStore : MonoBehaviour
         playerDiedThisRun = false;
         memorialAddedToHistory = false;
         eligibleSuccessorIds.Clear();
+        lockedMarkedSuccessorId = "";
+        lockedMarkedSuccessorName = "";
     }
 
     public void SyncCompatibilityFields()
     {
         if (!string.IsNullOrWhiteSpace(deadPlayerName) && string.IsNullOrWhiteSpace(deadLeaderName))
             deadLeaderName = deadPlayerName;
+
         if (!string.IsNullOrWhiteSpace(deadPlayerType) && string.IsNullOrWhiteSpace(deadLeaderType))
             deadLeaderType = deadPlayerType;
+
         if (deadPlayerLevel > 0 && deadLeaderLevel <= 0)
             deadLeaderLevel = deadPlayerLevel;
+
         if (runNumber > 0 && deadLeaderRunNumber <= 0)
             deadLeaderRunNumber = runNumber;
 

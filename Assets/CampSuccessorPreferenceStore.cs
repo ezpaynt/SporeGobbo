@@ -82,7 +82,8 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
         SaveSuccessorId();
 
         if (logDebugMessages)
-            Debug.Log("[CampSuccessorPreferenceStore] Marked successor id: " + (string.IsNullOrWhiteSpace(markedSuccessorId) ? "none" : markedSuccessorId));
+            Debug.Log("[CampSuccessorPreferenceStore] Marked successor id: " +
+                      (string.IsNullOrWhiteSpace(markedSuccessorId) ? "none" : markedSuccessorId));
     }
 
     public void ClearSuccessor()
@@ -103,11 +104,7 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
 
         BuddyData buddy = GameState.Instance.FindBuddy(markedSuccessorId);
         if (buddy == null)
-        {
-            // The selected gobbo no longer exists, so clear the stored id.
-            ClearSuccessor();
             return null;
-        }
 
         return buddy;
     }
@@ -146,7 +143,10 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
             return;
 
         if (GameState.Instance == null || GameState.Instance.FindBuddy(markedSuccessorId) == null)
+        {
+            // Important: only clear invalid ids. Never auto-pick a replacement here.
             ClearSuccessor();
+        }
     }
 
     // Backwards-compatible names older scripts may still call.
@@ -163,9 +163,7 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
     void LoadSavedSuccessorId()
     {
         string saved = PlayerPrefs.GetString(PlayerPrefsKey, "");
-
-        if (!string.IsNullOrWhiteSpace(saved))
-            markedSuccessorId = saved;
+        markedSuccessorId = string.IsNullOrWhiteSpace(saved) ? "" : saved.Trim();
     }
 
     void SaveSuccessorId()
