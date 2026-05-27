@@ -26,7 +26,6 @@ public class PlayerDeathWatcher : MonoBehaviour
 
     void OnDisable()
     {
-        // GobboController.Die() disables the player object. This catches that exact case.
         TryHandleDeath("OnDisable");
     }
 
@@ -50,7 +49,6 @@ public class PlayerDeathWatcher : MonoBehaviour
         if (player != null && player.health <= 0)
             return true;
 
-        // If disabled by death before health was visible to this component, treat disabled player as dead.
         if (player != null && !gameObject.activeInHierarchy)
             return true;
 
@@ -71,7 +69,19 @@ public class PlayerDeathWatcher : MonoBehaviour
             }
         }
 
-        List<string> candidates = BuildSuccessorCandidateIds();
+        List<BuddyData> candidateSnapshots = BuildSuccessorCandidates();
+        List<string> candidateIds = new List<string>();
+
+        foreach (BuddyData buddy in candidateSnapshots)
+        {
+            if (buddy == null)
+                continue;
+
+            buddy.EnsureId();
+            if (!candidateIds.Contains(buddy.uniqueId))
+                candidateIds.Add(buddy.uniqueId);
+        }
+
         int runNumber = GameState.Instance != null ? Mathf.Max(1, GameState.Instance.currentRunNumber) : 1;
         string leaderName = "Gobbo";
         int leaderLevel = 1;
@@ -83,55 +93,75 @@ public class PlayerDeathWatcher : MonoBehaviour
         }
 
         PlayerDeathRunStore store = PlayerDeathRunStore.GetOrCreate();
-        store.BeginPlayerDeath(leaderName, leaderLevel, runNumber, deathCause, candidates);
+        string preferredSuccessorId = store.lockedSuccessorId;
 
-        Debug.Log("[PlayerDeathWatcher] handled death from " + source + ". Successor candidates: " + candidates.Count);
+        if (string.IsNullOrWhiteSpace(preferredSuccessorId))
+        {
+            CampSuccessorPreferenceStore pref = CampSuccessorPreferenceStore.Instance;
+            if (pref != null)
+                preferredSuccessorId = pref.GetMarkedSuccessorId();
+        }
+
+        store.BeginPlayerDeath(
+            leaderName,
+            "Gobbo",
+            leaderLevel,
+            runNumber,
+            deathCause,
+            candidateIds,
+            candidateSnapshots,
+            preferredSuccessorId);
+
+        Debug.Log("[PlayerDeathWatcher] handled death from " + source +
+                  ". Successor candidates: " + candidateSnapshots.Count +
+                  ", locked/preferred: " + (string.IsNullOrWhiteSpace(preferredSuccessorId) ? "none" : preferredSuccessorId));
 
         Time.timeScale = 1f;
 
-        if (loadGameOverSceneIfNoSuccessors && candidates.Count == 0 && !string.IsNullOrWhiteSpace(gameOverSceneName))
+        if (loadGameOverSceneIfNoSuccessors && candidateSnapshots.Count == 0 && !string.IsNullOrWhiteSpace(gameOverSceneName))
             SceneManager.LoadScene(gameOverSceneName);
         else
             SceneManager.LoadScene(campSceneName);
     }
 
-    List<string> BuildSuccessorCandidateIds()
+    List<BuddyData> BuildSuccessorCandidates()
     {
-        List<string> ids = new List<string>();
+        List<BuddyData> result = new List<BuddyData>();
+        HashSet<string> seen = new HashSet<string>();
 
         if (GameState.Instance != null && GameState.Instance.ownedBuddies != null)
         {
             foreach (BuddyData buddy in GameState.Instance.ownedBuddies)
-            {
-                if (buddy == null)
-                    continue;
-
-                buddy.EnsureId();
-                buddy.EnsureRuntimeDefaults();
-
-                // For succession, any living roster gobbo counts, active or reserve.
-                if (buddy.health > 0 && !ids.Contains(buddy.uniqueId))
-                    ids.Add(buddy.uniqueId);
-            }
+                AddCandidate(result, seen, buddy);
         }
 
-        // Fallback: scene BuddyUnits, for old test scenes where GameState was not populated.
-        if (ids.Count == 0)
+        BuddyUnit[] units = Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None);
+        foreach (BuddyUnit unit in units)
         {
-            BuddyUnit[] units = Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None);
-            foreach (BuddyUnit unit in units)
-            {
-                if (unit == null || unit.data == null)
-                    continue;
+            if (unit == null)
+                continue;
 
-                unit.data.EnsureId();
-                unit.data.EnsureRuntimeDefaults();
-
-                if (unit.data.health > 0 && !ids.Contains(unit.data.uniqueId))
-                    ids.Add(unit.data.uniqueId);
-            }
+            AddCandidate(result, seen, unit.data);
         }
 
-        return ids;
+        return result;
+    }
+
+    void AddCandidate(List<BuddyData> result, HashSet<string> seen, BuddyData buddy)
+    {
+        if (buddy == null)
+            return;
+
+        buddy.EnsureId();
+        buddy.EnsureRuntimeDefaults();
+
+        if (buddy.health <= 0)
+            return;
+
+        if (seen.Contains(buddy.uniqueId))
+            return;
+
+        seen.Add(buddy.uniqueId);
+        result.Add(buddy.Clone());
     }
 }

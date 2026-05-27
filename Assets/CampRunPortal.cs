@@ -26,20 +26,12 @@ public class CampRunPortal : MonoBehaviour
     public bool savePlayerBeforeLeaving = true;
     public bool beginRunSnapshotBeforeLeaving = true;
 
-    [Tooltip("Leave this OFF for the current camp. Scene BuddyRoster objects can be stale/empty and wipe GameState.")]
-    public bool saveSceneBuddyRosterBeforeLeaving = false;
-
     private Transform player;
     private bool promptOpen = false;
 
     void Start()
     {
         HidePrompt();
-        HookButtons();
-    }
-
-    void OnEnable()
-    {
         HookButtons();
     }
 
@@ -69,21 +61,22 @@ public class CampRunPortal : MonoBehaviour
         {
             goButton.onClick.RemoveAllListeners();
             goButton.onClick.AddListener(StartNextRun);
-
-            TMP_Text text = goButton.GetComponentInChildren<TMP_Text>(true);
-            if (text != null)
-                text.text = goButtonText;
+            SetButtonText(goButton, goButtonText);
         }
 
         if (cancelButton != null)
         {
             cancelButton.onClick.RemoveAllListeners();
             cancelButton.onClick.AddListener(HidePrompt);
-
-            TMP_Text text = cancelButton.GetComponentInChildren<TMP_Text>(true);
-            if (text != null)
-                text.text = cancelButtonText;
+            SetButtonText(cancelButton, cancelButtonText);
         }
+    }
+
+    void SetButtonText(Button button, string text)
+    {
+        TMP_Text label = button != null ? button.GetComponentInChildren<TMP_Text>(true) : null;
+        if (label != null)
+            label.text = text;
     }
 
     void ShowPrompt()
@@ -118,47 +111,27 @@ public class CampRunPortal : MonoBehaviour
         {
             if (savePlayerBeforeLeaving)
             {
-                GobboController playerController = UnityEngine.Object.FindAnyObjectByType<GobboController>();
+                GobboController playerController = Object.FindAnyObjectByType<GobboController>();
                 if (playerController != null)
                     GameState.Instance.SavePlayer(playerController);
 
-                if (saveSceneBuddyRosterBeforeLeaving)
-                {
-                    BuddyRoster roster = UnityEngine.Object.FindAnyObjectByType<BuddyRoster>(FindObjectsInactive.Include);
-                    if (roster != null)
-                        GameState.Instance.SaveRoster(roster);
-                }
+                // Do not save a scene BuddyRoster here. GameState is the real roster owner.
             }
-
-            CampSuccessorPreferenceStore pref = CampSuccessorPreferenceStore.GetOrCreate();
-            pref.ValidateAgainstRoster();
-
-            string markedId = pref.GetMarkedSuccessorId();
-            BuddyData markedBuddy = GameState.Instance.FindBuddy(markedId);
-            string markedName = markedBuddy != null ? markedBuddy.buddyName : "";
-
-            PlayerDeathRunStore.GetOrCreate().LockMarkedSuccessorForRun(markedId, markedName);
 
             if (beginRunSnapshotBeforeLeaving)
                 GameState.Instance.BeginRunSnapshot();
-
-            Debug.Log("[CampRunPortal] Starting run. Roster: " + CountRoster() +
-                      ", active: " + CountActive() +
-                      ", locked successor: " + (string.IsNullOrWhiteSpace(markedId) ? "none" : markedName + " / " + markedId));
         }
+
+        CampSuccessorPreferenceStore pref = CampSuccessorPreferenceStore.Instance;
+        string markedId = pref != null ? pref.GetMarkedSuccessorId() : "";
+        PlayerDeathRunStore.GetOrCreate().LockSuccessorId(markedId);
+
+        int rosterCount = GameState.Instance != null && GameState.Instance.ownedBuddies != null ? GameState.Instance.ownedBuddies.Count : 0;
+        int activeCount = GameState.Instance != null ? GameState.Instance.GetActiveSquad().Count : 0;
+        Debug.Log("[CampRunPortal] Starting run. Roster: " + rosterCount + ", active: " + activeCount + ", marked successor: " + (string.IsNullOrWhiteSpace(markedId) ? "none" : markedId) + " (locked)");
 
         Time.timeScale = 1f;
         SceneManager.LoadScene(runSceneName);
-    }
-
-    int CountRoster()
-    {
-        return GameState.Instance != null && GameState.Instance.ownedBuddies != null ? GameState.Instance.ownedBuddies.Count : 0;
-    }
-
-    int CountActive()
-    {
-        return GameState.Instance != null && GameState.Instance.activeSquadIds != null ? GameState.Instance.activeSquadIds.Count : 0;
     }
 
     void FindPlayerIfMissing()

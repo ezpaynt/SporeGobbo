@@ -8,7 +8,6 @@ public class PlayerDeathRunStore : MonoBehaviour
     [Header("Pending Death Flow")]
     public bool playerDiedThisRun = false;
 
-    // Current names used by the new death flow.
     public string deadLeaderName = "Gobbo";
     public string deadLeaderType = "Gobbo";
     public int deadLeaderLevel = 1;
@@ -16,19 +15,18 @@ public class PlayerDeathRunStore : MonoBehaviour
     public string deathCause = "Got squished in the dirt.";
     public bool memorialAddedToHistory = false;
 
-    // Compatibility names used by older bones/succession files.
+    [Header("Compatibility")]
     public string deadPlayerName = "Gobbo";
     public string deadPlayerType = "Gobbo";
     public int deadPlayerLevel = 1;
     public int runNumber = 1;
 
     [Header("Successor Lock")]
-    [Tooltip("The successor id that was marked when the run started. This should not change during the death reload.")]
-    public string lockedMarkedSuccessorId = "";
-    public string lockedMarkedSuccessorName = "";
+    public string lockedSuccessorId = "";
 
     [Header("Survivors")]
     public List<string> eligibleSuccessorIds = new List<string>();
+    public List<BuddyData> eligibleSuccessorSnapshots = new List<BuddyData>();
 
     void Awake()
     {
@@ -52,33 +50,38 @@ public class PlayerDeathRunStore : MonoBehaviour
         if (found != null)
         {
             Instance = found;
-            return Instance;
+            return found;
         }
 
         GameObject obj = new GameObject("PlayerDeathRunStore");
         return obj.AddComponent<PlayerDeathRunStore>();
     }
 
-    public void LockMarkedSuccessorForRun(string successorId, string successorName = "")
+    public void LockSuccessorId(string successorId)
     {
-        lockedMarkedSuccessorId = string.IsNullOrWhiteSpace(successorId) ? "" : successorId.Trim();
-        lockedMarkedSuccessorName = string.IsNullOrWhiteSpace(successorName) ? "" : successorName.Trim();
-
-        Debug.Log("[PlayerDeathRunStore] Locked run successor: " +
-                  (string.IsNullOrWhiteSpace(lockedMarkedSuccessorId) ? "none" : lockedMarkedSuccessorName + " / " + lockedMarkedSuccessorId));
-    }
-
-    public string GetLockedMarkedSuccessorId()
-    {
-        return lockedMarkedSuccessorId;
+        lockedSuccessorId = string.IsNullOrWhiteSpace(successorId) ? "" : successorId.Trim();
+        Debug.Log("[PlayerDeathRunStore] Locked successor id: " + (string.IsNullOrWhiteSpace(lockedSuccessorId) ? "none" : lockedSuccessorId));
     }
 
     public void BeginPlayerDeath(string leaderName, int leaderLevel, int currentRunNumber, string cause, List<string> successorIds)
     {
-        BeginPlayerDeath(leaderName, "Gobbo", leaderLevel, currentRunNumber, cause, successorIds);
+        BeginPlayerDeath(leaderName, "Gobbo", leaderLevel, currentRunNumber, cause, successorIds, null, lockedSuccessorId);
     }
 
     public void BeginPlayerDeath(string leaderName, string leaderType, int leaderLevel, int currentRunNumber, string cause, List<string> successorIds)
+    {
+        BeginPlayerDeath(leaderName, leaderType, leaderLevel, currentRunNumber, cause, successorIds, null, lockedSuccessorId);
+    }
+
+    public void BeginPlayerDeath(
+        string leaderName,
+        string leaderType,
+        int leaderLevel,
+        int currentRunNumber,
+        string cause,
+        List<string> successorIds,
+        List<BuddyData> successorSnapshots,
+        string preferredSuccessorId)
     {
         playerDiedThisRun = true;
         memorialAddedToHistory = false;
@@ -88,13 +91,34 @@ public class PlayerDeathRunStore : MonoBehaviour
         deadLeaderLevel = Mathf.Max(1, leaderLevel);
         deadLeaderRunNumber = Mathf.Max(1, currentRunNumber);
         deathCause = string.IsNullOrWhiteSpace(cause) ? "Died in the dirt." : cause.Trim();
+
         eligibleSuccessorIds = successorIds != null ? new List<string>(successorIds) : new List<string>();
+        eligibleSuccessorSnapshots = new List<BuddyData>();
+
+        if (successorSnapshots != null)
+        {
+            foreach (BuddyData buddy in successorSnapshots)
+            {
+                if (buddy == null)
+                    continue;
+
+                buddy.EnsureId();
+                buddy.EnsureRuntimeDefaults();
+                eligibleSuccessorSnapshots.Add(buddy.Clone());
+
+                if (!eligibleSuccessorIds.Contains(buddy.uniqueId))
+                    eligibleSuccessorIds.Add(buddy.uniqueId);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(preferredSuccessorId))
+            lockedSuccessorId = preferredSuccessorId.Trim();
 
         SyncCompatibilityFields();
 
-        Debug.Log("[PlayerDeathRunStore] BeginPlayerDeath. Locked successor: " +
-                  (string.IsNullOrWhiteSpace(lockedMarkedSuccessorId) ? "none" : lockedMarkedSuccessorId) +
-                  ", eligible: " + eligibleSuccessorIds.Count);
+        Debug.Log("[PlayerDeathRunStore] Began death. ids: " + eligibleSuccessorIds.Count +
+                  ", snapshots: " + eligibleSuccessorSnapshots.Count +
+                  ", locked: " + (string.IsNullOrWhiteSpace(lockedSuccessorId) ? "none" : lockedSuccessorId));
     }
 
     public void ClearPendingDeath()
@@ -102,8 +126,14 @@ public class PlayerDeathRunStore : MonoBehaviour
         playerDiedThisRun = false;
         memorialAddedToHistory = false;
         eligibleSuccessorIds.Clear();
-        lockedMarkedSuccessorId = "";
-        lockedMarkedSuccessorName = "";
+        eligibleSuccessorSnapshots.Clear();
+        lockedSuccessorId = "";
+    }
+
+    public bool HasEligibleSuccessors()
+    {
+        return (eligibleSuccessorSnapshots != null && eligibleSuccessorSnapshots.Count > 0) ||
+               (eligibleSuccessorIds != null && eligibleSuccessorIds.Count > 0);
     }
 
     public void SyncCompatibilityFields()

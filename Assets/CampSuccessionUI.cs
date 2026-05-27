@@ -50,6 +50,7 @@ public class CampSuccessionUI : MonoBehaviour
     public bool TryOpenDeathFlow()
     {
         PlayerDeathRunStore store = PlayerDeathRunStore.Instance;
+
         if (store == null || !store.playerDiedThisRun)
         {
             Log("No pending player death. Succession UI will stay closed.");
@@ -63,7 +64,6 @@ public class CampSuccessionUI : MonoBehaviour
 
     public void OpenDeathFlow()
     {
-        HookButtons();
         RefreshCandidates();
 
         if (eligibleSuccessors.Count <= 0)
@@ -80,45 +80,34 @@ public class CampSuccessionUI : MonoBehaviour
     {
         if (acceptMarkedSuccessorButton != null)
         {
-            ForceButtonReady(acceptMarkedSuccessorButton, "Accept Marked Successor");
             acceptMarkedSuccessorButton.onClick.RemoveAllListeners();
             acceptMarkedSuccessorButton.onClick.AddListener(AcceptMarkedSuccessor);
+            SetButtonLabel(acceptMarkedSuccessorButton, "Accept\nMarked\nSuccessor");
         }
 
         if (letCampChooseButton != null)
         {
-            ForceButtonReady(letCampChooseButton, "Let Camp Choose");
             letCampChooseButton.onClick.RemoveAllListeners();
             letCampChooseButton.onClick.AddListener(LetCampChoose);
+            SetButtonLabel(letCampChooseButton, "Let Camp\nChoose");
         }
 
         if (returnToMainMenuButton != null)
         {
-            ForceButtonReady(returnToMainMenuButton, "Return To Main Menu");
             returnToMainMenuButton.onClick.RemoveAllListeners();
             returnToMainMenuButton.onClick.AddListener(ReturnToMainMenu);
+            SetButtonLabel(returnToMainMenuButton, "Return To\nMain Menu");
         }
     }
 
-    void ForceButtonReady(Button button, string label)
+    void SetButtonLabel(Button button, string label)
     {
         if (button == null)
             return;
 
-        button.interactable = true;
-        Image img = button.GetComponent<Image>();
-        if (img != null)
-        {
-            img.raycastTarget = true;
-            button.targetGraphic = img;
-        }
-
         TMP_Text text = button.GetComponentInChildren<TMP_Text>(true);
         if (text != null)
-        {
             text.text = label;
-            text.raycastTarget = false;
-        }
     }
 
     void RefreshCandidates()
@@ -126,60 +115,78 @@ public class CampSuccessionUI : MonoBehaviour
         eligibleSuccessors.Clear();
         markedSuccessor = null;
 
-        PlayerDeathRunStore deathStore = PlayerDeathRunStore.Instance;
-        HashSet<string> eligibleIds = new HashSet<string>();
+        PlayerDeathRunStore store = PlayerDeathRunStore.Instance;
+        string preferredId = store != null ? store.lockedSuccessorId : "";
 
-        if (deathStore != null && deathStore.eligibleSuccessorIds != null && deathStore.eligibleSuccessorIds.Count > 0)
+        if (store != null && store.eligibleSuccessorSnapshots != null && store.eligibleSuccessorSnapshots.Count > 0)
         {
-            foreach (string id in deathStore.eligibleSuccessorIds)
+            foreach (BuddyData snapshot in store.eligibleSuccessorSnapshots)
+                AddEligible(snapshot);
+        }
+
+        if (eligibleSuccessors.Count == 0 && store != null && store.eligibleSuccessorIds != null && GameState.Instance != null)
+        {
+            foreach (string id in store.eligibleSuccessorIds)
             {
-                if (!string.IsNullOrWhiteSpace(id))
-                    eligibleIds.Add(id);
+                BuddyData buddy = GameState.Instance.FindBuddy(id);
+                AddEligible(buddy);
             }
         }
 
-        if (GameState.Instance != null && GameState.Instance.ownedBuddies != null)
+        if (eligibleSuccessors.Count == 0 && GameState.Instance != null && GameState.Instance.ownedBuddies != null)
         {
             foreach (BuddyData buddy in GameState.Instance.ownedBuddies)
-            {
-                if (buddy == null)
-                    continue;
-
-                buddy.EnsureId();
-                buddy.EnsureRuntimeDefaults();
-
-                if (eligibleIds.Count > 0 && !eligibleIds.Contains(buddy.uniqueId))
-                    continue;
-
-                if (buddy.health <= 0)
-                    buddy.health = Mathf.Max(1, buddy.maxHealth);
-
-                eligibleSuccessors.Add(buddy);
-            }
+                AddEligible(buddy);
         }
 
-        string preferredId = "";
-        if (deathStore != null && !string.IsNullOrWhiteSpace(deathStore.lockedMarkedSuccessorId))
-            preferredId = deathStore.lockedMarkedSuccessorId;
-        else if (CampSuccessorPreferenceStore.Instance != null)
-            preferredId = CampSuccessorPreferenceStore.Instance.GetMarkedSuccessorId();
+        if (string.IsNullOrWhiteSpace(preferredId))
+        {
+            CampSuccessorPreferenceStore pref = CampSuccessorPreferenceStore.Instance;
+            if (pref != null)
+                preferredId = pref.GetMarkedSuccessorId();
+        }
 
         if (!string.IsNullOrWhiteSpace(preferredId))
-        {
-            foreach (BuddyData buddy in eligibleSuccessors)
-            {
-                if (buddy != null && buddy.uniqueId == preferredId)
-                {
-                    markedSuccessor = buddy;
-                    break;
-                }
-            }
-        }
+            markedSuccessor = FindEligibleById(preferredId);
 
         Log("Opened succession panel. Locked/preferred successor id: " +
             (string.IsNullOrWhiteSpace(preferredId) ? "none" : preferredId) +
             ", marked successor: " + (markedSuccessor != null ? markedSuccessor.buddyName : "none") +
             ", eligible count: " + eligibleSuccessors.Count);
+    }
+
+    void AddEligible(BuddyData buddy)
+    {
+        if (buddy == null)
+            return;
+
+        buddy.EnsureId();
+        buddy.EnsureRuntimeDefaults();
+
+        if (buddy.health <= 0)
+            buddy.health = Mathf.Max(1, buddy.maxHealth);
+
+        foreach (BuddyData existing in eligibleSuccessors)
+        {
+            if (existing != null && existing.uniqueId == buddy.uniqueId)
+                return;
+        }
+
+        eligibleSuccessors.Add(buddy.Clone());
+    }
+
+    BuddyData FindEligibleById(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+            return null;
+
+        foreach (BuddyData buddy in eligibleSuccessors)
+        {
+            if (buddy != null && buddy.uniqueId == id)
+                return buddy;
+        }
+
+        return null;
     }
 
     void OpenSuccessionPanel()
@@ -191,20 +198,14 @@ public class CampSuccessionUI : MonoBehaviour
         {
             successionPanel.SetActive(true);
             successionPanel.transform.SetAsLastSibling();
-            ForcePanelRaycasts(successionPanel, true);
+            EnsurePanelCanClick(successionPanel);
         }
 
         if (titleText != null)
-        {
             titleText.text = title;
-            titleText.raycastTarget = false;
-        }
 
         if (bodyText != null)
-        {
             bodyText.text = markedSuccessor != null ? string.Format(markedSuccessorBody, markedSuccessor.buddyName) : noMarkedSuccessorBody;
-            bodyText.raycastTarget = false;
-        }
 
         if (acceptMarkedSuccessorButton != null)
             acceptMarkedSuccessorButton.gameObject.SetActive(markedSuccessor != null);
@@ -224,30 +225,24 @@ public class CampSuccessionUI : MonoBehaviour
         {
             gameOverPanel.SetActive(true);
             gameOverPanel.transform.SetAsLastSibling();
-            ForcePanelRaycasts(gameOverPanel, true);
+            EnsurePanelCanClick(gameOverPanel);
         }
 
         if (gameOverText != null)
-        {
             gameOverText.text = gameOverMessage;
-            gameOverText.raycastTarget = false;
-        }
 
         HookButtons();
     }
 
-    void ForcePanelRaycasts(GameObject panel, bool enabled)
+    void EnsurePanelCanClick(GameObject panel)
     {
-        if (panel == null)
-            return;
-
         CanvasGroup group = panel.GetComponent<CanvasGroup>();
         if (group == null)
             group = panel.AddComponent<CanvasGroup>();
 
         group.alpha = 1f;
-        group.interactable = enabled;
-        group.blocksRaycasts = enabled;
+        group.interactable = true;
+        group.blocksRaycasts = true;
     }
 
     public void AcceptMarkedSuccessor()
@@ -327,9 +322,14 @@ public class CampSuccessionUI : MonoBehaviour
         gobbo.ageStage = successor.ageStage;
         gobbo.visualSetId = successor.visualSetId;
 
+        if (GameState.Instance.ownedBuddies == null)
+            GameState.Instance.ownedBuddies = new List<BuddyData>();
+
+        if (GameState.Instance.activeSquadIds == null)
+            GameState.Instance.activeSquadIds = new List<string>();
+
         GameState.Instance.ownedBuddies.RemoveAll(b => b == null || b.uniqueId == successor.uniqueId);
         GameState.Instance.activeSquadIds.RemoveAll(id => id == successor.uniqueId);
-        GameState.Instance.RepairRosterState();
 
         CampSuccessorPreferenceStore pref = CampSuccessorPreferenceStore.Instance;
         if (pref != null && pref.IsMarked(successor.uniqueId))

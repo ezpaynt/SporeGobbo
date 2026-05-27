@@ -2903,7 +2903,9 @@ MonoBehaviour:
   deadPlayerType: Gobbo
   deadPlayerLevel: 1
   runNumber: 1
+  lockedSuccessorId: 
   eligibleSuccessorIds: []
+  eligibleSuccessorSnapshots: []
 --- !u!114 &714760113
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2917,6 +2919,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CampSuccessorPreferenceStore
   markedSuccessorId: 
+  logDebugMessages: 1
 --- !u!1 &736936374
 GameObject:
   m_ObjectHideFlags: 0
@@ -3223,8 +3226,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CampRunPortal
   runSceneName: SampleScene
-  interactPrompt: Enter tunnel
-  useConfirmationPanel: 1
+  interactRange: 1.35
+  interactKey: 101
+  requireKeyPress: 1
   promptPanel: {fileID: 905886036}
   promptText: {fileID: 1969653623}
   goButton: {fileID: 925440158}
@@ -10929,7 +10933,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1853039409
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10944,10 +10948,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CampTestRosterSeeder
   seedOnAwake: 1
   onlyIfRosterEmpty: 0
+  seedOnlyInCampScene: 1
   activeBuddies: 5
   reserveBuddies: 2
+  maxActiveSquad: 5
   includeHurtBuddies: 1
   includePendingEvolutionBuddy: 0
+  markFirstActiveAsSuccessorIfNone: 1
   hurtPlayerForCampTest: 0
   testPlayerHealth: 0
   testSpores: 0
@@ -12635,6 +12642,7 @@ SceneRoots:
   - {fileID: 2041525531}
   - {fileID: 1880049386}
   - {fileID: 1684348238}
+  - {fileID: 1853039410}
   - {fileID: 1408705602}
   - {fileID: 745327673}
   - {fileID: 910568148}
@@ -12645,7 +12653,6 @@ SceneRoots:
   - {fileID: 2101103186}
   - {fileID: 1554174812}
   - {fileID: 1233565117}
-  - {fileID: 1853039410}
   - {fileID: 930000001}
   - {fileID: 930000031}
   - {fileID: 930000061}
