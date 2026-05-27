@@ -35,6 +35,11 @@ public class CampRunPortal : MonoBehaviour
         HookButtons();
     }
 
+    void OnEnable()
+    {
+        HookButtons();
+    }
+
     void Update()
     {
         FindPlayerIfMissing();
@@ -107,6 +112,8 @@ public class CampRunPortal : MonoBehaviour
 
     public void StartNextRun()
     {
+        string markedSuccessorId = "";
+
         if (GameState.Instance != null)
         {
             if (savePlayerBeforeLeaving)
@@ -114,24 +121,35 @@ public class CampRunPortal : MonoBehaviour
                 GobboController playerController = Object.FindAnyObjectByType<GobboController>();
                 if (playerController != null)
                     GameState.Instance.SavePlayer(playerController);
-
-                // Do not save a scene BuddyRoster here. GameState is the real roster owner.
             }
+
+            CampSuccessorPreferenceStore pref = CampSuccessorPreferenceStore.Instance;
+            if (pref != null)
+            {
+                pref.ValidateAgainstRoster();
+                markedSuccessorId = pref.GetMarkedSuccessorId();
+            }
+
+            PlayerDeathRunStore.GetOrCreate().LockSuccessorForRun(markedSuccessorId);
 
             if (beginRunSnapshotBeforeLeaving)
                 GameState.Instance.BeginRunSnapshot();
+
+            Debug.Log("[CampRunPortal] Starting run. Roster: " + CountRoster() + ", active: " + CountActive() + ", marked successor: " + (string.IsNullOrWhiteSpace(markedSuccessorId) ? "none" : markedSuccessorId));
         }
-
-        CampSuccessorPreferenceStore pref = CampSuccessorPreferenceStore.Instance;
-        string markedId = pref != null ? pref.GetMarkedSuccessorId() : "";
-        PlayerDeathRunStore.GetOrCreate().LockSuccessorId(markedId);
-
-        int rosterCount = GameState.Instance != null && GameState.Instance.ownedBuddies != null ? GameState.Instance.ownedBuddies.Count : 0;
-        int activeCount = GameState.Instance != null ? GameState.Instance.GetActiveSquad().Count : 0;
-        Debug.Log("[CampRunPortal] Starting run. Roster: " + rosterCount + ", active: " + activeCount + ", marked successor: " + (string.IsNullOrWhiteSpace(markedId) ? "none" : markedId) + " (locked)");
 
         Time.timeScale = 1f;
         SceneManager.LoadScene(runSceneName);
+    }
+
+    int CountRoster()
+    {
+        return GameState.Instance != null && GameState.Instance.ownedBuddies != null ? GameState.Instance.ownedBuddies.Count : 0;
+    }
+
+    int CountActive()
+    {
+        return GameState.Instance != null && GameState.Instance.activeSquadIds != null ? GameState.Instance.activeSquadIds.Count : 0;
     }
 
     void FindPlayerIfMissing()

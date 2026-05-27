@@ -1,10 +1,13 @@
 using UnityEngine;
 
+/// <summary>
+/// Runtime-only holder for the camp-marked successor.
+/// No PlayerPrefs. No test auto-picking. No cross-save leakage.
+/// The mark only changes when squad select explicitly calls Mark/Set/Clear.
+/// </summary>
 public class CampSuccessorPreferenceStore : MonoBehaviour
 {
     public static CampSuccessorPreferenceStore Instance { get; private set; }
-
-    private const string PlayerPrefsKey = "SporeGobbo.MarkedSuccessorId";
 
     [Header("Chosen Successor")]
     public string markedSuccessorId = "";
@@ -22,30 +25,23 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
-        LoadSavedSuccessorId();
     }
 
     void OnEnable()
     {
         if (Instance == null)
             Instance = this;
-
-        LoadSavedSuccessorId();
     }
 
     public static CampSuccessorPreferenceStore GetOrCreate()
     {
         if (Instance != null)
-        {
-            Instance.LoadSavedSuccessorId();
             return Instance;
-        }
 
         CampSuccessorPreferenceStore found = Object.FindAnyObjectByType<CampSuccessorPreferenceStore>(FindObjectsInactive.Include);
         if (found != null)
         {
             Instance = found;
-            Instance.LoadSavedSuccessorId();
             return Instance;
         }
 
@@ -54,15 +50,8 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
         return Instance;
     }
 
-    public void MarkSuccessor(BuddyData buddy)
-    {
-        SetMarkedSuccessor(buddy);
-    }
-
-    public void MarkSuccessor(string buddyId)
-    {
-        SetMarkedSuccessor(buddyId);
-    }
+    public void MarkSuccessor(BuddyData buddy) => SetMarkedSuccessor(buddy);
+    public void MarkSuccessor(string buddyId) => SetMarkedSuccessor(buddyId);
 
     public void SetMarkedSuccessor(BuddyData buddy)
     {
@@ -79,45 +68,35 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
     public void SetMarkedSuccessor(string buddyId)
     {
         markedSuccessorId = string.IsNullOrWhiteSpace(buddyId) ? "" : buddyId.Trim();
-        SaveSuccessorId();
-
-        if (logDebugMessages)
-            Debug.Log("[CampSuccessorPreferenceStore] Marked successor id: " +
-                      (string.IsNullOrWhiteSpace(markedSuccessorId) ? "none" : markedSuccessorId));
+        Log("Marked successor id: " + (string.IsNullOrWhiteSpace(markedSuccessorId) ? "none" : markedSuccessorId));
     }
 
     public void ClearSuccessor()
     {
         markedSuccessorId = "";
-        SaveSuccessorId();
-
-        if (logDebugMessages)
-            Debug.Log("[CampSuccessorPreferenceStore] Cleared successor.");
+        Log("Cleared successor.");
     }
 
     public BuddyData GetMarkedSuccessor()
     {
-        LoadSavedSuccessorId();
-
         if (string.IsNullOrWhiteSpace(markedSuccessorId) || GameState.Instance == null)
             return null;
 
         BuddyData buddy = GameState.Instance.FindBuddy(markedSuccessorId);
         if (buddy == null)
+        {
+            // Do not auto-pick a replacement. Just clear an invalid choice.
+            ClearSuccessor();
             return null;
+        }
 
         return buddy;
     }
 
-    public string GetMarkedSuccessorId()
-    {
-        LoadSavedSuccessorId();
-        return markedSuccessorId;
-    }
+    public string GetMarkedSuccessorId() => markedSuccessorId;
 
     public bool IsMarked(string buddyId)
     {
-        LoadSavedSuccessorId();
         return !string.IsNullOrWhiteSpace(buddyId) && buddyId == markedSuccessorId;
     }
 
@@ -130,45 +109,24 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
         return IsMarked(buddy.uniqueId);
     }
 
-    public bool HasMarkedSuccessor()
-    {
-        return GetMarkedSuccessor() != null;
-    }
+    public bool HasMarkedSuccessor() => GetMarkedSuccessor() != null;
 
     public void ValidateAgainstRoster()
     {
-        LoadSavedSuccessorId();
-
         if (string.IsNullOrWhiteSpace(markedSuccessorId))
             return;
 
         if (GameState.Instance == null || GameState.Instance.FindBuddy(markedSuccessorId) == null)
-        {
-            // Important: only clear invalid ids. Never auto-pick a replacement here.
             ClearSuccessor();
-        }
     }
 
     // Backwards-compatible names older scripts may still call.
-    public void LoadFromGameState()
-    {
-        LoadSavedSuccessorId();
-    }
+    public void LoadFromGameState() { }
+    public void SaveToGameState() { }
 
-    public void SaveToGameState()
+    void Log(string message)
     {
-        SaveSuccessorId();
-    }
-
-    void LoadSavedSuccessorId()
-    {
-        string saved = PlayerPrefs.GetString(PlayerPrefsKey, "");
-        markedSuccessorId = string.IsNullOrWhiteSpace(saved) ? "" : saved.Trim();
-    }
-
-    void SaveSuccessorId()
-    {
-        PlayerPrefs.SetString(PlayerPrefsKey, markedSuccessorId ?? "");
-        PlayerPrefs.Save();
+        if (logDebugMessages)
+            Debug.Log("[CampSuccessorPreferenceStore] " + message);
     }
 }
