@@ -1,15 +1,14 @@
 using UnityEngine;
 
 /// <summary>
-/// Runtime-only holder for the camp-marked successor.
-/// No PlayerPrefs. No test auto-picking. No cross-save leakage.
-/// The mark only changes when squad select explicitly calls Mark/Set/Clear.
+/// UI-facing successor helper.
+/// The actual successor value now lives in GameStateSaveBridge/current save data, not PlayerPrefs.
 /// </summary>
 public class CampSuccessorPreferenceStore : MonoBehaviour
 {
     public static CampSuccessorPreferenceStore Instance { get; private set; }
 
-    [Header("Chosen Successor")]
+    [Header("Mirror Only - Actual Value Lives In Save Bridge")]
     public string markedSuccessorId = "";
 
     [Header("Debug")]
@@ -25,24 +24,25 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
+        SyncFromBridge();
     }
 
     void OnEnable()
     {
-        if (Instance == null)
-            Instance = this;
+        if (Instance == null) Instance = this;
+        SyncFromBridge();
     }
 
     public static CampSuccessorPreferenceStore GetOrCreate()
     {
-        if (Instance != null)
-            return Instance;
+        if (Instance != null) return Instance;
 
-        CampSuccessorPreferenceStore found = Object.FindAnyObjectByType<CampSuccessorPreferenceStore>(FindObjectsInactive.Include);
+        CampSuccessorPreferenceStore found = FindAnyObjectByType<CampSuccessorPreferenceStore>(FindObjectsInactive.Include);
         if (found != null)
         {
             Instance = found;
-            return Instance;
+            found.SyncFromBridge();
+            return found;
         }
 
         GameObject obj = new GameObject("CampSuccessorPreferenceStore");
@@ -68,24 +68,25 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
     public void SetMarkedSuccessor(string buddyId)
     {
         markedSuccessorId = string.IsNullOrWhiteSpace(buddyId) ? "" : buddyId.Trim();
+        GameStateSaveBridge.GetOrCreate().SetMarkedSuccessor(markedSuccessorId, true);
         Log("Marked successor id: " + (string.IsNullOrWhiteSpace(markedSuccessorId) ? "none" : markedSuccessorId));
     }
 
     public void ClearSuccessor()
     {
         markedSuccessorId = "";
+        GameStateSaveBridge.GetOrCreate().ClearMarkedSuccessor(true);
         Log("Cleared successor.");
     }
 
     public BuddyData GetMarkedSuccessor()
     {
-        if (string.IsNullOrWhiteSpace(markedSuccessorId) || GameState.Instance == null)
-            return null;
+        SyncFromBridge();
+        if (string.IsNullOrWhiteSpace(markedSuccessorId) || GameState.Instance == null) return null;
 
         BuddyData buddy = GameState.Instance.FindBuddy(markedSuccessorId);
         if (buddy == null)
         {
-            // Do not auto-pick a replacement. Just clear an invalid choice.
             ClearSuccessor();
             return null;
         }
@@ -93,18 +94,21 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
         return buddy;
     }
 
-    public string GetMarkedSuccessorId() => markedSuccessorId;
+    public string GetMarkedSuccessorId()
+    {
+        SyncFromBridge();
+        return markedSuccessorId;
+    }
 
     public bool IsMarked(string buddyId)
     {
+        SyncFromBridge();
         return !string.IsNullOrWhiteSpace(buddyId) && buddyId == markedSuccessorId;
     }
 
     public bool IsMarked(BuddyData buddy)
     {
-        if (buddy == null)
-            return false;
-
+        if (buddy == null) return false;
         buddy.EnsureId();
         return IsMarked(buddy.uniqueId);
     }
@@ -113,20 +117,22 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
 
     public void ValidateAgainstRoster()
     {
-        if (string.IsNullOrWhiteSpace(markedSuccessorId))
-            return;
-
-        if (GameState.Instance == null || GameState.Instance.FindBuddy(markedSuccessorId) == null)
-            ClearSuccessor();
+        SyncFromBridge();
+        if (string.IsNullOrWhiteSpace(markedSuccessorId)) return;
+        if (GameState.Instance == null || GameState.Instance.FindBuddy(markedSuccessorId) == null) ClearSuccessor();
     }
 
-    // Backwards-compatible names older scripts may still call.
-    public void LoadFromGameState() { }
-    public void SaveToGameState() { }
+    public void LoadFromGameState() => SyncFromBridge();
+    public void SaveToGameState() => GameStateSaveBridge.GetOrCreate().SetMarkedSuccessor(markedSuccessorId, true);
+
+    void SyncFromBridge()
+    {
+        GameStateSaveBridge bridge = GameStateSaveBridge.GetOrCreate();
+        markedSuccessorId = bridge.GetMarkedSuccessorId();
+    }
 
     void Log(string message)
     {
-        if (logDebugMessages)
-            Debug.Log("[CampSuccessorPreferenceStore] " + message);
+        if (logDebugMessages) Debug.Log("[CampSuccessorPreferenceStore] " + message);
     }
 }

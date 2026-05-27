@@ -43,16 +43,12 @@ public class CampRunPortal : MonoBehaviour
     void Update()
     {
         FindPlayerIfMissing();
-
-        if (player == null)
-            return;
+        if (player == null) return;
 
         bool closeEnough = Vector2.Distance(transform.position, player.position) <= interactRange;
-
         if (!closeEnough)
         {
-            if (promptOpen)
-                HidePrompt();
+            if (promptOpen) HidePrompt();
             return;
         }
 
@@ -80,8 +76,7 @@ public class CampRunPortal : MonoBehaviour
     void SetButtonText(Button button, string text)
     {
         TMP_Text label = button != null ? button.GetComponentInChildren<TMP_Text>(true) : null;
-        if (label != null)
-            label.text = text;
+        if (label != null) label.text = text;
     }
 
     void ShowPrompt()
@@ -105,9 +100,7 @@ public class CampRunPortal : MonoBehaviour
     void HidePrompt()
     {
         promptOpen = false;
-
-        if (promptPanel != null)
-            promptPanel.SetActive(false);
+        if (promptPanel != null) promptPanel.SetActive(false);
     }
 
     public void StartNextRun()
@@ -135,10 +128,16 @@ public class CampRunPortal : MonoBehaviour
             if (beginRunSnapshotBeforeLeaving)
                 GameState.Instance.BeginRunSnapshot();
 
-            Debug.Log("[CampRunPortal] Starting run. Roster: " + CountRoster() + ", active: " + CountActive() + ", marked successor: " + (string.IsNullOrWhiteSpace(markedSuccessorId) ? "none" : markedSuccessorId));
+            Debug.Log("[CampRunPortal] Starting run. Roster: " + CountRoster() +
+                      ", active: " + CountActive() +
+                      ", marked successor: " + (string.IsNullOrWhiteSpace(markedSuccessorId) ? "none" : markedSuccessorId));
         }
 
+        HidePrompt();
         Time.timeScale = 1f;
+
+        // This is a clean camp -> run scene load, not death.
+        PlayerDeathWatcher.SuppressDeathHandlingForSceneChange();
         SceneManager.LoadScene(runSceneName);
     }
 
@@ -154,12 +153,9 @@ public class CampRunPortal : MonoBehaviour
 
     void FindPlayerIfMissing()
     {
-        if (player != null)
-            return;
-
+        if (player != null) return;
         GameObject found = GameObject.FindGameObjectWithTag("Player");
-        if (found != null)
-            player = found.transform;
+        if (found != null) player = found.transform;
     }
 
     void OnDrawGizmosSelected()

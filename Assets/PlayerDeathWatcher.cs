@@ -14,9 +14,40 @@ public class PlayerDeathWatcher : MonoBehaviour
     private GobboController player;
     private bool handledDeath;
 
+    private static bool suppressDeathHandling;
+    private static bool applicationQuitting;
+
+    public static void SuppressDeathHandlingForSceneChange()
+    {
+        suppressDeathHandling = true;
+        Debug.Log("[PlayerDeathWatcher] Death handling suppressed for normal scene change.");
+    }
+
+    public static void ClearSceneChangeSuppression()
+    {
+        suppressDeathHandling = false;
+    }
+
     void Awake()
     {
         player = GetComponent<GobboController>();
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    void OnDestroy()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    void OnApplicationQuit()
+    {
+        applicationQuitting = true;
+    }
+
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // Once the new scene exists, normal death detection may run again.
+        ClearSceneChangeSuppression();
     }
 
     void Update()
@@ -26,17 +57,17 @@ public class PlayerDeathWatcher : MonoBehaviour
 
     void OnDisable()
     {
-        // GobboController.Die() disables the player object.
+        // GobboController.Die() disables the player object. Scene unload also disables it,
+        // so this must ignore clean scene transitions.
         TryHandleDeath("OnDisable");
     }
 
     void TryHandleDeath(string source)
     {
-        if (handledDeath)
-            return;
-
-        if (!LooksDead())
-            return;
+        if (handledDeath) return;
+        if (applicationQuitting) return;
+        if (suppressDeathHandling) return;
+        if (!LooksDead()) return;
 
         handledDeath = true;
         HandlePlayerDeath(source);
@@ -44,15 +75,13 @@ public class PlayerDeathWatcher : MonoBehaviour
 
     bool LooksDead()
     {
-        if (player == null)
-            player = GetComponent<GobboController>();
+        if (player == null) player = GetComponent<GobboController>();
+        if (player == null) return false;
 
-        if (player != null && player.health <= 0)
-            return true;
+        // Health <= 0 is the actual death condition.
+        if (player.health <= 0) return true;
 
-        if (player != null && !gameObject.activeInHierarchy)
-            return true;
-
+        // Do NOT treat any disabled player as dead. Normal scene loads disable objects too.
         return false;
     }
 
@@ -70,57 +99,72 @@ public class PlayerDeathWatcher : MonoBehaviour
             }
         }
 
-        List<string> candidateIds;
-        List<BuddyData> snapshots;
-        BuildSuccessorCandidates(out candidateIds, out snapshots);
+        List<string> candidateIds = new List<string>();
+        List<BuddyData> snapshots = BuildSuccessorSnapshots(candidateIds);
 
         int runNumber = GameState.Instance != null ? Mathf.Max(1, GameState.Instance.currentRunNumber) : 1;
         string leaderName = "Gobbo";
+        string leaderType = "Gobbo";
         int leaderLevel = 1;
 
         if (GameState.Instance != null && GameState.Instance.gobbo != null)
         {
             leaderLevel = Mathf.Max(1, GameState.Instance.gobbo.level);
-            leaderName = GameState.Instance.gobbo.gobboType.ToString();
+            leaderType = GameState.Instance.gobbo.gobboType.ToString();
+            leaderName = leaderType;
         }
 
         PlayerDeathRunStore store = PlayerDeathRunStore.GetOrCreate();
-        store.BeginPlayerDeath(leaderName, "Gobbo", leaderLevel, runNumber, deathCause, candidateIds, snapshots);
+        store.BeginPlayerDeath(leaderName, leaderType, leaderLevel, runNumber, deathCause, candidateIds, snapshots);
 
-        Debug.Log("[PlayerDeathWatcher] handled death from " + source + ". Successor candidates: " + candidateIds.Count + ", locked/preferred: " + (string.IsNullOrWhiteSpace(store.lockedSuccessorId) ? "none" : store.lockedSuccessorId));
+        Debug.Log("[PlayerDeathWatcher] handled death from " + source + ". Successor candidates: " + candidateIds.Count +
+                  ", locked/preferred: " + (string.IsNullOrWhiteSpace(store.lockedSuccessorId) ? "none" : store.lockedSuccessorId));
 
         Time.timeScale = 1f;
 
+        SuppressDeathHandlingForSceneChange();
         if (loadGameOverSceneIfNoSuccessors && candidateIds.Count == 0 && !string.IsNullOrWhiteSpace(gameOverSceneName))
             SceneManager.LoadScene(gameOverSceneName);
         else
             SceneManager.LoadScene(campSceneName);
     }
 
-    void BuildSuccessorCandidates(out List<string> ids, out List<BuddyData> snapshots)
+    List<BuddyData> BuildSuccessorSnapshots(List<string> ids)
     {
-        ids = new List<string>();
-        snapshots = new List<BuddyData>();
+        List<BuddyData> snapshots = new List<BuddyData>();
 
-        if (GameState.Instance == null || GameState.Instance.ownedBuddies == null)
-            return;
-
-        foreach (BuddyData buddy in GameState.Instance.ownedBuddies)
+        if (GameState.Instance != null && GameState.Instance.ownedBuddies != null)
         {
-            if (buddy == null)
-                continue;
-
-            buddy.EnsureId();
-            buddy.EnsureRuntimeDefaults();
-
-            if (buddy.health <= 0)
-                continue;
-
-            if (!ids.Contains(buddy.uniqueId))
+            foreach (BuddyData buddy in GameState.Instance.ownedBuddies)
             {
-                ids.Add(buddy.uniqueId);
-                snapshots.Add(buddy.Clone());
+                AddCandidateSnapshot(buddy, ids, snapshots);
             }
         }
+
+        // Fallback for old/direct SampleScene testing where GameState roster was not populated.
+        if (ids.Count == 0)
+        {
+            BuddyUnit[] units = Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None);
+            foreach (BuddyUnit unit in units)
+            {
+                if (unit == null) continue;
+                AddCandidateSnapshot(unit.data, ids, snapshots);
+            }
+        }
+
+        return snapshots;
+    }
+
+    void AddCandidateSnapshot(BuddyData buddy, List<string> ids, List<BuddyData> snapshots)
+    {
+        if (buddy == null) return;
+
+        buddy.EnsureId();
+        buddy.EnsureRuntimeDefaults();
+        if (buddy.health <= 0) return;
+        if (ids.Contains(buddy.uniqueId)) return;
+
+        ids.Add(buddy.uniqueId);
+        snapshots.Add(buddy.Clone());
     }
 }
