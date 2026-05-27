@@ -60,36 +60,51 @@ public class CampSceneController : MonoBehaviour
         EnsureGameState();
         HookButtons();
 
+        if (TryStartDeathSuccessionFlow())
+            return;
+
         if (skipReportsAndOpenCampImmediatelyForTesting)
             RevealCampVisuals();
         else
             ShowRunStatsScreen();
     }
 
+    bool TryStartDeathSuccessionFlow()
+    {
+        PlayerDeathRunStore pendingDeath = PlayerDeathRunStore.Instance;
+
+        if (pendingDeath == null || !pendingDeath.playerDiedThisRun)
+            return false;
+
+        if (runStatsPanel != null)
+            runStatsPanel.SetActive(false);
+
+        if (survivorsPanel != null)
+            survivorsPanel.SetActive(false);
+
+        if (campMenuPanel != null)
+            campMenuPanel.SetActive(false);
+
+        if (campBuddyEvolutionPanel != null)
+            campBuddyEvolutionPanel.SetActive(false);
+
+        CampSuccessionUI successionUI = Object.FindAnyObjectByType<CampSuccessionUI>(FindObjectsInactive.Include);
+        if (successionUI != null)
+        {
+            successionUI.TryOpenDeathFlow();
+        }
+        else
+        {
+            Debug.LogWarning("Player died, but no CampSuccessionUI was found in CampScene.");
+        }
+
+        return true;
+    }
+
     void AutoFillMissingReferences()
     {
         if (campPlayableSpawner == null)
-        {
-            GameObject preferredCampManager = GameObject.Find("CampManager");
-            if (preferredCampManager != null)
-                campPlayableSpawner = preferredCampManager.GetComponent<CampPlayableSpawner>();
-
-            if (campPlayableSpawner == null)
-            {
-                CampPlayableSpawner[] spawners = Object.FindObjectsByType<CampPlayableSpawner>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-                foreach (CampPlayableSpawner spawner in spawners)
-                {
-                    if (spawner != null && spawner.playerPrefab != null)
-                    {
-                        campPlayableSpawner = spawner;
-                        break;
-                    }
-                }
-
-                if (campPlayableSpawner == null && spawners.Length > 0)
-                    campPlayableSpawner = spawners[0];
-            }
-        }
+            campPlayableSpawner = Object.FindAnyObjectByType<CampPlayableSpawner>(FindObjectsInactive.Include);
 
         if (campStartRoutineManager == null)
             campStartRoutineManager = Object.FindAnyObjectByType<CampStartRoutineManager>(FindObjectsInactive.Include);
