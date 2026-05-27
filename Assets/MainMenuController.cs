@@ -3,10 +3,8 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-/// <summary>
 /// Main menu controller for the real 3-slot save system.
 /// New Game only uses empty slots. Continue/Load always restore GameState and open CampScene.
-/// </summary>
 public class MainMenuController : MonoBehaviour
 {
     private enum SlotMode { NewGame, LoadGame }
@@ -14,13 +12,19 @@ public class MainMenuController : MonoBehaviour
     [Header("Scenes")]
     public string firstSceneName = "SampleScene";
     public string campSceneName = "CampScene";
-    public string fallbackContinueSceneName = "CampScene"; // compatibility; Continue ignores old save scene data.
+    public string fallbackContinueSceneName = "CampScene";
 
     [Header("Panels")]
     public GameObject mainMenuPanel;
     public GameObject saveSlotPanel;
     public GameObject settingsPanel;
     public GameObject placeholderPanel;
+
+    [Header("Optional Delete Confirm Panel")]
+    public GameObject deleteConfirmPanel;
+    public TMP_Text deleteConfirmText;
+    public Button confirmDeleteButton;
+    public Button cancelDeleteButton;
 
     [Header("Main Buttons")]
     public Button newGameButton;
@@ -38,6 +42,11 @@ public class MainMenuController : MonoBehaviour
     public Button slotButton3;
     public Button backButton;
 
+    [Header("Optional Delete Slot Buttons")]
+    public Button deleteSlotButton1;
+    public Button deleteSlotButton2;
+    public Button deleteSlotButton3;
+
     [Header("Optional Text")]
     public TMP_Text titleText;
     public TMP_Text placeholderText;
@@ -48,6 +57,7 @@ public class MainMenuController : MonoBehaviour
     public string defaultPlayerName = "Gobbo";
 
     private SlotMode currentSlotMode = SlotMode.LoadGame;
+    private int pendingDeleteSlot = 0;
 
     void Awake()
     {
@@ -68,6 +78,7 @@ public class MainMenuController : MonoBehaviour
         if (saveSlotPanel == null) saveSlotPanel = GameObject.Find("SaveSlotPanel");
         if (settingsPanel == null) settingsPanel = GameObject.Find("SettingsPanel");
         if (placeholderPanel == null) placeholderPanel = GameObject.Find("PlaceholderPanel");
+        if (deleteConfirmPanel == null) deleteConfirmPanel = GameObject.Find("DeleteConfirmPanel");
 
         if (newGameButton == null) newGameButton = FindButton("NewGameButton");
         if (continueButton == null) continueButton = FindButton("ContinueButton");
@@ -77,20 +88,20 @@ public class MainMenuController : MonoBehaviour
         if (shopButton == null) shopButton = FindButton("ShopButton");
         if (settingsButton == null) settingsButton = FindButton("SettingsButton");
         if (quitButton == null) quitButton = FindButton("QuitButton");
-
         if (slotButton1 == null) slotButton1 = FindButton("SlotButton1");
         if (slotButton2 == null) slotButton2 = FindButton("SlotButton2");
         if (slotButton3 == null) slotButton3 = FindButton("SlotButton3");
         if (backButton == null) backButton = FindButton("BackButton");
-
-        if (titleText == null)
-        {
-            GameObject foundTitle = GameObject.Find("TitleText");
-            if (foundTitle != null) titleText = foundTitle.GetComponent<TMP_Text>();
-        }
+        if (deleteSlotButton1 == null) deleteSlotButton1 = FindButton("DeleteSlotButton1");
+        if (deleteSlotButton2 == null) deleteSlotButton2 = FindButton("DeleteSlotButton2");
+        if (deleteSlotButton3 == null) deleteSlotButton3 = FindButton("DeleteSlotButton3");
+        if (confirmDeleteButton == null) confirmDeleteButton = FindButton("ConfirmDeleteButton");
+        if (cancelDeleteButton == null) cancelDeleteButton = FindButton("CancelDeleteButton");
 
         if (placeholderText == null && placeholderPanel != null)
             placeholderText = placeholderPanel.GetComponentInChildren<TMP_Text>(true);
+        if (deleteConfirmText == null && deleteConfirmPanel != null)
+            deleteConfirmText = deleteConfirmPanel.GetComponentInChildren<TMP_Text>(true);
     }
 
     Button FindButton(string objectName)
@@ -113,6 +124,11 @@ public class MainMenuController : MonoBehaviour
         Hook(slotButton2, () => ChooseSlot(2));
         Hook(slotButton3, () => ChooseSlot(3));
         Hook(backButton, ShowMainMenu);
+        Hook(deleteSlotButton1, () => AskDeleteSlot(1));
+        Hook(deleteSlotButton2, () => AskDeleteSlot(2));
+        Hook(deleteSlotButton3, () => AskDeleteSlot(3));
+        Hook(confirmDeleteButton, ConfirmDeleteSlot);
+        Hook(cancelDeleteButton, CancelDeleteSlot);
     }
 
     void Hook(Button button, UnityEngine.Events.UnityAction action)
@@ -125,8 +141,7 @@ public class MainMenuController : MonoBehaviour
     void RefreshContinueButton()
     {
         if (continueButton != null) continueButton.interactable = SporeSaveManager.LoadLastPlayedSlot() != null;
-        if (newGameButton != null) newGameButton.interactable = SporeSaveManager.CanCreateNewGame();
-
+        if (newGameButton != null) newGameButton.interactable = true; // clicking can show the full-slots message
         if (disableFutureButtons)
         {
             if (collectionBookButton != null) collectionBookButton.interactable = false;
@@ -141,6 +156,7 @@ public class MainMenuController : MonoBehaviour
         SetPanel(saveSlotPanel, false);
         SetPanel(settingsPanel, false);
         SetPanel(placeholderPanel, false);
+        SetPanel(deleteConfirmPanel, false);
         RefreshContinueButton();
     }
 
@@ -151,7 +167,6 @@ public class MainMenuController : MonoBehaviour
             ShowPlaceholder("All 3 save slots are full. Delete a save before starting another gobbo camp.");
             return;
         }
-
         currentSlotMode = SlotMode.NewGame;
         OpenSlotPanel();
     }
@@ -168,44 +183,48 @@ public class MainMenuController : MonoBehaviour
         SetPanel(saveSlotPanel, true);
         SetPanel(settingsPanel, false);
         SetPanel(placeholderPanel, false);
+        SetPanel(deleteConfirmPanel, false);
         RefreshSlotButtons();
     }
 
     void RefreshSlotButtons()
     {
-        RefreshSlotButton(slotButton1, 1);
-        RefreshSlotButton(slotButton2, 2);
-        RefreshSlotButton(slotButton3, 3);
+        RefreshSlotButton(slotButton1, deleteSlotButton1, 1);
+        RefreshSlotButton(slotButton2, deleteSlotButton2, 2);
+        RefreshSlotButton(slotButton3, deleteSlotButton3, 3);
     }
 
-    void RefreshSlotButton(Button button, int slotIndex)
+    void RefreshSlotButton(Button slotButton, Button deleteButton, int slotIndex)
     {
-        if (button == null) return;
-
         SporeSaveSlotData data = SporeSaveManager.LoadSlot(slotIndex);
         bool hasSave = data != null && data.hasSave;
-        TMP_Text label = button.GetComponentInChildren<TMP_Text>(true);
 
-        if (label != null)
+        if (slotButton != null)
         {
-            if (currentSlotMode == SlotMode.NewGame)
-                label.text = hasSave ? data.GetButtonLabel() + "\nFull" : "Slot " + slotIndex + " — New Game";
-            else
-                label.text = hasSave ? data.GetButtonLabel() : "Slot " + slotIndex + " — Empty";
+            TMP_Text label = slotButton.GetComponentInChildren<TMP_Text>(true);
+            if (label != null)
+            {
+                if (currentSlotMode == SlotMode.NewGame)
+                    label.text = hasSave ? data.GetButtonLabel() + "\nFull" : "Slot " + slotIndex + " — New Game";
+                else
+                    label.text = hasSave ? data.GetButtonLabel() : "Slot " + slotIndex + " — Empty";
+            }
+            slotButton.interactable = currentSlotMode == SlotMode.NewGame ? !hasSave : hasSave;
         }
 
-        button.interactable = currentSlotMode == SlotMode.NewGame ? !hasSave : hasSave;
+        if (deleteButton != null)
+        {
+            deleteButton.gameObject.SetActive(currentSlotMode == SlotMode.LoadGame && hasSave);
+            deleteButton.interactable = currentSlotMode == SlotMode.LoadGame && hasSave;
+            TMP_Text deleteLabel = deleteButton.GetComponentInChildren<TMP_Text>(true);
+            if (deleteLabel != null) deleteLabel.text = "Delete";
+        }
     }
 
     void ChooseSlot(int slotIndex)
     {
-        if (currentSlotMode == SlotMode.NewGame)
-        {
-            StartNewGame(slotIndex);
-            return;
-        }
-
-        LoadGame(slotIndex);
+        if (currentSlotMode == SlotMode.NewGame) StartNewGame(slotIndex);
+        else LoadGame(slotIndex);
     }
 
     public void StartNewGame(int slotIndex)
@@ -224,6 +243,7 @@ public class MainMenuController : MonoBehaviour
         }
 
         Debug.Log("[MainMenuController] New game in slot " + slotIndex + " for " + data.playerName + ". Loading " + firstSceneName);
+        Time.timeScale = 1f;
         SceneManager.LoadScene(firstSceneName);
     }
 
@@ -235,7 +255,6 @@ public class MainMenuController : MonoBehaviour
             ShowPlaceholder("No save found yet.");
             return;
         }
-
         LoadSlotToCamp(data.slotIndex);
     }
 
@@ -247,7 +266,6 @@ public class MainMenuController : MonoBehaviour
             ShowPlaceholder("That slot is empty.");
             return;
         }
-
         LoadSlotToCamp(slotIndex);
     }
 
@@ -258,10 +276,43 @@ public class MainMenuController : MonoBehaviour
             ShowPlaceholder("Could not load that save.");
             return;
         }
-
         Debug.Log("[MainMenuController] Loaded slot " + slotIndex + ". Loading camp.");
         Time.timeScale = 1f;
         SceneManager.LoadScene(campSceneName);
+    }
+
+    public void AskDeleteSlot(int slotIndex)
+    {
+        SporeSaveSlotData data = SporeSaveManager.LoadSlot(slotIndex);
+        if (data == null || !data.hasSave) return;
+        pendingDeleteSlot = slotIndex;
+        if (deleteConfirmText != null)
+            deleteConfirmText.text = "Delete " + data.saveName + "?\nThis cannot be undone.";
+        if (deleteConfirmPanel != null)
+        {
+            deleteConfirmPanel.SetActive(true);
+            deleteConfirmPanel.transform.SetAsLastSibling();
+        }
+        else
+        {
+            ConfirmDeleteSlot();
+        }
+    }
+
+    public void ConfirmDeleteSlot()
+    {
+        if (pendingDeleteSlot <= 0) return;
+        SporeSaveManager.DeleteSlot(pendingDeleteSlot);
+        pendingDeleteSlot = 0;
+        SetPanel(deleteConfirmPanel, false);
+        RefreshSlotButtons();
+        RefreshContinueButton();
+    }
+
+    public void CancelDeleteSlot()
+    {
+        pendingDeleteSlot = 0;
+        SetPanel(deleteConfirmPanel, false);
     }
 
     // Compatibility for old button hookups. Continue/Load never use saved nextSceneName now.
@@ -279,9 +330,9 @@ public class MainMenuController : MonoBehaviour
             SetPanel(saveSlotPanel, false);
             SetPanel(settingsPanel, true);
             SetPanel(placeholderPanel, false);
+            SetPanel(deleteConfirmPanel, false);
             return;
         }
-
         ShowPlaceholder("Settings coming soon.");
     }
 
@@ -290,13 +341,12 @@ public class MainMenuController : MonoBehaviour
         SetPanel(mainMenuPanel, true);
         SetPanel(saveSlotPanel, false);
         SetPanel(settingsPanel, false);
-
+        SetPanel(deleteConfirmPanel, false);
         if (placeholderPanel != null)
         {
             placeholderPanel.SetActive(true);
             placeholderPanel.transform.SetAsLastSibling();
         }
-
         if (placeholderText != null) placeholderText.text = message;
         Debug.Log(message);
     }

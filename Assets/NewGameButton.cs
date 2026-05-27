@@ -3,20 +3,17 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-/// <summary>
-/// Optional direct New Game button helper. Uses the real 3-slot save system.
-/// MainMenuController can also handle New Game through slot buttons.
-/// </summary>
+/// Optional direct New Game button helper. MainMenuController slot flow is preferred.
 public class NewGameButton : MonoBehaviour
 {
-    [Header("New Game")]
     public string defaultPlayerName = "Gobbo";
     public string firstSceneName = "SampleScene";
     public TMP_InputField playerNameInput;
     public Button newGameButton;
+    public bool autoHookButton = true;
 
-    void Start() { HookButton(); }
-    void OnEnable() { HookButton(); }
+    void Start() { if (autoHookButton) HookButton(); }
+    void OnEnable() { if (autoHookButton) HookButton(); }
 
     void HookButton()
     {
@@ -24,7 +21,7 @@ public class NewGameButton : MonoBehaviour
         if (newGameButton == null) return;
         newGameButton.onClick.RemoveListener(StartNewGame);
         newGameButton.onClick.AddListener(StartNewGame);
-        newGameButton.interactable = SporeSaveManager.CanCreateNewGame();
+        newGameButton.interactable = true;
     }
 
     public void StartNewGame()
