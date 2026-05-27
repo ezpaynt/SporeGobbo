@@ -1,14 +1,14 @@
 using UnityEngine;
 
 /// <summary>
-/// UI-facing successor helper.
-/// Actual truth is the current save slot/bridge; this script is only a scene-friendly wrapper.
+/// Runtime holder for the camp-marked successor.
+/// The durable copy is saved into the current SporeSaveManager slot.
 /// </summary>
 public class CampSuccessorPreferenceStore : MonoBehaviour
 {
     public static CampSuccessorPreferenceStore Instance { get; private set; }
 
-    [Header("Mirror Only")]
+    [Header("Chosen Successor")]
     public string markedSuccessorId = "";
 
     [Header("Debug")]
@@ -24,25 +24,22 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
-        SyncFromBridge();
+        LoadFromCurrentSave();
     }
 
     void OnEnable()
     {
         if (Instance == null) Instance = this;
-        SyncFromBridge();
     }
 
     public static CampSuccessorPreferenceStore GetOrCreate()
     {
         if (Instance != null) return Instance;
-
-        CampSuccessorPreferenceStore found = FindAnyObjectByType<CampSuccessorPreferenceStore>(FindObjectsInactive.Include);
+        CampSuccessorPreferenceStore found = Object.FindAnyObjectByType<CampSuccessorPreferenceStore>(FindObjectsInactive.Include);
         if (found != null)
         {
             Instance = found;
-            found.SyncFromBridge();
-            return found;
+            return Instance;
         }
 
         GameObject obj = new GameObject("CampSuccessorPreferenceStore");
@@ -50,63 +47,61 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
         return Instance;
     }
 
-    public void MarkSuccessor(BuddyData buddy) => SetMarkedSuccessor(buddy, true);
-    public void MarkSuccessor(string buddyId) => SetMarkedSuccessor(buddyId, true);
+    public void MarkSuccessor(BuddyData buddy) => SetMarkedSuccessor(buddy);
+    public void MarkSuccessor(string buddyId) => SetMarkedSuccessor(buddyId);
 
-    public void SetMarkedSuccessor(BuddyData buddy) => SetMarkedSuccessor(buddy, true);
-
-    public void SetMarkedSuccessor(BuddyData buddy, bool writeImmediately)
+    public void SetMarkedSuccessor(BuddyData buddy)
     {
         if (buddy == null)
         {
-            ClearSuccessor(writeImmediately);
+            ClearSuccessor();
             return;
         }
+
         buddy.EnsureId();
-        SetMarkedSuccessor(buddy.uniqueId, writeImmediately);
+        SetMarkedSuccessor(buddy.uniqueId);
     }
 
-    public void SetMarkedSuccessor(string buddyId) => SetMarkedSuccessor(buddyId, true);
+    public void SetMarkedSuccessor(string buddyId)
+    {
+        SetMarkedSuccessor(buddyId, true);
+    }
 
     public void SetMarkedSuccessor(string buddyId, bool writeImmediately)
     {
         markedSuccessorId = string.IsNullOrWhiteSpace(buddyId) ? "" : buddyId.Trim();
-        GameStateSaveBridge.GetOrCreate().SetMarkedSuccessor(markedSuccessorId, writeImmediately);
         Log("Marked successor id: " + (string.IsNullOrWhiteSpace(markedSuccessorId) ? "none" : markedSuccessorId));
+        if (writeImmediately) SaveToCurrentSave();
     }
 
-    public void ClearSuccessor() => ClearSuccessor(true);
+    public void ClearSuccessor()
+    {
+        ClearSuccessor(true);
+    }
 
     public void ClearSuccessor(bool writeImmediately)
     {
         markedSuccessorId = "";
-        GameStateSaveBridge.GetOrCreate().ClearMarkedSuccessor(writeImmediately);
         Log("Cleared successor.");
+        if (writeImmediately) SaveToCurrentSave();
     }
 
     public BuddyData GetMarkedSuccessor()
     {
-        SyncFromBridge();
         if (string.IsNullOrWhiteSpace(markedSuccessorId) || GameState.Instance == null) return null;
-
         BuddyData buddy = GameState.Instance.FindBuddy(markedSuccessorId);
         if (buddy == null)
         {
-            ClearSuccessor(true);
+            ClearSuccessor();
             return null;
         }
         return buddy;
     }
 
-    public string GetMarkedSuccessorId()
-    {
-        SyncFromBridge();
-        return markedSuccessorId;
-    }
+    public string GetMarkedSuccessorId() => markedSuccessorId;
 
     public bool IsMarked(string buddyId)
     {
-        SyncFromBridge();
         return !string.IsNullOrWhiteSpace(buddyId) && buddyId == markedSuccessorId;
     }
 
@@ -121,19 +116,42 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
 
     public void ValidateAgainstRoster()
     {
-        SyncFromBridge();
-        if (string.IsNullOrWhiteSpace(markedSuccessorId)) return;
-        if (GameState.Instance == null || GameState.Instance.FindBuddy(markedSuccessorId) == null) ClearSuccessor(true);
+        ValidateAgainstRoster(true);
     }
 
-    public void LoadFromGameState() => SyncFromBridge();
-    public void SaveToGameState() => GameStateSaveBridge.GetOrCreate().SetMarkedSuccessor(markedSuccessorId, true);
-
-    void SyncFromBridge()
+    public void ValidateAgainstRoster(bool writeImmediately)
     {
-        GameStateSaveBridge bridge = GameStateSaveBridge.GetOrCreate();
-        markedSuccessorId = bridge.GetMarkedSuccessorId();
+        if (string.IsNullOrWhiteSpace(markedSuccessorId)) return;
+        if (GameState.Instance == null || GameState.Instance.FindBuddy(markedSuccessorId) == null)
+            ClearSuccessor(writeImmediately);
     }
+
+    public void LoadFromCurrentSave()
+    {
+        int slot = SporeSaveManager.GetCurrentSlot();
+        if (slot <= 0) slot = SporeSaveManager.GetLastPlayedSlot();
+        if (slot <= 0) return;
+
+        SporeSaveSlotData data = SporeSaveManager.LoadSlot(slot);
+        if (data != null && data.hasSave)
+        {
+            markedSuccessorId = data.markedSuccessorId;
+            ValidateAgainstRoster(false);
+        }
+    }
+
+    public void SaveToCurrentSave()
+    {
+        int slot = SporeSaveManager.GetCurrentSlot();
+        if (slot <= 0) slot = SporeSaveManager.GetLastPlayedSlot();
+        if (slot <= 0) return;
+
+        SporeSaveManager.SaveCurrentSlotFromGameState();
+    }
+
+    // Backwards-compatible names older scripts may still call.
+    public void LoadFromGameState() { LoadFromCurrentSave(); }
+    public void SaveToGameState() { SaveToCurrentSave(); }
 
     void Log(string message)
     {

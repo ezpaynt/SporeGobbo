@@ -5,26 +5,21 @@ public class ExitTrigger : MonoBehaviour
 {
     public string sceneToLoad = "CampScene";
     public bool saveRunBeforeLeaving = true;
-    public bool saveSlotAfterRunCommit = true;
+
     private bool used = false;
 
     private void OnTriggerEnter2D(Collider2D other)
     {
         if (used) return;
         if (!other.CompareTag("Player")) return;
-        used = true;
 
+        used = true;
         Debug.Log("Leaving level through ExitTrigger to " + sceneToLoad + "...");
 
         if (saveRunBeforeLeaving)
         {
             EnsureGameState().SaveFromRun();
-        }
-
-        // Successful run exit is one of the only times run progress is committed.
-        if (saveSlotAfterRunCommit)
-        {
-            SporeSaveManager.SaveCurrentGameToCurrentSlot();
+            SporeSaveManager.SaveCurrentSlotFromGameState();
         }
 
         PlayerDeathWatcher.SuppressDeathHandlingForSceneChange();

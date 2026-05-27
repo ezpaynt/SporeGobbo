@@ -4,9 +4,8 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 /// <summary>
-/// Optional direct New Game button helper.
-/// MainMenuController is preferred for the 3-slot UI, but this supports your current NewGameSystem object too.
-/// It creates the first empty slot and refuses if all 3 are full.
+/// Optional direct New Game button helper. Uses the real 3-slot save system.
+/// MainMenuController can also handle New Game through slot buttons.
 /// </summary>
 public class NewGameButton : MonoBehaviour
 {
@@ -16,8 +15,8 @@ public class NewGameButton : MonoBehaviour
     public TMP_InputField playerNameInput;
     public Button newGameButton;
 
-    void Start() => HookButton();
-    void OnEnable() => HookButton();
+    void Start() { HookButton(); }
+    void OnEnable() { HookButton(); }
 
     void HookButton()
     {
@@ -25,27 +24,25 @@ public class NewGameButton : MonoBehaviour
         if (newGameButton == null) return;
         newGameButton.onClick.RemoveListener(StartNewGame);
         newGameButton.onClick.AddListener(StartNewGame);
-        newGameButton.interactable = SporeSaveManager.HasOpenSlot();
+        newGameButton.interactable = SporeSaveManager.CanCreateNewGame();
     }
 
     public void StartNewGame()
     {
         string playerName = defaultPlayerName;
-        if (playerNameInput != null && !string.IsNullOrWhiteSpace(playerNameInput.text)) playerName = playerNameInput.text.Trim();
+        if (playerNameInput != null && !string.IsNullOrWhiteSpace(playerNameInput.text))
+            playerName = playerNameInput.text.Trim();
 
-        SporeSaveSlotData save = SporeSaveManager.CreateNewGameInFirstEmptySlot(firstSceneName, playerName);
-        if (save == null)
+        SporeSaveSlotData data = SporeSaveManager.CreateNewGame(playerName, firstSceneName);
+        if (data == null)
         {
-            Debug.LogWarning("[NewGameButton] All three save slots are full. New game refused.");
+            Debug.LogWarning("[NewGameButton] New game blocked. All 3 save slots are full.");
             HookButton();
             return;
         }
 
-        GameStateSaveBridge bridge = GameStateSaveBridge.GetOrCreate();
-        bridge.newGameSceneName = firstSceneName;
-        bridge.SetCurrentSlotWithoutSaving(save.slotIndex, save.playerName, save.saveName, save.markedSuccessorId);
-
-        Debug.Log("[NewGameButton] New game in slot " + save.slotIndex + " for " + playerName + ". Loading " + firstSceneName);
+        Debug.Log("[NewGameButton] New game in slot " + data.slotIndex + " for " + playerName + ". Loading " + firstSceneName);
+        Time.timeScale = 1f;
         SceneManager.LoadScene(firstSceneName);
     }
 }

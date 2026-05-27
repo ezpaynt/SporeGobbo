@@ -5,86 +5,101 @@ using UnityEngine;
 [Serializable]
 public class SporeSaveSlotData
 {
-    [Header("Slot Metadata")]
+    [Header("Slot")]
     public int slotIndex = 1;
     public bool hasSave = false;
     public string saveId = "";
-    public string saveName = "";
+    public string saveName = "New Gobbo Camp";
     public string playerName = "Gobbo";
     public string createdAt = "";
     public string lastPlayedAt = "";
     public long createdUtcTicks = 0;
     public long lastPlayedUtcTicks = 0;
 
-    [Header("Scene Policy")]
-    public string nextSceneName = "CampScene"; // kept for old UI display, but Continue/Load should always go to CampScene.
-
-    [Header("Run/Camp")]
+    [Header("Progress")]
     public int currentRunNumber = 1;
+    public int runNumber = 1; // compatibility label used by old UI
     public int maxActiveSquad = 5;
     public int campLevel = 1;
 
-    [Header("Full Runtime Save")]
+    [Header("Player")]
     public GobboSaveData player = new GobboSaveData();
+
+    [Header("Roster")]
     public List<BuddyData> ownedBuddies = new List<BuddyData>();
     public List<string> activeSquadIds = new List<string>();
-    public string markedSuccessorId = "";
+    public int ownedBuddyCount = 0; // compatibility label used by old UI
 
-    [Header("Camp Unlocks")]
+    [Header("Camp")]
+    public string markedSuccessorId = "";
     public List<string> unlockedStations = new List<string>();
     public List<string> decorationsUnlocked = new List<string>();
 
     [Header("History")]
-    public RunSummaryData lastRun = new RunSummaryData();
     public List<DeadBuddyRecord> deathHistory = new List<DeadBuddyRecord>();
+    public int deadBuddyCount = 0; // compatibility label used by old UI
 
-    // Legacy menu fields so older UI code keeps compiling/labeling.
-    public int buddyCount = 0;
-    public int deadBuddyCount = 0;
+    [Header("Last Run")]
+    public RunSummaryData lastRun = new RunSummaryData();
 
-    public static SporeSaveSlotData CreateNew(int slotIndex, string firstSceneName, string playerName = "Gobbo")
+    [Header("Legacy Scene Fields")]
+    public string lastSceneName = "";
+    public string nextSceneName = "CampScene"; // kept only so old inspectors do not break; load ignores this.
+
+    public static SporeSaveSlotData CreateNew(int slotIndex, string firstSceneName)
     {
-        DateTime now = DateTime.UtcNow;
-        playerName = string.IsNullOrWhiteSpace(playerName) ? "Gobbo" : playerName.Trim();
+        return CreateNew(slotIndex, "Gobbo", firstSceneName);
+    }
 
-        SporeSaveSlotData data = new SporeSaveSlotData();
-        data.slotIndex = Mathf.Clamp(slotIndex, 1, SporeSaveManager.SlotCount);
-        data.hasSave = true;
-        data.saveId = "slot_" + data.slotIndex;
-        data.playerName = playerName;
-        data.saveName = playerName + "'s Camp";
-        data.createdUtcTicks = now.Ticks;
-        data.lastPlayedUtcTicks = now.Ticks;
-        data.createdAt = now.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
-        data.lastPlayedAt = data.createdAt;
-        data.nextSceneName = "CampScene";
-        data.currentRunNumber = 1;
-        data.maxActiveSquad = 5;
-        data.campLevel = 1;
-        data.player = new GobboSaveData();
-        data.ownedBuddies = new List<BuddyData>();
-        data.activeSquadIds = new List<string>();
-        data.markedSuccessorId = "";
-        data.unlockedStations = new List<string>();
-        data.decorationsUnlocked = new List<string>();
-        data.lastRun = new RunSummaryData();
-        data.deathHistory = new List<DeadBuddyRecord>();
-        data.RefreshCounts();
+    public static SporeSaveSlotData CreateNew(int slotIndex, string playerName, string firstSceneName)
+    {
+        string cleanName = string.IsNullOrWhiteSpace(playerName) ? "Gobbo" : playerName.Trim();
+        DateTime now = DateTime.UtcNow;
+
+        SporeSaveSlotData data = new SporeSaveSlotData
+        {
+            slotIndex = Mathf.Clamp(slotIndex, 1, SporeSaveManager.SlotCount),
+            hasSave = true,
+            saveId = "slot_" + Mathf.Clamp(slotIndex, 1, SporeSaveManager.SlotCount),
+            saveName = cleanName + "'s Camp",
+            playerName = cleanName,
+            createdUtcTicks = now.Ticks,
+            lastPlayedUtcTicks = now.Ticks,
+            createdAt = now.ToLocalTime().ToString("yyyy-MM-dd HH:mm"),
+            lastPlayedAt = now.ToLocalTime().ToString("yyyy-MM-dd HH:mm"),
+            currentRunNumber = 1,
+            runNumber = 1,
+            maxActiveSquad = 5,
+            campLevel = 1,
+            player = new GobboSaveData(),
+            ownedBuddies = new List<BuddyData>(),
+            activeSquadIds = new List<string>(),
+            markedSuccessorId = "",
+            unlockedStations = new List<string>(),
+            decorationsUnlocked = new List<string>(),
+            deathHistory = new List<DeadBuddyRecord>(),
+            lastRun = new RunSummaryData(),
+            lastSceneName = "",
+            nextSceneName = "CampScene"
+        };
+
+        data.RefreshDerivedFields();
         return data;
     }
 
-    public void Normalize()
+    public void RefreshDerivedFields()
     {
-        slotIndex = Mathf.Clamp(slotIndex <= 0 ? 1 : slotIndex, 1, SporeSaveManager.SlotCount);
+        hasSave = true;
+        slotIndex = Mathf.Clamp(slotIndex, 1, SporeSaveManager.SlotCount);
         if (string.IsNullOrWhiteSpace(saveId)) saveId = "slot_" + slotIndex;
         if (string.IsNullOrWhiteSpace(playerName)) playerName = "Gobbo";
         if (string.IsNullOrWhiteSpace(saveName)) saveName = playerName + "'s Camp";
         if (createdUtcTicks <= 0) createdUtcTicks = DateTime.UtcNow.Ticks;
         if (lastPlayedUtcTicks <= 0) lastPlayedUtcTicks = createdUtcTicks;
-        if (string.IsNullOrWhiteSpace(createdAt)) createdAt = new DateTime(createdUtcTicks, DateTimeKind.Utc).ToLocalTime().ToString("yyyy-MM-dd HH:mm");
-        if (string.IsNullOrWhiteSpace(lastPlayedAt)) lastPlayedAt = new DateTime(lastPlayedUtcTicks, DateTimeKind.Utc).ToLocalTime().ToString("yyyy-MM-dd HH:mm");
-        if (string.IsNullOrWhiteSpace(nextSceneName)) nextSceneName = "CampScene";
-        if (currentRunNumber <= 0) currentRunNumber = 1;
+        createdAt = new DateTime(createdUtcTicks, DateTimeKind.Utc).ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+        lastPlayedAt = new DateTime(lastPlayedUtcTicks, DateTimeKind.Utc).ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+        if (currentRunNumber <= 0) currentRunNumber = Mathf.Max(1, runNumber);
+        runNumber = currentRunNumber;
         if (maxActiveSquad <= 0) maxActiveSquad = 5;
         if (campLevel <= 0) campLevel = 1;
         if (player == null) player = new GobboSaveData();
@@ -92,21 +107,17 @@ public class SporeSaveSlotData
         if (activeSquadIds == null) activeSquadIds = new List<string>();
         if (unlockedStations == null) unlockedStations = new List<string>();
         if (decorationsUnlocked == null) decorationsUnlocked = new List<string>();
-        if (lastRun == null) lastRun = new RunSummaryData();
         if (deathHistory == null) deathHistory = new List<DeadBuddyRecord>();
-        markedSuccessorId = string.IsNullOrWhiteSpace(markedSuccessorId) ? "" : markedSuccessorId.Trim();
-        RefreshCounts();
-    }
-
-    public void RefreshCounts()
-    {
-        buddyCount = ownedBuddies != null ? ownedBuddies.Count : 0;
-        deadBuddyCount = deathHistory != null ? deathHistory.Count : 0;
+        if (lastRun == null) lastRun = new RunSummaryData();
+        ownedBuddyCount = ownedBuddies.Count;
+        deadBuddyCount = deathHistory.Count;
+        nextSceneName = "CampScene";
     }
 
     public string GetButtonLabel()
     {
-        Normalize();
-        return saveName + "\nRun " + currentRunNumber + " • Buddies " + buddyCount + "\n" + lastPlayedAt;
+        if (!hasSave) return "Slot " + slotIndex + " — Empty";
+        RefreshDerivedFields();
+        return saveName + "\nRun " + currentRunNumber + " — Gobbos: " + ownedBuddyCount + "\n" + lastPlayedAt;
     }
 }

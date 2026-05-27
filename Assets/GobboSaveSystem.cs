@@ -1,137 +1,125 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
 
+/// <summary>
+/// Deprecated compatibility wrapper.
+/// The real save files are the 3 SporeSaveManager slots: slot_1.json, slot_2.json, slot_3.json.
+/// This wrapper prevents older scripts from creating a second save-index system.
+/// </summary>
 public static class GobboSaveSystem
 {
     public const string SaveFolderName = "Saves";
-    public const string IndexFileName = "save_index.json";
+    public const string IndexFileName = "save_index_unused.json";
 
-    public static string SaveFolderPath
-    {
-        get
-        {
-            string path = Path.Combine(Application.persistentDataPath, SaveFolderName);
-            if (!Directory.Exists(path)) Directory.CreateDirectory(path);
-            return path;
-        }
-    }
-
-    public static string IndexPath => Path.Combine(SaveFolderPath, IndexFileName);
+    public static string SaveFolderPath => SporeSaveManager.SaveFolder;
+    public static string IndexPath => System.IO.Path.Combine(SaveFolderPath, IndexFileName);
 
     public static string GetSavePath(string saveId)
     {
-        saveId = SanitizeSaveId(saveId);
-        return Path.Combine(SaveFolderPath, saveId + ".json");
+        int slot = SlotFromSaveId(saveId);
+        if (slot <= 0) slot = SporeSaveManager.GetCurrentSlot();
+        if (slot <= 0) slot = SporeSaveManager.GetLastPlayedSlot();
+        if (slot <= 0) slot = 1;
+        return SporeSaveManager.GetSlotPath(slot);
     }
 
     public static string CreateSaveId(string playerName)
     {
-        string safeName = SanitizeFilePart(string.IsNullOrWhiteSpace(playerName) ? "Gobbo" : playerName.Trim());
-        string stamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
-        string shortGuid = Guid.NewGuid().ToString("N").Substring(0, 8);
-        return SanitizeSaveId(safeName + "_" + stamp + "_" + shortGuid);
+        int slot = SporeSaveManager.FindFirstEmptySlot();
+        if (slot <= 0) slot = SporeSaveManager.GetCurrentSlot();
+        if (slot <= 0) slot = 1;
+        return "slot_" + slot;
     }
 
     public static void WriteSave(SaveSlotData save)
     {
         if (save == null) return;
-        if (string.IsNullOrWhiteSpace(save.saveId)) save.saveId = CreateSaveId(save.playerName);
-        save.lastPlayedUtcTicks = DateTime.UtcNow.Ticks;
+        int slot = SlotFromSaveId(save.saveId);
+        if (slot <= 0) slot = SporeSaveManager.GetCurrentSlot();
+        if (slot <= 0) slot = SporeSaveManager.FindFirstEmptySlot();
+        if (slot <= 0)
+        {
+            Debug.LogWarning("[GobboSaveSystem] Could not write legacy SaveSlotData. No slot available.");
+            return;
+        }
 
-        string json = JsonUtility.ToJson(save, true);
-        File.WriteAllText(GetSavePath(save.saveId), json);
+        SporeSaveSlotData data = new SporeSaveSlotData
+        {
+            slotIndex = slot,
+            hasSave = true,
+            saveId = "slot_" + slot,
+            saveName = save.saveName,
+            playerName = save.playerName,
+            createdUtcTicks = save.createdUtcTicks,
+            lastPlayedUtcTicks = save.lastPlayedUtcTicks,
+            currentRunNumber = save.currentRunNumber,
+            maxActiveSquad = save.maxActiveSquad,
+            campLevel = save.campLevel,
+            player = save.player,
+            ownedBuddies = save.ownedBuddies,
+            activeSquadIds = save.activeSquadIds,
+            markedSuccessorId = save.markedSuccessorId,
+            unlockedStations = save.unlockedStations,
+            decorationsUnlocked = save.decorationsUnlocked,
+            lastRun = save.lastRun
+        };
 
-        SaveSlotIndexData index = LoadIndex();
-        UpsertSummary(index, save);
-        index.lastLoadedSaveId = save.saveId;
-        WriteIndex(index);
-
-        Debug.Log("[GobboSaveSystem] Wrote save: " + save.saveId + " for " + save.playerName);
+        SporeSaveManager.SaveSlot(data);
     }
 
     public static SaveSlotData ReadSave(string saveId)
     {
-        string path = GetSavePath(saveId);
-        if (!File.Exists(path))
-        {
-            Debug.LogWarning("[GobboSaveSystem] Save not found: " + path);
-            return null;
-        }
-
-        string json = File.ReadAllText(path);
-        SaveSlotData save = JsonUtility.FromJson<SaveSlotData>(json);
-        NormalizeSave(save);
-        return save;
+        int slot = SlotFromSaveId(saveId);
+        if (slot <= 0) return null;
+        return ToLegacy(SporeSaveManager.LoadSlot(slot));
     }
 
     public static SaveSlotIndexData LoadIndex()
     {
-        if (!File.Exists(IndexPath)) return new SaveSlotIndexData();
-        try
-        {
-            SaveSlotIndexData index = JsonUtility.FromJson<SaveSlotIndexData>(File.ReadAllText(IndexPath));
-            if (index == null) index = new SaveSlotIndexData();
-            if (index.saves == null) index.saves = new List<SaveSlotSummary>();
-            return index;
-        }
-        catch (Exception ex)
-        {
-            Debug.LogWarning("[GobboSaveSystem] Could not read save index. Starting fresh. " + ex.Message);
-            return new SaveSlotIndexData();
-        }
+        SaveSlotIndexData index = new SaveSlotIndexData();
+        index.saves = ListSaves();
+        SporeSaveSlotData last = SporeSaveManager.LoadLastPlayedSlot();
+        index.lastLoadedSaveId = last != null ? last.saveId : "";
+        return index;
     }
 
     public static void WriteIndex(SaveSlotIndexData index)
     {
-        if (index == null) index = new SaveSlotIndexData();
-        if (index.saves == null) index.saves = new List<SaveSlotSummary>();
-        File.WriteAllText(IndexPath, JsonUtility.ToJson(index, true));
+        // No-op. SporeSaveManager discovers slots from slot files directly.
     }
 
     public static List<SaveSlotSummary> ListSaves()
     {
-        return LoadIndex().saves;
+        List<SaveSlotSummary> summaries = new List<SaveSlotSummary>();
+        for (int i = 1; i <= SporeSaveManager.SlotCount; i++)
+        {
+            SporeSaveSlotData data = SporeSaveManager.LoadSlot(i);
+            if (data == null || !data.hasSave) continue;
+            summaries.Add(new SaveSlotSummary
+            {
+                saveId = data.saveId,
+                saveName = data.saveName,
+                playerName = data.playerName,
+                createdUtcTicks = data.createdUtcTicks,
+                lastPlayedUtcTicks = data.lastPlayedUtcTicks,
+                currentRunNumber = data.currentRunNumber,
+                buddyCount = data.ownedBuddies != null ? data.ownedBuddies.Count : 0
+            });
+        }
+        summaries.Sort((a, b) => b.lastPlayedUtcTicks.CompareTo(a.lastPlayedUtcTicks));
+        return summaries;
     }
 
     public static SaveSlotData ReadLastLoadedSave()
     {
-        SaveSlotIndexData index = LoadIndex();
-        if (string.IsNullOrWhiteSpace(index.lastLoadedSaveId)) return null;
-        return ReadSave(index.lastLoadedSaveId);
+        return ToLegacy(SporeSaveManager.LoadLastPlayedSlot());
     }
 
     public static void DeleteSave(string saveId)
     {
-        string path = GetSavePath(saveId);
-        if (File.Exists(path)) File.Delete(path);
-
-        SaveSlotIndexData index = LoadIndex();
-        index.saves.RemoveAll(s => s != null && s.saveId == saveId);
-        if (index.lastLoadedSaveId == saveId) index.lastLoadedSaveId = "";
-        WriteIndex(index);
-    }
-
-    static void UpsertSummary(SaveSlotIndexData index, SaveSlotData save)
-    {
-        if (index.saves == null) index.saves = new List<SaveSlotSummary>();
-        SaveSlotSummary summary = index.saves.Find(s => s != null && s.saveId == save.saveId);
-        if (summary == null)
-        {
-            summary = new SaveSlotSummary();
-            index.saves.Add(summary);
-        }
-
-        summary.saveId = save.saveId;
-        summary.saveName = save.saveName;
-        summary.playerName = save.playerName;
-        summary.createdUtcTicks = save.createdUtcTicks;
-        summary.lastPlayedUtcTicks = save.lastPlayedUtcTicks;
-        summary.currentRunNumber = save.currentRunNumber;
-        summary.buddyCount = save.ownedBuddies != null ? save.ownedBuddies.Count : 0;
-
-        index.saves.Sort((a, b) => b.lastPlayedUtcTicks.CompareTo(a.lastPlayedUtcTicks));
+        int slot = SlotFromSaveId(saveId);
+        if (slot > 0) SporeSaveManager.DeleteSlot(slot);
     }
 
     public static void NormalizeSave(SaveSlotData save)
@@ -152,17 +140,37 @@ public static class GobboSaveSystem
         if (save.campLevel <= 0) save.campLevel = 1;
     }
 
-    static string SanitizeSaveId(string raw)
+    static int SlotFromSaveId(string saveId)
     {
-        string id = SanitizeFilePart(raw);
-        return string.IsNullOrWhiteSpace(id) ? "save_" + Guid.NewGuid().ToString("N") : id;
+        if (string.IsNullOrWhiteSpace(saveId)) return 0;
+        if (saveId.StartsWith("slot_"))
+        {
+            string text = saveId.Substring("slot_".Length);
+            if (int.TryParse(text, out int slot)) return Mathf.Clamp(slot, 1, SporeSaveManager.SlotCount);
+        }
+        return 0;
     }
 
-    static string SanitizeFilePart(string raw)
+    static SaveSlotData ToLegacy(SporeSaveSlotData data)
     {
-        if (string.IsNullOrWhiteSpace(raw)) return "Gobbo";
-        foreach (char c in Path.GetInvalidFileNameChars()) raw = raw.Replace(c, '_');
-        raw = raw.Replace(' ', '_').Trim('_');
-        return string.IsNullOrWhiteSpace(raw) ? "Gobbo" : raw;
+        if (data == null || !data.hasSave) return null;
+        data.RefreshDerivedFields();
+        SaveSlotData save = new SaveSlotData();
+        save.saveId = data.saveId;
+        save.saveName = data.saveName;
+        save.playerName = data.playerName;
+        save.createdUtcTicks = data.createdUtcTicks;
+        save.lastPlayedUtcTicks = data.lastPlayedUtcTicks;
+        save.currentRunNumber = data.currentRunNumber;
+        save.maxActiveSquad = data.maxActiveSquad;
+        save.campLevel = data.campLevel;
+        save.player = data.player;
+        save.ownedBuddies = data.ownedBuddies;
+        save.activeSquadIds = data.activeSquadIds;
+        save.markedSuccessorId = data.markedSuccessorId;
+        save.unlockedStations = data.unlockedStations;
+        save.decorationsUnlocked = data.decorationsUnlocked;
+        save.lastRun = data.lastRun;
+        return save;
     }
 }

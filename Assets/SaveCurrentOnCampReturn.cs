@@ -1,17 +1,23 @@
 using UnityEngine;
 
-/// <summary>
-/// Optional helper for CampScene.
-/// Saves current camp state when camp opens. This should not be used in SampleScene.
-/// </summary>
 public class SaveCurrentOnCampReturn : MonoBehaviour
 {
+    [Header("Save Timing")]
     public bool saveOnStart = true;
+    public bool saveOnlyIfGameStateExists = true;
 
-    void Start()
+    private void Start()
     {
-        if (!saveOnStart) return;
-        if (GameState.Instance == null) return;
-        SporeSaveManager.SaveCurrentGameToCurrentSlot();
+        if (!saveOnStart)
+            return;
+
+        if (saveOnlyIfGameStateExists && GameState.Instance == null)
+        {
+            Debug.LogWarning("[SaveCurrentOnCampReturn] No GameState found. Skipping camp return save.");
+            return;
+        }
+
+        // Unified save system: SporeSaveManager pulls the current GameState itself.
+        SporeSaveManager.SaveCurrentSlotFromGameState();
     }
 }
