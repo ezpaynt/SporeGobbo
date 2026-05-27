@@ -2,19 +2,17 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[RequireComponent(typeof(GobboController))]
 public class PlayerDeathWatcher : MonoBehaviour
 {
     [Header("Death Flow")]
     public string campSceneName = "CampScene";
     public string gameOverSceneName = "GameOverScene";
-    public bool loadGameOverSceneIfNoSuccessor = false;
+    public bool loadGameOverSceneIfNoSuccessors = false;
     public bool saveRunBeforeLeaving = true;
     public string deathCause = "The leader got chewed up in the dirt.";
 
     private GobboController player;
-    private bool handled;
-    private bool applicationQuitting;
+    private bool handledDeath;
 
     void Awake()
     {
@@ -23,160 +21,117 @@ public class PlayerDeathWatcher : MonoBehaviour
 
     void Update()
     {
-        CheckForDeath();
+        TryHandleDeath("Update");
     }
 
-    // Important: GobboController.Die() currently disables the player GameObject immediately.
-    // When a GameObject is disabled, Update stops, so this watcher can miss the death.
-    // OnDisable still fires during that same disable, so this catches the real run death.
     void OnDisable()
     {
-        if (applicationQuitting || handled)
-            return;
-
-        CheckForDeath();
+        // GobboController.Die() disables the player object. This catches that exact case.
+        TryHandleDeath("OnDisable");
     }
 
-    void OnApplicationQuit()
+    void TryHandleDeath(string source)
     {
-        applicationQuitting = true;
-    }
-
-    void CheckForDeath()
-    {
-        if (handled)
+        if (handledDeath)
             return;
 
+        if (!LooksDead())
+            return;
+
+        handledDeath = true;
+        HandlePlayerDeath(source);
+    }
+
+    bool LooksDead()
+    {
         if (player == null)
             player = GetComponent<GobboController>();
 
-        if (player == null)
-            return;
+        if (player != null && player.health <= 0)
+            return true;
 
-        if (player.health <= 0)
-            HandlePlayerDeath();
+        // If disabled by death before health was visible to this component, treat disabled player as dead.
+        if (player != null && !gameObject.activeInHierarchy)
+            return true;
+
+        return false;
     }
 
-    public void HandlePlayerDeath()
+    void HandlePlayerDeath(string source)
     {
-        if (handled)
-            return;
+        if (GameState.Instance != null)
+        {
+            if (saveRunBeforeLeaving && player != null)
+                GameState.Instance.SavePlayer(player);
 
-        handled = true;
+            if (GameState.Instance.lastRun != null)
+            {
+                GameState.Instance.lastRun.survived = false;
+                GameState.Instance.lastRun.playerLevelEnd = GameState.Instance.gobbo != null ? GameState.Instance.gobbo.level : 1;
+            }
+        }
 
-        GameState state = EnsureGameState();
+        List<string> candidates = BuildSuccessorCandidateIds();
+        int runNumber = GameState.Instance != null ? Mathf.Max(1, GameState.Instance.currentRunNumber) : 1;
+        string leaderName = "Gobbo";
+        int leaderLevel = 1;
 
-        if (saveRunBeforeLeaving && state != null)
-            SaveCurrentRunState(state);
+        if (GameState.Instance != null && GameState.Instance.gobbo != null)
+        {
+            leaderLevel = Mathf.Max(1, GameState.Instance.gobbo.level);
+            leaderName = GameState.Instance.gobbo.gobboType.ToString();
+        }
 
-        List<string> successorIds = GetLivingSuccessorIds(state);
+        PlayerDeathRunStore store = PlayerDeathRunStore.GetOrCreate();
+        store.BeginPlayerDeath(leaderName, leaderLevel, runNumber, deathCause, candidates);
 
-        MarkLastRunAsPlayerDeath(state, successorIds.Count);
-
-        int level = state != null && state.gobbo != null
-            ? Mathf.Max(1, state.gobbo.level)
-            : Mathf.Max(1, player != null ? player.level : 1);
-
-        int runNumber = state != null
-            ? Mathf.Max(1, state.currentRunNumber)
-            : 1;
-
-        string deadName = "Player Gobbo";
-        string deadType = player != null ? player.gobboType.ToString() : "Gobbo";
-
-        PlayerDeathRunStore.GetOrCreate().BeginPlayerDeath(
-            deadName,
-            deadType,
-            level,
-            runNumber,
-            deathCause,
-            successorIds
-        );
-
-        Debug.Log("PlayerDeathWatcher handled death. Successor candidates: " + successorIds.Count);
+        Debug.Log("[PlayerDeathWatcher] handled death from " + source + ". Successor candidates: " + candidates.Count);
 
         Time.timeScale = 1f;
 
-        if (successorIds.Count == 0 && loadGameOverSceneIfNoSuccessor)
+        if (loadGameOverSceneIfNoSuccessors && candidates.Count == 0 && !string.IsNullOrWhiteSpace(gameOverSceneName))
             SceneManager.LoadScene(gameOverSceneName);
         else
             SceneManager.LoadScene(campSceneName);
     }
 
-
-    void MarkLastRunAsPlayerDeath(GameState state, int livingSuccessorCount)
-    {
-        if (state == null)
-            return;
-
-        state.lastRun.survived = false;
-        state.lastRun.buddiesEnd = Mathf.Max(0, livingSuccessorCount);
-
-        if (player != null)
-        {
-            state.lastRun.playerLevelEnd = Mathf.Max(1, player.level);
-        }
-
-        if (state.gobbo != null)
-            state.gobbo.health = 0;
-    }
-
-    List<string> GetLivingSuccessorIds(GameState state)
+    List<string> BuildSuccessorCandidateIds()
     {
         List<string> ids = new List<string>();
 
-        BuddyUnit[] livingSceneBuddies = Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None);
-        foreach (BuddyUnit unit in livingSceneBuddies)
+        if (GameState.Instance != null && GameState.Instance.ownedBuddies != null)
         {
-            if (unit == null || unit.data == null)
-                continue;
-
-            unit.data.EnsureId();
-
-            if (unit.data.health > 0 && !ids.Contains(unit.data.uniqueId))
-                ids.Add(unit.data.uniqueId);
-        }
-
-        // Fallback: if the scene list is empty, let camp reserve / saved roster keep the tribe alive.
-        if (ids.Count == 0 && state != null && state.ownedBuddies != null)
-        {
-            foreach (BuddyData buddy in state.ownedBuddies)
+            foreach (BuddyData buddy in GameState.Instance.ownedBuddies)
             {
                 if (buddy == null)
                     continue;
 
                 buddy.EnsureId();
+                buddy.EnsureRuntimeDefaults();
 
+                // For succession, any living roster gobbo counts, active or reserve.
                 if (buddy.health > 0 && !ids.Contains(buddy.uniqueId))
                     ids.Add(buddy.uniqueId);
             }
         }
 
+        // Fallback: scene BuddyUnits, for old test scenes where GameState was not populated.
+        if (ids.Count == 0)
+        {
+            BuddyUnit[] units = Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None);
+            foreach (BuddyUnit unit in units)
+            {
+                if (unit == null || unit.data == null)
+                    continue;
+
+                unit.data.EnsureId();
+                unit.data.EnsureRuntimeDefaults();
+
+                if (unit.data.health > 0 && !ids.Contains(unit.data.uniqueId))
+                    ids.Add(unit.data.uniqueId);
+            }
+        }
+
         return ids;
-    }
-
-    void SaveCurrentRunState(GameState state)
-    {
-        if (state == null)
-            return;
-
-        // Save the actual dying player so run loot/resources stay current.
-        // Death flow itself will replace the leader in camp.
-        GobboController currentPlayer = Object.FindAnyObjectByType<GobboController>();
-        if (currentPlayer != null)
-            state.SavePlayer(currentPlayer);
-
-        BuddyRoster roster = Object.FindAnyObjectByType<BuddyRoster>(FindObjectsInactive.Include);
-        if (roster != null)
-            state.SaveRoster(roster);
-    }
-
-    GameState EnsureGameState()
-    {
-        if (GameState.Instance != null)
-            return GameState.Instance;
-
-        GameObject stateObject = new GameObject("GameState");
-        return stateObject.AddComponent<GameState>();
     }
 }

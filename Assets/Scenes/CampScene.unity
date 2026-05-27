@@ -1833,7 +1833,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 488311636}
-  - component: {fileID: 488311635}
   - component: {fileID: 488311637}
   m_Layer: 0
   m_Name: GameState
@@ -1842,18 +1841,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &488311635
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 488311634}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f17b6869fca0aa444a8ddfd862236b83, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GameState
 --- !u!4 &488311636
 Transform:
   m_ObjectHideFlags: 0
@@ -2879,6 +2866,7 @@ MonoBehaviour:
 
 
     No gobbos are left to remember the camp.'
+  logDebugMessages: 1
 --- !u!114 &714760111
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10941,7 +10929,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1853039409
 MonoBehaviour:
   m_ObjectHideFlags: 0

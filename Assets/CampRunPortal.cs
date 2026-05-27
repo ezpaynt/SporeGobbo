@@ -3,17 +3,17 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-[RequireComponent(typeof(Collider2D))]
-public class CampRunPortal : MonoBehaviour, ICampInteractable
+public class CampRunPortal : MonoBehaviour
 {
     [Header("Run Scene")]
     public string runSceneName = "SampleScene";
 
     [Header("Interaction")]
-    public string interactPrompt = "Enter tunnel";
+    public float interactRange = 1.35f;
+    public KeyCode interactKey = KeyCode.E;
+    public bool requireKeyPress = true;
 
-    [Header("Confirmation UI")]
-    public bool useConfirmationPanel = true;
+    [Header("Prompt UI")]
     public GameObject promptPanel;
     public TMP_Text promptText;
     public Button goButton;
@@ -25,38 +25,40 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
     [Header("Save")]
     public bool savePlayerBeforeLeaving = true;
     public bool beginRunSnapshotBeforeLeaving = true;
+    [Tooltip("Leave this OFF for the current camp. Scene BuddyRoster objects can be stale/empty and wipe GameState.")]
+    public bool saveSceneBuddyRosterBeforeLeaving = false;
 
-    private GobboController currentPlayer;
+    private Transform player;
     private bool promptOpen = false;
 
-    void Awake()
+    void Start()
+    {
+        HidePrompt();
+        HookButtons();
+    }
+
+    void OnEnable()
     {
         HookButtons();
-        HidePrompt();
     }
 
     void Update()
     {
-        if (promptOpen && Input.GetKeyDown(KeyCode.Escape))
-            HidePrompt();
-    }
+        FindPlayerIfMissing();
 
-    public string GetInteractPrompt()
-    {
-        return interactPrompt;
-    }
+        if (player == null)
+            return;
 
-    public void Interact(GobboController player)
-    {
-        currentPlayer = player;
+        bool closeEnough = Vector2.Distance(transform.position, player.position) <= interactRange;
 
-        if (!useConfirmationPanel)
+        if (!closeEnough)
         {
-            StartNextRun();
+            if (promptOpen)
+                HidePrompt();
             return;
         }
 
-        if (!promptOpen)
+        if (!requireKeyPress || Input.GetKeyDown(interactKey))
             ShowPrompt();
     }
 
@@ -86,7 +88,6 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
     void ShowPrompt()
     {
         promptOpen = true;
-        CampMenuModal.Open(currentPlayer, this, HidePrompt);
 
         if (promptText != null)
             promptText.text = promptMessage;
@@ -98,8 +99,7 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
         }
         else
         {
-            Debug.LogWarning("CampRunPortal has no confirmation Prompt Panel assigned. Starting next run directly.", this);
-            StartNextRun();
+            Debug.Log("Camp portal ready. Assign Prompt Panel for confirmation UI, or click Go Button if assigned elsewhere.");
         }
     }
 
@@ -109,33 +109,67 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
 
         if (promptPanel != null)
             promptPanel.SetActive(false);
-
-        CampMenuModal.Close(this);
     }
 
     public void StartNextRun()
     {
-        CampMenuModal.Close(this);
-
         if (GameState.Instance != null)
         {
             if (savePlayerBeforeLeaving)
             {
-                GobboController playerController = currentPlayer != null
-                    ? currentPlayer
-                    : Object.FindAnyObjectByType<GobboController>();
-
+                GobboController playerController = UnityEngine.Object.FindAnyObjectByType<GobboController>();
                 if (playerController != null)
                     GameState.Instance.SavePlayer(playerController);
 
-                GameState.Instance.RepairRosterState();
+                if (saveSceneBuddyRosterBeforeLeaving)
+                {
+                    BuddyRoster roster = UnityEngine.Object.FindAnyObjectByType<BuddyRoster>(FindObjectsInactive.Include);
+                    if (roster != null)
+                        GameState.Instance.SaveRoster(roster);
+                }
             }
+
+            if (CampSuccessorPreferenceStore.Instance != null)
+                CampSuccessorPreferenceStore.Instance.ValidateAgainstRoster();
 
             if (beginRunSnapshotBeforeLeaving)
                 GameState.Instance.BeginRunSnapshot();
+
+            Debug.Log("[CampRunPortal] Starting run. Roster: " + CountRoster() + ", active: " + CountActive() + ", marked successor: " + GetMarkedSuccessorDebug());
         }
 
         Time.timeScale = 1f;
         SceneManager.LoadScene(runSceneName);
+    }
+
+    int CountRoster()
+    {
+        return GameState.Instance != null && GameState.Instance.ownedBuddies != null ? GameState.Instance.ownedBuddies.Count : 0;
+    }
+
+    int CountActive()
+    {
+        return GameState.Instance != null && GameState.Instance.activeSquadIds != null ? GameState.Instance.activeSquadIds.Count : 0;
+    }
+
+    string GetMarkedSuccessorDebug()
+    {
+        return CampSuccessorPreferenceStore.Instance != null ? CampSuccessorPreferenceStore.Instance.GetMarkedSuccessorId() : "none";
+    }
+
+    void FindPlayerIfMissing()
+    {
+        if (player != null)
+            return;
+
+        GameObject found = GameObject.FindGameObjectWithTag("Player");
+        if (found != null)
+            player = found.transform;
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawWireSphere(transform.position, interactRange);
     }
 }

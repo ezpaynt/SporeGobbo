@@ -16,51 +16,102 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
         }
 
         Instance = this;
-
-        // If this is placed under a scene helper object, detach before making it persistent.
-        // Unity only allows DontDestroyOnLoad on root GameObjects.
-        if (transform.parent != null)
-            transform.SetParent(null);
-
         DontDestroyOnLoad(gameObject);
+        LoadFromGameState();
     }
 
-    public static CampSuccessorPreferenceStore GetOrCreate()
+    void OnEnable()
     {
-        if (Instance != null)
-            return Instance;
+        if (Instance == null)
+            Instance = this;
 
-        CampSuccessorPreferenceStore found = Object.FindAnyObjectByType<CampSuccessorPreferenceStore>(FindObjectsInactive.Include);
-        if (found != null)
-        {
-            Instance = found;
-            return Instance;
-        }
+        LoadFromGameState();
+    }
 
-        GameObject obj = new GameObject("CampSuccessorPreferenceStore");
-        return obj.AddComponent<CampSuccessorPreferenceStore>();
+    public void MarkSuccessor(BuddyData buddy)
+    {
+        if (buddy == null)
+            return;
+
+        buddy.EnsureId();
+        MarkSuccessor(buddy.uniqueId);
     }
 
     public void MarkSuccessor(string buddyId)
     {
         markedSuccessorId = string.IsNullOrWhiteSpace(buddyId) ? "" : buddyId.Trim();
+        SaveToGameState();
+        Debug.Log("[CampSuccessorPreferenceStore] Marked successor id: " + (string.IsNullOrWhiteSpace(markedSuccessorId) ? "none" : markedSuccessorId));
     }
 
     public void ClearSuccessor()
     {
         markedSuccessorId = "";
+        SaveToGameState();
+        Debug.Log("[CampSuccessorPreferenceStore] Cleared successor.");
     }
 
+    // This signature is for CampSquadSelect, which expects a BuddyData.
     public BuddyData GetMarkedSuccessor()
     {
-        if (GameState.Instance == null || string.IsNullOrWhiteSpace(markedSuccessorId))
+        LoadFromGameState();
+
+        if (string.IsNullOrWhiteSpace(markedSuccessorId))
             return null;
 
-        return GameState.Instance.FindBuddy(markedSuccessorId);
+        if (GameState.Instance == null)
+            return null;
+
+        BuddyData buddy = GameState.Instance.FindBuddy(markedSuccessorId);
+        if (buddy == null)
+        {
+            ClearSuccessor();
+            return null;
+        }
+
+        return buddy;
     }
 
-    public bool HasValidMarkedSuccessor()
+    // Use this when another script only needs the id.
+    public string GetMarkedSuccessorId()
+    {
+        LoadFromGameState();
+        return markedSuccessorId;
+    }
+
+    public bool IsMarked(string buddyId)
+    {
+        LoadFromGameState();
+        return !string.IsNullOrWhiteSpace(buddyId) && buddyId == markedSuccessorId;
+    }
+
+    public bool HasMarkedSuccessor()
     {
         return GetMarkedSuccessor() != null;
+    }
+
+    public void LoadFromGameState()
+    {
+        if (GameState.Instance == null)
+            return;
+
+        // Reflection keeps this compatible even if GameState does not have the field yet.
+        System.Reflection.FieldInfo field = typeof(GameState).GetField("markedSuccessorId");
+        if (field != null)
+        {
+            string value = field.GetValue(GameState.Instance) as string;
+            if (!string.IsNullOrWhiteSpace(value))
+                markedSuccessorId = value;
+        }
+    }
+
+    public void SaveToGameState()
+    {
+        if (GameState.Instance == null)
+            return;
+
+        System.Reflection.FieldInfo field = typeof(GameState).GetField("markedSuccessorId");
+        if (field != null)
+            field.SetValue(GameState.Instance, markedSuccessorId);
     }
 }
