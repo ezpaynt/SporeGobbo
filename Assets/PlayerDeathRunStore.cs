@@ -14,6 +14,7 @@ public class PlayerDeathRunStore : MonoBehaviour
     public int deadLeaderLevel = 1;
     public int deadLeaderRunNumber = 1;
     public string deathCause = "Got squished in the dirt.";
+    public bool memorialAddedToHistory = false;
 
     // Compatibility names used by older bones/succession files.
     public string deadPlayerName = "Gobbo";
@@ -61,6 +62,7 @@ public class PlayerDeathRunStore : MonoBehaviour
     public void BeginPlayerDeath(string leaderName, string leaderType, int leaderLevel, int currentRunNumber, string cause, List<string> successorIds)
     {
         playerDiedThisRun = true;
+        memorialAddedToHistory = false;
 
         deadLeaderName = string.IsNullOrWhiteSpace(leaderName) ? "Gobbo" : leaderName.Trim();
         deadLeaderType = string.IsNullOrWhiteSpace(leaderType) ? "Gobbo" : leaderType.Trim();
@@ -75,6 +77,7 @@ public class PlayerDeathRunStore : MonoBehaviour
     public void ClearPendingDeath()
     {
         playerDiedThisRun = false;
+        memorialAddedToHistory = false;
         eligibleSuccessorIds.Clear();
     }
 

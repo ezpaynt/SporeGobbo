@@ -149,6 +149,9 @@ public class CampDeathHistoryStore : MonoBehaviour
         if (pending == null)
             return AddDeadLeaderFallback();
 
+        if (pending.memorialAddedToHistory)
+            return null;
+
         pending.SyncCompatibilityFields();
 
         DeadBuddyRecord record = new DeadBuddyRecord();
@@ -162,6 +165,7 @@ public class CampDeathHistoryStore : MonoBehaviour
         record.wasPlayerLeader = true;
 
         AddRecord(record);
+        pending.memorialAddedToHistory = true;
         return record;
     }
 

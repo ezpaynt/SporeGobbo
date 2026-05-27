@@ -16,6 +16,12 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
         }
 
         Instance = this;
+
+        // If this is placed under a scene helper object, detach before making it persistent.
+        // Unity only allows DontDestroyOnLoad on root GameObjects.
+        if (transform.parent != null)
+            transform.SetParent(null);
+
         DontDestroyOnLoad(gameObject);
     }
 

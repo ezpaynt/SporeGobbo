@@ -19,19 +19,21 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
     public Transform reserveListParent;
     public Button closeButton;
 
+    [Header("Successor UI")]
+    public bool showSuccessorColumn = true;
+    public string markSuccessorText = "Mark";
+    public string markedSuccessorText = "Marked";
+    public string clearSuccessorText = "Clear";
+    public float successorButtonWidth = 92f;
+    public bool allowClickMarkedButtonToClear = true;
+
     [Header("Optional Refresh")]
     public CampPlayableSpawner campPlayableSpawner;
     public bool refreshCampVisualsAfterChange = false;
 
-    [Header("Successor Marking")]
-    public bool allowMarkSuccessor = true;
-    public string noMarkedSuccessorText = "No successor marked";
-    public string markSuccessorButtonText = "Mark";
-    public string markedSuccessorButtonText = "Marked";
-
     [Header("Auto UI Style")]
     public bool buildReadableUiIfMissing = true;
-    public Vector2 panelSize = new Vector2(760f, 520f);
+    public Vector2 panelSize = new Vector2(860f, 560f);
     public int panelSortingOrder = 500;
 
     private Transform player;
@@ -96,6 +98,14 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
             panel.transform.SetAsLastSibling();
         }
 
+        CanvasGroup group = panel != null ? panel.GetComponent<CanvasGroup>() : null;
+        if (group != null)
+        {
+            group.alpha = 1f;
+            group.interactable = true;
+            group.blocksRaycasts = true;
+        }
+
         RefreshMenu();
     }
 
@@ -126,42 +136,31 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
             return;
         }
 
+        RepairMarkedSuccessorIfMissing();
+
         List<BuddyData> active = GameState.Instance.GetActiveSquad();
         List<BuddyData> reserve = GameState.Instance.GetReserveBuddies();
+        BuddyData marked = GetMarkedSuccessor();
+        string markedName = marked != null ? marked.buddyName : "none";
 
         if (titleText != null)
-            titleText.text = "Choose Who Comes  (" + active.Count + " / " + GameState.Instance.maxActiveSquad + ")\n<size=16>" + GetSuccessorLine() + "</size>";
+            titleText.text = "Choose Who Comes  (" + active.Count + " / " + GameState.Instance.maxActiveSquad + ")" +
+                             (showSuccessorColumn ? "\n<size=18>Successor: " + markedName + "</size>" : "");
 
-        AddHeader(activeListParent, "ACTIVE SQUAD", "Click a buddy to leave them at camp. Mark only sets future leader.");
+        EnsureListParentLayout(activeListParent);
+        EnsureListParentLayout(reserveListParent);
+
+        AddHeader(activeListParent, "ACTIVE SQUAD", showSuccessorColumn ? "Main button moves buddy. Right button marks successor." : "Click a buddy to leave them at camp.");
         if (active.Count == 0)
             AddInfoRow(activeListParent, "Nobody selected.");
         foreach (BuddyData buddy in active)
             AddBuddyRow(activeListParent, buddy, true);
 
-        AddHeader(reserveListParent, "CAMP RESERVE", "Click a buddy to bring them next run. Mark only sets future leader.");
+        AddHeader(reserveListParent, "CAMP RESERVE", showSuccessorColumn ? "Main button moves buddy. Right button marks successor." : "Click a buddy to bring them next run.");
         if (reserve.Count == 0)
             AddInfoRow(reserveListParent, "Nobody waiting.");
         foreach (BuddyData buddy in reserve)
             AddBuddyRow(reserveListParent, buddy, false);
-    }
-
-    string GetSuccessorLine()
-    {
-        if (!allowMarkSuccessor || GameState.Instance == null)
-            return "";
-
-        CampSuccessorPreferenceStore store = CampSuccessorPreferenceStore.GetOrCreate();
-        BuddyData marked = store != null ? store.GetMarkedSuccessor() : null;
-
-        if (marked == null)
-        {
-            if (store != null && !string.IsNullOrWhiteSpace(store.markedSuccessorId))
-                store.ClearSuccessor();
-
-            return noMarkedSuccessorText;
-        }
-
-        return "Successor: " + marked.buddyName;
     }
 
     void AddBuddyRow(Transform parent, BuddyData buddy, bool currentlyActive)
@@ -169,94 +168,86 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         if (parent == null || buddy == null)
             return;
 
+        buddy.EnsureId();
         buddy.EnsureRuntimeDefaults();
 
-        GameObject row = new GameObject((currentlyActive ? "Active_" : "Reserve_") + buddy.buddyName, typeof(RectTransform), typeof(Image));
+        GameObject row = new GameObject((currentlyActive ? "Active_" : "Reserve_") + buddy.buddyName, typeof(RectTransform), typeof(Image), typeof(HorizontalLayoutGroup));
         row.transform.SetParent(parent, false);
         spawnedRows.Add(row);
 
         RectTransform rowRt = row.GetComponent<RectTransform>();
-        rowRt.sizeDelta = new Vector2(0f, 44f);
+        rowRt.anchorMin = new Vector2(0f, 1f);
+        rowRt.anchorMax = new Vector2(1f, 1f);
+        rowRt.pivot = new Vector2(0.5f, 1f);
+        rowRt.sizeDelta = new Vector2(0f, 52f);
+        rowRt.offsetMin = new Vector2(0f, rowRt.offsetMin.y);
+        rowRt.offsetMax = new Vector2(0f, rowRt.offsetMax.y);
+
+        LayoutElement rowElement = row.AddComponent<LayoutElement>();
+        rowElement.preferredHeight = 52f;
+        rowElement.minHeight = 52f;
+        rowElement.flexibleWidth = 1f;
 
         Image rowBg = row.GetComponent<Image>();
-        rowBg.color = currentlyActive ? new Color(0.24f, 0.42f, 0.25f, 0.95f) : new Color(0.30f, 0.28f, 0.20f, 0.95f);
+        rowBg.color = currentlyActive ? new Color(0.18f, 0.28f, 0.18f, 0.65f) : new Color(0.22f, 0.20f, 0.14f, 0.65f);
         rowBg.raycastTarget = false;
 
-        Button toggleButton = CreateRowButton(row.transform, "SquadToggleButton", currentlyActive, allowMarkSuccessor ? 126f : 0f);
-        toggleButton.onClick.AddListener(() => ToggleBuddy(buddy.uniqueId, currentlyActive));
+        HorizontalLayoutGroup rowLayout = row.GetComponent<HorizontalLayoutGroup>();
+        rowLayout.padding = new RectOffset(0, 0, 0, 0);
+        rowLayout.spacing = 7f;
+        rowLayout.childAlignment = TextAnchor.MiddleCenter;
+        rowLayout.childControlWidth = true;
+        rowLayout.childControlHeight = true;
+        rowLayout.childForceExpandWidth = false;
+        rowLayout.childForceExpandHeight = true;
 
-        TMP_Text txt = CreateText(toggleButton.transform, "Label", TextAlignmentOptions.Left, 16, FontStyles.Normal);
-        txt.rectTransform.anchorMin = Vector2.zero;
-        txt.rectTransform.anchorMax = Vector2.one;
-        txt.rectTransform.offsetMin = new Vector2(12f, 3f);
-        txt.rectTransform.offsetMax = new Vector2(-12f, -3f);
-        txt.color = Color.white;
-        txt.text = BuddyLabel(buddy, currentlyActive);
-        txt.raycastTarget = false;
+        Button moveButton = CreateRowButton(row.transform, "MoveButton", BuddyLabel(buddy, currentlyActive), currentlyActive ? new Color(0.24f, 0.42f, 0.25f, 0.95f) : new Color(0.30f, 0.28f, 0.20f, 0.95f));
+        LayoutElement moveLayout = moveButton.gameObject.AddComponent<LayoutElement>();
+        moveLayout.flexibleWidth = 1f;
+        moveLayout.minHeight = 44f;
+        moveButton.onClick.AddListener(() => ToggleBuddy(buddy.uniqueId, currentlyActive));
 
-        if (allowMarkSuccessor)
-            AddSuccessorButton(row.transform, buddy);
+        if (showSuccessorColumn)
+        {
+            bool isMarked = IsMarkedSuccessor(buddy.uniqueId);
+            Button markButton = CreateRowButton(row.transform, "SuccessorButton", isMarked ? markedSuccessorText : markSuccessorText, isMarked ? new Color(0.74f, 0.52f, 0.18f, 1f) : new Color(0.36f, 0.28f, 0.16f, 1f));
+            LayoutElement markLayout = markButton.gameObject.AddComponent<LayoutElement>();
+            markLayout.preferredWidth = successorButtonWidth;
+            markLayout.minWidth = successorButtonWidth;
+            markLayout.minHeight = 44f;
+            markButton.onClick.AddListener(() => ToggleSuccessorMark(buddy.uniqueId));
+        }
     }
 
-    Button CreateRowButton(Transform parent, string name, bool currentlyActive, float reserveRightSpace)
+    Button CreateRowButton(Transform parent, string name, string label, Color bgColor)
     {
         GameObject obj = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
         obj.transform.SetParent(parent, false);
 
-        RectTransform rt = obj.GetComponent<RectTransform>();
-        rt.anchorMin = Vector2.zero;
-        rt.anchorMax = Vector2.one;
-        rt.offsetMin = Vector2.zero;
-        rt.offsetMax = new Vector2(-reserveRightSpace, 0f);
-
         Image image = obj.GetComponent<Image>();
-        image.color = currentlyActive ? new Color(0.24f, 0.42f, 0.25f, 0.01f) : new Color(0.30f, 0.28f, 0.20f, 0.01f);
+        image.color = bgColor;
 
         Button button = obj.GetComponent<Button>();
         button.targetGraphic = image;
+
+        TMP_Text txt = CreateText(obj.transform, "Text", TextAlignmentOptions.Left, 15, FontStyles.Normal);
+        txt.rectTransform.anchorMin = Vector2.zero;
+        txt.rectTransform.anchorMax = Vector2.one;
+        txt.rectTransform.offsetMin = new Vector2(10f, 3f);
+        txt.rectTransform.offsetMax = new Vector2(-10f, -3f);
+        txt.color = Color.white;
+        txt.text = label;
+        txt.raycastTarget = false;
+
         return button;
-    }
-
-    void AddSuccessorButton(Transform parent, BuddyData buddy)
-    {
-        if (parent == null || buddy == null)
-            return;
-
-        CampSuccessorPreferenceStore store = CampSuccessorPreferenceStore.GetOrCreate();
-        bool isMarked = store != null && store.markedSuccessorId == buddy.uniqueId;
-
-        GameObject obj = new GameObject("SuccessorButton", typeof(RectTransform), typeof(Image), typeof(Button));
-        obj.transform.SetParent(parent, false);
-
-        RectTransform rt = obj.GetComponent<RectTransform>();
-        rt.anchorMin = new Vector2(1f, 0.5f);
-        rt.anchorMax = new Vector2(1f, 0.5f);
-        rt.pivot = new Vector2(1f, 0.5f);
-        rt.sizeDelta = new Vector2(112f, 32f);
-        rt.anchoredPosition = new Vector2(-8f, 0f);
-
-        Image image = obj.GetComponent<Image>();
-        image.color = isMarked ? new Color(0.75f, 0.55f, 0.20f, 1f) : new Color(0.35f, 0.30f, 0.20f, 1f);
-
-        Button button = obj.GetComponent<Button>();
-        button.targetGraphic = image;
-        button.onClick.AddListener(() => MarkSuccessor(buddy.uniqueId));
-
-        TMP_Text label = CreateText(obj.transform, "Text", TextAlignmentOptions.Center, 14, FontStyles.Bold);
-        label.rectTransform.anchorMin = Vector2.zero;
-        label.rectTransform.anchorMax = Vector2.one;
-        label.rectTransform.offsetMin = Vector2.zero;
-        label.rectTransform.offsetMax = Vector2.zero;
-        label.color = Color.white;
-        label.text = isMarked ? markedSuccessorButtonText : markSuccessorButtonText;
-        label.raycastTarget = false;
     }
 
     string BuddyLabel(BuddyData buddy, bool active)
     {
         string action = active ? "  → Send to reserve" : "  → Bring along";
+        string successor = IsMarkedSuccessor(buddy.uniqueId) ? "   [SUCCESSOR]" : "";
         return buddy.buddyName + "   " + buddy.buddyType + " / " + buddy.ageStage +
-               "   Lv " + buddy.level + "   HP " + buddy.health + "/" + buddy.maxHealth + action;
+               "   Lv " + buddy.level + "   HP " + buddy.health + "/" + buddy.maxHealth + successor + action;
     }
 
     void ToggleBuddy(string buddyId, bool currentlyActive)
@@ -272,7 +263,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         {
             bool moved = GameState.Instance.MoveBuddyToActiveSquad(buddyId);
             if (!moved)
-                Debug.Log("Active squad is full.");
+                CampMessageUI.Show("Active squad is full.");
         }
 
         RefreshMenu();
@@ -281,18 +272,84 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
             campPlayableSpawner.SpawnPlayableCamp();
     }
 
-    void MarkSuccessor(string buddyId)
+    void ToggleSuccessorMark(string buddyId)
     {
-        if (GameState.Instance == null || string.IsNullOrWhiteSpace(buddyId))
+        if (string.IsNullOrWhiteSpace(buddyId))
             return;
 
-        BuddyData buddy = GameState.Instance.FindBuddy(buddyId);
-        if (buddy == null)
-            return;
+        CampSuccessorPreferenceStore store = CampSuccessorPreferenceStore.GetOrCreate();
 
-        CampSuccessorPreferenceStore.GetOrCreate().MarkSuccessor(buddy.uniqueId);
-        CampMessageUI.Show(buddy.buddyName + " is marked as successor.");
+        if (store.markedSuccessorId == buddyId && allowClickMarkedButtonToClear)
+        {
+            store.ClearSuccessor();
+            CampMessageUI.Show("No successor marked.");
+        }
+        else
+        {
+            store.MarkSuccessor(buddyId);
+            BuddyData buddy = GameState.Instance != null ? GameState.Instance.FindBuddy(buddyId) : null;
+            CampMessageUI.Show((buddy != null ? buddy.buddyName : "That gobbo") + " is marked as successor.");
+        }
+
         RefreshMenu();
+    }
+
+    bool IsMarkedSuccessor(string buddyId)
+    {
+        CampSuccessorPreferenceStore store = CampSuccessorPreferenceStore.GetOrCreate();
+        return store != null && !string.IsNullOrWhiteSpace(buddyId) && store.markedSuccessorId == buddyId;
+    }
+
+    BuddyData GetMarkedSuccessor()
+    {
+        CampSuccessorPreferenceStore store = CampSuccessorPreferenceStore.GetOrCreate();
+        return store != null ? store.GetMarkedSuccessor() : null;
+    }
+
+    void RepairMarkedSuccessorIfMissing()
+    {
+        CampSuccessorPreferenceStore store = CampSuccessorPreferenceStore.GetOrCreate();
+        if (store == null || string.IsNullOrWhiteSpace(store.markedSuccessorId))
+            return;
+
+        if (GameState.Instance == null || GameState.Instance.FindBuddy(store.markedSuccessorId) == null)
+            store.ClearSuccessor();
+    }
+
+
+    void EnsureListParentLayout(Transform parent)
+    {
+        if (parent == null)
+            return;
+
+        RectTransform rt = parent as RectTransform;
+        if (rt != null)
+        {
+            // Stretch list contents across the assigned column so the large move button
+            // gets real width and the successor button sits on the right instead of
+            // floating alone in the middle of the screen.
+            if (rt.rect.width < 80f)
+                rt.sizeDelta = new Vector2(360f, Mathf.Max(260f, rt.sizeDelta.y));
+        }
+
+        VerticalLayoutGroup layout = parent.GetComponent<VerticalLayoutGroup>();
+        if (layout == null)
+            layout = parent.gameObject.AddComponent<VerticalLayoutGroup>();
+
+        layout.padding = new RectOffset(10, 10, 10, 10);
+        layout.spacing = 7f;
+        layout.childAlignment = TextAnchor.UpperCenter;
+        layout.childControlWidth = true;
+        layout.childControlHeight = false;
+        layout.childForceExpandWidth = true;
+        layout.childForceExpandHeight = false;
+
+        ContentSizeFitter fitter = parent.GetComponent<ContentSizeFitter>();
+        if (fitter == null)
+            fitter = parent.gameObject.AddComponent<ContentSizeFitter>();
+
+        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
     }
 
     void AddHeader(Transform parent, string title, string subtitle)
@@ -304,7 +361,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         box.transform.SetParent(parent, false);
         spawnedRows.Add(box);
         RectTransform rt = box.GetComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(0f, 60f);
+        rt.sizeDelta = new Vector2(0f, 64f);
 
         TMP_Text text = CreateText(box.transform, "Text", TextAlignmentOptions.Center, 18, FontStyles.Bold);
         text.rectTransform.anchorMin = new Vector2(0f, 0f);
@@ -370,6 +427,11 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         panelRt.anchoredPosition = Vector2.zero;
         panelRt.sizeDelta = panelSize;
         panel.GetComponent<Image>().color = new Color(0.055f, 0.045f, 0.035f, 0.94f);
+
+        CanvasGroup group = panel.GetComponent<CanvasGroup>();
+        group.alpha = 1f;
+        group.interactable = true;
+        group.blocksRaycasts = true;
 
         GameObject titleObj = new GameObject("Title", typeof(RectTransform));
         titleObj.transform.SetParent(panel.transform, false);

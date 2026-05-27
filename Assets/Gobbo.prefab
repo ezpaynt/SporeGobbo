@@ -310,6 +310,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerDeathWatcher
   campSceneName: CampScene
   gameOverSceneName: GameOverScene
-  loadGameOverSceneIfNoSuccessor: 1
+  loadGameOverSceneIfNoSuccessor: 0
   saveRunBeforeLeaving: 1
   deathCause: The leader got chewed up in the dirt.
