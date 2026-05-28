@@ -22,14 +22,22 @@ public class CampSuccessionUI : MonoBehaviour
     [Header("Text")]
     public string title = "The leader is bones now.";
     [TextArea(2, 5)] public string markedSuccessorBody = "{0} was marked to take over.";
-    [TextArea(2, 5)] public string noMarkedSuccessorBody = "No gobbo was marked as successor. The camp has to choose.";
+    [TextArea(2, 5)] public string noMarkedSuccessorBody = "No gobbo was marked as successor.\nThe camp has to choose.";
     [TextArea(2, 5)] public string gameOverMessage = "GAME OVER\n\nNo gobbos are left to remember the camp.";
+
+    [Header("Click Hardening")]
+    public bool attachDirectClickRelays = false;
+    public bool hideOtherCampPanelsWhenOpen = true;
+
+    [Tooltip("Optional blockers to force off when death/game-over opens. If empty, common panel names are auto-hidden under the same Canvas.")]
+    public List<GameObject> panelsToHideWhenOpen = new List<GameObject>();
 
     [Header("Debug")]
     public bool logDebugMessages = true;
 
     private GobboUnitSaveData markedSuccessor;
     private readonly List<GobboUnitSaveData> eligibleSuccessors = new List<GobboUnitSaveData>();
+    private bool resolvingSuccession = false;
 
     private void Awake()
     {
@@ -88,6 +96,7 @@ public class CampSuccessionUI : MonoBehaviour
             foreach (Button button in buttons)
             {
                 if (button == null) continue;
+
                 string n = button.name.ToLowerInvariant();
                 if (acceptMarkedSuccessorButton == null && (n.Contains("accept") || n.Contains("marked") || n.Contains("successor")))
                     acceptMarkedSuccessorButton = button;
@@ -113,6 +122,7 @@ public class CampSuccessionUI : MonoBehaviour
             PrepareButton(acceptMarkedSuccessorButton, "AcceptMarkedSuccessorButton", "Accept\nMarked\nSuccessor");
             acceptMarkedSuccessorButton.onClick.RemoveAllListeners();
             acceptMarkedSuccessorButton.onClick.AddListener(AcceptMarkedSuccessor);
+            AttachRelay(acceptMarkedSuccessorButton, DeathButtonClickRelay.DeathButtonAction.AcceptMarkedSuccessor);
             Log("Hooked accept button: " + GetPath(acceptMarkedSuccessorButton.transform));
         }
         else Log("WARNING: acceptMarkedSuccessorButton is not assigned.");
@@ -122,6 +132,7 @@ public class CampSuccessionUI : MonoBehaviour
             PrepareButton(letCampChooseButton, "LetCampChooseButton", "Let Camp\nChoose");
             letCampChooseButton.onClick.RemoveAllListeners();
             letCampChooseButton.onClick.AddListener(LetCampChoose);
+            AttachRelay(letCampChooseButton, DeathButtonClickRelay.DeathButtonAction.LetCampChoose);
             Log("Hooked choose button: " + GetPath(letCampChooseButton.transform));
         }
         else Log("WARNING: letCampChooseButton is not assigned.");
@@ -131,15 +142,27 @@ public class CampSuccessionUI : MonoBehaviour
             PrepareButton(returnToMainMenuButton, "ReturnToMainMenuButton", "Return To\nMain Menu");
             returnToMainMenuButton.onClick.RemoveAllListeners();
             returnToMainMenuButton.onClick.AddListener(ReturnToMainMenu);
+            AttachRelay(returnToMainMenuButton, DeathButtonClickRelay.DeathButtonAction.ReturnToMainMenu);
             Log("Hooked return button: " + GetPath(returnToMainMenuButton.transform));
         }
+    }
+
+    private void AttachRelay(Button button, DeathButtonClickRelay.DeathButtonAction action)
+    {
+        if (!attachDirectClickRelays || button == null) return;
+
+        DeathButtonClickRelay relay = button.GetComponent<DeathButtonClickRelay>();
+        if (relay == null) relay = button.gameObject.AddComponent<DeathButtonClickRelay>();
+        relay.Configure(this, action);
+        relay.logDebugMessages = logDebugMessages;
     }
 
     private void PrepareButton(Button button, string objectName, string label)
     {
         if (button == null) return;
+
         button.name = objectName;
-        button.gameObject.SetActive(true);
+        // Do not force SetActive(true) here. OpenSuccessionPanel controls which buttons should be visible.
         button.interactable = true;
         button.transform.SetAsLastSibling();
 
@@ -150,11 +173,11 @@ public class CampSuccessionUI : MonoBehaviour
             button.targetGraphic = image;
         }
 
-        TMP_Text text = button.GetComponentInChildren<TMP_Text>(true);
-        if (text != null)
+        TMP_Text tmpText = button.GetComponentInChildren<TMP_Text>(true);
+        if (tmpText != null)
         {
-            text.text = label;
-            text.raycastTarget = false;
+            tmpText.text = label;
+            tmpText.raycastTarget = false;
         }
 
         Text oldText = button.GetComponentInChildren<Text>(true);
@@ -180,6 +203,7 @@ public class CampSuccessionUI : MonoBehaviour
             foreach (GobboUnitSaveData snapshot in store.survivorSnapshots)
             {
                 if (snapshot == null) continue;
+
                 GobboUnitSaveData copy = snapshot.CloneUnit();
                 copy.isLeader = false;
                 copy.isDead = false;
@@ -193,6 +217,7 @@ public class CampSuccessionUI : MonoBehaviour
             foreach (GobboUnitSaveData unit in GameState.Instance.GetAllGobbos(false, false))
             {
                 if (unit == null || unit.isLeader || unit.isDead) continue;
+
                 GobboUnitSaveData copy = unit.CloneUnit();
                 copy.EnsureRuntimeDefaults();
                 if (copy.health <= 0) copy.health = Mathf.Max(1, copy.maxHealth);
@@ -220,6 +245,9 @@ public class CampSuccessionUI : MonoBehaviour
 
     private void OpenSuccessionPanel()
     {
+        resolvingSuccession = false;
+        HideBlockingPanelsExcept(successionPanel);
+
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
         if (successionPanel != null)
         {
@@ -230,9 +258,7 @@ public class CampSuccessionUI : MonoBehaviour
 
         if (titleText != null) titleText.text = title;
         if (bodyText != null)
-            bodyText.text = markedSuccessor != null
-                ? string.Format(markedSuccessorBody, markedSuccessor.displayName)
-                : noMarkedSuccessorBody;
+            bodyText.text = markedSuccessor != null ? string.Format(markedSuccessorBody, markedSuccessor.displayName) : noMarkedSuccessorBody;
 
         if (acceptMarkedSuccessorButton != null) acceptMarkedSuccessorButton.gameObject.SetActive(markedSuccessor != null);
         if (letCampChooseButton != null) letCampChooseButton.gameObject.SetActive(true);
@@ -242,6 +268,8 @@ public class CampSuccessionUI : MonoBehaviour
 
     private void OpenGameOverPanel()
     {
+        HideBlockingPanelsExcept(gameOverPanel);
+
         if (successionPanel != null) successionPanel.SetActive(false);
         if (gameOverPanel != null)
         {
@@ -251,7 +279,45 @@ public class CampSuccessionUI : MonoBehaviour
         }
 
         if (gameOverText != null) gameOverText.text = gameOverMessage;
+
         HookButtons();
+    }
+
+    private void HideBlockingPanelsExcept(GameObject panelToKeep)
+    {
+        if (!hideOtherCampPanelsWhenOpen) return;
+
+        foreach (GameObject panel in panelsToHideWhenOpen)
+        {
+            if (panel == null || panel == panelToKeep) continue;
+            panel.SetActive(false);
+        }
+
+        Canvas canvas = null;
+        if (panelToKeep != null) canvas = panelToKeep.GetComponentInParent<Canvas>(true);
+        if (canvas == null && successionPanel != null) canvas = successionPanel.GetComponentInParent<Canvas>(true);
+        if (canvas == null) return;
+
+        string[] commonBlockers =
+        {
+            "PausePanel", "PortalPanel", "CampFireMenuPanel", "CampMenuPanel",
+            "SquadSelectPanel", "OldBonesPanel", "SurvivorsPanel", "RunStatsPanel",
+            "CampBuddyEvolutionPanel", "GameOverPanel", "DeathPanel"
+        };
+
+        foreach (Transform child in canvas.GetComponentsInChildren<Transform>(true))
+        {
+            if (child == null || child.gameObject == panelToKeep) continue;
+
+            foreach (string blockerName in commonBlockers)
+            {
+                if (child.name == blockerName)
+                {
+                    child.gameObject.SetActive(false);
+                    break;
+                }
+            }
+        }
     }
 
     private void EnsurePanelInteractive(GameObject panel)
@@ -275,7 +341,9 @@ public class CampSuccessionUI : MonoBehaviour
 
     public void AcceptMarkedSuccessor()
     {
+        if (resolvingSuccession) { Log("Accept ignored because succession is already resolving."); return; }
         Log("Accept marked successor clicked.");
+
         if (markedSuccessor == null)
         {
             LetCampChoose();
@@ -287,7 +355,9 @@ public class CampSuccessionUI : MonoBehaviour
 
     public void LetCampChoose()
     {
+        if (resolvingSuccession) { Log("Let Camp Choose ignored because succession is already resolving."); return; }
         Log("Let Camp Choose clicked.");
+
         RefreshCandidates();
         GobboUnitSaveData chosen = PickStrongestSuccessor();
         if (chosen == null)
@@ -319,12 +389,14 @@ public class CampSuccessionUI : MonoBehaviour
     private void PromoteSuccessor(GobboUnitSaveData successor)
     {
         if (successor == null || GameState.Instance == null) return;
+        resolvingSuccession = true;
 
         successor.EnsureRuntimeDefaults();
         bool promoted = GameState.Instance.PromoteBuddyToLeader(successor.uniqueId);
         if (!promoted)
         {
-            Log("Failed to promote successor id: " + successor.uniqueId + ". Trying camp choice fallback.");
+            Log("Failed to promote successor id: " + successor.uniqueId + ". Trying game over fallback.");
+            resolvingSuccession = false;
             OpenGameOverPanel();
             return;
         }
@@ -340,9 +412,10 @@ public class CampSuccessionUI : MonoBehaviour
         SporeSaveManager.SaveCurrentSlotFromGameState();
 
         Log("Promoted successor: " + successor.displayName + " / " + successor.uniqueId);
-        HideAllPanels();
 
+        HideAllPanels();
         Time.timeScale = 1f;
+
         CampSceneController controller = Object.FindAnyObjectByType<CampSceneController>(FindObjectsInactive.Include);
         if (controller != null) controller.RevealCampVisuals();
     }
@@ -351,7 +424,8 @@ public class CampSuccessionUI : MonoBehaviour
     {
         Log("Return to main menu clicked. Scene: " + mainMenuSceneName);
         Time.timeScale = 1f;
-        if (!string.IsNullOrWhiteSpace(mainMenuSceneName)) SceneManager.LoadScene(mainMenuSceneName);
+        if (!string.IsNullOrWhiteSpace(mainMenuSceneName))
+            SceneManager.LoadScene(mainMenuSceneName);
     }
 
     private void HideAllPanels()

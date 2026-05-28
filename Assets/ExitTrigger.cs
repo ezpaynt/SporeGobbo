@@ -5,6 +5,7 @@ public class ExitTrigger : MonoBehaviour
 {
     public string sceneToLoad = "CampScene";
     public bool saveRunBeforeLeaving = true;
+    public bool saveSlotAfterRunCommit = true;
 
     private bool used = false;
 
@@ -19,7 +20,21 @@ public class ExitTrigger : MonoBehaviour
         if (saveRunBeforeLeaving)
         {
             EnsureGameState().SaveFromRun();
+        }
+
+        if (saveSlotAfterRunCommit)
+        {
             SporeSaveManager.SaveCurrentSlotFromGameState();
+        }
+
+        // A clean exit through the portal is NOT a death. Clear stale pending death data
+        // before CampScene loads, or CampSceneController will open the death panel after
+        // a normal successful run.
+        PlayerDeathRunStore deathStore = PlayerDeathRunStore.Instance;
+        if (deathStore != null)
+        {
+            deathStore.ClearPendingDeath();
+            Debug.Log("[ExitTrigger] Cleared pending death flow for normal run exit.");
         }
 
         PlayerDeathWatcher.SuppressDeathHandlingForSceneChange();
@@ -27,7 +42,7 @@ public class ExitTrigger : MonoBehaviour
         SceneManager.LoadScene(sceneToLoad);
     }
 
-    GameState EnsureGameState()
+    private GameState EnsureGameState()
     {
         if (GameState.Instance != null) return GameState.Instance;
         GameObject stateObject = new GameObject("GameState");

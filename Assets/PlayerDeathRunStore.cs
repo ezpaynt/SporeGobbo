@@ -27,8 +27,27 @@ public class PlayerDeathRunStore : MonoBehaviour
     public List<string> eligibleSuccessorIds = new List<string>();
     public List<GobboUnitSaveData> survivorSnapshots = new List<GobboUnitSaveData>();
 
-    void Awake()
+    private void Awake()
     {
+        // IMPORTANT:
+        // This component used to sit on CampDeathSystems beside CampSuccessionUI and UI refs.
+        // Calling DontDestroyOnLoad(gameObject) there preserved the whole UI object and broke its
+        // scene references. If this store is on a mixed scene object, move the data store role to
+        // a clean root object and leave the scene UI object destroyable.
+        if (IsMixedSceneObject())
+        {
+            if (Instance == null)
+            {
+                GameObject storeObject = new GameObject("PlayerDeathRunStore");
+                PlayerDeathRunStore store = storeObject.AddComponent<PlayerDeathRunStore>();
+                store.CopyFrom(this);
+                Instance = store;
+            }
+
+            enabled = false;
+            return;
+        }
+
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
@@ -40,15 +59,61 @@ public class PlayerDeathRunStore : MonoBehaviour
         SyncCompatibilityFields();
     }
 
+    private bool IsMixedSceneObject()
+    {
+        if (gameObject.name == "PlayerDeathRunStore") return false;
+        if (GetComponent<CampSuccessionUI>() != null) return true;
+        if (GetComponent<CampDeathHistoryStore>() != null) return true;
+        if (GetComponent<CampSuccessorPreferenceStore>() != null) return true;
+        return false;
+    }
+
+    public void CopyFrom(PlayerDeathRunStore other)
+    {
+        if (other == null) return;
+
+        playerDiedThisRun = other.playerDiedThisRun;
+        deadLeaderName = other.deadLeaderName;
+        deadLeaderType = other.deadLeaderType;
+        deadLeaderLevel = other.deadLeaderLevel;
+        deadLeaderRunNumber = other.deadLeaderRunNumber;
+        deathCause = other.deathCause;
+        memorialAddedToHistory = other.memorialAddedToHistory;
+
+        deadPlayerName = other.deadPlayerName;
+        deadPlayerType = other.deadPlayerType;
+        deadPlayerLevel = other.deadPlayerLevel;
+        runNumber = other.runNumber;
+
+        lockedSuccessorId = other.lockedSuccessorId;
+        eligibleSuccessorIds = other.eligibleSuccessorIds != null
+            ? new List<string>(other.eligibleSuccessorIds)
+            : new List<string>();
+
+        survivorSnapshots = new List<GobboUnitSaveData>();
+        if (other.survivorSnapshots != null)
+        {
+            foreach (GobboUnitSaveData unit in other.survivorSnapshots)
+            {
+                if (unit != null) survivorSnapshots.Add(unit.CloneUnit());
+            }
+        }
+
+        SyncCompatibilityFields();
+    }
+
     public static PlayerDeathRunStore GetOrCreate()
     {
         if (Instance != null) return Instance;
 
-        PlayerDeathRunStore found = Object.FindAnyObjectByType<PlayerDeathRunStore>(FindObjectsInactive.Include);
-        if (found != null)
+        PlayerDeathRunStore[] foundStores = Object.FindObjectsByType<PlayerDeathRunStore>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        foreach (PlayerDeathRunStore found in foundStores)
         {
-            Instance = found;
-            return Instance;
+            if (found != null && !found.IsMixedSceneObject())
+            {
+                Instance = found;
+                return Instance;
+            }
         }
 
         GameObject obj = new GameObject("PlayerDeathRunStore");
@@ -75,16 +140,14 @@ public class PlayerDeathRunStore : MonoBehaviour
     {
         playerDiedThisRun = true;
         memorialAddedToHistory = false;
-
         deadLeaderName = string.IsNullOrWhiteSpace(leaderName) ? "Gobbo" : leaderName.Trim();
         deadLeaderType = string.IsNullOrWhiteSpace(leaderType) ? "Gobbo" : leaderType.Trim();
         deadLeaderLevel = Mathf.Max(1, leaderLevel);
         deadLeaderRunNumber = Mathf.Max(1, currentRunNumber);
         deathCause = string.IsNullOrWhiteSpace(cause) ? "Died in the dirt." : cause.Trim();
-
         eligibleSuccessorIds = successorIds != null ? new List<string>(successorIds) : new List<string>();
-        survivorSnapshots = new List<GobboUnitSaveData>();
 
+        survivorSnapshots = new List<GobboUnitSaveData>();
         if (snapshots != null)
         {
             foreach (GobboUnitSaveData unit in snapshots)
@@ -99,12 +162,9 @@ public class PlayerDeathRunStore : MonoBehaviour
         }
 
         SyncCompatibilityFields();
-        Debug.Log("[PlayerDeathRunStore] Began death. ids: " + eligibleSuccessorIds.Count +
-                  ", snapshots: " + survivorSnapshots.Count +
-                  ", locked: " + (string.IsNullOrWhiteSpace(lockedSuccessorId) ? "none" : lockedSuccessorId));
+        Debug.Log("[PlayerDeathRunStore] Began death. ids: " + eligibleSuccessorIds.Count + ", snapshots: " + survivorSnapshots.Count + ", locked: " + (string.IsNullOrWhiteSpace(lockedSuccessorId) ? "none" : lockedSuccessorId));
     }
 
-    // Old compatibility path for scripts that still hand in BuddyData snapshots.
     public void BeginPlayerDeathFromBuddies(string leaderName, string leaderType, int leaderLevel, int currentRunNumber, string cause, List<string> successorIds, List<BuddyData> buddySnapshots)
     {
         List<GobboUnitSaveData> converted = new List<GobboUnitSaveData>();
