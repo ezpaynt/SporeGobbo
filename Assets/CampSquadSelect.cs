@@ -43,7 +43,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
     void Awake()
     {
         Collider2D col = GetComponent<Collider2D>();
-        col.isTrigger = true;
+        if (col != null) col.isTrigger = true;
 
         if (campPlayableSpawner == null)
             campPlayableSpawner = Object.FindAnyObjectByType<CampPlayableSpawner>(FindObjectsInactive.Include);
@@ -61,9 +61,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
     void Update()
     {
         FindPlayerIfMissing();
-
-        if (player == null)
-            return;
+        if (player == null) return;
 
         if (isOpen)
         {
@@ -76,20 +74,16 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
             OpenMenu();
     }
 
-    public string GetInteractPrompt()
-    {
-        return interactPrompt;
-    }
+    public string GetInteractPrompt() => interactPrompt;
 
-    public void Interact(GobboController player)
+    public void Interact(GobboController playerController)
     {
         OpenMenu();
     }
 
     public void OpenMenu()
     {
-        if (panel == null)
-            BuildReadableUi();
+        if (panel == null) BuildReadableUi();
 
         isOpen = true;
         if (panel != null)
@@ -112,15 +106,12 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
     public void CloseMenu()
     {
         isOpen = false;
-        if (panel != null)
-            panel.SetActive(false);
+        if (panel != null) panel.SetActive(false);
     }
 
     void HookCloseButton()
     {
-        if (closeButton == null)
-            return;
-
+        if (closeButton == null) return;
         closeButton.onClick.RemoveAllListeners();
         closeButton.onClick.AddListener(CloseMenu);
     }
@@ -131,47 +122,42 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
 
         if (GameState.Instance == null)
         {
-            if (titleText != null)
-                titleText.text = "Choose Who Comes\nNo GameState found.";
+            if (titleText != null) titleText.text = "Choose Who Comes\nNo GameState found.";
             return;
         }
 
         RepairMarkedSuccessorIfMissing();
 
-        List<BuddyData> active = GameState.Instance.GetActiveSquad();
-        List<BuddyData> reserve = GameState.Instance.GetReserveBuddies();
-        BuddyData marked = GetMarkedSuccessor();
-        string markedName = marked != null ? marked.buddyName : "none";
+        List<GobboUnitSaveData> active = GameState.Instance.GetActiveSquadUnits();
+        List<GobboUnitSaveData> reserve = GameState.Instance.GetReserveGobboUnits();
+        GobboUnitSaveData marked = GameState.Instance.GetMarkedSuccessorUnit();
+        string markedName = marked != null ? DisplayName(marked) : "none";
 
         if (titleText != null)
-            titleText.text = "Choose Who Comes  (" + active.Count + " / " + GameState.Instance.maxActiveSquad + ")" +
-                             (showSuccessorColumn ? "\n<size=18>Successor: " + markedName + "</size>" : "");
+        {
+            titleText.text = "Choose Who Comes (" + active.Count + " / " + GameState.Instance.maxActiveSquad + ")" +
+                             (showSuccessorColumn ? "\nSuccessor: " + markedName : "");
+        }
 
         EnsureListParentLayout(activeListParent);
         EnsureListParentLayout(reserveListParent);
 
-        AddHeader(activeListParent, "ACTIVE SQUAD", showSuccessorColumn ? "Main button moves buddy. Right button marks successor." : "Click a buddy to leave them at camp.");
-        if (active.Count == 0)
-            AddInfoRow(activeListParent, "Nobody selected.");
-        foreach (BuddyData buddy in active)
-            AddBuddyRow(activeListParent, buddy, true);
+        AddHeader(activeListParent, "ACTIVE SQUAD", showSuccessorColumn ? "Main button moves gobbo.\nRight button marks successor." : "Click a gobbo to leave them at camp.");
+        if (active.Count == 0) AddInfoRow(activeListParent, "Nobody selected.");
+        foreach (GobboUnitSaveData gobbo in active) AddGobboRow(activeListParent, gobbo, true);
 
-        AddHeader(reserveListParent, "CAMP RESERVE", showSuccessorColumn ? "Main button moves buddy. Right button marks successor." : "Click a buddy to bring them next run.");
-        if (reserve.Count == 0)
-            AddInfoRow(reserveListParent, "Nobody waiting.");
-        foreach (BuddyData buddy in reserve)
-            AddBuddyRow(reserveListParent, buddy, false);
+        AddHeader(reserveListParent, "CAMP RESERVE", showSuccessorColumn ? "Main button moves gobbo.\nRight button marks successor." : "Click a gobbo to bring them next run.");
+        if (reserve.Count == 0) AddInfoRow(reserveListParent, "Nobody waiting.");
+        foreach (GobboUnitSaveData gobbo in reserve) AddGobboRow(reserveListParent, gobbo, false);
     }
 
-    void AddBuddyRow(Transform parent, BuddyData buddy, bool currentlyActive)
+    void AddGobboRow(Transform parent, GobboUnitSaveData gobbo, bool currentlyActive)
     {
-        if (parent == null || buddy == null)
-            return;
+        if (parent == null || gobbo == null) return;
 
-        buddy.EnsureId();
-        buddy.EnsureRuntimeDefaults();
+        gobbo.EnsureRuntimeDefaults();
 
-        GameObject row = new GameObject((currentlyActive ? "Active_" : "Reserve_") + buddy.buddyName, typeof(RectTransform), typeof(Image), typeof(HorizontalLayoutGroup));
+        GameObject row = new GameObject((currentlyActive ? "Active_" : "Reserve_") + DisplayName(gobbo), typeof(RectTransform), typeof(Image), typeof(HorizontalLayoutGroup));
         row.transform.SetParent(parent, false);
         spawnedRows.Add(row);
 
@@ -201,21 +187,21 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         rowLayout.childForceExpandWidth = false;
         rowLayout.childForceExpandHeight = true;
 
-        Button moveButton = CreateRowButton(row.transform, "MoveButton", BuddyLabel(buddy, currentlyActive), currentlyActive ? new Color(0.24f, 0.42f, 0.25f, 0.95f) : new Color(0.30f, 0.28f, 0.20f, 0.95f));
+        Button moveButton = CreateRowButton(row.transform, "MoveButton", GobboLabel(gobbo, currentlyActive), currentlyActive ? new Color(0.24f, 0.42f, 0.25f, 0.95f) : new Color(0.30f, 0.28f, 0.20f, 0.95f));
         LayoutElement moveLayout = moveButton.gameObject.AddComponent<LayoutElement>();
         moveLayout.flexibleWidth = 1f;
         moveLayout.minHeight = 44f;
-        moveButton.onClick.AddListener(() => ToggleBuddy(buddy.uniqueId, currentlyActive));
+        moveButton.onClick.AddListener(() => ToggleGobbo(gobbo.uniqueId, currentlyActive));
 
         if (showSuccessorColumn)
         {
-            bool isMarked = IsMarkedSuccessor(buddy.uniqueId);
+            bool isMarked = IsMarkedSuccessor(gobbo.uniqueId);
             Button markButton = CreateRowButton(row.transform, "SuccessorButton", isMarked ? markedSuccessorText : markSuccessorText, isMarked ? new Color(0.74f, 0.52f, 0.18f, 1f) : new Color(0.36f, 0.28f, 0.16f, 1f));
             LayoutElement markLayout = markButton.gameObject.AddComponent<LayoutElement>();
             markLayout.preferredWidth = successorButtonWidth;
             markLayout.minWidth = successorButtonWidth;
             markLayout.minHeight = 44f;
-            markButton.onClick.AddListener(() => ToggleSuccessorMark(buddy.uniqueId));
+            markButton.onClick.AddListener(() => ToggleSuccessorMark(gobbo.uniqueId));
         }
     }
 
@@ -242,99 +228,93 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         return button;
     }
 
-    string BuddyLabel(BuddyData buddy, bool active)
+    string GobboLabel(GobboUnitSaveData gobbo, bool active)
     {
-        string action = active ? "  → Send to reserve" : "  → Bring along";
-        string successor = IsMarkedSuccessor(buddy.uniqueId) ? "   [SUCCESSOR]" : "";
-        return buddy.buddyName + "   " + buddy.buddyType + " / " + buddy.ageStage +
-               "   Lv " + buddy.level + "   HP " + buddy.health + "/" + buddy.maxHealth + successor + action;
+        string action = active ? " → Send to reserve" : " → Bring along";
+        string successor = IsMarkedSuccessor(gobbo.uniqueId) ? " [SUCCESSOR]" : "";
+        return DisplayName(gobbo) + " " + gobbo.gobboType + " / " + gobbo.ageStage + " Lv " + gobbo.level + " HP " + gobbo.health + "/" + gobbo.maxHealth + successor + action;
     }
 
-    void ToggleBuddy(string buddyId, bool currentlyActive)
+    string DisplayName(GobboUnitSaveData gobbo)
     {
-        if (GameState.Instance == null || string.IsNullOrWhiteSpace(buddyId))
-            return;
+        if (gobbo == null) return "Gobbo";
+        if (gobbo is BuddyData buddy && !string.IsNullOrWhiteSpace(buddy.buddyName)) return buddy.buddyName;
+        return string.IsNullOrWhiteSpace(gobbo.displayName) ? "Gobbo" : gobbo.displayName;
+    }
+
+    void ToggleGobbo(string gobboId, bool currentlyActive)
+    {
+        if (GameState.Instance == null || string.IsNullOrWhiteSpace(gobboId)) return;
 
         if (currentlyActive)
         {
-            GameState.Instance.MoveBuddyToReserve(buddyId);
+            GameState.Instance.MoveBuddyToReserve(gobboId);
         }
         else
         {
-            bool moved = GameState.Instance.MoveBuddyToActiveSquad(buddyId);
-            if (!moved)
-                CampMessageUI.Show("Active squad is full.");
+            bool moved = GameState.Instance.MoveBuddyToActiveSquad(gobboId);
+            if (!moved) CampMessageUI.Show("Active squad is full.");
         }
 
+        GameState.Instance.RepairRosterState();
+        SporeSaveManager.SaveCurrentSlotFromGameState();
         RefreshMenu();
 
         if (refreshCampVisualsAfterChange && campPlayableSpawner != null)
             campPlayableSpawner.SpawnPlayableCamp();
     }
 
-    void ToggleSuccessorMark(string buddyId)
+    void ToggleSuccessorMark(string gobboId)
     {
-        if (string.IsNullOrWhiteSpace(buddyId))
-            return;
+        if (string.IsNullOrWhiteSpace(gobboId) || GameState.Instance == null) return;
 
-        CampSuccessorPreferenceStore store = CampSuccessorPreferenceStore.GetOrCreate();
-
-        if (store.markedSuccessorId == buddyId && allowClickMarkedButtonToClear)
+        bool isMarked = IsMarkedSuccessor(gobboId);
+        if (isMarked && allowClickMarkedButtonToClear)
         {
-            store.ClearSuccessor();
+            GameState.Instance.SetMarkedSuccessorId("");
+            CampSuccessorPreferenceStore.GetOrCreate().SyncFromGameState();
             CampMessageUI.Show("No successor marked.");
         }
         else
         {
-            store.MarkSuccessor(buddyId);
-            BuddyData buddy = GameState.Instance != null ? GameState.Instance.FindBuddy(buddyId) : null;
-            CampMessageUI.Show((buddy != null ? buddy.buddyName : "That gobbo") + " is marked as successor.");
+            GameState.Instance.SetMarkedSuccessorId(gobboId);
+            CampSuccessorPreferenceStore.GetOrCreate().SyncFromGameState();
+            GobboUnitSaveData gobbo = GameState.Instance.FindGobboById(gobboId);
+            CampMessageUI.Show((gobbo != null ? DisplayName(gobbo) : "That gobbo") + " is marked as successor.");
         }
 
+        SporeSaveManager.SaveCurrentSlotFromGameState();
         RefreshMenu();
     }
 
-    bool IsMarkedSuccessor(string buddyId)
+    bool IsMarkedSuccessor(string gobboId)
     {
-        CampSuccessorPreferenceStore store = CampSuccessorPreferenceStore.GetOrCreate();
-        return store != null && !string.IsNullOrWhiteSpace(buddyId) && store.markedSuccessorId == buddyId;
-    }
-
-    BuddyData GetMarkedSuccessor()
-    {
-        CampSuccessorPreferenceStore store = CampSuccessorPreferenceStore.GetOrCreate();
-        return store != null ? store.GetMarkedSuccessor() : null;
+        return GameState.Instance != null && !string.IsNullOrWhiteSpace(gobboId) && GameState.Instance.GetMarkedSuccessorId() == gobboId;
     }
 
     void RepairMarkedSuccessorIfMissing()
     {
-        CampSuccessorPreferenceStore store = CampSuccessorPreferenceStore.GetOrCreate();
-        if (store == null || string.IsNullOrWhiteSpace(store.markedSuccessorId))
-            return;
+        if (GameState.Instance == null) return;
 
-        if (GameState.Instance == null || GameState.Instance.FindBuddy(store.markedSuccessorId) == null)
-            store.ClearSuccessor();
+        string markedId = GameState.Instance.GetMarkedSuccessorId();
+        if (string.IsNullOrWhiteSpace(markedId)) return;
+
+        if (GameState.Instance.GetMarkedSuccessor() == null)
+            GameState.Instance.SetMarkedSuccessorId("");
+
+        CampSuccessorPreferenceStore.GetOrCreate().SyncFromGameState();
     }
-
 
     void EnsureListParentLayout(Transform parent)
     {
-        if (parent == null)
-            return;
+        if (parent == null) return;
 
         RectTransform rt = parent as RectTransform;
-        if (rt != null)
-        {
-            // Stretch list contents across the assigned column so the large move button
-            // gets real width and the successor button sits on the right instead of
-            // floating alone in the middle of the screen.
-            if (rt.rect.width < 80f)
-                rt.sizeDelta = new Vector2(360f, Mathf.Max(260f, rt.sizeDelta.y));
-        }
+        if (rt != null && rt.rect.width < 80f)
+            rt.sizeDelta = new Vector2(360f, Mathf.Max(260f, rt.sizeDelta.y));
 
         VerticalLayoutGroup layout = parent.GetComponent<VerticalLayoutGroup>();
-        if (layout == null)
-            layout = parent.gameObject.AddComponent<VerticalLayoutGroup>();
+        if (layout == null) layout = parent.gameObject.AddComponent<VerticalLayoutGroup>();
 
         layout.padding = new RectOffset(10, 10, 10, 10);
         layout.spacing = 7f;
@@ -345,37 +325,32 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         layout.childForceExpandHeight = false;
 
         ContentSizeFitter fitter = parent.GetComponent<ContentSizeFitter>();
-        if (fitter == null)
-            fitter = parent.gameObject.AddComponent<ContentSizeFitter>();
-
+        if (fitter == null) fitter = parent.gameObject.AddComponent<ContentSizeFitter>();
         fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
         fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
     }
 
     void AddHeader(Transform parent, string title, string subtitle)
     {
-        if (parent == null)
-            return;
+        if (parent == null) return;
 
         GameObject box = new GameObject(title + " Header", typeof(RectTransform));
         box.transform.SetParent(parent, false);
         spawnedRows.Add(box);
-        RectTransform rt = box.GetComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(0f, 64f);
+        box.GetComponent<RectTransform>().sizeDelta = new Vector2(0f, 64f);
 
         TMP_Text text = CreateText(box.transform, "Text", TextAlignmentOptions.Center, 18, FontStyles.Bold);
-        text.rectTransform.anchorMin = new Vector2(0f, 0f);
-        text.rectTransform.anchorMax = new Vector2(1f, 1f);
+        text.rectTransform.anchorMin = Vector2.zero;
+        text.rectTransform.anchorMax = Vector2.one;
         text.rectTransform.offsetMin = Vector2.zero;
         text.rectTransform.offsetMax = Vector2.zero;
         text.color = new Color(1f, 0.92f, 0.72f, 1f);
-        text.text = title + "\n<size=13><font-weight=400>" + subtitle + "</font-weight></size>";
+        text.text = title + "\n" + subtitle;
     }
 
     void AddInfoRow(Transform parent, string message)
     {
-        if (parent == null)
-            return;
+        if (parent == null) return;
 
         GameObject row = new GameObject("Info", typeof(RectTransform));
         row.transform.SetParent(parent, false);
@@ -398,6 +373,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
             if (spawnedRows[i] != null)
                 Destroy(spawnedRows[i]);
         }
+
         spawnedRows.Clear();
     }
 
@@ -449,7 +425,6 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
 
         activeListParent = CreateColumn(panel.transform, "ActiveList", new Vector2(0.04f, 0.16f), new Vector2(0.48f, 0.78f));
         reserveListParent = CreateColumn(panel.transform, "ReserveList", new Vector2(0.52f, 0.16f), new Vector2(0.96f, 0.78f));
-
         closeButton = CreateButton(panel.transform, "CloseButton", "Close", new Vector2(0.5f, 0.055f), new Vector2(160f, 42f));
         HookCloseButton();
     }
@@ -522,12 +497,9 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
 
     void FindPlayerIfMissing()
     {
-        if (player != null)
-            return;
-
+        if (player != null) return;
         GameObject found = GameObject.FindGameObjectWithTag("Player");
-        if (found != null)
-            player = found.transform;
+        if (found != null) player = found.transform;
     }
 
     void OnDrawGizmosSelected()
