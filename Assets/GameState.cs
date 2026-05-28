@@ -59,6 +59,20 @@ public class GobboSaveData
     public List<string> equippedCosmetics = new List<string>();
     public List<string> unlockedItems = new List<string>();
     public List<string> chosenCardIds = new List<string>();
+
+    public string gobboId = "";
+    public string displayName = "Gobbo";
+
+    public bool isLeader = true;
+    public bool isDead = false;
+
+    public List<string> traitIds = new();
+    public List<string> abilityIds = new();
+    public List<string> itemIds = new();
+    public List<string> evolutionHistoryIds = new();
+
+    public int runsSurvived = 0;
+    public int kills = 0;
 }
 
 [System.Serializable]
