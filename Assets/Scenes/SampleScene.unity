@@ -6204,25 +6204,33 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameState
   currentRunNumber: 1
   gobbo:
+    uniqueId: 
+    displayName: Gobbo
+    isLeader: 1
+    isDead: 0
+    gobboType: 0
+    ageStage: 0
     level: 1
     xp: 0
     xpToNextLevel: 10
-    gobboType: 0
-    ageStage: 0
-    visualSetId: baby
+    campLevel: 1
     pendingEvolution: 0
     evolutionLevelWaiting: 0
+    runsWaitingForEvolution: 0
+    happiness: 100
+    loyalty: 100
     maxHealth: 100
     health: 100
     attack: 5
+    damage: 5
     defense: 2
+    moveSpeed: 5
     attackRange: 0.85
     attackRadius: 0.45
     attackCooldown: 0.7
     critChance: 0
     critDamageMultiplier: 1.5
     knockbackForce: 6
-    moveSpeed: 5
     dashSpeed: 12
     dashDuration: 0.12
     dashCooldown: 0.7
@@ -6234,19 +6242,39 @@ MonoBehaviour:
     hasDashBite: 0
     healthControlsSize: 0
     healthSizeMultiplier: 0
-    spores: 0
-    mushrooms: 0
-    money: 0
-    shinies: 0
+    onlyFightsAfterHit: 0
+    collectsFood: 0
+    hasBeenHit: 0
+    isInActiveSquad: 0
+    survivedLastRun: 1
+    bodyColor: {r: 0, g: 1, b: 0, a: 1}
+    visualSetId: baby
+    portraitId: 
+    equippedHat: 
+    runsSurvived: 0
+    kills: 0
+    causeOfDeath: 
+    traitIds: []
+    abilityIds: []
+    itemIds: []
+    relationshipIds: []
+    evolutionHistoryIds: []
+    chosenCardIds: []
+    mutationIds: []
+    upgradeIds: []
     unlockedUpgrades: []
     unlockedAbilities: []
     unlockedCosmetics: []
     equippedCosmetics: []
     unlockedItems: []
-    chosenCardIds: []
+    spores: 0
+    mushrooms: 0
+    money: 0
+    shinies: 0
   maxActiveSquad: 10
   ownedBuddies: []
   activeSquadIds: []
+  markedSuccessorId: 
   campLevel: 1
   unlockedStations: []
   decorationsUnlocked: []
@@ -6441,6 +6469,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1517894126}
+  - component: {fileID: 1517894127}
   m_Layer: 0
   m_Name: PlayerDeathRunStore
   m_TagString: Untagged
@@ -6463,6 +6492,32 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1517894127
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1517894125}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a66af32ca6cc72a4dbde261b132b3813, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerDeathRunStore
+  playerDiedThisRun: 0
+  deadLeaderName: Gobbo
+  deadLeaderType: Gobbo
+  deadLeaderLevel: 1
+  deadLeaderRunNumber: 1
+  deathCause: Got squished in the dirt.
+  memorialAddedToHistory: 0
+  deadPlayerName: Gobbo
+  deadPlayerType: Gobbo
+  deadPlayerLevel: 1
+  runNumber: 1
+  lockedSuccessorId: 
+  eligibleSuccessorIds: []
+  survivorSnapshots: []
 --- !u!1 &1578084172
 GameObject:
   m_ObjectHideFlags: 0
