@@ -35,7 +35,7 @@ public class GobboUnitSaveData
     public int maxHealth = 10;
     public int health = 10;
     public int attack = 1;
-    public int damage = 1; // compatibility alias used by buddy combat scripts
+    public int damage = 1; // buddy compatibility alias
     public int defense = 0;
     public float moveSpeed = 3.5f;
     public float attackRange = 0.85f;
@@ -103,24 +103,25 @@ public class GobboUnitSaveData
 
     public virtual void EnsureId()
     {
-        if (string.IsNullOrWhiteSpace(uniqueId))
-            uniqueId = GobboIdUtility.NewGobboId();
-
+        if (string.IsNullOrWhiteSpace(uniqueId)) uniqueId = GobboIdUtility.NewGobboId();
         EnsureRuntimeDefaults();
     }
 
-    // Compatibility alias for newer bridge code.
     public virtual void EnsureIdentity()
     {
         EnsureId();
     }
 
+    public virtual void EnsureIdentity(string preferredName)
+    {
+        if (!string.IsNullOrWhiteSpace(preferredName) && string.IsNullOrWhiteSpace(displayName)) displayName = preferredName.Trim();
+        EnsureId();
+    }
+
     public virtual void EnsureRuntimeDefaults()
     {
-        if (string.IsNullOrWhiteSpace(uniqueId))
-            uniqueId = GobboIdUtility.NewGobboId();
-        if (string.IsNullOrWhiteSpace(displayName))
-            displayName = "Gobbo";
+        if (string.IsNullOrWhiteSpace(uniqueId)) uniqueId = GobboIdUtility.NewGobboId();
+        if (string.IsNullOrWhiteSpace(displayName)) displayName = "Gobbo";
 
         traitIds ??= new List<string>();
         abilityIds ??= new List<string>();
@@ -140,16 +141,16 @@ public class GobboUnitSaveData
         if (campLevel <= 0) campLevel = level;
         if (xp < 0) xp = 0;
         if (xpToNextLevel <= 0) xpToNextLevel = 10;
-        if (maxHealth <= 0) maxHealth = 10;
+        if (maxHealth <= 0) maxHealth = isLeader ? 100 : 10;
         if (health <= 0 || health > maxHealth) health = maxHealth;
         if (attack <= 0 && damage > 0) attack = damage;
         if (damage <= 0 && attack > 0) damage = attack;
         if (attack <= 0) attack = 1;
         if (damage <= 0) damage = attack;
-        if (moveSpeed <= 0f) moveSpeed = 3.5f;
+        if (moveSpeed <= 0f) moveSpeed = isLeader ? 5f : 3.5f;
         if (attackRange <= 0f) attackRange = 0.85f;
         if (attackRadius <= 0f) attackRadius = 0.45f;
-        if (attackCooldown <= 0f) attackCooldown = 0.8f;
+        if (attackCooldown <= 0f) attackCooldown = isLeader ? 0.7f : 0.8f;
         if (critDamageMultiplier <= 0f) critDamageMultiplier = 1.5f;
         if (knockbackForce <= 0f) knockbackForce = 6f;
         if (dashSpeed <= 0f) dashSpeed = 12f;
@@ -159,89 +160,92 @@ public class GobboUnitSaveData
         if (digRadius <= 0f) digRadius = 0.65f;
         if (digRange <= 0f) digRange = 0.8f;
         if (digTickRate <= 0f) digTickRate = 0.05f;
-
         happiness = Mathf.Clamp(happiness <= 0 ? 100 : happiness, 0, 100);
         loyalty = Mathf.Clamp(loyalty <= 0 ? 100 : loyalty, 0, 100);
-
-        if (string.IsNullOrWhiteSpace(visualSetId))
-            visualSetId = gobboType == BuddyType.Baby
-                ? "baby"
-                : gobboType.ToString().ToLowerInvariant() + "_" + ageStage.ToString().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(visualSetId)) visualSetId = gobboType == BuddyType.Baby ? "baby" : gobboType.ToString().ToLowerInvariant() + "_" + ageStage.ToString().ToLowerInvariant();
+        if (shinies == 0 && money > 0) shinies = money;
+        money = shinies;
     }
 
-    public GobboUnitSaveData CloneUnit()
+    public virtual GobboUnitSaveData CloneUnit()
     {
         EnsureRuntimeDefaults();
-        return new GobboUnitSaveData
-        {
-            uniqueId = uniqueId,
-            displayName = displayName,
-            isLeader = isLeader,
-            isDead = isDead,
-            gobboType = gobboType,
-            ageStage = ageStage,
-            level = level,
-            xp = xp,
-            xpToNextLevel = xpToNextLevel,
-            campLevel = campLevel,
-            pendingEvolution = pendingEvolution,
-            evolutionLevelWaiting = evolutionLevelWaiting,
-            runsWaitingForEvolution = runsWaitingForEvolution,
-            happiness = happiness,
-            loyalty = loyalty,
-            maxHealth = maxHealth,
-            health = health,
-            attack = attack,
-            damage = damage,
-            defense = defense,
-            moveSpeed = moveSpeed,
-            attackRange = attackRange,
-            attackRadius = attackRadius,
-            attackCooldown = attackCooldown,
-            critChance = critChance,
-            critDamageMultiplier = critDamageMultiplier,
-            knockbackForce = knockbackForce,
-            dashSpeed = dashSpeed,
-            dashDuration = dashDuration,
-            dashCooldown = dashCooldown,
-            digPower = digPower,
-            digRadius = digRadius,
-            digRange = digRange,
-            digTickRate = digTickRate,
-            hasSporeMend = hasSporeMend,
-            hasDashBite = hasDashBite,
-            healthControlsSize = healthControlsSize,
-            healthSizeMultiplier = healthSizeMultiplier,
-            onlyFightsAfterHit = onlyFightsAfterHit,
-            collectsFood = collectsFood,
-            hasBeenHit = hasBeenHit,
-            isInActiveSquad = isInActiveSquad,
-            survivedLastRun = survivedLastRun,
-            bodyColor = bodyColor,
-            visualSetId = visualSetId,
-            portraitId = portraitId,
-            equippedHat = equippedHat,
-            runsSurvived = runsSurvived,
-            kills = kills,
-            causeOfDeath = causeOfDeath,
-            traitIds = new List<string>(traitIds),
-            abilityIds = new List<string>(abilityIds),
-            itemIds = new List<string>(itemIds),
-            relationshipIds = new List<string>(relationshipIds),
-            evolutionHistoryIds = new List<string>(evolutionHistoryIds),
-            chosenCardIds = new List<string>(chosenCardIds),
-            mutationIds = new List<string>(mutationIds),
-            upgradeIds = new List<string>(upgradeIds),
-            unlockedUpgrades = new List<string>(unlockedUpgrades),
-            unlockedAbilities = new List<string>(unlockedAbilities),
-            unlockedCosmetics = new List<string>(unlockedCosmetics),
-            equippedCosmetics = new List<string>(equippedCosmetics),
-            unlockedItems = new List<string>(unlockedItems),
-            spores = spores,
-            mushrooms = mushrooms,
-            money = money,
-            shinies = shinies
-        };
+        GobboUnitSaveData copy = new GobboUnitSaveData();
+        CopyInto(copy);
+        return copy;
+    }
+
+    public virtual void CopyInto(GobboUnitSaveData copy)
+    {
+        if (copy == null) return;
+        copy.uniqueId = uniqueId;
+        copy.displayName = displayName;
+        copy.isLeader = isLeader;
+        copy.isDead = isDead;
+        copy.gobboType = gobboType;
+        copy.ageStage = ageStage;
+        copy.level = level;
+        copy.xp = xp;
+        copy.xpToNextLevel = xpToNextLevel;
+        copy.campLevel = campLevel;
+        copy.pendingEvolution = pendingEvolution;
+        copy.evolutionLevelWaiting = evolutionLevelWaiting;
+        copy.runsWaitingForEvolution = runsWaitingForEvolution;
+        copy.happiness = happiness;
+        copy.loyalty = loyalty;
+        copy.maxHealth = maxHealth;
+        copy.health = health;
+        copy.attack = attack;
+        copy.damage = damage;
+        copy.defense = defense;
+        copy.moveSpeed = moveSpeed;
+        copy.attackRange = attackRange;
+        copy.attackRadius = attackRadius;
+        copy.attackCooldown = attackCooldown;
+        copy.critChance = critChance;
+        copy.critDamageMultiplier = critDamageMultiplier;
+        copy.knockbackForce = knockbackForce;
+        copy.dashSpeed = dashSpeed;
+        copy.dashDuration = dashDuration;
+        copy.dashCooldown = dashCooldown;
+        copy.digPower = digPower;
+        copy.digRadius = digRadius;
+        copy.digRange = digRange;
+        copy.digTickRate = digTickRate;
+        copy.hasSporeMend = hasSporeMend;
+        copy.hasDashBite = hasDashBite;
+        copy.healthControlsSize = healthControlsSize;
+        copy.healthSizeMultiplier = healthSizeMultiplier;
+        copy.onlyFightsAfterHit = onlyFightsAfterHit;
+        copy.collectsFood = collectsFood;
+        copy.hasBeenHit = hasBeenHit;
+        copy.isInActiveSquad = isInActiveSquad;
+        copy.survivedLastRun = survivedLastRun;
+        copy.bodyColor = bodyColor;
+        copy.visualSetId = visualSetId;
+        copy.portraitId = portraitId;
+        copy.equippedHat = equippedHat;
+        copy.runsSurvived = runsSurvived;
+        copy.kills = kills;
+        copy.causeOfDeath = causeOfDeath;
+        copy.traitIds = traitIds != null ? new List<string>(traitIds) : new List<string>();
+        copy.abilityIds = abilityIds != null ? new List<string>(abilityIds) : new List<string>();
+        copy.itemIds = itemIds != null ? new List<string>(itemIds) : new List<string>();
+        copy.relationshipIds = relationshipIds != null ? new List<string>(relationshipIds) : new List<string>();
+        copy.evolutionHistoryIds = evolutionHistoryIds != null ? new List<string>(evolutionHistoryIds) : new List<string>();
+        copy.chosenCardIds = chosenCardIds != null ? new List<string>(chosenCardIds) : new List<string>();
+        copy.mutationIds = mutationIds != null ? new List<string>(mutationIds) : new List<string>();
+        copy.upgradeIds = upgradeIds != null ? new List<string>(upgradeIds) : new List<string>();
+        copy.unlockedUpgrades = unlockedUpgrades != null ? new List<string>(unlockedUpgrades) : new List<string>();
+        copy.unlockedAbilities = unlockedAbilities != null ? new List<string>(unlockedAbilities) : new List<string>();
+        copy.unlockedCosmetics = unlockedCosmetics != null ? new List<string>(unlockedCosmetics) : new List<string>();
+        copy.equippedCosmetics = equippedCosmetics != null ? new List<string>(equippedCosmetics) : new List<string>();
+        copy.unlockedItems = unlockedItems != null ? new List<string>(unlockedItems) : new List<string>();
+        copy.spores = spores;
+        copy.mushrooms = mushrooms;
+        copy.money = money;
+        copy.shinies = shinies;
+        copy.EnsureRuntimeDefaults();
     }
 }
 
