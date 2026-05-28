@@ -15,6 +15,12 @@ public class DeathButtonClickRelay : MonoBehaviour, IPointerClickHandler
     [SerializeField] private bool relayEnabled = true;
     public bool logDebugMessages = false;
 
+    // Compatibility overloads for every CampSuccessionUI version we currently have floating around.
+    public void Configure(CampSuccessionUI newOwner, DeathButtonAction newAction)
+    {
+        Configure(newOwner, newAction, true, false);
+    }
+
     public void Configure(CampSuccessionUI newOwner, DeathButtonAction newAction, bool enabled)
     {
         Configure(newOwner, newAction, enabled, false);
@@ -30,8 +36,7 @@ public class DeathButtonClickRelay : MonoBehaviour, IPointerClickHandler
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (!relayEnabled)
-            return;
+        if (!relayEnabled) return;
 
         if (owner == null)
         {
