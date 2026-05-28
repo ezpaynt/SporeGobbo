@@ -34,20 +34,15 @@ public static class SporeSaveManager
     public static int SaveCount()
     {
         int count = 0;
-        for (int i = 1; i <= SlotCount; i++)
-            if (HasSave(i)) count++;
+        for (int i = 1; i <= SlotCount; i++) if (HasSave(i)) count++;
         return count;
     }
 
-    public static bool CanCreateNewGame()
-    {
-        return FindFirstEmptySlot() > 0;
-    }
+    public static bool CanCreateNewGame() => FindFirstEmptySlot() > 0;
 
     public static int FindFirstEmptySlot()
     {
-        for (int i = 1; i <= SlotCount; i++)
-            if (!HasSave(i)) return i;
+        for (int i = 1; i <= SlotCount; i++) if (!HasSave(i)) return i;
         return 0;
     }
 
@@ -57,8 +52,7 @@ public static class SporeSaveManager
     {
         slotIndex = ClampSlot(slotIndex);
         string path = GetSlotPath(slotIndex);
-        if (!File.Exists(path))
-            return new SporeSaveSlotData { slotIndex = slotIndex, hasSave = false, saveId = "slot_" + slotIndex };
+        if (!File.Exists(path)) return new SporeSaveSlotData { slotIndex = slotIndex, hasSave = false, saveId = "slot_" + slotIndex };
 
         try
         {
@@ -86,7 +80,6 @@ public static class SporeSaveManager
         data.lastPlayedUtcTicks = DateTime.UtcNow.Ticks;
         data.lastPlayedAt = DateTime.UtcNow.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
         Normalize(data);
-
         string json = JsonUtility.ToJson(data, true);
         File.WriteAllText(GetSlotPath(data.slotIndex), json);
         SetCurrentSlot(data.slotIndex);
@@ -106,15 +99,8 @@ public static class SporeSaveManager
         return CreateNewGame(slotIndex, playerName, firstSceneName, false);
     }
 
-    public static SporeSaveSlotData CreateNewGame(int slotIndex, string firstSceneName)
-    {
-        return CreateNewGame(slotIndex, "Gobbo", firstSceneName, false);
-    }
-
-    public static SporeSaveSlotData CreateNewGame(int slotIndex, string playerName, string firstSceneName)
-    {
-        return CreateNewGame(slotIndex, playerName, firstSceneName, false);
-    }
+    public static SporeSaveSlotData CreateNewGame(int slotIndex, string firstSceneName) => CreateNewGame(slotIndex, "Gobbo", firstSceneName, false);
+    public static SporeSaveSlotData CreateNewGame(int slotIndex, string playerName, string firstSceneName) => CreateNewGame(slotIndex, playerName, firstSceneName, false);
 
     public static SporeSaveSlotData CreateNewGame(int slotIndex, string playerName, string firstSceneName, bool allowOverwrite = false)
     {
@@ -131,12 +117,8 @@ public static class SporeSaveManager
         return data;
     }
 
-    public static SporeSaveSlotData CreateNewGameInFirstEmptySlot(string firstSceneName, string playerName = "Gobbo")
-    {
-        return CreateNewGame(playerName, firstSceneName);
-    }
+    public static SporeSaveSlotData CreateNewGameInFirstEmptySlot(string firstSceneName, string playerName = "Gobbo") => CreateNewGame(playerName, firstSceneName);
 
-    // Safe camp autosave. This never creates a new slot.
     public static void SaveCurrentSlotFromGameState()
     {
         int slotIndex = GetCurrentSlot();
@@ -146,13 +128,13 @@ public static class SporeSaveManager
             Debug.LogWarning("[SporeSaveManager] No current save slot set. Refusing to create a new autosave.");
             return;
         }
-
         SporeSaveSlotData existing = LoadSlot(slotIndex);
         SporeSaveSlotData data = BuildSlotFromGameState(slotIndex, existing);
         SaveSlot(data);
     }
 
     public static void SaveCurrentGameToCurrentSlot() => SaveCurrentSlotFromGameState();
+
     public static void SaveCurrentGameToSlot(int slotIndex)
     {
         slotIndex = ClampSlot(slotIndex);
@@ -167,20 +149,21 @@ public static class SporeSaveManager
     public static SporeSaveSlotData BuildSlotFromGameState(int slotIndex, SporeSaveSlotData existing = null)
     {
         slotIndex = ClampSlot(slotIndex);
-        if (existing == null || !existing.hasSave)
-        {
-            existing = SporeSaveSlotData.CreateNew(slotIndex, "Gobbo", "CampScene");
-        }
+        if (existing == null || !existing.hasSave) existing = SporeSaveSlotData.CreateNew(slotIndex, "Gobbo", "CampScene");
 
         GameState gs = GameState.Instance;
         if (gs != null)
         {
             gs.RepairRosterState();
+            gs.gobbo.EnsureLeaderIdentity(existing.playerName);
             existing.currentRunNumber = Mathf.Max(1, gs.currentRunNumber);
             existing.runNumber = existing.currentRunNumber;
             existing.maxActiveSquad = Mathf.Max(1, gs.maxActiveSquad);
             existing.campLevel = Mathf.Max(1, gs.campLevel);
             existing.player = CloneGobbo(gs.gobbo);
+            existing.player.EnsureLeaderIdentity(existing.playerName);
+            existing.playerName = existing.player.displayName;
+            existing.saveName = string.IsNullOrWhiteSpace(existing.saveName) ? existing.playerName + "'s Camp" : existing.saveName;
             existing.ownedBuddies = CloneBuddies(gs.ownedBuddies);
             existing.activeSquadIds = gs.activeSquadIds != null ? new List<string>(gs.activeSquadIds) : new List<string>();
             existing.unlockedStations = gs.unlockedStations != null ? new List<string>(gs.unlockedStations) : new List<string>();
@@ -191,10 +174,7 @@ public static class SporeSaveManager
         GameStateSaveBridge bridge = GameStateSaveBridge.GetOrCreate();
         if (bridge != null)
         {
-            if (!string.IsNullOrWhiteSpace(bridge.currentPlayerName))
-                existing.playerName = bridge.currentPlayerName;
-            if (!string.IsNullOrWhiteSpace(bridge.currentSaveName))
-                existing.saveName = bridge.currentSaveName;
+            if (!string.IsNullOrWhiteSpace(bridge.currentSaveName)) existing.saveName = bridge.currentSaveName;
             existing.markedSuccessorId = bridge.GetMarkedSuccessorId();
         }
 
@@ -206,10 +186,8 @@ public static class SporeSaveManager
         }
 
         CampDeathHistoryStore deathStore = UnityEngine.Object.FindAnyObjectByType<CampDeathHistoryStore>(FindObjectsInactive.Include);
-        if (deathStore != null && deathStore.deadBuddyHistory != null)
-            existing.deathHistory = new List<DeadBuddyRecord>(deathStore.deadBuddyHistory);
-        else if (existing.deathHistory == null)
-            existing.deathHistory = new List<DeadBuddyRecord>();
+        if (deathStore != null && deathStore.deadBuddyHistory != null) existing.deathHistory = new List<DeadBuddyRecord>(deathStore.deadBuddyHistory);
+        else if (existing.deathHistory == null) existing.deathHistory = new List<DeadBuddyRecord>();
 
         existing.nextSceneName = "CampScene";
         existing.Normalize();
@@ -228,6 +206,7 @@ public static class SporeSaveManager
         gs.maxActiveSquad = Mathf.Max(1, data.maxActiveSquad);
         gs.campLevel = Mathf.Max(1, data.campLevel);
         gs.gobbo = CloneGobbo(data.player);
+        gs.gobbo.EnsureLeaderIdentity(data.playerName);
         gs.ownedBuddies = CloneBuddies(data.ownedBuddies);
         gs.activeSquadIds = data.activeSquadIds != null ? new List<string>(data.activeSquadIds) : new List<string>();
         gs.unlockedStations = data.unlockedStations != null ? new List<string>(data.unlockedStations) : new List<string>();
@@ -236,8 +215,7 @@ public static class SporeSaveManager
         gs.RepairRosterState();
 
         GameStateSaveBridge bridge = GameStateSaveBridge.GetOrCreate();
-        if (bridge != null)
-            bridge.SetCurrentSlotWithoutSaving(data.slotIndex, data.playerName, data.saveName, data.markedSuccessorId);
+        if (bridge != null) bridge.SetCurrentSlotWithoutSaving(data.slotIndex, data.playerName, data.saveName, data.markedSuccessorId);
 
         CampSuccessorPreferenceStore successorStore = CampSuccessorPreferenceStore.GetOrCreate();
         if (successorStore != null)
@@ -256,7 +234,7 @@ public static class SporeSaveManager
 
         SetCurrentSlot(data.slotIndex);
         SetLastPlayedSlot(data.slotIndex);
-        Debug.Log("[SporeSaveManager] Applied full slot " + data.slotIndex + " to GameState. Buddies: " + gs.ownedBuddies.Count);
+        Debug.Log("[SporeSaveManager] Applied full slot " + data.slotIndex + " to GameState. Leader: " + gs.gobbo.displayName + " (" + gs.gobbo.gobboId + "), Buddies: " + gs.ownedBuddies.Count);
         return true;
     }
 
@@ -274,17 +252,12 @@ public static class SporeSaveManager
         {
             SporeSaveSlotData data = LoadSlot(i);
             if (data == null || !data.hasSave) continue;
-            if (best == null || data.lastPlayedUtcTicks > best.lastPlayedUtcTicks)
-                best = data;
+            if (best == null || data.lastPlayedUtcTicks > best.lastPlayedUtcTicks) best = data;
         }
         return best;
     }
 
-    public static SporeSaveSlotData LoadLastPlayedSlot()
-    {
-        return LoadMostRecentSlot();
-    }
-
+    public static SporeSaveSlotData LoadLastPlayedSlot() => LoadMostRecentSlot();
     public static bool HasAnySave() => LoadMostRecentSlot() != null;
 
     public static void DeleteSlot(int slotIndex)
@@ -316,6 +289,7 @@ public static class SporeSaveManager
     {
         if (data == null) return;
         data.Normalize();
+        if (data.player != null) data.player.EnsureLeaderIdentity(data.playerName);
         if (data.ownedBuddies != null)
         {
             foreach (BuddyData buddy in data.ownedBuddies)
@@ -339,15 +313,19 @@ public static class SporeSaveManager
     private static void SyncBridgeFromSlot(SporeSaveSlotData data)
     {
         GameStateSaveBridge bridge = GameStateSaveBridge.GetOrCreate();
-        if (bridge != null)
-            bridge.SetCurrentSlotWithoutSaving(data.slotIndex, data.playerName, data.saveName, data.markedSuccessorId);
+        if (bridge != null) bridge.SetCurrentSlotWithoutSaving(data.slotIndex, data.playerName, data.saveName, data.markedSuccessorId);
     }
 
     private static GobboSaveData CloneGobbo(GobboSaveData source)
     {
         GobboSaveData copy = new GobboSaveData();
-        if (source == null) return copy;
+        if (source == null)
+        {
+            copy.EnsureLeaderIdentity();
+            return copy;
+        }
         JsonUtility.FromJsonOverwrite(JsonUtility.ToJson(source), copy);
+        copy.EnsureLeaderIdentity(source.displayName);
         return copy;
     }
 

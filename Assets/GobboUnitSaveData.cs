@@ -105,26 +105,36 @@ public class GobboUnitSaveData
     {
         if (string.IsNullOrWhiteSpace(uniqueId))
             uniqueId = GobboIdUtility.NewGobboId();
+
         EnsureRuntimeDefaults();
+    }
+
+    // Compatibility alias for newer bridge code.
+    public virtual void EnsureIdentity()
+    {
+        EnsureId();
     }
 
     public virtual void EnsureRuntimeDefaults()
     {
-        if (string.IsNullOrWhiteSpace(uniqueId)) uniqueId = GobboIdUtility.NewGobboId();
-        if (string.IsNullOrWhiteSpace(displayName)) displayName = "Gobbo";
-        if (traitIds == null) traitIds = new List<string>();
-        if (abilityIds == null) abilityIds = new List<string>();
-        if (itemIds == null) itemIds = new List<string>();
-        if (relationshipIds == null) relationshipIds = new List<string>();
-        if (evolutionHistoryIds == null) evolutionHistoryIds = new List<string>();
-        if (chosenCardIds == null) chosenCardIds = new List<string>();
-        if (mutationIds == null) mutationIds = new List<string>();
-        if (upgradeIds == null) upgradeIds = new List<string>();
-        if (unlockedUpgrades == null) unlockedUpgrades = new List<string>();
-        if (unlockedAbilities == null) unlockedAbilities = new List<string>();
-        if (unlockedCosmetics == null) unlockedCosmetics = new List<string>();
-        if (equippedCosmetics == null) equippedCosmetics = new List<string>();
-        if (unlockedItems == null) unlockedItems = new List<string>();
+        if (string.IsNullOrWhiteSpace(uniqueId))
+            uniqueId = GobboIdUtility.NewGobboId();
+        if (string.IsNullOrWhiteSpace(displayName))
+            displayName = "Gobbo";
+
+        traitIds ??= new List<string>();
+        abilityIds ??= new List<string>();
+        itemIds ??= new List<string>();
+        relationshipIds ??= new List<string>();
+        evolutionHistoryIds ??= new List<string>();
+        chosenCardIds ??= new List<string>();
+        mutationIds ??= new List<string>();
+        upgradeIds ??= new List<string>();
+        unlockedUpgrades ??= new List<string>();
+        unlockedAbilities ??= new List<string>();
+        unlockedCosmetics ??= new List<string>();
+        equippedCosmetics ??= new List<string>();
+        unlockedItems ??= new List<string>();
 
         if (level <= 0) level = 1;
         if (campLevel <= 0) campLevel = level;
@@ -149,10 +159,14 @@ public class GobboUnitSaveData
         if (digRadius <= 0f) digRadius = 0.65f;
         if (digRange <= 0f) digRange = 0.8f;
         if (digTickRate <= 0f) digTickRate = 0.05f;
+
         happiness = Mathf.Clamp(happiness <= 0 ? 100 : happiness, 0, 100);
         loyalty = Mathf.Clamp(loyalty <= 0 ? 100 : loyalty, 0, 100);
+
         if (string.IsNullOrWhiteSpace(visualSetId))
-            visualSetId = gobboType == BuddyType.Baby ? "baby" : gobboType.ToString().ToLowerInvariant() + "_" + ageStage.ToString().ToLowerInvariant();
+            visualSetId = gobboType == BuddyType.Baby
+                ? "baby"
+                : gobboType.ToString().ToLowerInvariant() + "_" + ageStage.ToString().ToLowerInvariant();
     }
 
     public GobboUnitSaveData CloneUnit()
