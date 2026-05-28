@@ -11,8 +11,12 @@ public class PlayerDeathWatcher : MonoBehaviour
     public bool saveRunBeforeLeaving = true;
     public string deathCause = "The leader got chewed up in the dirt.";
 
+    [Header("Debug")]
+    public bool logDebug = true;
+
     private GobboController player;
     private bool handledDeath;
+
     private static bool suppressDeathHandling;
     private static bool applicationQuitting;
 
@@ -27,85 +31,110 @@ public class PlayerDeathWatcher : MonoBehaviour
         suppressDeathHandling = false;
     }
 
-    void Awake()
+    private void Awake()
     {
         player = GetComponent<GobboController>();
         SceneManager.sceneLoaded += OnSceneLoaded;
+
+        if (logDebug)
+            Debug.Log("[PlayerDeathWatcher] Awake on " + gameObject.name + " scene=" + SceneManager.GetActiveScene().name);
     }
 
-    void OnDestroy()
+    private void OnDestroy()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
-    void OnApplicationQuit()
+    private void OnApplicationQuit()
     {
         applicationQuitting = true;
     }
 
-    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        // Once the new scene exists, normal death detection may run again.
         ClearSceneChangeSuppression();
     }
 
-    void Update()
+    private void Update()
     {
-        TryHandleDeath("Update");
+        TryHandleDeath("Update", false);
     }
 
-    void OnDisable()
+    private void OnDisable()
     {
-        // GobboController.Die() disables the player object. Scene unload also disables it,
-        // so this must ignore clean scene transitions.
-        TryHandleDeath("OnDisable");
+        // GobboController.Die() disables the player object.
+        // Scene unload also disables it, so only a true health <= 0 state may trigger death here.
+        TryHandleDeath("OnDisable", true);
     }
 
-    void TryHandleDeath(string source)
+    /// <summary>
+    /// Explicit death entry point. GobboController.Die() can call this before disabling itself.
+    /// This also makes testing safer because actual death is no longer confused with scene unload.
+    /// </summary>
+    public void HandleDeathNow(string source = "Direct")
+    {
+        TryHandleDeath(source, true, true);
+    }
+
+    private void TryHandleDeath(string source, bool allowWhileSuppressedIfActuallyDead, bool force = false)
     {
         if (handledDeath) return;
         if (applicationQuitting) return;
-        if (suppressDeathHandling) return;
-        if (!LooksDead()) return;
+
+        bool actuallyDead = force || LooksDead();
+        if (!actuallyDead) return;
+
+        // Normal scene changes suppress disable-based false positives, but should never suppress
+        // a real health <= 0 player death.
+        if (suppressDeathHandling && !allowWhileSuppressedIfActuallyDead)
+        {
+            if (logDebug)
+                Debug.Log("[PlayerDeathWatcher] Skipped death from " + source + " because scene-change suppression is active.");
+            return;
+        }
 
         handledDeath = true;
         HandlePlayerDeath(source);
     }
 
-    bool LooksDead()
+    private bool LooksDead()
     {
         if (player == null) player = GetComponent<GobboController>();
         if (player == null) return false;
+
+        // Health <= 0 is the actual death condition.
+        // Do NOT treat a disabled player as dead; scene unload disables objects too.
         return player.health <= 0;
     }
 
-    void HandlePlayerDeath(string source)
+    private void HandlePlayerDeath(string source)
     {
-        GameState gs = GameState.Instance;
-
-        if (gs != null)
+        if (GameState.Instance != null)
         {
             if (saveRunBeforeLeaving && player != null)
-                gs.SavePlayer(player);
+                GameState.Instance.SavePlayer(player);
 
-            if (gs.lastRun != null)
+            if (GameState.Instance.lastRun != null)
             {
-                GobboUnitSaveData leaderForSummary = gs.GetLeader();
-                gs.lastRun.survived = false;
-                gs.lastRun.playerLevelEnd = leaderForSummary != null ? Mathf.Max(1, leaderForSummary.level) : 1;
+                GameState.Instance.lastRun.survived = false;
+
+                GobboUnitSaveData leader = GameState.Instance.GetLeader();
+                GameState.Instance.lastRun.playerLevelEnd = leader != null ? Mathf.Max(1, leader.level) : 1;
             }
         }
 
         List<string> candidateIds = new List<string>();
         List<GobboUnitSaveData> snapshots = BuildSuccessorSnapshots(candidateIds);
 
-        int runNumber = gs != null ? Mathf.Max(1, gs.currentRunNumber) : 1;
+        int runNumber = GameState.Instance != null ? Mathf.Max(1, GameState.Instance.currentRunNumber) : 1;
         string leaderName = "Gobbo";
         string leaderType = "Gobbo";
         int leaderLevel = 1;
 
-        if (gs != null)
+        if (GameState.Instance != null)
         {
-            GobboUnitSaveData leader = gs.GetLeader();
+            GobboUnitSaveData leader = GameState.Instance.GetLeader();
             if (leader != null)
             {
                 leader.EnsureRuntimeDefaults();
@@ -116,18 +145,15 @@ public class PlayerDeathWatcher : MonoBehaviour
         }
 
         PlayerDeathRunStore store = PlayerDeathRunStore.GetOrCreate();
-
-        // If the run did not explicitly lock a successor, keep the camp-marked successor as preference.
-        if (string.IsNullOrWhiteSpace(store.lockedSuccessorId) && gs != null)
-            store.LockSuccessorForRun(gs.GetMarkedSuccessorId());
-
         store.BeginPlayerDeath(leaderName, leaderType, leaderLevel, runNumber, deathCause, candidateIds, snapshots);
 
-        Debug.Log("[PlayerDeathWatcher] handled death from " + source
-            + ". Successor candidates: " + candidateIds.Count
-            + ", locked/preferred: " + (string.IsNullOrWhiteSpace(store.lockedSuccessorId) ? "none" : store.lockedSuccessorId));
+        Debug.Log("[PlayerDeathWatcher] handled death from " + source +
+                  ". Successor candidates: " + candidateIds.Count +
+                  ", locked/preferred: " + (string.IsNullOrWhiteSpace(store.lockedSuccessorId) ? "none" : store.lockedSuccessorId));
 
         Time.timeScale = 1f;
+
+        // Prevent the scene unload caused by this LoadScene from triggering a second death.
         SuppressDeathHandlingForSceneChange();
 
         if (loadGameOverSceneIfNoSuccessors && candidateIds.Count == 0 && !string.IsNullOrWhiteSpace(gameOverSceneName))
@@ -136,17 +162,16 @@ public class PlayerDeathWatcher : MonoBehaviour
             SceneManager.LoadScene(campSceneName);
     }
 
-    List<GobboUnitSaveData> BuildSuccessorSnapshots(List<string> ids)
+    private List<GobboUnitSaveData> BuildSuccessorSnapshots(List<string> ids)
     {
         List<GobboUnitSaveData> snapshots = new List<GobboUnitSaveData>();
-        GameState gs = GameState.Instance;
 
-        if (gs != null)
+        if (GameState.Instance != null)
         {
-            gs.RepairRosterState();
-            List<GobboUnitSaveData> gobbos = gs.GetAllGobbos(includeLeader: false, includeDead: false);
-            foreach (GobboUnitSaveData unit in gobbos)
-                AddCandidateSnapshot(unit, ids, snapshots);
+            foreach (GobboUnitSaveData gobbo in GameState.Instance.GetAllGobbos(includeLeader: false, includeDead: false))
+            {
+                AddCandidateSnapshot(gobbo, ids, snapshots);
+            }
         }
 
         // Fallback for old/direct SampleScene testing where GameState roster was not populated.
@@ -163,20 +188,16 @@ public class PlayerDeathWatcher : MonoBehaviour
         return snapshots;
     }
 
-    void AddCandidateSnapshot(GobboUnitSaveData unit, List<string> ids, List<GobboUnitSaveData> snapshots)
+    private void AddCandidateSnapshot(GobboUnitSaveData gobbo, List<string> ids, List<GobboUnitSaveData> snapshots)
     {
-        if (unit == null) return;
-        unit.EnsureRuntimeDefaults();
-        if (unit.isLeader) return;
-        if (unit.isDead) return;
-        if (unit.health <= 0) return;
-        if (string.IsNullOrWhiteSpace(unit.uniqueId)) unit.EnsureId();
-        if (ids.Contains(unit.uniqueId)) return;
+        if (gobbo == null) return;
 
-        ids.Add(unit.uniqueId);
-        GobboUnitSaveData copy = unit.CloneUnit();
-        copy.isLeader = false;
-        copy.isDead = false;
-        snapshots.Add(copy);
+        gobbo.EnsureRuntimeDefaults();
+        if (gobbo.health <= 0) return;
+        if (string.IsNullOrWhiteSpace(gobbo.uniqueId)) return;
+        if (ids.Contains(gobbo.uniqueId)) return;
+
+        ids.Add(gobbo.uniqueId);
+        snapshots.Add(gobbo.CloneUnit());
     }
 }

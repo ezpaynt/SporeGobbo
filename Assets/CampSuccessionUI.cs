@@ -31,19 +31,22 @@ public class CampSuccessionUI : MonoBehaviour
     private GobboUnitSaveData markedSuccessor;
     private readonly List<GobboUnitSaveData> eligibleSuccessors = new List<GobboUnitSaveData>();
 
-    void Awake()
+    private void Awake()
     {
+        AutoFindMissingReferences();
         HookButtons();
         HideAllPanels();
     }
 
-    void OnEnable()
+    private void OnEnable()
     {
+        AutoFindMissingReferences();
         HookButtons();
     }
 
-    void Start()
+    private void Start()
     {
+        AutoFindMissingReferences();
         HookButtons();
     }
 
@@ -63,6 +66,8 @@ public class CampSuccessionUI : MonoBehaviour
 
     public void OpenDeathFlow()
     {
+        AutoFindMissingReferences();
+        HookButtons();
         RefreshCandidates();
 
         if (eligibleSuccessors.Count <= 0)
@@ -75,49 +80,124 @@ public class CampSuccessionUI : MonoBehaviour
         OpenSuccessionPanel();
     }
 
-    void HookButtons()
+    private void AutoFindMissingReferences()
     {
-        if (acceptMarkedSuccessorButton != null)
+        if (successionPanel != null)
         {
-            acceptMarkedSuccessorButton.name = "AcceptMarkedSuccessorButton";
-            acceptMarkedSuccessorButton.onClick.RemoveAllListeners();
-            acceptMarkedSuccessorButton.onClick.AddListener(AcceptMarkedSuccessor);
+            Button[] buttons = successionPanel.GetComponentsInChildren<Button>(true);
+            foreach (Button button in buttons)
+            {
+                if (button == null) continue;
+                string n = button.name.ToLowerInvariant();
+                if (acceptMarkedSuccessorButton == null && (n.Contains("accept") || n.Contains("marked") || n.Contains("successor")))
+                    acceptMarkedSuccessorButton = button;
+                else if (letCampChooseButton == null && (n.Contains("choose") || n.Contains("camp") || n.Contains("let")))
+                    letCampChooseButton = button;
+            }
+
+            if (buttons.Length >= 1 && acceptMarkedSuccessorButton == null) acceptMarkedSuccessorButton = buttons[0];
+            if (buttons.Length >= 2 && letCampChooseButton == null) letCampChooseButton = buttons[1];
         }
 
-        if (letCampChooseButton != null)
+        if (gameOverPanel != null && returnToMainMenuButton == null)
         {
-            letCampChooseButton.name = "LetCampChooseButton";
-            letCampChooseButton.onClick.RemoveAllListeners();
-            letCampChooseButton.onClick.AddListener(LetCampChoose);
-        }
-
-        if (returnToMainMenuButton != null)
-        {
-            returnToMainMenuButton.name = "ReturnToMainMenuButton";
-            returnToMainMenuButton.onClick.RemoveAllListeners();
-            returnToMainMenuButton.onClick.AddListener(ReturnToMainMenu);
+            Button[] buttons = gameOverPanel.GetComponentsInChildren<Button>(true);
+            if (buttons.Length > 0) returnToMainMenuButton = buttons[0];
         }
     }
 
-    void RefreshCandidates()
+    private void HookButtons()
+    {
+        if (acceptMarkedSuccessorButton != null)
+        {
+            PrepareButton(acceptMarkedSuccessorButton, "AcceptMarkedSuccessorButton", "Accept\nMarked\nSuccessor");
+            acceptMarkedSuccessorButton.onClick.RemoveAllListeners();
+            acceptMarkedSuccessorButton.onClick.AddListener(AcceptMarkedSuccessor);
+            Log("Hooked accept button: " + GetPath(acceptMarkedSuccessorButton.transform));
+        }
+        else Log("WARNING: acceptMarkedSuccessorButton is not assigned.");
+
+        if (letCampChooseButton != null)
+        {
+            PrepareButton(letCampChooseButton, "LetCampChooseButton", "Let Camp\nChoose");
+            letCampChooseButton.onClick.RemoveAllListeners();
+            letCampChooseButton.onClick.AddListener(LetCampChoose);
+            Log("Hooked choose button: " + GetPath(letCampChooseButton.transform));
+        }
+        else Log("WARNING: letCampChooseButton is not assigned.");
+
+        if (returnToMainMenuButton != null)
+        {
+            PrepareButton(returnToMainMenuButton, "ReturnToMainMenuButton", "Return To\nMain Menu");
+            returnToMainMenuButton.onClick.RemoveAllListeners();
+            returnToMainMenuButton.onClick.AddListener(ReturnToMainMenu);
+            Log("Hooked return button: " + GetPath(returnToMainMenuButton.transform));
+        }
+    }
+
+    private void PrepareButton(Button button, string objectName, string label)
+    {
+        if (button == null) return;
+        button.name = objectName;
+        button.gameObject.SetActive(true);
+        button.interactable = true;
+        button.transform.SetAsLastSibling();
+
+        Image image = button.GetComponent<Image>();
+        if (image != null)
+        {
+            image.raycastTarget = true;
+            button.targetGraphic = image;
+        }
+
+        TMP_Text text = button.GetComponentInChildren<TMP_Text>(true);
+        if (text != null)
+        {
+            text.text = label;
+            text.raycastTarget = false;
+        }
+
+        Text oldText = button.GetComponentInChildren<Text>(true);
+        if (oldText != null)
+        {
+            oldText.text = label;
+            oldText.raycastTarget = false;
+        }
+    }
+
+    private void RefreshCandidates()
     {
         eligibleSuccessors.Clear();
         markedSuccessor = null;
 
         PlayerDeathRunStore store = PlayerDeathRunStore.Instance;
-        string preferredId = store != null ? store.lockedSuccessorId : "";
-        if (string.IsNullOrWhiteSpace(preferredId) && GameState.Instance != null)
-            preferredId = GameState.Instance.GetMarkedSuccessorId();
+        if (store == null) return;
 
-        if (store != null && store.survivorSnapshots != null && store.survivorSnapshots.Count > 0)
+        string preferredId = store.lockedSuccessorId;
+
+        if (store.survivorSnapshots != null && store.survivorSnapshots.Count > 0)
         {
             foreach (GobboUnitSaveData snapshot in store.survivorSnapshots)
-                AddEligibleCopy(snapshot);
+            {
+                if (snapshot == null) continue;
+                GobboUnitSaveData copy = snapshot.CloneUnit();
+                copy.isLeader = false;
+                copy.isDead = false;
+                copy.EnsureRuntimeDefaults();
+                if (copy.health <= 0) copy.health = Mathf.Max(1, copy.maxHealth);
+                eligibleSuccessors.Add(copy);
+            }
         }
         else if (GameState.Instance != null)
         {
-            foreach (GobboUnitSaveData unit in GameState.Instance.GetAllGobbos(includeLeader: false, includeDead: false))
-                AddEligibleCopy(unit);
+            foreach (GobboUnitSaveData unit in GameState.Instance.GetAllGobbos(false, false))
+            {
+                if (unit == null || unit.isLeader || unit.isDead) continue;
+                GobboUnitSaveData copy = unit.CloneUnit();
+                copy.EnsureRuntimeDefaults();
+                if (copy.health <= 0) copy.health = Mathf.Max(1, copy.maxHealth);
+                eligibleSuccessors.Add(copy);
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(preferredId))
@@ -132,46 +212,26 @@ public class CampSuccessionUI : MonoBehaviour
             }
         }
 
-        Log("Opened succession panel. Locked/preferred successor id: "
-            + (string.IsNullOrWhiteSpace(preferredId) ? "none" : preferredId)
-            + ", marked successor: " + (markedSuccessor != null ? GetDisplayName(markedSuccessor) : "none")
-            + ", eligible count: " + eligibleSuccessors.Count);
+        Log("Opened succession panel. Locked/preferred successor id: " +
+            (string.IsNullOrWhiteSpace(preferredId) ? "none" : preferredId) +
+            ", marked successor: " + (markedSuccessor != null ? markedSuccessor.displayName : "none") +
+            ", eligible count: " + eligibleSuccessors.Count);
     }
 
-    void AddEligibleCopy(GobboUnitSaveData source)
-    {
-        if (source == null) return;
-        source.EnsureRuntimeDefaults();
-        if (source.isLeader || source.isDead) return;
-        if (source.health <= 0) source.health = Mathf.Max(1, source.maxHealth);
-
-        GobboUnitSaveData copy = source.CloneUnit();
-        copy.isLeader = false;
-        copy.isDead = false;
-        copy.EnsureRuntimeDefaults();
-
-        foreach (GobboUnitSaveData existing in eligibleSuccessors)
-            if (existing != null && existing.uniqueId == copy.uniqueId)
-                return;
-
-        eligibleSuccessors.Add(copy);
-    }
-
-    void OpenSuccessionPanel()
+    private void OpenSuccessionPanel()
     {
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
-
         if (successionPanel != null)
         {
             successionPanel.SetActive(true);
             successionPanel.transform.SetAsLastSibling();
-            EnsureCanvasGroupInteractive(successionPanel);
+            EnsurePanelInteractive(successionPanel);
         }
 
         if (titleText != null) titleText.text = title;
         if (bodyText != null)
             bodyText.text = markedSuccessor != null
-                ? string.Format(markedSuccessorBody, GetDisplayName(markedSuccessor))
+                ? string.Format(markedSuccessorBody, markedSuccessor.displayName)
                 : noMarkedSuccessorBody;
 
         if (acceptMarkedSuccessorButton != null) acceptMarkedSuccessorButton.gameObject.SetActive(markedSuccessor != null);
@@ -180,29 +240,37 @@ public class CampSuccessionUI : MonoBehaviour
         HookButtons();
     }
 
-    void OpenGameOverPanel()
+    private void OpenGameOverPanel()
     {
         if (successionPanel != null) successionPanel.SetActive(false);
-
         if (gameOverPanel != null)
         {
             gameOverPanel.SetActive(true);
             gameOverPanel.transform.SetAsLastSibling();
-            EnsureCanvasGroupInteractive(gameOverPanel);
+            EnsurePanelInteractive(gameOverPanel);
         }
 
         if (gameOverText != null) gameOverText.text = gameOverMessage;
         HookButtons();
     }
 
-    void EnsureCanvasGroupInteractive(GameObject panel)
+    private void EnsurePanelInteractive(GameObject panel)
     {
         if (panel == null) return;
+
         CanvasGroup group = panel.GetComponent<CanvasGroup>();
         if (group == null) group = panel.AddComponent<CanvasGroup>();
         group.alpha = 1f;
         group.interactable = true;
         group.blocksRaycasts = true;
+
+        Graphic[] graphics = panel.GetComponentsInChildren<Graphic>(true);
+        foreach (Graphic graphic in graphics)
+        {
+            if (graphic == null) continue;
+            if (graphic.GetComponent<Button>() == null && graphic.GetComponentInParent<Button>() != null)
+                graphic.raycastTarget = false;
+        }
     }
 
     public void AcceptMarkedSuccessor()
@@ -221,7 +289,6 @@ public class CampSuccessionUI : MonoBehaviour
     {
         Log("Let Camp Choose clicked.");
         RefreshCandidates();
-
         GobboUnitSaveData chosen = PickStrongestSuccessor();
         if (chosen == null)
         {
@@ -232,7 +299,7 @@ public class CampSuccessionUI : MonoBehaviour
         PromoteSuccessor(chosen);
     }
 
-    GobboUnitSaveData PickStrongestSuccessor()
+    private GobboUnitSaveData PickStrongestSuccessor()
     {
         GobboUnitSaveData best = null;
         foreach (GobboUnitSaveData unit in eligibleSuccessors)
@@ -243,109 +310,69 @@ public class CampSuccessionUI : MonoBehaviour
         return best;
     }
 
-    int GetSuccessorScore(GobboUnitSaveData unit)
+    private int GetSuccessorScore(GobboUnitSaveData unit)
     {
         if (unit == null) return -999999;
-        int power = Mathf.Max(unit.attack, unit.damage);
-        return unit.level * 10000 + unit.maxHealth * 100 + power * 25 + unit.loyalty;
+        return unit.level * 10000 + unit.maxHealth * 100 + unit.attack * 25 + unit.defense * 10;
     }
 
-    void PromoteSuccessor(GobboUnitSaveData successor)
+    private void PromoteSuccessor(GobboUnitSaveData successor)
     {
         if (successor == null || GameState.Instance == null) return;
 
         successor.EnsureRuntimeDefaults();
-        GameState state = GameState.Instance;
-        PlayerDeathRunStore store = PlayerDeathRunStore.Instance;
-
-        // Memorialize the old leader before changing GameState leader.
-        CampDeathHistoryStore history = CampDeathHistoryStore.GetOrCreate();
-        if (history != null && store != null && !store.memorialAddedToHistory)
-            history.AddDeadLeaderFromPendingStore(store);
-
-        // Ensure GameState has all survivor snapshots. This protects death flows that cross scenes.
-        RebuildRosterFromEligibleSnapshots(state);
-
-        bool promoted = state.PromoteBuddyToLeader(successor.uniqueId);
+        bool promoted = GameState.Instance.PromoteBuddyToLeader(successor.uniqueId);
         if (!promoted)
         {
-            Log("Promotion failed for " + successor.uniqueId + ". Opening game over panel.");
+            Log("Failed to promote successor id: " + successor.uniqueId + ". Trying camp choice fallback.");
             OpenGameOverPanel();
             return;
         }
 
-        GobboUnitSaveData leader = state.GetLeader();
-        if (leader != null)
-        {
-            leader.health = Mathf.Max(1, leader.maxHealth);
-            leader.isLeader = true;
-            leader.isDead = false;
-            leader.EnsureRuntimeDefaults();
-            state.SetLeader(leader);
-        }
-
-        state.SetMarkedSuccessorId("");
-        state.RepairRosterState();
+        GameState.Instance.markedSuccessorId = "";
 
         CampSuccessorPreferenceStore pref = CampSuccessorPreferenceStore.Instance;
-        if (pref != null) pref.ClearSuccessor(false);
+        if (pref != null) pref.ClearSuccessor();
 
+        PlayerDeathRunStore store = PlayerDeathRunStore.Instance;
         if (store != null) store.ClearPendingDeath();
 
         SporeSaveManager.SaveCurrentSlotFromGameState();
 
-        Log("Promoted successor: " + GetDisplayName(successor) + " / " + successor.uniqueId);
+        Log("Promoted successor: " + successor.displayName + " / " + successor.uniqueId);
         HideAllPanels();
 
+        Time.timeScale = 1f;
         CampSceneController controller = Object.FindAnyObjectByType<CampSceneController>(FindObjectsInactive.Include);
         if (controller != null) controller.RevealCampVisuals();
-    }
-
-    void RebuildRosterFromEligibleSnapshots(GameState state)
-    {
-        if (state == null) return;
-        state.RepairRosterState();
-
-        foreach (GobboUnitSaveData unit in eligibleSuccessors)
-        {
-            if (unit == null) continue;
-            unit.EnsureRuntimeDefaults();
-            if (state.FindGobboById(unit.uniqueId) != null) continue;
-
-            BuddyData buddy = BuddyData.FromUnit(unit);
-            if (buddy == null) continue;
-            buddy.isLeader = false;
-            buddy.isDead = false;
-            state.AddBuddy(buddy, preferActiveSquad: false);
-        }
-
-        state.RepairRosterState();
     }
 
     public void ReturnToMainMenu()
     {
         Log("Return to main menu clicked. Scene: " + mainMenuSceneName);
         Time.timeScale = 1f;
-        if (!string.IsNullOrWhiteSpace(mainMenuSceneName))
-            SceneManager.LoadScene(mainMenuSceneName);
+        if (!string.IsNullOrWhiteSpace(mainMenuSceneName)) SceneManager.LoadScene(mainMenuSceneName);
     }
 
-    void HideAllPanels()
+    private void HideAllPanels()
     {
         if (successionPanel != null) successionPanel.SetActive(false);
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
     }
 
-    string GetDisplayName(GobboUnitSaveData unit)
+    private string GetPath(Transform t)
     {
-        if (unit == null) return "Gobbo";
-        if (!string.IsNullOrWhiteSpace(unit.displayName)) return unit.displayName;
-        BuddyData buddy = unit as BuddyData;
-        if (buddy != null && !string.IsNullOrWhiteSpace(buddy.buddyName)) return buddy.buddyName;
-        return "Gobbo";
+        if (t == null) return "null";
+        string path = t.name;
+        while (t.parent != null)
+        {
+            t = t.parent;
+            path = t.name + "/" + path;
+        }
+        return path;
     }
 
-    void Log(string message)
+    private void Log(string message)
     {
         if (logDebugMessages) Debug.Log("[CampSuccessionUI] " + message);
     }
