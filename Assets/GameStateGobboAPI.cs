@@ -3,22 +3,16 @@ using UnityEngine;
 
 /// <summary>
 /// Stable doorway for systems that need gobbo save data.
-/// GameState is still allowed to keep compatibility fields internally, but normal systems
-/// should come through these methods instead of guessing at gobbo/buddy internals.
+/// Scene objects should ask GameState through this API instead of poking old player/buddy fields directly.
 /// </summary>
 public static class GameStateGobboAPI
 {
     public static GobboUnitSaveData GetLeader(this GameState state)
     {
         if (state == null) return null;
-
-        if (state.gobbo == null)
-            state.gobbo = new GobboSaveData();
-
+        if (state.gobbo == null) state.gobbo = new GobboSaveData();
         state.gobbo.isLeader = true;
-        state.gobbo.isDead = false;
-        state.gobbo.EnsureIdentity(string.IsNullOrWhiteSpace(state.gobbo.displayName) ? "Gobbo" : state.gobbo.displayName);
-        state.gobbo.EnsureRuntimeDefaults();
+        state.gobbo.EnsureLeaderIdentity(state.gobbo.displayName);
         return state.gobbo;
     }
 
@@ -29,28 +23,23 @@ public static class GameStateGobboAPI
         if (leader == null)
         {
             state.gobbo = new GobboSaveData();
-            state.gobbo.EnsureIdentity("Gobbo");
+            state.gobbo.EnsureLeaderIdentity("Gobbo");
             return;
         }
 
         leader.isLeader = true;
         leader.isDead = false;
-        leader.EnsureIdentity(string.IsNullOrWhiteSpace(leader.displayName) ? "Gobbo" : leader.displayName);
         leader.EnsureRuntimeDefaults();
 
         state.gobbo = leader.ToLeaderSave();
         state.gobbo.isLeader = true;
-        state.gobbo.isDead = false;
-        state.gobbo.EnsureIdentity(state.gobbo.displayName);
-        state.gobbo.EnsureRuntimeDefaults();
+        state.gobbo.EnsureLeaderIdentity(state.gobbo.displayName);
     }
 
     public static List<GobboUnitSaveData> GetAllGobbos(this GameState state, bool includeLeader = true, bool includeDead = false)
     {
         List<GobboUnitSaveData> result = new List<GobboUnitSaveData>();
         if (state == null) return result;
-
-        state.RepairRosterState();
 
         if (includeLeader)
         {
@@ -86,7 +75,9 @@ public static class GameStateGobboAPI
         }
 
         BuddyData buddy = state.FindBuddy(gobboId);
-        return buddy;
+        if (buddy != null) return buddy;
+
+        return null;
     }
 
     public static bool HasGobbo(this GameState state, string gobboId)
@@ -100,13 +91,12 @@ public static class GameStateGobboAPI
         if (state == null) return result;
 
         state.RepairRosterState();
-
-        foreach (BuddyData buddy in state.GetActiveSquad())
+        foreach (string id in state.activeSquadIds)
         {
-            if (buddy == null) continue;
-            buddy.EnsureId();
-            buddy.EnsureRuntimeDefaults();
-            if (!buddy.isDead) result.Add(buddy);
+            if (string.IsNullOrWhiteSpace(id)) continue;
+            GobboUnitSaveData unit = state.FindGobboById(id);
+            if (unit != null && !unit.isLeader && !unit.isDead)
+                result.Add(unit);
         }
 
         return result;
@@ -118,13 +108,19 @@ public static class GameStateGobboAPI
         if (state == null) return result;
 
         state.RepairRosterState();
+        HashSet<string> active = new HashSet<string>(state.activeSquadIds ?? new List<string>());
 
-        foreach (BuddyData buddy in state.GetReserveBuddies())
+        if (state.ownedBuddies != null)
         {
-            if (buddy == null) continue;
-            buddy.EnsureId();
-            buddy.EnsureRuntimeDefaults();
-            if (!buddy.isDead) result.Add(buddy);
+            foreach (BuddyData buddy in state.ownedBuddies)
+            {
+                if (buddy == null) continue;
+                buddy.EnsureId();
+                buddy.EnsureRuntimeDefaults();
+                if (buddy.isDead) continue;
+                if (active.Contains(buddy.uniqueId)) continue;
+                result.Add(buddy);
+            }
         }
 
         return result;
@@ -146,10 +142,9 @@ public static class GameStateGobboAPI
         newLeader.displayName = string.IsNullOrWhiteSpace(successor.displayName) ? successor.buddyName : successor.displayName;
         newLeader.gobboType = successor.gobboType;
         newLeader.ageStage = successor.ageStage;
-        newLeader.level = successor.level;
-        newLeader.xp = successor.xp;
         newLeader.isLeader = true;
         newLeader.isDead = false;
+        newLeader.health = Mathf.Max(1, newLeader.maxHealth);
         newLeader.EnsureRuntimeDefaults();
 
         state.RemoveBuddy(successor.uniqueId);
