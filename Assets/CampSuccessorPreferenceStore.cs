@@ -17,13 +17,11 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
 
     void Awake()
     {
-        // Scene-only singleton. Do not DontDestroyOnLoad this object.
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
             return;
         }
-
         Instance = this;
         SyncFromGameState();
     }
@@ -42,82 +40,54 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
     public static CampSuccessorPreferenceStore GetOrCreate()
     {
         if (Instance != null) return Instance;
-
         CampSuccessorPreferenceStore found = Object.FindAnyObjectByType<CampSuccessorPreferenceStore>(FindObjectsInactive.Include);
-        if (found != null)
-        {
-            Instance = found;
-            return Instance;
-        }
-
+        if (found != null) { Instance = found; return Instance; }
         GameObject obj = new GameObject("CampSuccessorPreferenceStore");
         Instance = obj.AddComponent<CampSuccessorPreferenceStore>();
         return Instance;
     }
 
-    public void MarkSuccessor(BuddyData buddy) { SetMarkedSuccessor(buddy); }
-    public void MarkSuccessor(string buddyId) { SetMarkedSuccessor(buddyId); }
+    public void MarkSuccessor(GobboUnitSaveData unit) => SetMarkedSuccessor(unit);
+    public void MarkSuccessor(string gobboId) => SetMarkedSuccessor(gobboId);
 
-    public void SetMarkedSuccessor(BuddyData buddy)
+    public void SetMarkedSuccessor(GobboUnitSaveData unit)
     {
-        if (buddy == null)
-        {
-            ClearSuccessor();
-            return;
-        }
-
-        buddy.EnsureId();
-        SetMarkedSuccessor(buddy.uniqueId);
+        if (unit == null) { ClearSuccessor(); return; }
+        unit.EnsureId();
+        SetMarkedSuccessor(unit.uniqueId);
     }
 
-    public void SetMarkedSuccessor(string buddyId)
-    {
-        SetMarkedSuccessor(buddyId, true);
-    }
+    public void SetMarkedSuccessor(string gobboId) => SetMarkedSuccessor(gobboId, true);
 
-    public void SetMarkedSuccessor(string buddyId, bool writeImmediately)
+    public void SetMarkedSuccessor(string gobboId, bool writeImmediately)
     {
-        if (GameState.Instance == null)
-        {
-            markedSuccessorId = string.IsNullOrWhiteSpace(buddyId) ? "" : buddyId.Trim();
-        }
+        if (GameState.Instance == null) markedSuccessorId = string.IsNullOrWhiteSpace(gobboId) ? "" : gobboId.Trim();
         else
         {
-            GameState.Instance.SetMarkedSuccessorId(buddyId);
+            GameState.Instance.SetMarkedSuccessorId(gobboId);
             markedSuccessorId = GameState.Instance.GetMarkedSuccessorId();
         }
-
         Log("Marked successor id: " + (string.IsNullOrWhiteSpace(markedSuccessorId) ? "none" : markedSuccessorId));
-
         if (writeImmediately) SaveToCurrentSave();
     }
 
-    public void ClearSuccessor()
-    {
-        ClearSuccessor(true);
-    }
+    public void ClearSuccessor() => ClearSuccessor(true);
 
     public void ClearSuccessor(bool writeImmediately)
     {
         if (GameState.Instance != null) GameState.Instance.SetMarkedSuccessorId("");
         markedSuccessorId = "";
-
         Log("Cleared successor.");
-
         if (writeImmediately) SaveToCurrentSave();
     }
 
-    public BuddyData GetMarkedSuccessor()
-    {
-        SyncFromGameState();
-        return GameState.Instance != null ? GameState.Instance.GetMarkedSuccessor() : null;
-    }
-
-    public GobboUnitSaveData GetMarkedSuccessorUnit()
+    public GobboUnitSaveData GetMarkedSuccessor()
     {
         SyncFromGameState();
         return GameState.Instance != null ? GameState.Instance.GetMarkedSuccessorUnit() : null;
     }
+
+    public GobboUnitSaveData GetMarkedSuccessorUnit() => GetMarkedSuccessor();
 
     public string GetMarkedSuccessorId()
     {
@@ -125,44 +95,30 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
         return markedSuccessorId;
     }
 
-    public bool IsMarked(string buddyId)
+    public bool IsMarked(string gobboId)
     {
         SyncFromGameState();
-        return !string.IsNullOrWhiteSpace(buddyId) && buddyId == markedSuccessorId;
+        return !string.IsNullOrWhiteSpace(gobboId) && gobboId == markedSuccessorId;
     }
 
-    public bool IsMarked(BuddyData buddy)
+    public bool IsMarked(GobboUnitSaveData unit)
     {
-        if (buddy == null) return false;
-        buddy.EnsureId();
-        return IsMarked(buddy.uniqueId);
+        if (unit == null) return false;
+        unit.EnsureId();
+        return IsMarked(unit.uniqueId);
     }
 
-    public bool HasMarkedSuccessor()
-    {
-        return GetMarkedSuccessor() != null;
-    }
+    public bool HasMarkedSuccessor() => GetMarkedSuccessor() != null;
 
-    public void ValidateAgainstRoster()
-    {
-        ValidateAgainstRoster(true);
-    }
+    public void ValidateAgainstRoster() => ValidateAgainstRoster(true);
 
     public void ValidateAgainstRoster(bool writeImmediately)
     {
         if (GameState.Instance == null) return;
-
         string current = GameState.Instance.GetMarkedSuccessorId();
-        if (string.IsNullOrWhiteSpace(current))
-        {
-            markedSuccessorId = "";
-            return;
-        }
-
-        if (GameState.Instance.GetMarkedSuccessorUnit() == null)
-            ClearSuccessor(writeImmediately);
-        else
-            markedSuccessorId = current;
+        if (string.IsNullOrWhiteSpace(current)) { markedSuccessorId = ""; return; }
+        if (GameState.Instance.GetMarkedSuccessorUnit() == null) ClearSuccessor(writeImmediately);
+        else markedSuccessorId = current;
     }
 
     public void SyncFromGameState()
@@ -180,13 +136,11 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
     public void SaveToCurrentSave()
     {
         SyncFromGameState();
-        if (SporeSaveManager.GetCurrentSlot() > 0)
-            SporeSaveManager.SaveCurrentSlotFromGameState();
+        if (SporeSaveManager.GetCurrentSlot() > 0) SporeSaveManager.SaveCurrentSlotFromGameState();
     }
 
-    // Backwards-compatible names older scripts may still call.
-    public void LoadFromGameState() { LoadFromCurrentSave(); }
-    public void SaveToGameState() { SaveToCurrentSave(); }
+    public void LoadFromGameState() => LoadFromCurrentSave();
+    public void SaveToGameState() => SaveToCurrentSave();
 
     void Log(string message)
     {

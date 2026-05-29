@@ -34,11 +34,7 @@ public class GameStateSaveBridge : MonoBehaviour
     {
         if (Instance != null) return Instance;
         GameStateSaveBridge found = FindAnyObjectByType<GameStateSaveBridge>(FindObjectsInactive.Include);
-        if (found != null)
-        {
-            Instance = found;
-            return Instance;
-        }
+        if (found != null) { Instance = found; return Instance; }
         GameObject obj = new GameObject("GameStateSaveBridge");
         Instance = obj.AddComponent<GameStateSaveBridge>();
         return Instance;
@@ -65,8 +61,7 @@ public class GameStateSaveBridge : MonoBehaviour
 
     public bool LoadSaveAndLoadScene(string saveId, string sceneName)
     {
-        if (!int.TryParse((saveId ?? "").Replace("slot_", ""), out int slot))
-            slot = SporeSaveManager.GetLastPlayedSlot();
+        if (!int.TryParse((saveId ?? "").Replace("slot_", ""), out int slot)) slot = SporeSaveManager.GetLastPlayedSlot();
         bool loaded = LoadSaveSlot(slot);
         if (loaded) SceneManager.LoadScene(string.IsNullOrWhiteSpace(sceneName) ? campSceneName : sceneName);
         return loaded;
@@ -94,10 +89,7 @@ public class GameStateSaveBridge : MonoBehaviour
         return loaded;
     }
 
-    public void SaveCurrentGame()
-    {
-        SporeSaveManager.SaveCurrentSlotFromGameState();
-    }
+    public void SaveCurrentGame() => SporeSaveManager.SaveCurrentSlotFromGameState();
 
     public SporeSaveSlotData BuildSaveFromGameState()
     {
@@ -121,9 +113,9 @@ public class GameStateSaveBridge : MonoBehaviour
         markedSuccessorId = string.IsNullOrWhiteSpace(successorId) ? "" : successorId.Trim();
     }
 
-    public void SetMarkedSuccessor(string buddyId, bool writeImmediately = true)
+    public void SetMarkedSuccessor(string gobboId, bool writeImmediately = true)
     {
-        markedSuccessorId = string.IsNullOrWhiteSpace(buddyId) ? "" : buddyId.Trim();
+        markedSuccessorId = string.IsNullOrWhiteSpace(gobboId) ? "" : gobboId.Trim();
         Log("Marked successor now: " + (string.IsNullOrWhiteSpace(markedSuccessorId) ? "none" : markedSuccessorId));
         if (writeImmediately) SaveCurrentGame();
     }
@@ -134,7 +126,7 @@ public class GameStateSaveBridge : MonoBehaviour
     public void ValidateMarkedSuccessorAgainstRoster(bool writeImmediately = true)
     {
         if (string.IsNullOrWhiteSpace(markedSuccessorId) || GameState.Instance == null) return;
-        if (GameState.Instance.FindBuddy(markedSuccessorId) == null)
+        if (GameState.Instance.FindGobboById(markedSuccessorId) == null)
         {
             Log("Marked successor no longer exists. Clearing: " + markedSuccessorId);
             ClearMarkedSuccessor(writeImmediately);
