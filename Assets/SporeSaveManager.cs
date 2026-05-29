@@ -53,6 +53,7 @@ public static class SporeSaveManager
         slotIndex = ClampSlot(slotIndex);
         string path = GetSlotPath(slotIndex);
         if (!File.Exists(path)) return new SporeSaveSlotData { slotIndex = slotIndex, hasSave = false, saveId = "slot_" + slotIndex };
+
         try
         {
             string json = File.ReadAllText(path);
@@ -79,6 +80,7 @@ public static class SporeSaveManager
         data.lastPlayedUtcTicks = DateTime.UtcNow.Ticks;
         data.lastPlayedAt = DateTime.UtcNow.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
         Normalize(data);
+
         string json = JsonUtility.ToJson(data, true);
         File.WriteAllText(GetSlotPath(data.slotIndex), json);
         SetCurrentSlot(data.slotIndex);
@@ -98,10 +100,17 @@ public static class SporeSaveManager
         return CreateNewGame(slotIndex, playerName, firstSceneName, false);
     }
 
-    public static SporeSaveSlotData CreateNewGame(int slotIndex, string firstSceneName) => CreateNewGame(slotIndex, "Gobbo", firstSceneName, false);
-    public static SporeSaveSlotData CreateNewGame(int slotIndex, string playerName, string firstSceneName) => CreateNewGame(slotIndex, playerName, firstSceneName, false);
+    public static SporeSaveSlotData CreateNewGame(int slotIndex, string firstSceneName)
+    {
+        return CreateNewGame(slotIndex, "Gobbo", firstSceneName, false);
+    }
 
-    public static SporeSaveSlotData CreateNewGame(int slotIndex, string playerName, string firstSceneName, bool allowOverwrite)
+    public static SporeSaveSlotData CreateNewGame(int slotIndex, string playerName, string firstSceneName)
+    {
+        return CreateNewGame(slotIndex, playerName, firstSceneName, false);
+    }
+
+    public static SporeSaveSlotData CreateNewGame(int slotIndex, string playerName, string firstSceneName, bool allowOverwrite = false)
     {
         slotIndex = ClampSlot(slotIndex);
         if (HasSave(slotIndex) && !allowOverwrite)
@@ -109,14 +118,19 @@ public static class SporeSaveManager
             Debug.LogWarning("[SporeSaveManager] Slot " + slotIndex + " already has a save. Refusing to overwrite.");
             return null;
         }
+
         SporeSaveSlotData data = SporeSaveSlotData.CreateNew(slotIndex, playerName, firstSceneName);
         ApplySlotToGameState(data);
         SaveSlot(data);
         return data;
     }
 
-    public static SporeSaveSlotData CreateNewGameInFirstEmptySlot(string firstSceneName, string playerName = "Gobbo") => CreateNewGame(playerName, firstSceneName);
+    public static SporeSaveSlotData CreateNewGameInFirstEmptySlot(string firstSceneName, string playerName = "Gobbo")
+    {
+        return CreateNewGame(playerName, firstSceneName);
+    }
 
+    // Safe camp autosave. This never creates a new slot.
     public static void SaveCurrentSlotFromGameState()
     {
         int slotIndex = GetCurrentSlot();
@@ -126,6 +140,7 @@ public static class SporeSaveManager
             Debug.LogWarning("[SporeSaveManager] No current save slot set. Refusing to create a new autosave.");
             return;
         }
+
         SporeSaveSlotData existing = LoadSlot(slotIndex);
         SporeSaveSlotData data = BuildSlotFromGameState(slotIndex, existing);
         SaveSlot(data);
@@ -148,6 +163,7 @@ public static class SporeSaveManager
     {
         slotIndex = ClampSlot(slotIndex);
         if (existing == null || !existing.hasSave) existing = SporeSaveSlotData.CreateNew(slotIndex, "Gobbo", "CampScene");
+
         GameState gs = GameState.Instance;
         if (gs != null)
         {
@@ -156,8 +172,11 @@ public static class SporeSaveManager
             existing.runNumber = existing.currentRunNumber;
             existing.maxActiveSquad = Mathf.Max(1, gs.maxActiveSquad);
             existing.campLevel = Mathf.Max(1, gs.campLevel);
-            existing.leader = gs.GetLeader().CloneUnit();
+            existing.leader = gs.GetLeader() != null ? gs.GetLeader().CloneUnit() : new GobboUnitSaveData { isLeader = true };
+            existing.leader.isLeader = true;
+            existing.player = existing.leader.ToLeaderSave(); // compatibility mirror
             existing.ownedGobbos = CloneUnits(gs.ownedGobbos);
+            existing.ownedBuddies = CloneBuddyMirror(existing.ownedGobbos);
             existing.activeSquadIds = gs.activeSquadIds != null ? new List<string>(gs.activeSquadIds) : new List<string>();
             existing.unlockedStations = gs.unlockedStations != null ? new List<string>(gs.unlockedStations) : new List<string>();
             existing.decorationsUnlocked = gs.decorationsUnlocked != null ? new List<string>(gs.decorationsUnlocked) : new List<string>();
@@ -196,11 +215,13 @@ public static class SporeSaveManager
         EnsureGameState();
         GameState gs = GameState.Instance;
         if (gs == null) return false;
+
         gs.currentRunNumber = Mathf.Max(1, data.currentRunNumber);
         gs.maxActiveSquad = Mathf.Max(1, data.maxActiveSquad);
         gs.campLevel = Mathf.Max(1, data.campLevel);
-        gs.SetLeader(data.leader != null ? data.leader.CloneUnit() : new GobboUnitSaveData { isLeader = true, displayName = data.playerName });
+        gs.SetLeader(data.leader != null ? data.leader : (data.player != null ? data.player.ToUnitSave() : new GobboUnitSaveData { isLeader = true }));
         gs.ownedGobbos = CloneUnits(data.ownedGobbos);
+        gs.ownedBuddies = CloneBuddyMirror(gs.ownedGobbos);
         gs.activeSquadIds = data.activeSquadIds != null ? new List<string>(data.activeSquadIds) : new List<string>();
         gs.unlockedStations = data.unlockedStations != null ? new List<string>(data.unlockedStations) : new List<string>();
         gs.decorationsUnlocked = data.decorationsUnlocked != null ? new List<string>(data.decorationsUnlocked) : new List<string>();
@@ -228,7 +249,7 @@ public static class SporeSaveManager
 
         SetCurrentSlot(data.slotIndex);
         SetLastPlayedSlot(data.slotIndex);
-        Debug.Log("[SporeSaveManager] Applied unified slot " + data.slotIndex + " to GameState. Leader: " + gs.leader.displayName + " / " + gs.leader.uniqueId + ", buddies: " + gs.ownedGobbos.Count);
+        Debug.Log("[SporeSaveManager] Applied unified slot " + data.slotIndex + " to GameState. Leader: " + gs.gobbo.displayName + " / " + gs.gobbo.uniqueId + ", gobbos: " + gs.ownedGobbos.Count);
         return true;
     }
 
@@ -266,22 +287,25 @@ public static class SporeSaveManager
     }
 
     public static int GetLastPlayedSlot() => PlayerPrefs.GetInt(LastSlotKey, 0);
-    public static void SetLastPlayedSlot(int slotIndex) { PlayerPrefs.SetInt(LastSlotKey, ClampSlot(slotIndex)); PlayerPrefs.Save(); }
+
+    public static void SetLastPlayedSlot(int slotIndex)
+    {
+        PlayerPrefs.SetInt(LastSlotKey, ClampSlot(slotIndex));
+        PlayerPrefs.Save();
+    }
+
     public static int GetCurrentSlot() => PlayerPrefs.GetInt(CurrentSlotKey, 0);
-    public static void SetCurrentSlot(int slotIndex) { PlayerPrefs.SetInt(CurrentSlotKey, ClampSlot(slotIndex)); PlayerPrefs.Save(); }
+
+    public static void SetCurrentSlot(int slotIndex)
+    {
+        PlayerPrefs.SetInt(CurrentSlotKey, ClampSlot(slotIndex));
+        PlayerPrefs.Save();
+    }
 
     public static void Normalize(SporeSaveSlotData data)
     {
         if (data == null) return;
         data.Normalize();
-        if (data.ownedGobbos != null)
-        {
-            foreach (GobboUnitSaveData unit in data.ownedGobbos)
-            {
-                if (unit == null) continue;
-                unit.EnsureRuntimeDefaults();
-            }
-        }
     }
 
     private static int ClampSlot(int slotIndex) => Mathf.Clamp(slotIndex <= 0 ? 1 : slotIndex, 1, SlotCount);
@@ -315,8 +339,21 @@ public static class SporeSaveManager
         {
             if (unit == null) continue;
             GobboUnitSaveData copy = unit.CloneUnit();
-            copy.EnsureRuntimeDefaults();
+            copy.isLeader = false;
             result.Add(copy);
+        }
+        return result;
+    }
+
+    private static List<BuddyData> CloneBuddyMirror(List<GobboUnitSaveData> source)
+    {
+        List<BuddyData> result = new List<BuddyData>();
+        if (source == null) return result;
+        foreach (GobboUnitSaveData unit in source)
+        {
+            if (unit == null) continue;
+            BuddyData buddy = unit.AsBuddyData();
+            if (buddy != null) result.Add(buddy.Clone());
         }
         return result;
     }

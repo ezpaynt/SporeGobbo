@@ -6,6 +6,9 @@ public class BuddyUnit : MonoBehaviour
     [Header("Runtime Data")]
     public GobboUnitSaveData unitData;
 
+    // Compatibility mirror for old scripts/inspector references. Do not use as permanent truth.
+    public BuddyData data;
+
     [Header("References")]
     public BuddyFollow follow;
     public BuddyCombat combat;
@@ -33,6 +36,13 @@ public class BuddyUnit : MonoBehaviour
         if (spriteRenderer != null) originalColor = spriteRenderer.color;
     }
 
+    public void Initialize(BuddyData newData)
+    {
+        data = newData;
+        unitData = newData;
+        Initialize(unitData);
+    }
+
     public void Initialize(GobboUnitSaveData newData)
     {
         unitData = newData;
@@ -41,6 +51,10 @@ public class BuddyUnit : MonoBehaviour
             unitData.EnsureId();
             unitData.EnsureRuntimeDefaults();
         }
+
+        if (data == null && unitData is BuddyData buddyData)
+            data = buddyData;
+
         ApplyStats();
         ApplyVisuals();
         initialized = true;
@@ -66,7 +80,8 @@ public class BuddyUnit : MonoBehaviour
             spriteRenderer.color = unitData.bodyColor;
             originalColor = spriteRenderer.color;
         }
-        if (visualController != null) visualController.ApplyIdentity(unitData.gobboType, unitData.ageStage, unitData.visualSetId);
+        if (visualController != null)
+            visualController.ApplyIdentity(unitData.gobboType, unitData.ageStage, unitData.visualSetId);
         transform.localScale = GetScaleForType(unitData.gobboType, unitData.ageStage);
     }
 
@@ -126,7 +141,10 @@ public class BuddyUnit : MonoBehaviour
         StartCoroutine(PoisonRoutine(damagePerTick, duration, tickRate));
     }
 
-    public void TakePoison(int damagePerTick, float duration, float tickRate) => ApplyPoison(damagePerTick, duration, tickRate);
+    public void TakePoison(int damagePerTick, float duration, float tickRate)
+    {
+        ApplyPoison(damagePerTick, duration, tickRate);
+    }
 
     IEnumerator PoisonRoutine(int damagePerTick, float duration, float tickRate)
     {
@@ -167,18 +185,26 @@ public class BuddyUnit : MonoBehaviour
         if (dead) return;
         dead = true;
         if (visualController != null) visualController.SetAnimationState(GobboAnimationState.Death);
+
         if (unitData != null)
         {
             unitData.EnsureId();
             unitData.isDead = true;
+
             if (GameState.Instance != null)
             {
-                GameState.Instance.RegisterGobboDeath(unitData);
-                GameState.Instance.RemoveGobbo(unitData.uniqueId);
+                if (data != null)
+                    GameState.Instance.RegisterBuddyDeath(data);
+                else
+                    GameState.Instance.RegisterBuddyDeath();
+
+                GameState.Instance.RemoveBuddy(unitData.uniqueId);
             }
+
             BuddyRoster roster = Object.FindAnyObjectByType<BuddyRoster>();
             if (roster != null) roster.RemoveBuddy(unitData.uniqueId);
         }
+
         Destroy(gameObject);
     }
 }

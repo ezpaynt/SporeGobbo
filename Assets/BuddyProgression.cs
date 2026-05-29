@@ -8,6 +8,16 @@ public static class BuddyProgression
     public const int TestBabyXPToNextLevel = 1;
     public static readonly int[] EvolutionLevels = { 2, 6, 12, 24, 48 };
 
+    public static void PrepareNewBaby(BuddyData buddy)
+    {
+        PrepareNewBaby((GobboUnitSaveData)buddy);
+        if (buddy != null)
+        {
+            buddy.buddyType = BuddyType.Baby;
+            buddy.buddyName = string.IsNullOrWhiteSpace(buddy.buddyName) ? buddy.displayName : buddy.buddyName;
+        }
+    }
+
     public static void PrepareNewBaby(GobboUnitSaveData unit)
     {
         if (unit == null) return;
@@ -26,12 +36,15 @@ public static class BuddyProgression
         unit.visualSetId = "baby";
     }
 
+    public static void AddXP(BuddyData buddy, int amount) => AddXP((GobboUnitSaveData)buddy, amount);
+
     public static void AddXP(GobboUnitSaveData unit, int amount)
     {
         if (unit == null || amount <= 0) return;
         unit.EnsureId();
         unit.EnsureRuntimeDefaults();
         if (unit.xpToNextLevel <= 0) unit.xpToNextLevel = TestBabyXPToNextLevel;
+
         unit.xp += amount;
         while (unit.xp >= unit.xpToNextLevel)
         {
@@ -41,6 +54,7 @@ public static class BuddyProgression
             unit.maxHealth += 2;
             unit.health = Mathf.Clamp(unit.health, 1, unit.maxHealth);
             if (unit.level % 3 == 0) unit.damage += 1;
+            unit.attack = Mathf.Max(unit.attack, unit.damage);
             if (IsEvolutionLevel(unit.level)) MarkPendingEvolution(unit, unit.level);
         }
     }
@@ -48,14 +62,26 @@ public static class BuddyProgression
     public static void DistributeEndRunFoodXP(GameState state, int foodXP)
     {
         if (state == null || foodXP <= 0) return;
+
         List<GobboUnitSaveData> active = state.GetActiveSquadUnits();
         List<GobboUnitSaveData> reserve = state.GetReserveGobboUnits();
+
         int activePool = Mathf.RoundToInt(foodXP * ActiveFoodShare);
         int reservePool = Mathf.Max(0, foodXP - activePool);
         int activeEach = active.Count > 0 ? Mathf.Max(1, activePool / active.Count) : 0;
         int reserveEach = reserve.Count > 0 ? Mathf.Max(1, reservePool / reserve.Count) : 0;
-        foreach (GobboUnitSaveData unit in active) { AddXP(unit, activeEach); EndRunCareTick(unit, true); }
-        foreach (GobboUnitSaveData unit in reserve) { AddXP(unit, reserveEach); EndRunCareTick(unit, false); }
+
+        foreach (GobboUnitSaveData unit in active)
+        {
+            AddXP(unit, activeEach);
+            EndRunCareTick(unit, true);
+        }
+
+        foreach (GobboUnitSaveData unit in reserve)
+        {
+            AddXP(unit, reserveEach);
+            EndRunCareTick(unit, false);
+        }
     }
 
     static void EndRunCareTick(GobboUnitSaveData unit, bool wasActive)
@@ -65,19 +91,25 @@ public static class BuddyProgression
         unit.health = Mathf.Clamp(unit.health, 1, unit.maxHealth);
         unit.hasBeenHit = false;
         unit.survivedLastRun = true;
+
         if (unit.pendingEvolution)
         {
             unit.runsWaitingForEvolution++;
-            if (unit.runsWaitingForEvolution >= 5) ForceNeglectedElder(unit);
-            else if (unit.runsWaitingForEvolution >= 3 && unit.happiness < 50) ForceNeglectedElder(unit);
+            if (unit.runsWaitingForEvolution >= 5)
+                ForceNeglectedElder(unit);
+            else if (unit.runsWaitingForEvolution >= 3 && unit.happiness < 50)
+                ForceNeglectedElder(unit);
         }
     }
 
     public static bool IsEvolutionLevel(int level)
     {
-        foreach (int milestone in EvolutionLevels) if (level == milestone) return true;
+        foreach (int milestone in EvolutionLevels)
+            if (level == milestone) return true;
         return false;
     }
+
+    public static void MarkPendingEvolution(BuddyData buddy, int level) => MarkPendingEvolution((GobboUnitSaveData)buddy, level);
 
     public static void MarkPendingEvolution(GobboUnitSaveData unit, int level)
     {
@@ -98,31 +130,62 @@ public static class BuddyProgression
         return GobboAgeStage.Young;
     }
 
+    public static void ApplyEvolutionChoice(BuddyData buddy, BuddyType chosenType, BuddyRoster roster)
+    {
+        ApplyEvolutionChoice((GobboUnitSaveData)buddy, chosenType, roster);
+        if (buddy != null)
+        {
+            buddy.buddyType = buddy.gobboType;
+            buddy.buddyName = buddy.displayName;
+        }
+    }
+
     public static void ApplyEvolutionChoice(GobboUnitSaveData unit, BuddyType chosenType, BuddyRoster roster)
     {
         if (unit == null) return;
         unit.EnsureId();
         unit.EnsureRuntimeDefaults();
-        if (unit.gobboType == BuddyType.Baby) unit.gobboType = chosenType;
-        if (unit.gobboType == BuddyType.Baby && chosenType != BuddyType.Baby) unit.gobboType = chosenType;
+
+        if (unit.gobboType == BuddyType.Baby && chosenType != BuddyType.Baby)
+            unit.gobboType = chosenType;
+
         unit.ageStage = GetStageForEvolutionLevel(Mathf.Max(2, unit.evolutionLevelWaiting));
         unit.pendingEvolution = false;
         unit.runsWaitingForEvolution = 0;
         unit.evolutionLevelWaiting = 0;
+
         int healthBeforeEvolution = unit.health;
-        if (roster != null)
+        BuddyTypeSetup setup = roster != null ? roster.GetSetup(unit.gobboType) : null;
+        if (setup != null)
         {
-            roster.ApplySetupToBuddy(unit, roster.GetSetup(unit.gobboType));
-            unit.health = Mathf.Clamp(healthBeforeEvolution, 1, unit.maxHealth);
+            unit.maxHealth = setup.maxHealth;
+            unit.damage = setup.damage;
+            unit.attack = setup.damage;
+            unit.defense = setup.defense;
+            unit.moveSpeed = setup.moveSpeed;
+            unit.attackCooldown = setup.attackCooldown;
+            unit.bodyColor = setup.bodyColor;
+            unit.onlyFightsAfterHit = setup.onlyFightsAfterHit;
+            unit.collectsFood = setup.collectsFood;
+            unit.visualSetId = !string.IsNullOrWhiteSpace(setup.defaultVisualSetId)
+                ? setup.defaultVisualSetId
+                : unit.gobboType.ToString().ToLowerInvariant() + "_" + unit.ageStage.ToString().ToLowerInvariant();
         }
         else
         {
             unit.visualSetId = unit.gobboType.ToString().ToLowerInvariant() + "_" + unit.ageStage.ToString().ToLowerInvariant();
-            unit.health = Mathf.Clamp(healthBeforeEvolution, 1, unit.maxHealth);
         }
+
+        unit.health = Mathf.Clamp(healthBeforeEvolution, 1, unit.maxHealth);
         string cardId = "evolve_" + chosenType.ToString().ToLowerInvariant();
-        if (unit.chosenCardIds != null && !unit.chosenCardIds.Contains(cardId)) unit.chosenCardIds.Add(cardId);
+        unit.chosenCardIds ??= new List<string>();
+        if (!unit.chosenCardIds.Contains(cardId)) unit.chosenCardIds.Add(cardId);
+        unit.evolutionHistoryIds ??= new List<string>();
+        if (!unit.evolutionHistoryIds.Contains(cardId)) unit.evolutionHistoryIds.Add(cardId);
+        unit.EnsureRuntimeDefaults();
     }
+
+    public static void ForceNeglectedElder(BuddyData buddy) => ForceNeglectedElder((GobboUnitSaveData)buddy);
 
     public static void ForceNeglectedElder(GobboUnitSaveData unit)
     {
@@ -136,6 +199,7 @@ public static class BuddyProgression
         unit.maxHealth += 5;
         unit.health = unit.maxHealth;
         unit.damage += 1;
+        unit.attack = Mathf.Max(unit.attack, unit.damage);
         unit.moveSpeed = Mathf.Max(1f, unit.moveSpeed - 0.25f);
     }
 }

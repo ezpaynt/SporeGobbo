@@ -2,6 +2,30 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
+public class GobboSaveData : GobboUnitSaveData
+{
+    // Compatibility alias. The real permanent id is uniqueId.
+    public string gobboId
+    {
+        get => uniqueId;
+        set => uniqueId = value;
+    }
+
+    public GobboSaveData()
+    {
+        isLeader = true;
+        displayName = "Gobbo";
+        maxHealth = 100;
+        health = 100;
+        attack = 5;
+        damage = 5;
+        defense = 2;
+        moveSpeed = 5f;
+        attackCooldown = 0.7f;
+    }
+}
+
+[System.Serializable]
 public class RunSummaryData
 {
     public bool survived = true;
@@ -50,14 +74,17 @@ public class GameState : MonoBehaviour
     [Header("Run Progress")]
     public int currentRunNumber = 1;
 
-    [Header("Unified Leader Save")]
-    public GobboUnitSaveData leader = new GobboUnitSaveData { isLeader = true, displayName = "Gobbo" };
+    [Header("Leader Save")]
+    public GobboSaveData gobbo = new GobboSaveData();
 
     [Header("Unified Roster Save")]
     public int maxActiveSquad = 5;
     public List<GobboUnitSaveData> ownedGobbos = new List<GobboUnitSaveData>();
     public List<string> activeSquadIds = new List<string>();
     public string markedSuccessorId = "";
+
+    [Header("Compatibility Roster Mirror - Do Not Treat As Source Of Truth")]
+    public List<BuddyData> ownedBuddies = new List<BuddyData>();
 
     [Header("Camp Save")]
     public int campLevel = 1;
@@ -68,7 +95,7 @@ public class GameState : MonoBehaviour
     public RunSummaryData lastRun = new RunSummaryData();
 
     private float runStartTime = 0f;
-    private GobboUnitSaveData runStartLeaderSnapshot;
+    private GobboSaveData runStartGobboSnapshot;
     private List<GobboUnitSaveData> runStartGobboRosterSnapshot = new List<GobboUnitSaveData>();
     private List<string> runStartBuddyIds = new List<string>();
     private List<string> deadBuddyIdsThisRun = new List<string>();
@@ -89,43 +116,24 @@ public class GameState : MonoBehaviour
 
     public void EnsureRuntimeDefaults()
     {
-        if (leader == null) leader = new GobboUnitSaveData { isLeader = true, displayName = "Gobbo" };
-        leader.isLeader = true;
-        leader.isDead = false;
-        leader.EnsureIdentity(string.IsNullOrWhiteSpace(leader.displayName) ? "Gobbo" : leader.displayName);
-        leader.EnsureRuntimeDefaults();
+        if (gobbo == null) gobbo = new GobboSaveData();
+        gobbo.EnsureLeaderIdentity(gobbo.displayName);
 
         ownedGobbos ??= new List<GobboUnitSaveData>();
+        ownedBuddies ??= new List<BuddyData>();
         activeSquadIds ??= new List<string>();
         unlockedStations ??= new List<string>();
         decorationsUnlocked ??= new List<string>();
         if (lastRun == null) lastRun = new RunSummaryData();
+
         RepairRosterState();
-    }
-
-    public GobboUnitSaveData GetLeader()
-    {
-        EnsureRuntimeDefaults();
-        return leader;
-    }
-
-    public void SetLeader(GobboUnitSaveData newLeader)
-    {
-        if (newLeader == null)
-            newLeader = new GobboUnitSaveData { isLeader = true, displayName = "Gobbo" };
-
-        leader = newLeader.CloneUnit();
-        leader.isLeader = true;
-        leader.isDead = false;
-        leader.EnsureIdentity(string.IsNullOrWhiteSpace(leader.displayName) ? "Gobbo" : leader.displayName);
-        leader.EnsureRuntimeDefaults();
     }
 
     public void BeginRunSnapshot()
     {
         EnsureRuntimeDefaults();
         runStartTime = Time.time;
-        runStartLeaderSnapshot = leader.CloneUnit();
+        runStartGobboSnapshot = CloneGobboSave(gobbo);
         runStartGobboRosterSnapshot = CloneUnitList(ownedGobbos);
         runStartBuddyIds.Clear();
         deadBuddyIdsThisRun.Clear();
@@ -140,12 +148,12 @@ public class GameState : MonoBehaviour
 
         lastRun = new RunSummaryData();
         lastRun.runNumber = currentRunNumber;
-        lastRun.playerLevelStart = leader.level;
-        lastRun.xpStart = leader.xp;
-        lastRun.sporesStart = leader.spores;
-        lastRun.mushroomsStart = leader.mushrooms;
-        lastRun.moneyStart = leader.money;
-        lastRun.shiniesStart = leader.shinies;
+        lastRun.playerLevelStart = gobbo.level;
+        lastRun.xpStart = gobbo.xp;
+        lastRun.sporesStart = gobbo.spores;
+        lastRun.mushroomsStart = gobbo.mushrooms;
+        lastRun.moneyStart = gobbo.money;
+        lastRun.shiniesStart = gobbo.shinies;
         lastRun.buddiesStart = runStartBuddyIds.Count;
     }
 
@@ -160,18 +168,20 @@ public class GameState : MonoBehaviour
     public void SaveFromRun()
     {
         GobboController player = Object.FindAnyObjectByType<GobboController>();
-        GobboUnitSaveData before = runStartLeaderSnapshot != null ? runStartLeaderSnapshot.CloneUnit() : leader.CloneUnit();
-        List<string> beforeIds = runStartBuddyIds.Count > 0 ? new List<string>(runStartBuddyIds) : GetOwnedGobboIds();
+        GobboSaveData before = runStartGobboSnapshot != null ? runStartGobboSnapshot : CloneGobboSave(gobbo);
+        List<string> beforeIds = runStartBuddyIds.Count > 0 ? new List<string>(runStartBuddyIds) : GetOwnedBuddyIds();
         List<GobboUnitSaveData> beforeGobbos = runStartGobboRosterSnapshot.Count > 0 ? CloneUnitList(runStartGobboRosterSnapshot) : CloneUnitList(ownedGobbos);
 
         if (player != null) SavePlayer(player);
         SaveVisibleRunBuddies();
         RepairRosterState();
+
         BuddyProgression.DistributeEndRunFoodXP(this, lastRun != null ? lastRun.foodValueGained : 0);
+
         bool survived = player != null && player.gameObject.activeInHierarchy;
         BuildRunSummary(before, beforeIds, beforeGobbos, survived);
         currentRunNumber = Mathf.Max(1, currentRunNumber + 1);
-        leader.runsSurvived++;
+        gobbo.runsSurvived++;
     }
 
     void SaveVisibleRunBuddies()
@@ -179,99 +189,114 @@ public class GameState : MonoBehaviour
         BuddyUnit[] visibleBuddies = Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None);
         foreach (BuddyUnit unit in visibleBuddies)
         {
-            if (unit == null || unit.unitData == null) continue;
-            unit.unitData.EnsureRuntimeDefaults();
-            GobboUnitSaveData saved = FindOwnedGobbo(unit.unitData.uniqueId);
+            if (unit == null) continue;
+
+            GobboUnitSaveData source = null;
+            if (unit.unitData != null) source = unit.unitData;
+            else if (unit.data != null) source = unit.data;
+            if (source == null) continue;
+
+            source.EnsureRuntimeDefaults();
+            GobboUnitSaveData saved = FindOwnedGobbo(source.uniqueId);
             if (saved == null) continue;
-            unit.unitData.CopyInto(saved);
+            source.CopyInto(saved);
         }
+
         RepairRosterState();
     }
 
     public void SavePlayer(GobboController player)
     {
         if (player == null) return;
-        EnsureRuntimeDefaults();
-        leader.isLeader = true;
-        leader.level = player.level;
-        leader.xp = player.xp;
-        leader.xpToNextLevel = player.xpToNextLevel;
-        leader.gobboType = player.gobboType;
-        leader.ageStage = player.ageStage;
-        leader.visualSetId = player.visualSetId;
-        leader.pendingEvolution = player.pendingEvolution;
-        leader.evolutionLevelWaiting = player.evolutionLevelWaiting;
-        leader.chosenCardIds = player.chosenCardIds != null ? new List<string>(player.chosenCardIds) : new List<string>();
-        leader.maxHealth = player.maxHealth;
-        leader.health = player.health;
-        leader.attack = player.attack;
-        leader.damage = player.attack;
-        leader.defense = player.defense;
-        leader.attackRange = player.attackRange;
-        leader.attackRadius = player.attackRadius;
-        leader.attackCooldown = player.attackCooldown;
-        leader.critChance = player.critChance;
-        leader.critDamageMultiplier = player.critDamageMultiplier;
-        leader.knockbackForce = player.knockbackForce;
-        leader.moveSpeed = player.moveSpeed;
-        leader.dashSpeed = player.dashSpeed;
-        leader.dashDuration = player.dashDuration;
-        leader.dashCooldown = player.dashCooldown;
-        leader.digPower = player.digPower;
-        leader.digRadius = player.digRadius;
-        leader.digRange = player.digRange;
-        leader.digTickRate = player.digTickRate;
-        leader.hasSporeMend = player.hasSporeMend;
-        leader.hasDashBite = player.hasDashBite;
-        leader.healthControlsSize = player.healthControlsSize;
-        leader.healthSizeMultiplier = player.healthSizeMultiplier;
+        if (gobbo == null) gobbo = new GobboSaveData();
+
+        gobbo.EnsureLeaderIdentity(gobbo.displayName);
+        gobbo.level = player.level;
+        gobbo.xp = player.xp;
+        gobbo.xpToNextLevel = player.xpToNextLevel;
+        gobbo.gobboType = player.gobboType;
+        gobbo.ageStage = player.ageStage;
+        gobbo.visualSetId = player.visualSetId;
+        gobbo.pendingEvolution = player.pendingEvolution;
+        gobbo.evolutionLevelWaiting = player.evolutionLevelWaiting;
+        gobbo.chosenCardIds = player.chosenCardIds != null ? new List<string>(player.chosenCardIds) : new List<string>();
+
+        gobbo.maxHealth = player.maxHealth;
+        gobbo.health = player.health;
+        gobbo.attack = player.attack;
+        gobbo.damage = player.attack;
+        gobbo.defense = player.defense;
+        gobbo.attackRange = player.attackRange;
+        gobbo.attackRadius = player.attackRadius;
+        gobbo.attackCooldown = player.attackCooldown;
+        gobbo.critChance = player.critChance;
+        gobbo.critDamageMultiplier = player.critDamageMultiplier;
+        gobbo.knockbackForce = player.knockbackForce;
+        gobbo.moveSpeed = player.moveSpeed;
+        gobbo.dashSpeed = player.dashSpeed;
+        gobbo.dashDuration = player.dashDuration;
+        gobbo.dashCooldown = player.dashCooldown;
+        gobbo.digPower = player.digPower;
+        gobbo.digRadius = player.digRadius;
+        gobbo.digRange = player.digRange;
+        gobbo.digTickRate = player.digTickRate;
+        gobbo.hasSporeMend = player.hasSporeMend;
+        gobbo.hasDashBite = player.hasDashBite;
+        gobbo.healthControlsSize = player.healthControlsSize;
+        gobbo.healthSizeMultiplier = player.healthSizeMultiplier;
+
         SporeInventory inventory = player.GetComponent<SporeInventory>();
-        leader.spores = inventory != null ? inventory.spores : player.sporeCount;
-        leader.EnsureRuntimeDefaults();
+        gobbo.spores = inventory != null ? inventory.spores : player.sporeCount;
+        gobbo.EnsureLeaderIdentity(gobbo.displayName);
     }
 
     public void ApplyToPlayer(GobboController player)
     {
         if (player == null) return;
-        EnsureRuntimeDefaults();
-        player.level = leader.level;
-        player.xp = leader.xp;
-        player.xpToNextLevel = leader.xpToNextLevel;
-        player.gobboType = leader.gobboType;
-        player.ageStage = leader.ageStage;
-        player.visualSetId = leader.visualSetId;
-        player.pendingEvolution = leader.pendingEvolution;
-        player.evolutionLevelWaiting = leader.evolutionLevelWaiting;
-        player.chosenCardIds = leader.chosenCardIds != null ? new List<string>(leader.chosenCardIds) : new List<string>();
-        player.maxHealth = leader.maxHealth;
-        player.health = Mathf.Clamp(leader.health, 1, Mathf.Max(1, leader.maxHealth));
-        player.attack = leader.attack;
-        player.defense = leader.defense;
-        player.attackRange = leader.attackRange;
-        player.attackRadius = leader.attackRadius;
-        player.attackCooldown = leader.attackCooldown;
-        player.critChance = leader.critChance;
-        player.critDamageMultiplier = leader.critDamageMultiplier;
-        player.knockbackForce = leader.knockbackForce;
-        player.moveSpeed = leader.moveSpeed;
-        player.dashSpeed = leader.dashSpeed;
-        player.dashDuration = leader.dashDuration;
-        player.dashCooldown = leader.dashCooldown;
-        player.digPower = leader.digPower;
-        player.digRadius = leader.digRadius;
-        player.digRange = leader.digRange;
-        player.digTickRate = leader.digTickRate;
-        player.hasSporeMend = leader.hasSporeMend;
-        player.hasDashBite = leader.hasDashBite;
-        player.healthControlsSize = leader.healthControlsSize;
-        player.healthSizeMultiplier = leader.healthSizeMultiplier;
-        player.sporeCount = leader.spores;
+        if (gobbo == null) gobbo = new GobboSaveData();
+        gobbo.EnsureLeaderIdentity(gobbo.displayName);
+
+        player.level = gobbo.level;
+        player.xp = gobbo.xp;
+        player.xpToNextLevel = gobbo.xpToNextLevel;
+        player.gobboType = gobbo.gobboType;
+        player.ageStage = gobbo.ageStage;
+        player.visualSetId = gobbo.visualSetId;
+        player.pendingEvolution = gobbo.pendingEvolution;
+        player.evolutionLevelWaiting = gobbo.evolutionLevelWaiting;
+        player.chosenCardIds = gobbo.chosenCardIds != null ? new List<string>(gobbo.chosenCardIds) : new List<string>();
+
+        player.maxHealth = gobbo.maxHealth;
+        player.health = Mathf.Clamp(gobbo.health, 1, Mathf.Max(1, gobbo.maxHealth));
+        player.attack = gobbo.attack;
+        player.defense = gobbo.defense;
+        player.attackRange = gobbo.attackRange;
+        player.attackRadius = gobbo.attackRadius;
+        player.attackCooldown = gobbo.attackCooldown;
+        player.critChance = gobbo.critChance;
+        player.critDamageMultiplier = gobbo.critDamageMultiplier;
+        player.knockbackForce = gobbo.knockbackForce;
+        player.moveSpeed = gobbo.moveSpeed;
+        player.dashSpeed = gobbo.dashSpeed;
+        player.dashDuration = gobbo.dashDuration;
+        player.dashCooldown = gobbo.dashCooldown;
+        player.digPower = gobbo.digPower;
+        player.digRadius = gobbo.digRadius;
+        player.digRange = gobbo.digRange;
+        player.digTickRate = gobbo.digTickRate;
+        player.hasSporeMend = gobbo.hasSporeMend;
+        player.hasDashBite = gobbo.hasDashBite;
+        player.healthControlsSize = gobbo.healthControlsSize;
+        player.healthSizeMultiplier = gobbo.healthSizeMultiplier;
+        player.sporeCount = gobbo.spores;
+
         SporeInventory inventory = player.GetComponent<SporeInventory>();
         if (inventory != null)
         {
-            inventory.spores = leader.spores;
+            inventory.spores = gobbo.spores;
             inventory.UpdateUI();
         }
+
         player.RefreshAfterSaveLoad();
     }
 
@@ -280,14 +305,26 @@ public class GameState : MonoBehaviour
         if (roster == null) return;
         roster.RepairRosterState();
         maxActiveSquad = roster.maxActiveSquad;
-        ownedGobbos = CloneUnitList(roster.ownedGobbos);
-        activeSquadIds = new List<string>();
-        foreach (GobboUnitSaveData unit in roster.activeSquad)
+        ownedGobbos.Clear();
+        activeSquadIds.Clear();
+
+        foreach (BuddyData buddy in roster.ownedBuddies)
         {
-            if (unit == null) continue;
-            unit.EnsureRuntimeDefaults();
-            if (!activeSquadIds.Contains(unit.uniqueId)) activeSquadIds.Add(unit.uniqueId);
+            if (buddy == null) continue;
+            buddy.EnsureId();
+            buddy.EnsureRuntimeDefaults();
+            GobboUnitSaveData copy = buddy.CloneUnit();
+            copy.isLeader = false;
+            ownedGobbos.Add(copy);
         }
+
+        foreach (BuddyData buddy in roster.activeSquad)
+        {
+            if (buddy == null) continue;
+            buddy.EnsureId();
+            if (!activeSquadIds.Contains(buddy.uniqueId)) activeSquadIds.Add(buddy.uniqueId);
+        }
+
         RepairRosterState();
     }
 
@@ -296,25 +333,40 @@ public class GameState : MonoBehaviour
         if (roster == null) return;
         RepairRosterState();
         roster.maxActiveSquad = maxActiveSquad;
-        roster.LoadRoster(ownedGobbos, activeSquadIds);
+        roster.LoadRoster(ownedBuddies, activeSquadIds);
     }
 
-    public void RegisterXPGained(int amount) { if (amount <= 0) return; EnsureLastRun(); lastRun.xpGained += amount; }
-    public void RegisterEnemyKilled() { EnsureLastRun(); lastRun.enemiesKilled++; leader.kills++; }
+    public void RegisterXPGained(int amount)
+    {
+        if (amount <= 0) return;
+        EnsureLastRun();
+        lastRun.xpGained += amount;
+    }
 
-    public void RegisterGobboFound(GobboUnitSaveData unit = null)
+    public void RegisterEnemyKilled()
     {
         EnsureLastRun();
-        if (unit != null)
+        lastRun.enemiesKilled++;
+        gobbo.kills++;
+    }
+
+    public void RegisterBuddyFound(BuddyData buddy = null)
+    {
+        EnsureLastRun();
+        if (buddy != null)
         {
-            unit.EnsureRuntimeDefaults();
-            string label = GetGobboLabel(unit);
+            buddy.EnsureId();
+            string label = GetGobboLabel(buddy);
             if (!lastRun.newBuddyNames.Contains(label)) lastRun.newBuddyNames.Add(label);
         }
         lastRun.buddiesFound = Mathf.Max(lastRun.buddiesFound, lastRun.newBuddyNames.Count);
     }
 
-    public void RegisterBuddyFound(GobboUnitSaveData unit = null) => RegisterGobboFound(unit);
+    public void RegisterBuddyDeath(BuddyData buddy)
+    {
+        if (buddy == null) return;
+        RegisterGobboDeath(buddy);
+    }
 
     public void RegisterGobboDeath(GobboUnitSaveData unit)
     {
@@ -328,19 +380,40 @@ public class GameState : MonoBehaviour
         lastRun.buddiesLost = lastRun.deadBuddyNames.Count;
     }
 
-    public void RegisterBuddyDeath(GobboUnitSaveData unit) => RegisterGobboDeath(unit);
-    public void RegisterBuddyDeath() { EnsureLastRun(); lastRun.buddiesLost++; }
+    public void RegisterBuddyDeath()
+    {
+        EnsureLastRun();
+        lastRun.buddiesLost++;
+    }
 
-    public void RegisterSporesGained(int amount) { if (amount <= 0) return; EnsureLastRun(); lastRun.sporesGained += amount; }
-    public void RegisterMushroomsGained(int amount) { if (amount <= 0) return; EnsureLastRun(); lastRun.mushroomsGained += amount; }
+    public void RegisterSporesGained(int amount)
+    {
+        if (amount <= 0) return;
+        EnsureLastRun();
+        lastRun.sporesGained += amount;
+    }
+
+    public void RegisterMushroomsGained(int amount)
+    {
+        if (amount <= 0) return;
+        EnsureLastRun();
+        lastRun.mushroomsGained += amount;
+    }
+
     public void RegisterMoneyGained(int amount) => RegisterShiniesGained(amount);
-    public void RegisterFoodValueGained(int amount) { if (amount <= 0) return; EnsureLastRun(); lastRun.foodValueGained += amount; }
+
+    public void RegisterFoodValueGained(int amount)
+    {
+        if (amount <= 0) return;
+        EnsureLastRun();
+        lastRun.foodValueGained += amount;
+    }
 
     public void RegisterShiniesGained(int amount)
     {
         if (amount <= 0) return;
-        leader.shinies += amount;
-        leader.money = leader.shinies;
+        gobbo.shinies += amount;
+        gobbo.money = gobbo.shinies;
         EnsureLastRun();
         lastRun.shiniesGained += amount;
         lastRun.moneyGained += amount;
@@ -349,9 +422,9 @@ public class GameState : MonoBehaviour
     public bool TrySpendShinies(int amount)
     {
         if (amount <= 0) return true;
-        if (leader.shinies < amount) return false;
-        leader.shinies -= amount;
-        leader.money = leader.shinies;
+        if (gobbo.shinies < amount) return false;
+        gobbo.shinies -= amount;
+        gobbo.money = gobbo.shinies;
         return true;
     }
 
@@ -360,19 +433,19 @@ public class GameState : MonoBehaviour
         if (string.IsNullOrWhiteSpace(upgradeName)) return;
         EnsureLastRun();
         if (!lastRun.upgradesChosen.Contains(upgradeName)) lastRun.upgradesChosen.Add(upgradeName);
-        if (!leader.unlockedUpgrades.Contains(upgradeName)) leader.unlockedUpgrades.Add(upgradeName);
+        if (!gobbo.unlockedUpgrades.Contains(upgradeName)) gobbo.unlockedUpgrades.Add(upgradeName);
     }
 
     public void RegisterCosmeticUnlocked(string cosmeticId)
     {
         if (string.IsNullOrWhiteSpace(cosmeticId)) return;
-        if (!leader.unlockedCosmetics.Contains(cosmeticId)) leader.unlockedCosmetics.Add(cosmeticId);
+        if (!gobbo.unlockedCosmetics.Contains(cosmeticId)) gobbo.unlockedCosmetics.Add(cosmeticId);
     }
 
     public void RegisterItemUnlocked(string itemId)
     {
         if (string.IsNullOrWhiteSpace(itemId)) return;
-        if (!leader.unlockedItems.Contains(itemId)) leader.unlockedItems.Add(itemId);
+        if (!gobbo.unlockedItems.Contains(itemId)) gobbo.unlockedItems.Add(itemId);
     }
 
     void EnsureLastRun()
@@ -387,11 +460,33 @@ public class GameState : MonoBehaviour
     public void RepairRosterState()
     {
         ownedGobbos ??= new List<GobboUnitSaveData>();
+        ownedBuddies ??= new List<BuddyData>();
         activeSquadIds ??= new List<string>();
+
+        // Bring any legacy BuddyData mutations back into the unified roster first.
+        foreach (BuddyData buddy in ownedBuddies)
+        {
+            if (buddy == null) continue;
+            buddy.EnsureId();
+            buddy.EnsureRuntimeDefaults();
+            GobboUnitSaveData existing = FindOwnedGobboRaw(buddy.uniqueId);
+            if (existing == null)
+            {
+                GobboUnitSaveData copy = buddy.CloneUnit();
+                copy.isLeader = false;
+                ownedGobbos.Add(copy);
+            }
+            else
+            {
+                buddy.CopyInto(existing);
+                existing.isLeader = false;
+            }
+        }
+
         ownedGobbos.RemoveAll(g => g == null);
 
         Dictionary<string, GobboUnitSaveData> unique = new Dictionary<string, GobboUnitSaveData>();
-        List<GobboUnitSaveData> repaired = new List<GobboUnitSaveData>();
+        List<GobboUnitSaveData> repairedGobbos = new List<GobboUnitSaveData>();
         foreach (GobboUnitSaveData unit in ownedGobbos)
         {
             if (unit == null) continue;
@@ -399,9 +494,9 @@ public class GameState : MonoBehaviour
             unit.EnsureRuntimeDefaults();
             if (unique.ContainsKey(unit.uniqueId)) continue;
             unique.Add(unit.uniqueId, unit);
-            repaired.Add(unit);
+            repairedGobbos.Add(unit);
         }
-        ownedGobbos = repaired;
+        ownedGobbos = repairedGobbos;
 
         HashSet<string> ownedIds = new HashSet<string>();
         foreach (GobboUnitSaveData unit in ownedGobbos)
@@ -426,6 +521,13 @@ public class GameState : MonoBehaviour
 
         if (!string.IsNullOrWhiteSpace(markedSuccessorId) && !ownedIds.Contains(markedSuccessorId))
             markedSuccessorId = "";
+
+        RebuildBuddyMirror();
+    }
+
+    public void AddBuddy(BuddyData buddy, bool preferActiveSquad = true)
+    {
+        AddGobbo(buddy, preferActiveSquad);
     }
 
     public void AddGobbo(GobboUnitSaveData unit, bool preferActiveSquad = true)
@@ -433,26 +535,34 @@ public class GameState : MonoBehaviour
         if (unit == null) return;
         unit.isLeader = false;
         unit.EnsureRuntimeDefaults();
+
         GobboUnitSaveData existing = FindOwnedGobboRaw(unit.uniqueId);
-        if (existing == null) ownedGobbos.Add(unit.CloneUnit());
-        else unit.CopyInto(existing);
+        if (existing == null)
+        {
+            ownedGobbos.Add(unit.CloneUnit());
+        }
+        else
+        {
+            unit.CopyInto(existing);
+            existing.isLeader = false;
+        }
+
         RepairRosterState();
         if (preferActiveSquad && activeSquadIds.Count < maxActiveSquad && !activeSquadIds.Contains(unit.uniqueId))
             MoveBuddyToActiveSquad(unit.uniqueId);
     }
 
-    public void AddBuddy(GobboUnitSaveData unit, bool preferActiveSquad = true) => AddGobbo(unit, preferActiveSquad);
+    public void RemoveBuddy(string buddyId) => RemoveGobbo(buddyId);
 
     public void RemoveGobbo(string gobboId)
     {
         if (string.IsNullOrWhiteSpace(gobboId)) return;
         ownedGobbos.RemoveAll(g => g == null || g.uniqueId == gobboId);
+        ownedBuddies.RemoveAll(b => b == null || b.uniqueId == gobboId);
         activeSquadIds.RemoveAll(id => id == gobboId);
         if (markedSuccessorId == gobboId) markedSuccessorId = "";
         RepairRosterState();
     }
-
-    public void RemoveBuddy(string buddyId) => RemoveGobbo(buddyId);
 
     public void RenameBuddy(string buddyId, string newName)
     {
@@ -462,14 +572,18 @@ public class GameState : MonoBehaviour
         RepairRosterState();
     }
 
+    public BuddyData FindBuddy(string buddyId)
+    {
+        GobboUnitSaveData unit = FindOwnedGobbo(buddyId);
+        return unit != null ? unit.AsBuddyData() : null;
+    }
+
     public GobboUnitSaveData FindOwnedGobbo(string gobboId)
     {
         if (string.IsNullOrWhiteSpace(gobboId)) return null;
-        RepairRosterStateNoFullRepair();
+        RepairRosterStateNoMirrorMerge();
         return FindOwnedGobboRaw(gobboId);
     }
-
-    public GobboUnitSaveData FindBuddy(string gobboId) => FindOwnedGobbo(gobboId);
 
     GobboUnitSaveData FindOwnedGobboRaw(string gobboId)
     {
@@ -483,7 +597,7 @@ public class GameState : MonoBehaviour
         return null;
     }
 
-    void RepairRosterStateNoFullRepair()
+    void RepairRosterStateNoMirrorMerge()
     {
         ownedGobbos ??= new List<GobboUnitSaveData>();
         activeSquadIds ??= new List<string>();
@@ -491,13 +605,17 @@ public class GameState : MonoBehaviour
         foreach (GobboUnitSaveData unit in ownedGobbos) unit.EnsureRuntimeDefaults();
     }
 
-    public List<GobboUnitSaveData> GetActiveSquadUnits()
+    public List<BuddyData> GetActiveSquad()
     {
         RepairRosterState();
-        return GetActiveSquadUnitsInternal();
+        List<BuddyData> result = new List<BuddyData>();
+        foreach (GobboUnitSaveData unit in GetActiveSquadUnitsInternal())
+        {
+            BuddyData buddy = unit.AsBuddyData();
+            if (buddy != null) result.Add(buddy);
+        }
+        return result;
     }
-
-    public List<GobboUnitSaveData> GetActiveSquad() => GetActiveSquadUnits();
 
     public List<GobboUnitSaveData> GetActiveSquadUnitsInternal()
     {
@@ -510,13 +628,17 @@ public class GameState : MonoBehaviour
         return result;
     }
 
-    public List<GobboUnitSaveData> GetReserveGobboUnits()
+    public List<BuddyData> GetReserveBuddies()
     {
         RepairRosterState();
-        return GetReserveGobboUnitsInternal();
+        List<BuddyData> result = new List<BuddyData>();
+        foreach (GobboUnitSaveData unit in GetReserveGobboUnitsInternal())
+        {
+            BuddyData buddy = unit.AsBuddyData();
+            if (buddy != null) result.Add(buddy);
+        }
+        return result;
     }
-
-    public List<GobboUnitSaveData> GetReserveBuddies() => GetReserveGobboUnits();
 
     public List<GobboUnitSaveData> GetReserveGobboUnitsInternal()
     {
@@ -570,20 +692,21 @@ public class GameState : MonoBehaviour
         return true;
     }
 
-    public GobboUnitSaveData PullFirstReserveGobbo()
+    public BuddyData PullFirstReserveBuddy()
     {
-        List<GobboUnitSaveData> reserve = GetReserveGobboUnits();
+        List<BuddyData> reserve = GetReserveBuddies();
         if (reserve.Count == 0) return null;
-        GobboUnitSaveData unit = reserve[0];
-        return MoveBuddyToActiveSquad(unit.uniqueId) ? unit : null;
+        BuddyData buddy = reserve[0];
+        if (MoveBuddyToActiveSquad(buddy.uniqueId)) return buddy;
+        return null;
     }
 
-    public GobboUnitSaveData PullFirstReserveBuddy() => PullFirstReserveGobbo();
     public bool HasReserveBuddy() => GetReserveGobboUnitsInternal().Count > 0;
 
-    void BuildRunSummary(GobboUnitSaveData before, List<string> beforeIds, List<GobboUnitSaveData> beforeGobbos, bool survived)
+    void BuildRunSummary(GobboSaveData before, List<string> beforeIds, List<GobboUnitSaveData> beforeGobbos, bool survived)
     {
         EnsureLastRun();
+
         int trackedXpGained = lastRun.xpGained;
         int trackedSporesGained = lastRun.sporesGained;
         int trackedMushroomsGained = lastRun.mushroomsGained;
@@ -597,27 +720,28 @@ public class GameState : MonoBehaviour
         lastRun.timeSpent = runStartTime > 0f ? Time.time - runStartTime : 0f;
         lastRun.runNumber = currentRunNumber;
         lastRun.playerLevelStart = before.level;
-        lastRun.playerLevelEnd = leader.level;
+        lastRun.playerLevelEnd = gobbo.level;
         lastRun.xpStart = before.xp;
-        lastRun.xpEnd = leader.xp;
-        lastRun.xpGained = trackedXpGained > 0 ? trackedXpGained : Mathf.Max(0, leader.xp - before.xp);
+        lastRun.xpEnd = gobbo.xp;
+        lastRun.xpGained = trackedXpGained > 0 ? trackedXpGained : Mathf.Max(0, gobbo.xp - before.xp);
         lastRun.sporesStart = before.spores;
-        lastRun.sporesEnd = leader.spores;
-        lastRun.sporesGained = trackedSporesGained > 0 ? trackedSporesGained : Mathf.Max(0, leader.spores - before.spores);
+        lastRun.sporesEnd = gobbo.spores;
+        lastRun.sporesGained = trackedSporesGained > 0 ? trackedSporesGained : Mathf.Max(0, gobbo.spores - before.spores);
         lastRun.mushroomsStart = before.mushrooms;
-        lastRun.mushroomsEnd = leader.mushrooms;
-        lastRun.mushroomsGained = trackedMushroomsGained > 0 ? trackedMushroomsGained : Mathf.Max(0, leader.mushrooms - before.mushrooms);
+        lastRun.mushroomsEnd = gobbo.mushrooms;
+        lastRun.mushroomsGained = trackedMushroomsGained > 0 ? trackedMushroomsGained : Mathf.Max(0, gobbo.mushrooms - before.mushrooms);
         lastRun.moneyStart = before.money;
-        lastRun.moneyEnd = leader.money;
-        lastRun.moneyGained = trackedMoneyGained > 0 ? trackedMoneyGained : Mathf.Max(0, leader.money - before.money);
+        lastRun.moneyEnd = gobbo.money;
+        lastRun.moneyGained = trackedMoneyGained > 0 ? trackedMoneyGained : Mathf.Max(0, gobbo.money - before.money);
         lastRun.foodValueGained = trackedFoodValueGained;
         lastRun.shiniesStart = before.shinies;
-        lastRun.shiniesEnd = leader.shinies;
-        lastRun.shiniesGained = trackedShiniesGained > 0 ? trackedShiniesGained : Mathf.Max(0, leader.shinies - before.shinies);
+        lastRun.shiniesEnd = gobbo.shinies;
+        lastRun.shiniesGained = trackedShiniesGained > 0 ? trackedShiniesGained : Mathf.Max(0, gobbo.shinies - before.shinies);
         lastRun.enemiesKilled = trackedEnemiesKilled;
         lastRun.upgradesChosen = trackedUpgrades;
         lastRun.buddiesStart = beforeIds.Count;
         lastRun.buddiesEnd = ownedGobbos.Count;
+
         lastRun.newBuddyNames.Clear();
         lastRun.deadBuddyNames.Clear();
 
@@ -625,11 +749,14 @@ public class GameState : MonoBehaviour
         {
             if (unit == null) continue;
             unit.EnsureRuntimeDefaults();
-            if (!beforeIds.Contains(unit.uniqueId)) lastRun.newBuddyNames.Add(GetGobboLabel(unit));
+            if (!beforeIds.Contains(unit.uniqueId))
+                lastRun.newBuddyNames.Add(GetGobboLabel(unit));
         }
 
         foreach (string deadName in deadBuddyNamesThisRun)
+        {
             if (!lastRun.deadBuddyNames.Contains(deadName)) lastRun.deadBuddyNames.Add(deadName);
+        }
 
         foreach (GobboUnitSaveData oldUnit in beforeGobbos)
         {
@@ -646,7 +773,7 @@ public class GameState : MonoBehaviour
         lastRun.buddiesLost = lastRun.deadBuddyNames.Count;
     }
 
-    List<string> GetOwnedGobboIds()
+    List<string> GetOwnedBuddyIds()
     {
         RepairRosterState();
         List<string> result = new List<string>();
@@ -664,14 +791,40 @@ public class GameState : MonoBehaviour
         List<GobboUnitSaveData> result = new List<GobboUnitSaveData>();
         if (source == null) return result;
         foreach (GobboUnitSaveData unit in source)
+        {
             if (unit != null) result.Add(unit.CloneUnit());
+        }
         return result;
+    }
+
+    GobboSaveData CloneGobboSave(GobboSaveData source)
+    {
+        return source == null ? new GobboSaveData() : source.CloneLeader();
+    }
+
+    void RebuildBuddyMirror()
+    {
+        ownedBuddies ??= new List<BuddyData>();
+        ownedBuddies.Clear();
+        foreach (GobboUnitSaveData unit in ownedGobbos)
+        {
+            if (unit == null) continue;
+            BuddyData buddy = unit.AsBuddyData();
+            if (buddy != null) ownedBuddies.Add(buddy);
+        }
     }
 
     string GetGobboLabel(GobboUnitSaveData unit)
     {
         if (unit == null) return "Unknown Gobbo";
         unit.EnsureRuntimeDefaults();
-        return unit.displayName + " the " + unit.gobboType;
+        string name = unit.displayName;
+        string type = unit.gobboType.ToString();
+        if (unit is BuddyData buddy)
+        {
+            name = buddy.buddyName;
+            type = buddy.buddyType.ToString();
+        }
+        return name + " the " + type;
     }
 }
