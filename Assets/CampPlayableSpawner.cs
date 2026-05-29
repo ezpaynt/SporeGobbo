@@ -67,9 +67,7 @@ public class CampPlayableSpawner : MonoBehaviour
         SpawnActiveBuddies();
         SpawnReserveBuddies();
 
-        Debug.Log("Playable camp spawned. Player: " + (spawnedPlayer != null) +
-                  ", active buddies: " + GameState.Instance.GetActiveSquadUnits().Count +
-                  ", reserve buddies: " + GameState.Instance.GetReserveGobboUnits().Count);
+        Debug.Log("Playable camp spawned. Player: " + (spawnedPlayer != null) + ", active buddies: " + GameState.Instance.GetActiveSquadUnits().Count + ", reserve buddies: " + GameState.Instance.GetReserveGobboUnits().Count);
     }
 
     public void ClearSpawnedCampObjects()
@@ -120,7 +118,6 @@ public class CampPlayableSpawner : MonoBehaviour
 
             if (disablePlayerCombatInCamp) controller.enemyLayers = 0;
             if (disablePlayerDiggingInCamp) controller.diggableLayers = 0;
-
             controller.enabled = true;
             GameState.Instance.SavePlayer(controller);
         }
@@ -145,10 +142,7 @@ public class CampPlayableSpawner : MonoBehaviour
         List<GobboUnitSaveData> active = GameState.Instance.GetActiveSquadUnits();
         for (int i = 0; i < active.Count; i++)
         {
-            Vector3 pos = spawnBuddiesNearPlayerFirst
-                ? GetArrivalSpot(i, active.Count, activeArrivalRadius)
-                : GetSpot(activeBuddySpots, i, activeCircleRadius, i, active.Count);
-
+            Vector3 pos = spawnBuddiesNearPlayerFirst ? GetArrivalSpot(i, active.Count, activeArrivalRadius) : GetSpot(activeBuddySpots, i, activeCircleRadius, i, active.Count);
             SpawnCampBuddy(activeBuddyPrefab, active[i], pos, true, activeSortingOrder, activeWanderRadius, activeWanderSpeedMultiplier, i);
         }
     }
@@ -160,27 +154,23 @@ public class CampPlayableSpawner : MonoBehaviour
 
         List<GobboUnitSaveData> active = GameState.Instance.GetActiveSquadUnits();
         List<GobboUnitSaveData> reserve = GameState.Instance.GetReserveGobboUnits();
-
         for (int i = 0; i < reserve.Count; i++)
         {
-            Vector3 pos = spawnBuddiesNearPlayerFirst
-                ? GetArrivalSpot(i + active.Count, reserve.Count + active.Count, reserveArrivalRadius)
-                : GetSpot(reserveBuddySpots, i, reserveCircleRadius, i, reserve.Count);
-
+            Vector3 pos = spawnBuddiesNearPlayerFirst ? GetArrivalSpot(i + active.Count, reserve.Count + active.Count, reserveArrivalRadius) : GetSpot(reserveBuddySpots, i, reserveCircleRadius, i, reserve.Count);
             SpawnCampBuddy(prefab, reserve[i], pos, false, reserveSortingOrder, reserveWanderRadius, reserveWanderSpeedMultiplier, i);
         }
     }
 
-    void SpawnCampBuddy(GameObject prefab, GobboUnitSaveData data, Vector3 position, bool activeSquad, int sortingOrder, float wanderRadius, float speedMultiplier, int spotIndex)
+    void SpawnCampBuddy(GameObject prefab, GobboUnitSaveData unitData, Vector3 position, bool activeSquad, int sortingOrder, float wanderRadius, float speedMultiplier, int spotIndex)
     {
-        if (prefab == null || data == null) return;
+        if (prefab == null || unitData == null) return;
 
-        data.EnsureRuntimeDefaults();
-        data.health = Mathf.Clamp(data.health, 1, Mathf.Max(1, data.maxHealth));
+        unitData.EnsureRuntimeDefaults();
+        unitData.health = Mathf.Clamp(unitData.health, 1, Mathf.Max(1, unitData.maxHealth));
 
         position.z = 0f;
         GameObject buddyObject = Instantiate(prefab, position, Quaternion.identity);
-        buddyObject.name = activeSquad ? data.displayName + " Camp Buddy" : data.displayName + " Camp Reserve";
+        buddyObject.name = activeSquad ? unitData.displayName + " Camp Buddy" : unitData.displayName + " Camp Reserve";
         spawnedObjects.Add(buddyObject);
 
         Rigidbody2D rb = buddyObject.GetComponent<Rigidbody2D>();
@@ -191,7 +181,7 @@ public class CampPlayableSpawner : MonoBehaviour
         }
 
         BuddyUnit unit = buddyObject.GetComponent<BuddyUnit>();
-        if (unit != null) unit.Initialize(data);
+        if (unit != null) unit.Initialize(unitData);
 
         DisableRunBuddyBehavior(buddyObject);
 
@@ -201,7 +191,7 @@ public class CampPlayableSpawner : MonoBehaviour
         if (wander == null) wander = buddyObject.AddComponent<CampWander>();
 
         Transform anchor = activeSquad ? GetAnchorTransform(activeBuddySpots, spotIndex) : GetAnchorTransform(reserveBuddySpots, spotIndex);
-        wander.SetAnchor(anchor, wanderRadius, Mathf.Max(0.2f, data.moveSpeed * speedMultiplier));
+        wander.SetAnchor(anchor, wanderRadius, Mathf.Max(0.2f, unitData.moveSpeed * speedMultiplier));
 
         ForceVisible(buddyObject, sortingOrder);
     }

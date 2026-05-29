@@ -91,11 +91,11 @@ public class RunSquadSpawner : MonoBehaviour
         Debug.Log("RunSquadSpawner spawned active squad count: " + active.Count);
     }
 
-    void SpawnBuddy(GobboUnitSaveData buddy, int index, int count, Transform player)
+    void SpawnBuddy(GobboUnitSaveData gobbo, int index, int count, Transform player)
     {
-        if (buddy == null || player == null || buddyPrefab == null) return;
+        if (gobbo == null || player == null || buddyPrefab == null) return;
 
-        buddy.EnsureRuntimeDefaults();
+        gobbo.EnsureRuntimeDefaults();
 
         float angle = count <= 0 ? 0f : (index / (float)count) * Mathf.PI * 2f;
         Vector2 offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * spawnRadius;
@@ -103,7 +103,7 @@ public class RunSquadSpawner : MonoBehaviour
         spawnPos.z = 0f;
 
         GameObject obj = Instantiate(buddyPrefab, spawnPos, Quaternion.identity);
-        obj.name = buddy.displayName + " Run Buddy";
+        obj.name = gobbo.displayName + " Run Buddy";
 
         int buddyLayer = LayerMask.NameToLayer("Buddy");
         if (buddyLayer >= 0) obj.layer = buddyLayer;
@@ -116,7 +116,7 @@ public class RunSquadSpawner : MonoBehaviour
         }
 
         BuddyUnit unit = obj.GetComponent<BuddyUnit>();
-        if (unit != null) unit.Initialize(buddy);
+        if (unit != null) unit.Initialize(gobbo);
         else Debug.LogWarning("Run buddy prefab is missing BuddyUnit.", obj);
 
         BuddyBrain brain = obj.GetComponent<BuddyBrain>();
@@ -125,7 +125,7 @@ public class RunSquadSpawner : MonoBehaviour
             brain.enabled = enableBrain;
             brain.allowCombat = true;
             brain.allowFollowing = true;
-            brain.allowScavenging = buddy.collectsFood;
+            brain.allowScavenging = gobbo.collectsFood;
         }
 
         BuddyFollow follow = obj.GetComponent<BuddyFollow>();
@@ -150,7 +150,7 @@ public class RunSquadSpawner : MonoBehaviour
         BuddyScavenger scavenger = obj.GetComponent<BuddyScavenger>();
         if (scavenger != null)
         {
-            scavenger.enabled = enableScavengerIfBuddyCollectsFood && buddy.collectsFood;
+            scavenger.enabled = enableScavengerIfBuddyCollectsFood && gobbo.collectsFood;
             scavenger.brainAllowsMovement = false;
         }
 
