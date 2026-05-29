@@ -162,8 +162,7 @@ public static class SporeSaveManager
     public static SporeSaveSlotData BuildSlotFromGameState(int slotIndex, SporeSaveSlotData existing = null)
     {
         slotIndex = ClampSlot(slotIndex);
-        if (existing == null || !existing.hasSave)
-            existing = SporeSaveSlotData.CreateNew(slotIndex, "Gobbo", "CampScene");
+        if (existing == null || !existing.hasSave) existing = SporeSaveSlotData.CreateNew(slotIndex, "Gobbo", "CampScene");
 
         GameState gs = GameState.Instance;
         if (gs != null)
@@ -173,9 +172,11 @@ public static class SporeSaveManager
             existing.runNumber = existing.currentRunNumber;
             existing.maxActiveSquad = Mathf.Max(1, gs.maxActiveSquad);
             existing.campLevel = Mathf.Max(1, gs.campLevel);
-            existing.leader = gs.gobbo.ToUnitSave();
-            existing.player = gs.gobbo.CloneLeader(); // compatibility mirror
-            existing.ownedBuddies = CloneBuddies(gs.ownedBuddies);
+            existing.leader = gs.GetLeader() != null ? gs.GetLeader().CloneUnit() : new GobboUnitSaveData { isLeader = true };
+            existing.leader.isLeader = true;
+            existing.player = existing.leader.ToLeaderSave(); // compatibility mirror
+            existing.ownedGobbos = CloneUnits(gs.ownedGobbos);
+            existing.ownedBuddies = CloneBuddyMirror(existing.ownedGobbos);
             existing.activeSquadIds = gs.activeSquadIds != null ? new List<string>(gs.activeSquadIds) : new List<string>();
             existing.unlockedStations = gs.unlockedStations != null ? new List<string>(gs.unlockedStations) : new List<string>();
             existing.decorationsUnlocked = gs.decorationsUnlocked != null ? new List<string>(gs.decorationsUnlocked) : new List<string>();
@@ -199,10 +200,8 @@ public static class SporeSaveManager
         }
 
         CampDeathHistoryStore deathStore = UnityEngine.Object.FindAnyObjectByType<CampDeathHistoryStore>(FindObjectsInactive.Include);
-        if (deathStore != null && deathStore.deadBuddyHistory != null)
-            existing.deathHistory = new List<DeadBuddyRecord>(deathStore.deadBuddyHistory);
-        else if (existing.deathHistory == null)
-            existing.deathHistory = new List<DeadBuddyRecord>();
+        if (deathStore != null && deathStore.deadBuddyHistory != null) existing.deathHistory = new List<DeadBuddyRecord>(deathStore.deadBuddyHistory);
+        else if (existing.deathHistory == null) existing.deathHistory = new List<DeadBuddyRecord>();
 
         existing.nextSceneName = "CampScene";
         existing.Normalize();
@@ -220,9 +219,9 @@ public static class SporeSaveManager
         gs.currentRunNumber = Mathf.Max(1, data.currentRunNumber);
         gs.maxActiveSquad = Mathf.Max(1, data.maxActiveSquad);
         gs.campLevel = Mathf.Max(1, data.campLevel);
-        gs.gobbo = data.leader != null ? data.leader.ToLeaderSave() : (data.player != null ? data.player.CloneLeader() : new GobboSaveData());
-        gs.gobbo.EnsureLeaderIdentity(data.playerName);
-        gs.ownedBuddies = CloneBuddies(data.ownedBuddies);
+        gs.SetLeader(data.leader != null ? data.leader : (data.player != null ? data.player.ToUnitSave() : new GobboUnitSaveData { isLeader = true }));
+        gs.ownedGobbos = CloneUnits(data.ownedGobbos);
+        gs.ownedBuddies = CloneBuddyMirror(gs.ownedGobbos);
         gs.activeSquadIds = data.activeSquadIds != null ? new List<string>(data.activeSquadIds) : new List<string>();
         gs.unlockedStations = data.unlockedStations != null ? new List<string>(data.unlockedStations) : new List<string>();
         gs.decorationsUnlocked = data.decorationsUnlocked != null ? new List<string>(data.decorationsUnlocked) : new List<string>();
@@ -250,7 +249,7 @@ public static class SporeSaveManager
 
         SetCurrentSlot(data.slotIndex);
         SetLastPlayedSlot(data.slotIndex);
-        Debug.Log("[SporeSaveManager] Applied unified slot " + data.slotIndex + " to GameState. Leader: " + gs.gobbo.displayName + " / " + gs.gobbo.uniqueId + ", buddies: " + gs.ownedBuddies.Count);
+        Debug.Log("[SporeSaveManager] Applied unified slot " + data.slotIndex + " to GameState. Leader: " + gs.gobbo.displayName + " / " + gs.gobbo.uniqueId + ", gobbos: " + gs.ownedGobbos.Count);
         return true;
     }
 
@@ -288,6 +287,7 @@ public static class SporeSaveManager
     }
 
     public static int GetLastPlayedSlot() => PlayerPrefs.GetInt(LastSlotKey, 0);
+
     public static void SetLastPlayedSlot(int slotIndex)
     {
         PlayerPrefs.SetInt(LastSlotKey, ClampSlot(slotIndex));
@@ -295,6 +295,7 @@ public static class SporeSaveManager
     }
 
     public static int GetCurrentSlot() => PlayerPrefs.GetInt(CurrentSlotKey, 0);
+
     public static void SetCurrentSlot(int slotIndex)
     {
         PlayerPrefs.SetInt(CurrentSlotKey, ClampSlot(slotIndex));
@@ -305,15 +306,6 @@ public static class SporeSaveManager
     {
         if (data == null) return;
         data.Normalize();
-        if (data.ownedBuddies != null)
-        {
-            foreach (BuddyData buddy in data.ownedBuddies)
-            {
-                if (buddy == null) continue;
-                buddy.EnsureId();
-                buddy.EnsureRuntimeDefaults();
-            }
-        }
     }
 
     private static int ClampSlot(int slotIndex) => Mathf.Clamp(slotIndex <= 0 ? 1 : slotIndex, 1, SlotCount);
@@ -339,17 +331,29 @@ public static class SporeSaveManager
         return copy;
     }
 
-    private static List<BuddyData> CloneBuddies(List<BuddyData> source)
+    private static List<GobboUnitSaveData> CloneUnits(List<GobboUnitSaveData> source)
+    {
+        List<GobboUnitSaveData> result = new List<GobboUnitSaveData>();
+        if (source == null) return result;
+        foreach (GobboUnitSaveData unit in source)
+        {
+            if (unit == null) continue;
+            GobboUnitSaveData copy = unit.CloneUnit();
+            copy.isLeader = false;
+            result.Add(copy);
+        }
+        return result;
+    }
+
+    private static List<BuddyData> CloneBuddyMirror(List<GobboUnitSaveData> source)
     {
         List<BuddyData> result = new List<BuddyData>();
         if (source == null) return result;
-        foreach (BuddyData buddy in source)
+        foreach (GobboUnitSaveData unit in source)
         {
-            if (buddy == null) continue;
-            BuddyData copy = buddy.Clone();
-            copy.EnsureId();
-            copy.EnsureRuntimeDefaults();
-            result.Add(copy);
+            if (unit == null) continue;
+            BuddyData buddy = unit.AsBuddyData();
+            if (buddy != null) result.Add(buddy.Clone());
         }
         return result;
     }

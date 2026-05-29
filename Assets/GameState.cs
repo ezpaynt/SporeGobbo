@@ -41,13 +41,17 @@ public class RunSummaryData
     public int sporesStart = 0;
     public int sporesEnd = 0;
     public int sporesGained = 0;
+
     public int mushroomsStart = 0;
     public int mushroomsEnd = 0;
     public int mushroomsGained = 0;
+
     public int moneyStart = 0;
     public int moneyEnd = 0;
     public int moneyGained = 0;
+
     public int foodValueGained = 0;
+
     public int shiniesStart = 0;
     public int shiniesEnd = 0;
     public int shiniesGained = 0;
@@ -73,11 +77,14 @@ public class GameState : MonoBehaviour
     [Header("Leader Save")]
     public GobboSaveData gobbo = new GobboSaveData();
 
-    [Header("Roster Save")]
+    [Header("Unified Roster Save")]
     public int maxActiveSquad = 5;
-    public List<BuddyData> ownedBuddies = new List<BuddyData>();
+    public List<GobboUnitSaveData> ownedGobbos = new List<GobboUnitSaveData>();
     public List<string> activeSquadIds = new List<string>();
     public string markedSuccessorId = "";
+
+    [Header("Compatibility Roster Mirror - Do Not Treat As Source Of Truth")]
+    public List<BuddyData> ownedBuddies = new List<BuddyData>();
 
     [Header("Camp Save")]
     public int campLevel = 1;
@@ -89,7 +96,7 @@ public class GameState : MonoBehaviour
 
     private float runStartTime = 0f;
     private GobboSaveData runStartGobboSnapshot;
-    private List<BuddyData> runStartBuddySnapshot = new List<BuddyData>();
+    private List<GobboUnitSaveData> runStartGobboRosterSnapshot = new List<GobboUnitSaveData>();
     private List<string> runStartBuddyIds = new List<string>();
     private List<string> deadBuddyIdsThisRun = new List<string>();
     private List<string> deadBuddyNamesThisRun = new List<string>();
@@ -111,11 +118,14 @@ public class GameState : MonoBehaviour
     {
         if (gobbo == null) gobbo = new GobboSaveData();
         gobbo.EnsureLeaderIdentity(gobbo.displayName);
+
+        ownedGobbos ??= new List<GobboUnitSaveData>();
         ownedBuddies ??= new List<BuddyData>();
         activeSquadIds ??= new List<string>();
         unlockedStations ??= new List<string>();
         decorationsUnlocked ??= new List<string>();
         if (lastRun == null) lastRun = new RunSummaryData();
+
         RepairRosterState();
     }
 
@@ -124,19 +134,16 @@ public class GameState : MonoBehaviour
         EnsureRuntimeDefaults();
         runStartTime = Time.time;
         runStartGobboSnapshot = CloneGobboSave(gobbo);
-        runStartBuddySnapshot.Clear();
+        runStartGobboRosterSnapshot = CloneUnitList(ownedGobbos);
         runStartBuddyIds.Clear();
         deadBuddyIdsThisRun.Clear();
         deadBuddyNamesThisRun.Clear();
 
-        foreach (BuddyData buddy in ownedBuddies)
+        foreach (GobboUnitSaveData unit in ownedGobbos)
         {
-            if (buddy == null) continue;
-            buddy.EnsureId();
-            buddy.EnsureRuntimeDefaults();
-            BuddyData copy = buddy.Clone();
-            runStartBuddySnapshot.Add(copy);
-            runStartBuddyIds.Add(copy.uniqueId);
+            if (unit == null) continue;
+            unit.EnsureRuntimeDefaults();
+            runStartBuddyIds.Add(unit.uniqueId);
         }
 
         lastRun = new RunSummaryData();
@@ -154,8 +161,6 @@ public class GameState : MonoBehaviour
     {
         GobboController player = Object.FindAnyObjectByType<GobboController>();
         if (player != null) SavePlayer(player);
-        // GameState owns the buddy roster. Do not save scene BuddyRoster here,
-        // because stale/empty test rosters can wipe the camp-selected squad.
         RepairRosterState();
         BeginRunSnapshot();
     }
@@ -165,15 +170,16 @@ public class GameState : MonoBehaviour
         GobboController player = Object.FindAnyObjectByType<GobboController>();
         GobboSaveData before = runStartGobboSnapshot != null ? runStartGobboSnapshot : CloneGobboSave(gobbo);
         List<string> beforeIds = runStartBuddyIds.Count > 0 ? new List<string>(runStartBuddyIds) : GetOwnedBuddyIds();
-        List<BuddyData> beforeBuddies = runStartBuddySnapshot.Count > 0 ? CloneBuddyList(runStartBuddySnapshot) : CloneBuddyList(ownedBuddies);
+        List<GobboUnitSaveData> beforeGobbos = runStartGobboRosterSnapshot.Count > 0 ? CloneUnitList(runStartGobboRosterSnapshot) : CloneUnitList(ownedGobbos);
 
         if (player != null) SavePlayer(player);
         SaveVisibleRunBuddies();
         RepairRosterState();
+
         BuddyProgression.DistributeEndRunFoodXP(this, lastRun != null ? lastRun.foodValueGained : 0);
 
         bool survived = player != null && player.gameObject.activeInHierarchy;
-        BuildRunSummary(before, beforeIds, beforeBuddies, survived);
+        BuildRunSummary(before, beforeIds, beforeGobbos, survived);
         currentRunNumber = Mathf.Max(1, currentRunNumber + 1);
         gobbo.runsSurvived++;
     }
@@ -183,28 +189,28 @@ public class GameState : MonoBehaviour
         BuddyUnit[] visibleBuddies = Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None);
         foreach (BuddyUnit unit in visibleBuddies)
         {
-            if (unit == null || unit.data == null) continue;
-            unit.data.EnsureId();
-            unit.data.EnsureRuntimeDefaults();
-            BuddyData saved = FindBuddy(unit.data.uniqueId);
-            if (saved == null) continue;
-            CopyBuddyRuntimeData(unit.data, saved);
-        }
-    }
+            if (unit == null) continue;
 
-    void CopyBuddyRuntimeData(BuddyData source, BuddyData target)
-    {
-        if (source == null || target == null) return;
-        source.EnsureRuntimeDefaults();
-        source.CopyInto(target);
+            GobboUnitSaveData source = null;
+            if (unit.unitData != null) source = unit.unitData;
+            else if (unit.data != null) source = unit.data;
+            if (source == null) continue;
+
+            source.EnsureRuntimeDefaults();
+            GobboUnitSaveData saved = FindOwnedGobbo(source.uniqueId);
+            if (saved == null) continue;
+            source.CopyInto(saved);
+        }
+
+        RepairRosterState();
     }
 
     public void SavePlayer(GobboController player)
     {
         if (player == null) return;
         if (gobbo == null) gobbo = new GobboSaveData();
-        gobbo.EnsureLeaderIdentity(gobbo.displayName);
 
+        gobbo.EnsureLeaderIdentity(gobbo.displayName);
         gobbo.level = player.level;
         gobbo.xp = player.xp;
         gobbo.xpToNextLevel = player.xpToNextLevel;
@@ -226,17 +232,14 @@ public class GameState : MonoBehaviour
         gobbo.critChance = player.critChance;
         gobbo.critDamageMultiplier = player.critDamageMultiplier;
         gobbo.knockbackForce = player.knockbackForce;
-
         gobbo.moveSpeed = player.moveSpeed;
         gobbo.dashSpeed = player.dashSpeed;
         gobbo.dashDuration = player.dashDuration;
         gobbo.dashCooldown = player.dashCooldown;
-
         gobbo.digPower = player.digPower;
         gobbo.digRadius = player.digRadius;
         gobbo.digRange = player.digRange;
         gobbo.digTickRate = player.digTickRate;
-
         gobbo.hasSporeMend = player.hasSporeMend;
         gobbo.hasDashBite = player.hasDashBite;
         gobbo.healthControlsSize = player.healthControlsSize;
@@ -264,7 +267,7 @@ public class GameState : MonoBehaviour
         player.chosenCardIds = gobbo.chosenCardIds != null ? new List<string>(gobbo.chosenCardIds) : new List<string>();
 
         player.maxHealth = gobbo.maxHealth;
-        player.health = Mathf.Clamp(gobbo.health, 1, gobbo.maxHealth);
+        player.health = Mathf.Clamp(gobbo.health, 1, Mathf.Max(1, gobbo.maxHealth));
         player.attack = gobbo.attack;
         player.defense = gobbo.defense;
         player.attackRange = gobbo.attackRange;
@@ -273,17 +276,14 @@ public class GameState : MonoBehaviour
         player.critChance = gobbo.critChance;
         player.critDamageMultiplier = gobbo.critDamageMultiplier;
         player.knockbackForce = gobbo.knockbackForce;
-
         player.moveSpeed = gobbo.moveSpeed;
         player.dashSpeed = gobbo.dashSpeed;
         player.dashDuration = gobbo.dashDuration;
         player.dashCooldown = gobbo.dashCooldown;
-
         player.digPower = gobbo.digPower;
         player.digRadius = gobbo.digRadius;
         player.digRange = gobbo.digRange;
         player.digTickRate = gobbo.digTickRate;
-
         player.hasSporeMend = gobbo.hasSporeMend;
         player.hasDashBite = gobbo.hasDashBite;
         player.healthControlsSize = gobbo.healthControlsSize;
@@ -305,7 +305,7 @@ public class GameState : MonoBehaviour
         if (roster == null) return;
         roster.RepairRosterState();
         maxActiveSquad = roster.maxActiveSquad;
-        ownedBuddies.Clear();
+        ownedGobbos.Clear();
         activeSquadIds.Clear();
 
         foreach (BuddyData buddy in roster.ownedBuddies)
@@ -313,7 +313,9 @@ public class GameState : MonoBehaviour
             if (buddy == null) continue;
             buddy.EnsureId();
             buddy.EnsureRuntimeDefaults();
-            ownedBuddies.Add(buddy.Clone());
+            GobboUnitSaveData copy = buddy.CloneUnit();
+            copy.isLeader = false;
+            ownedGobbos.Add(copy);
         }
 
         foreach (BuddyData buddy in roster.activeSquad)
@@ -334,8 +336,19 @@ public class GameState : MonoBehaviour
         roster.LoadRoster(ownedBuddies, activeSquadIds);
     }
 
-    public void RegisterXPGained(int amount) { if (amount <= 0) return; EnsureLastRun(); lastRun.xpGained += amount; }
-    public void RegisterEnemyKilled() { EnsureLastRun(); lastRun.enemiesKilled++; gobbo.kills++; }
+    public void RegisterXPGained(int amount)
+    {
+        if (amount <= 0) return;
+        EnsureLastRun();
+        lastRun.xpGained += amount;
+    }
+
+    public void RegisterEnemyKilled()
+    {
+        EnsureLastRun();
+        lastRun.enemiesKilled++;
+        gobbo.kills++;
+    }
 
     public void RegisterBuddyFound(BuddyData buddy = null)
     {
@@ -343,7 +356,7 @@ public class GameState : MonoBehaviour
         if (buddy != null)
         {
             buddy.EnsureId();
-            string label = buddy.buddyName + " the " + buddy.buddyType;
+            string label = GetGobboLabel(buddy);
             if (!lastRun.newBuddyNames.Contains(label)) lastRun.newBuddyNames.Add(label);
         }
         lastRun.buddiesFound = Mathf.Max(lastRun.buddiesFound, lastRun.newBuddyNames.Count);
@@ -352,20 +365,49 @@ public class GameState : MonoBehaviour
     public void RegisterBuddyDeath(BuddyData buddy)
     {
         if (buddy == null) return;
-        buddy.EnsureId();
-        if (!deadBuddyIdsThisRun.Contains(buddy.uniqueId)) deadBuddyIdsThisRun.Add(buddy.uniqueId);
-        string label = buddy.buddyName + " the " + buddy.buddyType;
+        RegisterGobboDeath(buddy);
+    }
+
+    public void RegisterGobboDeath(GobboUnitSaveData unit)
+    {
+        if (unit == null) return;
+        unit.EnsureRuntimeDefaults();
+        if (!deadBuddyIdsThisRun.Contains(unit.uniqueId)) deadBuddyIdsThisRun.Add(unit.uniqueId);
+        string label = GetGobboLabel(unit);
         if (!deadBuddyNamesThisRun.Contains(label)) deadBuddyNamesThisRun.Add(label);
         EnsureLastRun();
         if (!lastRun.deadBuddyNames.Contains(label)) lastRun.deadBuddyNames.Add(label);
         lastRun.buddiesLost = lastRun.deadBuddyNames.Count;
     }
 
-    public void RegisterBuddyDeath() { EnsureLastRun(); lastRun.buddiesLost++; }
-    public void RegisterSporesGained(int amount) { if (amount <= 0) return; EnsureLastRun(); lastRun.sporesGained += amount; }
-    public void RegisterMushroomsGained(int amount) { if (amount <= 0) return; EnsureLastRun(); lastRun.mushroomsGained += amount; }
-    public void RegisterMoneyGained(int amount) { RegisterShiniesGained(amount); }
-    public void RegisterFoodValueGained(int amount) { if (amount <= 0) return; EnsureLastRun(); lastRun.foodValueGained += amount; }
+    public void RegisterBuddyDeath()
+    {
+        EnsureLastRun();
+        lastRun.buddiesLost++;
+    }
+
+    public void RegisterSporesGained(int amount)
+    {
+        if (amount <= 0) return;
+        EnsureLastRun();
+        lastRun.sporesGained += amount;
+    }
+
+    public void RegisterMushroomsGained(int amount)
+    {
+        if (amount <= 0) return;
+        EnsureLastRun();
+        lastRun.mushroomsGained += amount;
+    }
+
+    public void RegisterMoneyGained(int amount) => RegisterShiniesGained(amount);
+
+    public void RegisterFoodValueGained(int amount)
+    {
+        if (amount <= 0) return;
+        EnsureLastRun();
+        lastRun.foodValueGained += amount;
+    }
 
     public void RegisterShiniesGained(int amount)
     {
@@ -417,17 +459,50 @@ public class GameState : MonoBehaviour
 
     public void RepairRosterState()
     {
+        ownedGobbos ??= new List<GobboUnitSaveData>();
         ownedBuddies ??= new List<BuddyData>();
         activeSquadIds ??= new List<string>();
-        ownedBuddies.RemoveAll(b => b == null);
 
-        HashSet<string> ownedIds = new HashSet<string>();
+        // Bring any legacy BuddyData mutations back into the unified roster first.
         foreach (BuddyData buddy in ownedBuddies)
         {
+            if (buddy == null) continue;
             buddy.EnsureId();
             buddy.EnsureRuntimeDefaults();
-            ownedIds.Add(buddy.uniqueId);
-            buddy.isInActiveSquad = false;
+            GobboUnitSaveData existing = FindOwnedGobboRaw(buddy.uniqueId);
+            if (existing == null)
+            {
+                GobboUnitSaveData copy = buddy.CloneUnit();
+                copy.isLeader = false;
+                ownedGobbos.Add(copy);
+            }
+            else
+            {
+                buddy.CopyInto(existing);
+                existing.isLeader = false;
+            }
+        }
+
+        ownedGobbos.RemoveAll(g => g == null);
+
+        Dictionary<string, GobboUnitSaveData> unique = new Dictionary<string, GobboUnitSaveData>();
+        List<GobboUnitSaveData> repairedGobbos = new List<GobboUnitSaveData>();
+        foreach (GobboUnitSaveData unit in ownedGobbos)
+        {
+            if (unit == null) continue;
+            unit.isLeader = false;
+            unit.EnsureRuntimeDefaults();
+            if (unique.ContainsKey(unit.uniqueId)) continue;
+            unique.Add(unit.uniqueId, unit);
+            repairedGobbos.Add(unit);
+        }
+        ownedGobbos = repairedGobbos;
+
+        HashSet<string> ownedIds = new HashSet<string>();
+        foreach (GobboUnitSaveData unit in ownedGobbos)
+        {
+            unit.isInActiveSquad = false;
+            ownedIds.Add(unit.uniqueId);
         }
 
         List<string> repairedActive = new List<string>();
@@ -436,65 +511,119 @@ public class GameState : MonoBehaviour
             if (string.IsNullOrWhiteSpace(id)) continue;
             if (!ownedIds.Contains(id)) continue;
             if (repairedActive.Contains(id)) continue;
-            if (repairedActive.Count >= maxActiveSquad) break;
+            if (repairedActive.Count >= Mathf.Max(1, maxActiveSquad)) break;
             repairedActive.Add(id);
         }
         activeSquadIds = repairedActive;
-        foreach (BuddyData buddy in ownedBuddies) buddy.isInActiveSquad = activeSquadIds.Contains(buddy.uniqueId);
 
-        if (!string.IsNullOrWhiteSpace(markedSuccessorId) && !ownedIds.Contains(markedSuccessorId)) markedSuccessorId = "";
+        foreach (GobboUnitSaveData unit in ownedGobbos)
+            unit.isInActiveSquad = activeSquadIds.Contains(unit.uniqueId);
+
+        if (!string.IsNullOrWhiteSpace(markedSuccessorId) && !ownedIds.Contains(markedSuccessorId))
+            markedSuccessorId = "";
+
+        RebuildBuddyMirror();
     }
 
     public void AddBuddy(BuddyData buddy, bool preferActiveSquad = true)
     {
-        if (buddy == null) return;
-        buddy.EnsureId();
-        buddy.EnsureRuntimeDefaults();
-        BuddyData existing = FindBuddy(buddy.uniqueId);
-        if (existing == null) ownedBuddies.Add(buddy);
-        RepairRosterState();
-        if (preferActiveSquad && activeSquadIds.Count < maxActiveSquad && !activeSquadIds.Contains(buddy.uniqueId))
-            MoveBuddyToActiveSquad(buddy.uniqueId);
+        AddGobbo(buddy, preferActiveSquad);
     }
 
-    public void RemoveBuddy(string buddyId)
+    public void AddGobbo(GobboUnitSaveData unit, bool preferActiveSquad = true)
     {
-        if (string.IsNullOrWhiteSpace(buddyId)) return;
-        ownedBuddies.RemoveAll(b => b == null || b.uniqueId == buddyId);
-        activeSquadIds.RemoveAll(id => id == buddyId);
-        if (markedSuccessorId == buddyId) markedSuccessorId = "";
+        if (unit == null) return;
+        unit.isLeader = false;
+        unit.EnsureRuntimeDefaults();
+
+        GobboUnitSaveData existing = FindOwnedGobboRaw(unit.uniqueId);
+        if (existing == null)
+        {
+            ownedGobbos.Add(unit.CloneUnit());
+        }
+        else
+        {
+            unit.CopyInto(existing);
+            existing.isLeader = false;
+        }
+
+        RepairRosterState();
+        if (preferActiveSquad && activeSquadIds.Count < maxActiveSquad && !activeSquadIds.Contains(unit.uniqueId))
+            MoveBuddyToActiveSquad(unit.uniqueId);
+    }
+
+    public void RemoveBuddy(string buddyId) => RemoveGobbo(buddyId);
+
+    public void RemoveGobbo(string gobboId)
+    {
+        if (string.IsNullOrWhiteSpace(gobboId)) return;
+        ownedGobbos.RemoveAll(g => g == null || g.uniqueId == gobboId);
+        ownedBuddies.RemoveAll(b => b == null || b.uniqueId == gobboId);
+        activeSquadIds.RemoveAll(id => id == gobboId);
+        if (markedSuccessorId == gobboId) markedSuccessorId = "";
         RepairRosterState();
     }
 
     public void RenameBuddy(string buddyId, string newName)
     {
-        BuddyData buddy = FindBuddy(buddyId);
-        if (buddy == null || string.IsNullOrWhiteSpace(newName)) return;
-        buddy.buddyName = newName.Trim();
-        buddy.displayName = buddy.buddyName;
+        GobboUnitSaveData unit = FindOwnedGobbo(buddyId);
+        if (unit == null || string.IsNullOrWhiteSpace(newName)) return;
+        unit.displayName = newName.Trim();
+        RepairRosterState();
     }
 
     public BuddyData FindBuddy(string buddyId)
     {
-        if (string.IsNullOrWhiteSpace(buddyId)) return null;
-        foreach (BuddyData buddy in ownedBuddies)
+        GobboUnitSaveData unit = FindOwnedGobbo(buddyId);
+        return unit != null ? unit.AsBuddyData() : null;
+    }
+
+    public GobboUnitSaveData FindOwnedGobbo(string gobboId)
+    {
+        if (string.IsNullOrWhiteSpace(gobboId)) return null;
+        RepairRosterStateNoMirrorMerge();
+        return FindOwnedGobboRaw(gobboId);
+    }
+
+    GobboUnitSaveData FindOwnedGobboRaw(string gobboId)
+    {
+        if (string.IsNullOrWhiteSpace(gobboId) || ownedGobbos == null) return null;
+        foreach (GobboUnitSaveData unit in ownedGobbos)
         {
-            if (buddy == null) continue;
-            buddy.EnsureId();
-            buddy.EnsureRuntimeDefaults();
-            if (buddy.uniqueId == buddyId) return buddy;
+            if (unit == null) continue;
+            unit.EnsureRuntimeDefaults();
+            if (unit.uniqueId == gobboId) return unit;
         }
         return null;
+    }
+
+    void RepairRosterStateNoMirrorMerge()
+    {
+        ownedGobbos ??= new List<GobboUnitSaveData>();
+        activeSquadIds ??= new List<string>();
+        ownedGobbos.RemoveAll(g => g == null);
+        foreach (GobboUnitSaveData unit in ownedGobbos) unit.EnsureRuntimeDefaults();
     }
 
     public List<BuddyData> GetActiveSquad()
     {
         RepairRosterState();
         List<BuddyData> result = new List<BuddyData>();
+        foreach (GobboUnitSaveData unit in GetActiveSquadUnitsInternal())
+        {
+            BuddyData buddy = unit.AsBuddyData();
+            if (buddy != null) result.Add(buddy);
+        }
+        return result;
+    }
+
+    public List<GobboUnitSaveData> GetActiveSquadUnitsInternal()
+    {
+        List<GobboUnitSaveData> result = new List<GobboUnitSaveData>();
         foreach (string id in activeSquadIds)
         {
-            BuddyData buddy = FindBuddy(id);
-            if (buddy != null) result.Add(buddy);
+            GobboUnitSaveData unit = FindOwnedGobboRaw(id);
+            if (unit != null && !unit.isDead) result.Add(unit);
         }
         return result;
     }
@@ -503,12 +632,23 @@ public class GameState : MonoBehaviour
     {
         RepairRosterState();
         List<BuddyData> result = new List<BuddyData>();
-        foreach (BuddyData buddy in ownedBuddies)
+        foreach (GobboUnitSaveData unit in GetReserveGobboUnitsInternal())
         {
-            if (buddy == null) continue;
-            buddy.EnsureId();
-            buddy.EnsureRuntimeDefaults();
-            if (!activeSquadIds.Contains(buddy.uniqueId)) result.Add(buddy);
+            BuddyData buddy = unit.AsBuddyData();
+            if (buddy != null) result.Add(buddy);
+        }
+        return result;
+    }
+
+    public List<GobboUnitSaveData> GetReserveGobboUnitsInternal()
+    {
+        List<GobboUnitSaveData> result = new List<GobboUnitSaveData>();
+        foreach (GobboUnitSaveData unit in ownedGobbos)
+        {
+            if (unit == null) continue;
+            unit.EnsureRuntimeDefaults();
+            if (unit.isDead) continue;
+            if (!activeSquadIds.Contains(unit.uniqueId)) result.Add(unit);
         }
         return result;
     }
@@ -516,36 +656,39 @@ public class GameState : MonoBehaviour
     public bool MoveBuddyToActiveSquad(string buddyId)
     {
         RepairRosterState();
-        BuddyData buddy = FindBuddy(buddyId);
-        if (buddy == null) return false;
+        GobboUnitSaveData unit = FindOwnedGobboRaw(buddyId);
+        if (unit == null) return false;
         if (activeSquadIds.Contains(buddyId)) return true;
         if (activeSquadIds.Count >= maxActiveSquad) return false;
         activeSquadIds.Add(buddyId);
-        buddy.isInActiveSquad = true;
+        unit.isInActiveSquad = true;
+        RepairRosterState();
         return true;
     }
 
     public bool MoveBuddyToReserve(string buddyId)
     {
         RepairRosterState();
-        BuddyData buddy = FindBuddy(buddyId);
-        if (buddy == null) return false;
+        GobboUnitSaveData unit = FindOwnedGobboRaw(buddyId);
+        if (unit == null) return false;
         activeSquadIds.Remove(buddyId);
-        buddy.isInActiveSquad = false;
+        unit.isInActiveSquad = false;
+        RepairRosterState();
         return true;
     }
 
     public bool SwapBuddies(string activeBuddyId, string reserveBuddyId)
     {
         RepairRosterState();
-        BuddyData activeBuddy = FindBuddy(activeBuddyId);
-        BuddyData reserveBuddy = FindBuddy(reserveBuddyId);
-        if (activeBuddy == null || reserveBuddy == null) return false;
+        GobboUnitSaveData activeUnit = FindOwnedGobboRaw(activeBuddyId);
+        GobboUnitSaveData reserveUnit = FindOwnedGobboRaw(reserveBuddyId);
+        if (activeUnit == null || reserveUnit == null) return false;
         int index = activeSquadIds.IndexOf(activeBuddyId);
         if (index < 0) return false;
         activeSquadIds[index] = reserveBuddyId;
-        activeBuddy.isInActiveSquad = false;
-        reserveBuddy.isInActiveSquad = true;
+        activeUnit.isInActiveSquad = false;
+        reserveUnit.isInActiveSquad = true;
+        RepairRosterState();
         return true;
     }
 
@@ -558,11 +701,12 @@ public class GameState : MonoBehaviour
         return null;
     }
 
-    public bool HasReserveBuddy() => GetReserveBuddies().Count > 0;
+    public bool HasReserveBuddy() => GetReserveGobboUnitsInternal().Count > 0;
 
-    void BuildRunSummary(GobboSaveData before, List<string> beforeIds, List<BuddyData> beforeBuddies, bool survived)
+    void BuildRunSummary(GobboSaveData before, List<string> beforeIds, List<GobboUnitSaveData> beforeGobbos, bool survived)
     {
         EnsureLastRun();
+
         int trackedXpGained = lastRun.xpGained;
         int trackedSporesGained = lastRun.sporesGained;
         int trackedMushroomsGained = lastRun.mushroomsGained;
@@ -596,16 +740,17 @@ public class GameState : MonoBehaviour
         lastRun.enemiesKilled = trackedEnemiesKilled;
         lastRun.upgradesChosen = trackedUpgrades;
         lastRun.buddiesStart = beforeIds.Count;
-        lastRun.buddiesEnd = ownedBuddies.Count;
+        lastRun.buddiesEnd = ownedGobbos.Count;
+
         lastRun.newBuddyNames.Clear();
         lastRun.deadBuddyNames.Clear();
 
-        foreach (BuddyData buddy in ownedBuddies)
+        foreach (GobboUnitSaveData unit in ownedGobbos)
         {
-            if (buddy == null) continue;
-            buddy.EnsureId();
-            buddy.EnsureRuntimeDefaults();
-            if (!beforeIds.Contains(buddy.uniqueId)) lastRun.newBuddyNames.Add(buddy.buddyName + " the " + buddy.buddyType);
+            if (unit == null) continue;
+            unit.EnsureRuntimeDefaults();
+            if (!beforeIds.Contains(unit.uniqueId))
+                lastRun.newBuddyNames.Add(GetGobboLabel(unit));
         }
 
         foreach (string deadName in deadBuddyNamesThisRun)
@@ -613,21 +758,13 @@ public class GameState : MonoBehaviour
             if (!lastRun.deadBuddyNames.Contains(deadName)) lastRun.deadBuddyNames.Add(deadName);
         }
 
-        foreach (BuddyData oldBuddy in beforeBuddies)
+        foreach (GobboUnitSaveData oldUnit in beforeGobbos)
         {
-            if (oldBuddy == null) continue;
-            bool stillOwned = false;
-            foreach (BuddyData current in ownedBuddies)
-            {
-                if (current != null && current.uniqueId == oldBuddy.uniqueId)
-                {
-                    stillOwned = true;
-                    break;
-                }
-            }
+            if (oldUnit == null) continue;
+            bool stillOwned = FindOwnedGobboRaw(oldUnit.uniqueId) != null;
             if (!stillOwned)
             {
-                string label = oldBuddy.buddyName + " the " + oldBuddy.buddyType;
+                string label = GetGobboLabel(oldUnit);
                 if (!lastRun.deadBuddyNames.Contains(label)) lastRun.deadBuddyNames.Add(label);
             }
         }
@@ -638,23 +775,24 @@ public class GameState : MonoBehaviour
 
     List<string> GetOwnedBuddyIds()
     {
+        RepairRosterState();
         List<string> result = new List<string>();
-        foreach (BuddyData buddy in ownedBuddies)
+        foreach (GobboUnitSaveData unit in ownedGobbos)
         {
-            if (buddy == null) continue;
-            buddy.EnsureId();
-            result.Add(buddy.uniqueId);
+            if (unit == null) continue;
+            unit.EnsureRuntimeDefaults();
+            result.Add(unit.uniqueId);
         }
         return result;
     }
 
-    List<BuddyData> CloneBuddyList(List<BuddyData> source)
+    List<GobboUnitSaveData> CloneUnitList(List<GobboUnitSaveData> source)
     {
-        List<BuddyData> result = new List<BuddyData>();
+        List<GobboUnitSaveData> result = new List<GobboUnitSaveData>();
         if (source == null) return result;
-        foreach (BuddyData buddy in source)
+        foreach (GobboUnitSaveData unit in source)
         {
-            if (buddy != null) result.Add(buddy.Clone());
+            if (unit != null) result.Add(unit.CloneUnit());
         }
         return result;
     }
@@ -662,5 +800,31 @@ public class GameState : MonoBehaviour
     GobboSaveData CloneGobboSave(GobboSaveData source)
     {
         return source == null ? new GobboSaveData() : source.CloneLeader();
+    }
+
+    void RebuildBuddyMirror()
+    {
+        ownedBuddies ??= new List<BuddyData>();
+        ownedBuddies.Clear();
+        foreach (GobboUnitSaveData unit in ownedGobbos)
+        {
+            if (unit == null) continue;
+            BuddyData buddy = unit.AsBuddyData();
+            if (buddy != null) ownedBuddies.Add(buddy);
+        }
+    }
+
+    string GetGobboLabel(GobboUnitSaveData unit)
+    {
+        if (unit == null) return "Unknown Gobbo";
+        unit.EnsureRuntimeDefaults();
+        string name = unit.displayName;
+        string type = unit.gobboType.ToString();
+        if (unit is BuddyData buddy)
+        {
+            name = buddy.buddyName;
+            type = buddy.buddyType.ToString();
+        }
+        return name + " the " + type;
     }
 }

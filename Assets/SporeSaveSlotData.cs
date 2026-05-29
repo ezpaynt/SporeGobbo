@@ -5,7 +5,7 @@ using UnityEngine;
 [Serializable]
 public class SporeSaveSlotData
 {
-    public const int CurrentSaveVersion = 2;
+    public const int CurrentSaveVersion = 3;
 
     [Header("Slot Metadata")]
     public int saveVersion = CurrentSaveVersion;
@@ -21,12 +21,12 @@ public class SporeSaveSlotData
 
     [Header("Unified Gobbo Data")]
     public GobboUnitSaveData leader = new GobboUnitSaveData { isLeader = true, displayName = "Gobbo" };
+    public List<GobboUnitSaveData> ownedGobbos = new List<GobboUnitSaveData>();
 
-    // Compatibility mirror while older scripts still expect data.player.
+    [Header("Compatibility Mirrors")]
     public GobboSaveData player = new GobboSaveData();
-
-    // Temporary compatibility: BuddyData inherits GobboUnitSaveData, so this still uses unified identity.
     public List<BuddyData> ownedBuddies = new List<BuddyData>();
+
     public List<string> activeSquadIds = new List<string>();
     public string markedSuccessorId = "";
 
@@ -50,7 +50,6 @@ public class SporeSaveSlotData
     {
         string cleanName = string.IsNullOrWhiteSpace(playerName) ? "Gobbo" : playerName.Trim();
         DateTime now = DateTime.UtcNow;
-
         GobboSaveData leaderSave = new GobboSaveData();
         leaderSave.displayName = cleanName;
         leaderSave.EnsureLeaderIdentity(cleanName);
@@ -69,6 +68,7 @@ public class SporeSaveSlotData
             nextSceneName = string.IsNullOrWhiteSpace(firstSceneName) ? "SampleScene" : firstSceneName,
             player = leaderSave,
             leader = leaderSave.ToUnitSave(),
+            ownedGobbos = new List<GobboUnitSaveData>(),
             ownedBuddies = new List<BuddyData>(),
             activeSquadIds = new List<string>(),
             markedSuccessorId = "",
@@ -95,19 +95,19 @@ public class SporeSaveSlotData
 
         if (createdUtcTicks <= 0) createdUtcTicks = DateTime.UtcNow.Ticks;
         if (lastPlayedUtcTicks <= 0) lastPlayedUtcTicks = createdUtcTicks;
-        if (string.IsNullOrWhiteSpace(lastPlayedAt)) lastPlayedAt = new DateTime(lastPlayedUtcTicks, DateTimeKind.Utc).ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+        if (string.IsNullOrWhiteSpace(lastPlayedAt))
+            lastPlayedAt = new DateTime(lastPlayedUtcTicks, DateTimeKind.Utc).ToLocalTime().ToString("yyyy-MM-dd HH:mm");
 
         if (leader == null) leader = player != null ? player.ToUnitSave() : new GobboUnitSaveData { isLeader = true };
         leader.isLeader = true;
         leader.EnsureIdentity(string.IsNullOrWhiteSpace(playerName) ? "Gobbo" : playerName);
-
-        if (player == null) player = leader.ToLeaderSave();
         player = leader.ToLeaderSave();
 
         if (string.IsNullOrWhiteSpace(playerName)) playerName = leader.displayName;
         if (string.IsNullOrWhiteSpace(saveName)) saveName = playerName + "'s Camp";
         if (string.IsNullOrWhiteSpace(nextSceneName)) nextSceneName = "CampScene";
 
+        ownedGobbos ??= new List<GobboUnitSaveData>();
         ownedBuddies ??= new List<BuddyData>();
         activeSquadIds ??= new List<string>();
         unlockedStations ??= new List<string>();
@@ -115,14 +115,39 @@ public class SporeSaveSlotData
         deathHistory ??= new List<DeadBuddyRecord>();
         if (lastRun == null) lastRun = new RunSummaryData();
 
-        ownedBuddies.RemoveAll(b => b == null);
-        HashSet<string> ownedIds = new HashSet<string>();
+        // Upgrade old saves/mirrors into the unified list.
         foreach (BuddyData buddy in ownedBuddies)
         {
+            if (buddy == null) continue;
             buddy.EnsureId();
             buddy.EnsureRuntimeDefaults();
-            ownedIds.Add(buddy.uniqueId);
-            buddy.isInActiveSquad = false;
+            if (FindUnit(ownedGobbos, buddy.uniqueId) == null)
+            {
+                GobboUnitSaveData copy = buddy.CloneUnit();
+                copy.isLeader = false;
+                ownedGobbos.Add(copy);
+            }
+        }
+
+        ownedGobbos.RemoveAll(g => g == null);
+        Dictionary<string, GobboUnitSaveData> unique = new Dictionary<string, GobboUnitSaveData>();
+        List<GobboUnitSaveData> repaired = new List<GobboUnitSaveData>();
+        foreach (GobboUnitSaveData unit in ownedGobbos)
+        {
+            if (unit == null) continue;
+            unit.isLeader = false;
+            unit.EnsureRuntimeDefaults();
+            if (unique.ContainsKey(unit.uniqueId)) continue;
+            unique.Add(unit.uniqueId, unit);
+            repaired.Add(unit);
+        }
+        ownedGobbos = repaired;
+
+        HashSet<string> ownedIds = new HashSet<string>();
+        foreach (GobboUnitSaveData unit in ownedGobbos)
+        {
+            ownedIds.Add(unit.uniqueId);
+            unit.isInActiveSquad = false;
         }
 
         List<string> fixedActive = new List<string>();
@@ -135,7 +160,9 @@ public class SporeSaveSlotData
             fixedActive.Add(id);
         }
         activeSquadIds = fixedActive;
-        foreach (BuddyData buddy in ownedBuddies) buddy.isInActiveSquad = activeSquadIds.Contains(buddy.uniqueId);
+
+        foreach (GobboUnitSaveData unit in ownedGobbos)
+            unit.isInActiveSquad = activeSquadIds.Contains(unit.uniqueId);
 
         if (!string.IsNullOrWhiteSpace(markedSuccessorId) && !ownedIds.Contains(markedSuccessorId)) markedSuccessorId = "";
 
@@ -143,12 +170,14 @@ public class SporeSaveSlotData
         runNumber = currentRunNumber;
         maxActiveSquad = Mathf.Max(1, maxActiveSquad);
         campLevel = Mathf.Max(1, campLevel);
+
+        RebuildBuddyMirror();
         RefreshDerivedFields();
     }
 
     public void RefreshDerivedFields()
     {
-        buddyCount = ownedBuddies != null ? ownedBuddies.Count : 0;
+        buddyCount = ownedGobbos != null ? ownedGobbos.Count : 0;
         fallenCount = deathHistory != null ? deathHistory.Count : 0;
         if (leader != null && !string.IsNullOrWhiteSpace(leader.displayName)) playerName = leader.displayName;
         if (string.IsNullOrWhiteSpace(saveName)) saveName = playerName + "'s Camp";
@@ -158,5 +187,25 @@ public class SporeSaveSlotData
     {
         Normalize();
         return saveName + "\nLeader: " + playerName + "\nCamp " + campLevel + " • Run " + currentRunNumber + "\nBuddies: " + buddyCount + "\n" + lastPlayedAt;
+    }
+
+    void RebuildBuddyMirror()
+    {
+        ownedBuddies.Clear();
+        foreach (GobboUnitSaveData unit in ownedGobbos)
+        {
+            BuddyData buddy = unit.AsBuddyData();
+            if (buddy != null) ownedBuddies.Add(buddy);
+        }
+    }
+
+    static GobboUnitSaveData FindUnit(List<GobboUnitSaveData> units, string id)
+    {
+        if (units == null || string.IsNullOrWhiteSpace(id)) return null;
+        foreach (GobboUnitSaveData unit in units)
+        {
+            if (unit != null && unit.uniqueId == id) return unit;
+        }
+        return null;
     }
 }
