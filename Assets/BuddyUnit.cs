@@ -6,7 +6,7 @@ public class BuddyUnit : MonoBehaviour
     [Header("Runtime Data")]
     public GobboUnitSaveData unitData;
 
-    [Tooltip("Temporary compatibility mirror for older systems that still read BuddyUnit.data.")]
+    // Compatibility mirror for old scripts/inspector references. Do not use as permanent truth.
     public BuddyData data;
 
     [Header("References")]
@@ -36,63 +36,53 @@ public class BuddyUnit : MonoBehaviour
         if (spriteRenderer != null) originalColor = spriteRenderer.color;
     }
 
+    public void Initialize(BuddyData newData)
+    {
+        data = newData;
+        unitData = newData;
+        Initialize(unitData);
+    }
+
     public void Initialize(GobboUnitSaveData newData)
     {
         unitData = newData;
         if (unitData != null)
         {
+            unitData.EnsureId();
             unitData.EnsureRuntimeDefaults();
-            data = unitData as BuddyData ?? BuddyData.FromUnit(unitData);
-            if (data != null) data.EnsureRuntimeDefaults();
         }
+
+        if (data == null && unitData is BuddyData buddyData)
+            data = buddyData;
 
         ApplyStats();
         ApplyVisuals();
         initialized = true;
     }
 
-    public void Initialize(BuddyData newData)
-    {
-        Initialize((GobboUnitSaveData)newData);
-    }
-
-    GobboUnitSaveData Data => unitData != null ? unitData : data;
-
-    void SyncCompatFromUnit()
-    {
-        if (unitData == null || data == null || ReferenceEquals(unitData, data)) return;
-        unitData.CopyInto(data);
-        data.EnsureRuntimeDefaults();
-    }
-
     public void ApplyStats()
     {
-        GobboUnitSaveData d = Data;
-        if (d == null) return;
-        d.EnsureRuntimeDefaults();
-        if (follow != null) follow.followSpeed = d.moveSpeed;
+        if (unitData == null) return;
+        if (follow != null) follow.followSpeed = unitData.moveSpeed;
         if (combat != null)
         {
-            combat.damage = Mathf.Max(1, d.damage > 0 ? d.damage : d.attack);
-            combat.attackCooldown = d.attackCooldown;
+            combat.damage = unitData.damage;
+            combat.attackCooldown = unitData.attackCooldown;
         }
-        if (scavenger != null) scavenger.enabled = d.collectsFood;
-        SyncCompatFromUnit();
+        if (scavenger != null) scavenger.enabled = unitData.collectsFood;
     }
 
     public void ApplyVisuals()
     {
-        GobboUnitSaveData d = Data;
-        if (d == null) return;
-        d.EnsureRuntimeDefaults();
+        if (unitData == null) return;
         if (spriteRenderer != null)
         {
-            spriteRenderer.color = d.bodyColor;
+            spriteRenderer.color = unitData.bodyColor;
             originalColor = spriteRenderer.color;
         }
-        if (visualController != null) visualController.ApplyIdentity(d.gobboType, d.ageStage, d.visualSetId);
-        transform.localScale = GetScaleForType(d.gobboType, d.ageStage);
-        SyncCompatFromUnit();
+        if (visualController != null)
+            visualController.ApplyIdentity(unitData.gobboType, unitData.ageStage, unitData.visualSetId);
+        transform.localScale = GetScaleForType(unitData.gobboType, unitData.ageStage);
     }
 
     Vector3 GetScaleForType(BuddyType type, GobboAgeStage stage)
@@ -124,35 +114,30 @@ public class BuddyUnit : MonoBehaviour
 
     public void TakeDamage(int amount)
     {
-        GobboUnitSaveData d = Data;
-        if (!initialized || dead || d == null) return;
-        int finalDamage = Mathf.Max(1, amount - d.defense);
-        d.health -= finalDamage;
-        d.hasBeenHit = true;
-        SyncCompatFromUnit();
+        if (!initialized || dead || unitData == null) return;
+        int finalDamage = Mathf.Max(1, amount - unitData.defense);
+        unitData.health -= finalDamage;
+        unitData.hasBeenHit = true;
         Flash(hurtColor);
-        if (d.health <= 0) Die();
+        if (unitData.health <= 0) Die();
     }
 
     public void HealFlat(int amount)
     {
-        GobboUnitSaveData d = Data;
-        if (!initialized || dead || d == null || amount <= 0) return;
-        d.health = Mathf.Min(d.maxHealth, d.health + amount);
-        SyncCompatFromUnit();
+        if (!initialized || dead || unitData == null || amount <= 0) return;
+        unitData.health = Mathf.Min(unitData.maxHealth, unitData.health + amount);
     }
 
     public void HealPercent(float percent)
     {
-        GobboUnitSaveData d = Data;
-        if (!initialized || dead || d == null || percent <= 0f) return;
-        int amount = Mathf.Max(1, Mathf.RoundToInt(d.maxHealth * percent));
+        if (!initialized || dead || unitData == null || percent <= 0f) return;
+        int amount = Mathf.Max(1, Mathf.RoundToInt(unitData.maxHealth * percent));
         HealFlat(amount);
     }
 
     public void ApplyPoison(int damagePerTick, float duration, float tickRate)
     {
-        if (!initialized || dead || Data == null) return;
+        if (!initialized || dead || unitData == null) return;
         StartCoroutine(PoisonRoutine(damagePerTick, duration, tickRate));
     }
 
@@ -164,14 +149,12 @@ public class BuddyUnit : MonoBehaviour
     IEnumerator PoisonRoutine(int damagePerTick, float duration, float tickRate)
     {
         float timer = 0f;
-        while (timer < duration && !dead && Data != null)
+        while (timer < duration && !dead && unitData != null)
         {
-            GobboUnitSaveData d = Data;
-            d.health -= Mathf.Max(1, damagePerTick);
-            d.hasBeenHit = true;
-            SyncCompatFromUnit();
+            unitData.health -= Mathf.Max(1, damagePerTick);
+            unitData.hasBeenHit = true;
             Flash(poisonColor);
-            if (d.health <= 0)
+            if (unitData.health <= 0)
             {
                 Die();
                 yield break;
@@ -201,21 +184,27 @@ public class BuddyUnit : MonoBehaviour
     {
         if (dead) return;
         dead = true;
-        GobboUnitSaveData d = Data;
         if (visualController != null) visualController.SetAnimationState(GobboAnimationState.Death);
-        if (d != null)
+
+        if (unitData != null)
         {
-            d.EnsureRuntimeDefaults();
-            SyncCompatFromUnit();
+            unitData.EnsureId();
+            unitData.isDead = true;
+
             if (GameState.Instance != null)
             {
-                BuddyData compatDeath = data ?? BuddyData.FromUnit(d);
-                GameState.Instance.RegisterBuddyDeath(compatDeath);
-                GameState.Instance.RemoveBuddy(d.uniqueId);
+                if (data != null)
+                    GameState.Instance.RegisterBuddyDeath(data);
+                else
+                    GameState.Instance.RegisterBuddyDeath();
+
+                GameState.Instance.RemoveBuddy(unitData.uniqueId);
             }
+
             BuddyRoster roster = Object.FindAnyObjectByType<BuddyRoster>();
-            if (roster != null) roster.RemoveBuddy(d.uniqueId);
+            if (roster != null) roster.RemoveBuddy(unitData.uniqueId);
         }
+
         Destroy(gameObject);
     }
 }

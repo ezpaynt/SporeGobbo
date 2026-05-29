@@ -14,13 +14,10 @@ public class SporeGrow : MonoBehaviour
 
     void Update()
     {
-        if (hasGrown)
-            return;
+        if (hasGrown) return;
 
         timer += Time.deltaTime;
-
-        if (timer >= growTime)
-            FinishGrowing();
+        if (timer >= growTime) FinishGrowing();
     }
 
     void FinishGrowing()
@@ -31,7 +28,6 @@ public class SporeGrow : MonoBehaviour
         if (openNamingScreen)
         {
             BuddyChoiceScreen screen = UnityEngine.Object.FindAnyObjectByType<BuddyChoiceScreen>(FindObjectsInactive.Include);
-
             if (screen != null)
             {
                 screen.OpenForSpore(this);
@@ -46,58 +42,53 @@ public class SporeGrow : MonoBehaviour
 
     public void CompleteHatch(BuddyType ignoredType, string chosenName)
     {
-        if (hatchFinished)
-            return;
-
+        if (hatchFinished) return;
         hatchFinished = true;
         Time.timeScale = 1f;
 
-        BuddyRoster roster = UnityEngine.Object.FindAnyObjectByType<BuddyRoster>();
-
-        BuddyData data = null;
-
-        if (roster != null)
+        GameState state = GameState.Instance;
+        if (state == null)
         {
-            // CreateNewBuddy already handles active vs reserve based on maxActiveSquad.
-            data = roster.CreateNewBuddy(BuddyType.Baby, chosenName);
-
-            if (GameState.Instance != null && data != null)
-                GameState.Instance.AddBuddy(data, data.isInActiveSquad);
-        }
-        else if (GameState.Instance != null)
-        {
-            data = new BuddyData();
-            BuddyProgression.PrepareNewBaby(data);
-            if (!string.IsNullOrWhiteSpace(chosenName))
-                data.buddyName = chosenName;
-
-            GameState.Instance.AddBuddy(data, true);
-        }
-        else
-        {
-            Debug.LogError("No BuddyRoster or GameState found for new buddy.");
+            Debug.LogError("No GameState found for new gobbo.");
             Destroy(gameObject);
             return;
         }
 
+        GobboUnitSaveData data = CreateNewBabyGobbo(chosenName);
+
+        bool preferActive = state.activeSquadIds == null || state.activeSquadIds.Count < Mathf.Max(1, state.maxActiveSquad);
+        state.AddGobbo(data, preferActive);
+        state.RepairRosterState();
+
+        bool isActive = state.activeSquadIds != null && state.activeSquadIds.Contains(data.uniqueId);
+
         GobboController player = UnityEngine.Object.FindAnyObjectByType<GobboController>();
-
-        if (player != null && data != null && data.isInActiveSquad)
+        if (player != null && isActive)
         {
-            player.SpawnBuddy(data, transform.position);
+            player.SpawnGobboUnit(data, transform.position);
         }
-        else if (data != null && !data.isInActiveSquad)
+        else if (!isActive)
         {
-            Debug.Log(data.buddyName + " joined the camp reserve.");
+            Debug.Log(data.displayName + " joined the camp reserve.");
         }
-        else if (player == null)
+        else
         {
-            Debug.LogWarning("No GobboController found. Buddy was saved to roster but not spawned into run.");
+            Debug.LogWarning("No GobboController found. Gobbo was saved to roster but not spawned into run.");
         }
 
-        if (GameState.Instance != null)
-            GameState.Instance.RegisterBuddyFound(data);
-
+        state.RegisterGobboFound(data);
         Destroy(gameObject);
+    }
+
+    private GobboUnitSaveData CreateNewBabyGobbo(string chosenName)
+    {
+        GobboUnitSaveData data = new GobboUnitSaveData();
+        data.isLeader = false;
+        data.gobboType = BuddyType.Baby;
+        data.ageStage = GobboAgeStage.Baby;
+        data.displayName = string.IsNullOrWhiteSpace(chosenName) ? "Baby" : chosenName.Trim();
+        BuddyProgression.PrepareNewBaby(data);
+        data.EnsureRuntimeDefaults();
+        return data;
     }
 }

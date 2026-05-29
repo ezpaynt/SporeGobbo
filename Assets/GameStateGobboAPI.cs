@@ -3,42 +3,51 @@ using UnityEngine;
 
 /// <summary>
 /// Stable doorway for systems that need gobbo save data.
-/// Scene objects should ask GameState through this API instead of poking old player/buddy fields directly.
+/// New systems should use these methods and GobboUnitSaveData instead of BuddyData.
 /// </summary>
 public static class GameStateGobboAPI
 {
     public static GobboUnitSaveData GetLeader(this GameState state)
     {
         if (state == null) return null;
+
         if (state.gobbo == null) state.gobbo = new GobboSaveData();
         state.gobbo.isLeader = true;
-        state.gobbo.EnsureLeaderIdentity(state.gobbo.displayName);
+        state.gobbo.isDead = false;
+        state.gobbo.EnsureIdentity(string.IsNullOrWhiteSpace(state.gobbo.displayName) ? "Gobbo" : state.gobbo.displayName);
+        state.gobbo.EnsureRuntimeDefaults();
         return state.gobbo;
     }
 
     public static void SetLeader(this GameState state, GobboUnitSaveData leader)
     {
         if (state == null) return;
+
         if (leader == null)
         {
             state.gobbo = new GobboSaveData();
-            state.gobbo.EnsureLeaderIdentity("Gobbo");
+            state.gobbo.EnsureIdentity("Gobbo");
             return;
         }
 
         leader.isLeader = true;
         leader.isDead = false;
+        leader.EnsureIdentity(string.IsNullOrWhiteSpace(leader.displayName) ? "Gobbo" : leader.displayName);
         leader.EnsureRuntimeDefaults();
+
         state.gobbo = leader.ToLeaderSave();
         state.gobbo.isLeader = true;
-        state.gobbo.EnsureLeaderIdentity(state.gobbo.displayName);
+        state.gobbo.isDead = false;
+        state.gobbo.EnsureIdentity(state.gobbo.displayName);
+        state.gobbo.EnsureRuntimeDefaults();
     }
 
     public static List<GobboUnitSaveData> GetAllGobbos(this GameState state, bool includeLeader = true, bool includeDead = false)
     {
         List<GobboUnitSaveData> result = new List<GobboUnitSaveData>();
         if (state == null) return result;
-        state.EnsureRuntimeDefaults();
+
+        state.RepairRosterState();
 
         if (includeLeader)
         {
@@ -63,7 +72,6 @@ public static class GameStateGobboAPI
     public static GobboUnitSaveData FindGobboById(this GameState state, string gobboId)
     {
         if (state == null || string.IsNullOrWhiteSpace(gobboId)) return null;
-        state.EnsureRuntimeDefaults();
 
         GobboUnitSaveData leader = state.GetLeader();
         if (leader != null)
@@ -83,37 +91,49 @@ public static class GameStateGobboAPI
     public static List<GobboUnitSaveData> GetActiveSquadUnits(this GameState state)
     {
         if (state == null) return new List<GobboUnitSaveData>();
-        state.EnsureRuntimeDefaults();
+        state.RepairRosterState();
         return state.GetActiveSquadUnitsInternal();
     }
 
     public static List<GobboUnitSaveData> GetReserveGobboUnits(this GameState state)
     {
         if (state == null) return new List<GobboUnitSaveData>();
-        state.EnsureRuntimeDefaults();
+        state.RepairRosterState();
         return state.GetReserveGobboUnitsInternal();
+    }
+
+    public static GobboUnitSaveData PullFirstReserveGobbo(this GameState state)
+    {
+        if (state == null) return null;
+        List<GobboUnitSaveData> reserve = state.GetReserveGobboUnits();
+        if (reserve.Count == 0) return null;
+
+        GobboUnitSaveData unit = reserve[0];
+        if (unit == null) return null;
+        if (!state.MoveBuddyToActiveSquad(unit.uniqueId)) return null;
+        return unit;
     }
 
     public static bool PromoteBuddyToLeader(this GameState state, string buddyId)
     {
         if (state == null || string.IsNullOrWhiteSpace(buddyId)) return false;
-        state.EnsureRuntimeDefaults();
 
+        state.RepairRosterState();
         GobboUnitSaveData successor = state.FindOwnedGobbo(buddyId);
         if (successor == null) return false;
 
         successor.EnsureRuntimeDefaults();
+
         GobboUnitSaveData newLeader = successor.CloneUnit();
-        newLeader.uniqueId = successor.uniqueId;
-        newLeader.displayName = string.IsNullOrWhiteSpace(successor.displayName) ? "Gobbo" : successor.displayName;
         newLeader.isLeader = true;
         newLeader.isDead = false;
-        newLeader.health = Mathf.Max(1, newLeader.maxHealth);
         newLeader.EnsureRuntimeDefaults();
 
         state.RemoveGobbo(successor.uniqueId);
         state.SetLeader(newLeader);
+
         if (state.markedSuccessorId == successor.uniqueId) state.markedSuccessorId = "";
+
         state.RepairRosterState();
         return true;
     }
@@ -121,7 +141,7 @@ public static class GameStateGobboAPI
     public static void SetMarkedSuccessorId(this GameState state, string gobboId)
     {
         if (state == null) return;
-        state.EnsureRuntimeDefaults();
+        state.RepairRosterState();
 
         if (string.IsNullOrWhiteSpace(gobboId))
         {
@@ -136,10 +156,11 @@ public static class GameStateGobboAPI
     public static string GetMarkedSuccessorId(this GameState state)
     {
         if (state == null) return "";
-        state.EnsureRuntimeDefaults();
+        state.RepairRosterState();
         return state.markedSuccessorId ?? "";
     }
 
+    // Compatibility return for old callers. Prefer GetMarkedSuccessorUnit().
     public static BuddyData GetMarkedSuccessor(this GameState state)
     {
         GobboUnitSaveData unit = state.GetMarkedSuccessorUnit();
@@ -149,7 +170,7 @@ public static class GameStateGobboAPI
     public static GobboUnitSaveData GetMarkedSuccessorUnit(this GameState state)
     {
         if (state == null) return null;
-        state.EnsureRuntimeDefaults();
+        state.RepairRosterState();
         return state.FindOwnedGobbo(state.markedSuccessorId);
     }
 
@@ -157,5 +178,24 @@ public static class GameStateGobboAPI
     {
         GobboUnitSaveData leader = state.GetLeader();
         return leader != null ? leader.CloneUnit() : new GobboUnitSaveData { isLeader = true };
+    }
+
+    public static void RegisterGobboFound(this GameState state, GobboUnitSaveData unit)
+    {
+        if (state == null) return;
+        state.EnsureRuntimeDefaults();
+        if (unit == null) return;
+
+        unit.EnsureRuntimeDefaults();
+        string label = GetUnitLabel(unit);
+        if (!state.lastRun.newBuddyNames.Contains(label)) state.lastRun.newBuddyNames.Add(label);
+        state.lastRun.buddiesFound = Mathf.Max(state.lastRun.buddiesFound, state.lastRun.newBuddyNames.Count);
+    }
+
+    private static string GetUnitLabel(GobboUnitSaveData unit)
+    {
+        if (unit == null) return "Unknown Gobbo";
+        unit.EnsureRuntimeDefaults();
+        return unit.displayName + " the " + unit.gobboType;
     }
 }
