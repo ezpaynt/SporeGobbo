@@ -24,27 +24,21 @@ public class RunSquadSpawner : MonoBehaviour
 
     void Start()
     {
-        if (spawnOnStart)
-            StartCoroutine(SpawnRoutine());
+        if (spawnOnStart) StartCoroutine(SpawnRoutine());
     }
 
     public void SpawnActiveSquad()
     {
-        if (!gameObject.activeInHierarchy)
-            return;
-
+        if (!gameObject.activeInHierarchy) return;
         StartCoroutine(SpawnRoutine());
     }
 
     IEnumerator SpawnRoutine()
     {
-        if (spawned)
-            yield break;
-
+        if (spawned) yield break;
         spawned = true;
 
-        if (startDelay > 0f)
-            yield return new WaitForSeconds(startDelay);
+        if (startDelay > 0f) yield return new WaitForSeconds(startDelay);
 
         GameState state = EnsureGameState();
         if (state == null)
@@ -58,9 +52,7 @@ public class RunSquadSpawner : MonoBehaviour
         while (timer < waitForPlayerSeconds && player == null)
         {
             player = FindPlayer();
-            if (player != null)
-                break;
-
+            if (player != null) break;
             timer += Time.deltaTime;
             yield return null;
         }
@@ -74,8 +66,7 @@ public class RunSquadSpawner : MonoBehaviour
         if (buddyPrefab == null)
         {
             GobboController controller = player.GetComponent<GobboController>();
-            if (controller != null)
-                buddyPrefab = controller.buddyPrefab;
+            if (controller != null) buddyPrefab = controller.buddyPrefab;
         }
 
         if (buddyPrefab == null)
@@ -85,8 +76,7 @@ public class RunSquadSpawner : MonoBehaviour
         }
 
         state.RepairRosterState();
-        List<BuddyData> active = state.GetActiveSquad();
-
+        List<GobboUnitSaveData> active = state.GetActiveSquadUnits();
         if (active.Count == 0)
         {
             Debug.Log("RunSquadSpawner: active squad is empty. No buddies spawned.");
@@ -101,12 +91,10 @@ public class RunSquadSpawner : MonoBehaviour
         Debug.Log("RunSquadSpawner spawned active squad count: " + active.Count);
     }
 
-    void SpawnBuddy(BuddyData buddy, int index, int count, Transform player)
+    void SpawnBuddy(GobboUnitSaveData buddy, int index, int count, Transform player)
     {
-        if (buddy == null || player == null || buddyPrefab == null)
-            return;
+        if (buddy == null || player == null || buddyPrefab == null) return;
 
-        buddy.EnsureId();
         buddy.EnsureRuntimeDefaults();
 
         float angle = count <= 0 ? 0f : (index / (float)count) * Mathf.PI * 2f;
@@ -115,11 +103,10 @@ public class RunSquadSpawner : MonoBehaviour
         spawnPos.z = 0f;
 
         GameObject obj = Instantiate(buddyPrefab, spawnPos, Quaternion.identity);
-        obj.name = buddy.buddyName + " Run Buddy";
+        obj.name = buddy.displayName + " Run Buddy";
 
         int buddyLayer = LayerMask.NameToLayer("Buddy");
-        if (buddyLayer >= 0)
-            obj.layer = buddyLayer;
+        if (buddyLayer >= 0) obj.layer = buddyLayer;
 
         Rigidbody2D rb = obj.GetComponent<Rigidbody2D>();
         if (rb != null)
@@ -129,10 +116,8 @@ public class RunSquadSpawner : MonoBehaviour
         }
 
         BuddyUnit unit = obj.GetComponent<BuddyUnit>();
-        if (unit != null)
-            unit.Initialize(buddy);
-        else
-            Debug.LogWarning("Run buddy prefab is missing BuddyUnit.", obj);
+        if (unit != null) unit.Initialize(buddy);
+        else Debug.LogWarning("Run buddy prefab is missing BuddyUnit.", obj);
 
         BuddyBrain brain = obj.GetComponent<BuddyBrain>();
         if (brain != null)
@@ -149,8 +134,7 @@ public class RunSquadSpawner : MonoBehaviour
             follow.enabled = enableFollow;
             follow.SetPlayer(player);
             Vector2 formation = Random.insideUnitCircle;
-            if (formation.sqrMagnitude < 0.001f)
-                formation = Vector2.right;
+            if (formation.sqrMagnitude < 0.001f) formation = Vector2.right;
             follow.SetFormationOffset(formation.normalized * formationSpread);
             follow.brainAllowsMovement = !enableBrain;
         }
@@ -171,19 +155,16 @@ public class RunSquadSpawner : MonoBehaviour
         }
 
         CampWander wander = obj.GetComponent<CampWander>();
-        if (wander != null)
-            wander.enabled = false;
+        if (wander != null) wander.enabled = false;
 
         CampDirectedWalk directedWalk = obj.GetComponent<CampDirectedWalk>();
-        if (directedWalk != null)
-            directedWalk.enabled = false;
+        if (directedWalk != null) directedWalk.enabled = false;
     }
 
     Transform FindPlayer()
     {
         GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
-        if (playerObject != null)
-            return playerObject.transform;
+        if (playerObject != null) return playerObject.transform;
 
         GobboController controller = Object.FindAnyObjectByType<GobboController>();
         return controller != null ? controller.transform : null;
@@ -191,9 +172,7 @@ public class RunSquadSpawner : MonoBehaviour
 
     GameState EnsureGameState()
     {
-        if (GameState.Instance != null)
-            return GameState.Instance;
-
+        if (GameState.Instance != null) return GameState.Instance;
         GameObject obj = new GameObject("GameState");
         return obj.AddComponent<GameState>();
     }

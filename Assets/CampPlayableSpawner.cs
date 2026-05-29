@@ -78,7 +78,6 @@ public class CampPlayableSpawner : MonoBehaviour
         {
             if (spawnedObjects[i] != null) Destroy(spawnedObjects[i]);
         }
-
         spawnedObjects.Clear();
         spawnedPlayer = null;
     }
@@ -161,6 +160,7 @@ public class CampPlayableSpawner : MonoBehaviour
 
         List<GobboUnitSaveData> active = GameState.Instance.GetActiveSquadUnits();
         List<GobboUnitSaveData> reserve = GameState.Instance.GetReserveGobboUnits();
+
         for (int i = 0; i < reserve.Count; i++)
         {
             Vector3 pos = spawnBuddiesNearPlayerFirst
@@ -171,19 +171,16 @@ public class CampPlayableSpawner : MonoBehaviour
         }
     }
 
-    void SpawnCampBuddy(GameObject prefab, GobboUnitSaveData unitData, Vector3 position, bool activeSquad, int sortingOrder, float wanderRadius, float speedMultiplier, int spotIndex)
+    void SpawnCampBuddy(GameObject prefab, GobboUnitSaveData data, Vector3 position, bool activeSquad, int sortingOrder, float wanderRadius, float speedMultiplier, int spotIndex)
     {
-        if (prefab == null || unitData == null) return;
+        if (prefab == null || data == null) return;
 
-        unitData.EnsureRuntimeDefaults();
-        BuddyData data = unitData.AsBuddyData();
-        if (data == null) return;
-
+        data.EnsureRuntimeDefaults();
         data.health = Mathf.Clamp(data.health, 1, Mathf.Max(1, data.maxHealth));
-        position.z = 0f;
 
+        position.z = 0f;
         GameObject buddyObject = Instantiate(prefab, position, Quaternion.identity);
-        buddyObject.name = activeSquad ? data.buddyName + " Camp Buddy" : data.buddyName + " Camp Reserve";
+        buddyObject.name = activeSquad ? data.displayName + " Camp Buddy" : data.displayName + " Camp Reserve";
         spawnedObjects.Add(buddyObject);
 
         Rigidbody2D rb = buddyObject.GetComponent<Rigidbody2D>();
@@ -255,8 +252,7 @@ public class CampPlayableSpawner : MonoBehaviour
 
     Vector3 GetSpot(Transform[] spots, int index, float fallbackRadius, int circleIndex, int circleCount)
     {
-        if (spots != null && index < spots.Length && spots[index] != null)
-            return spots[index].position;
+        if (spots != null && index < spots.Length && spots[index] != null) return spots[index].position;
 
         float angle = circleCount <= 0 ? 0f : (circleIndex / (float)circleCount) * Mathf.PI * 2f;
         Vector3 offset = new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f) * fallbackRadius;
