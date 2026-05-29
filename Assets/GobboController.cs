@@ -632,35 +632,33 @@ public class GobboController : MonoBehaviour
 
     public void SpawnBuddy()
     {
-        if (buddyRoster == null)
-            buddyRoster = Object.FindAnyObjectByType<BuddyRoster>();
+        GobboUnitSaveData data = new GobboUnitSaveData();
+        data.displayName = "Buddy";
+        data.gobboType = BuddyType.Baby;
+        data.ageStage = GobboAgeStage.Baby;
+        BuddyProgression.PrepareNewBaby(data);
 
-        BuddyData data = null;
-
-        if (buddyRoster != null)
+        if (GameState.Instance != null)
         {
-            data = buddyRoster.CreateNewBuddy();
-
-            if (GameState.Instance != null)
-                GameState.Instance.RegisterBuddyFound(data);
+            GameState.Instance.AddGobbo(data, true);
+            GameState.Instance.RegisterGobboFound(data);
         }
         else
         {
-            Debug.LogWarning("No BuddyRoster found. Spawning unsaved buddy.");
-            data = new BuddyData();
+            Debug.LogWarning("No GameState found. Spawning unsaved gobbo unit.");
         }
 
         Vector2 spawnPos = (Vector2)transform.position + Random.insideUnitCircle * buddySpawnRadius;
         SpawnBuddy(data, spawnPos);
     }
 
-    public void SpawnBuddy(BuddyData data)
+    public void SpawnBuddy(GobboUnitSaveData data)
     {
         Vector2 spawnPos = (Vector2)transform.position + Random.insideUnitCircle * buddySpawnRadius;
         SpawnBuddy(data, spawnPos);
     }
 
-    public void SpawnBuddy(BuddyData data, Vector2 spawnPosition)
+    public void SpawnBuddy(GobboUnitSaveData data, Vector2 spawnPosition)
     {
         if (buddyPrefab == null)
         {
@@ -670,12 +668,15 @@ public class GobboController : MonoBehaviour
 
         if (data == null)
         {
-            Debug.LogWarning("Tried to spawn buddy with no BuddyData.");
+            Debug.LogWarning("Tried to spawn buddy with no GobboUnitSaveData.");
             return;
         }
 
+        data.isLeader = false;
+        data.EnsureRuntimeDefaults();
+
         GameObject buddyObject = Instantiate(buddyPrefab, spawnPosition, Quaternion.identity);
-        buddyObject.name = data.buddyName;
+        buddyObject.name = data.displayName;
         buddyObject.layer = LayerMask.NameToLayer("Buddy");
 
         BuddyUnit unit = buddyObject.GetComponent<BuddyUnit>();
@@ -704,7 +705,18 @@ public class GobboController : MonoBehaviour
 
         AddFollower(1);
 
-        Debug.Log("Spawned buddy: " + data.buddyName + " / " + data.buddyType);
+        Debug.Log("Spawned buddy: " + data.displayName + " / " + data.gobboType);
+    }
+
+    // Compatibility overloads for older callers. New code should pass GobboUnitSaveData.
+    public void SpawnBuddy(BuddyData data)
+    {
+        SpawnBuddy((GobboUnitSaveData)data);
+    }
+
+    public void SpawnBuddy(BuddyData data, Vector2 spawnPosition)
+    {
+        SpawnBuddy((GobboUnitSaveData)data, spawnPosition);
     }
 
     public bool PullReserveBuddyIntoRun()
@@ -712,7 +724,7 @@ public class GobboController : MonoBehaviour
         if (GameState.Instance == null)
             return false;
 
-        BuddyData data = GameState.Instance.PullFirstReserveBuddy();
+        GobboUnitSaveData data = GameState.Instance.PullFirstReserveGobbo();
 
         if (data == null)
             return false;

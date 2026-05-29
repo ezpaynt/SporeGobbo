@@ -350,18 +350,25 @@ public class GameState : MonoBehaviour
         gobbo.kills++;
     }
 
-    public void RegisterBuddyFound(BuddyData buddy = null)
+    public void RegisterGobboFound(GobboUnitSaveData unit = null)
     {
         EnsureLastRun();
-        if (buddy != null)
+        if (unit != null)
         {
-            buddy.EnsureId();
-            string label = GetGobboLabel(buddy);
+            unit.EnsureRuntimeDefaults();
+            string label = GetGobboLabel(unit);
             if (!lastRun.newBuddyNames.Contains(label)) lastRun.newBuddyNames.Add(label);
         }
         lastRun.buddiesFound = Mathf.Max(lastRun.buddiesFound, lastRun.newBuddyNames.Count);
     }
 
+    // Compatibility wrapper. New code should call RegisterGobboFound(GobboUnitSaveData).
+    public void RegisterBuddyFound(BuddyData buddy = null)
+    {
+        RegisterGobboFound(buddy);
+    }
+
+    // Compatibility wrapper. New code should call RegisterGobboDeath(GobboUnitSaveData).
     public void RegisterBuddyDeath(BuddyData buddy)
     {
         if (buddy == null) return;
@@ -692,13 +699,22 @@ public class GameState : MonoBehaviour
         return true;
     }
 
+    public GobboUnitSaveData PullFirstReserveGobbo()
+    {
+        RepairRosterState();
+        List<GobboUnitSaveData> reserve = GetReserveGobboUnitsInternal();
+        if (reserve.Count == 0) return null;
+        GobboUnitSaveData unit = reserve[0];
+        if (unit == null) return null;
+        if (MoveBuddyToActiveSquad(unit.uniqueId)) return unit;
+        return null;
+    }
+
+    // Compatibility wrapper. New code should call PullFirstReserveGobbo().
     public BuddyData PullFirstReserveBuddy()
     {
-        List<BuddyData> reserve = GetReserveBuddies();
-        if (reserve.Count == 0) return null;
-        BuddyData buddy = reserve[0];
-        if (MoveBuddyToActiveSquad(buddy.uniqueId)) return buddy;
-        return null;
+        GobboUnitSaveData unit = PullFirstReserveGobbo();
+        return unit != null ? unit.AsBuddyData() : null;
     }
 
     public bool HasReserveBuddy() => GetReserveGobboUnitsInternal().Count > 0;
