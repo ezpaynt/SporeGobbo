@@ -1,27 +1,20 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Stable doorway for systems that need gobbo save data.
+/// New systems should use these methods and GobboUnitSaveData only.
+/// </summary>
 public static class GameStateGobboAPI
 {
     public static GobboUnitSaveData GetLeader(this GameState state)
     {
-        if (state == null) return null;
-        if (state.leader == null) state.leader = new GobboUnitSaveData { isLeader = true, displayName = "Gobbo" };
-        state.leader.isLeader = true;
-        state.leader.isDead = false;
-        state.leader.EnsureIdentity(string.IsNullOrWhiteSpace(state.leader.displayName) ? "Gobbo" : state.leader.displayName);
-        state.leader.EnsureRuntimeDefaults();
-        return state.leader;
+        return state != null ? state.GetLeader() : null;
     }
 
     public static void SetLeader(this GameState state, GobboUnitSaveData leader)
     {
-        if (state == null) return;
-        state.leader = leader != null ? leader.CloneUnit() : new GobboUnitSaveData { isLeader = true, displayName = "Gobbo" };
-        state.leader.isLeader = true;
-        state.leader.isDead = false;
-        state.leader.EnsureIdentity(string.IsNullOrWhiteSpace(state.leader.displayName) ? "Gobbo" : state.leader.displayName);
-        state.leader.EnsureRuntimeDefaults();
+        if (state != null) state.SetLeader(leader);
     }
 
     public static List<GobboUnitSaveData> GetAllGobbos(this GameState state, bool includeLeader = true, bool includeDead = false)
@@ -34,15 +27,12 @@ public static class GameStateGobboAPI
             GobboUnitSaveData leader = state.GetLeader();
             if (leader != null && (includeDead || !leader.isDead)) result.Add(leader);
         }
-        if (state.ownedGobbos != null)
+        foreach (GobboUnitSaveData unit in state.ownedGobbos)
         {
-            foreach (GobboUnitSaveData unit in state.ownedGobbos)
-            {
-                if (unit == null) continue;
-                unit.EnsureRuntimeDefaults();
-                if (!includeDead && unit.isDead) continue;
-                result.Add(unit);
-            }
+            if (unit == null) continue;
+            unit.EnsureRuntimeDefaults();
+            if (!includeDead && unit.isDead) continue;
+            result.Add(unit);
         }
         return result;
     }
@@ -56,30 +46,9 @@ public static class GameStateGobboAPI
     }
 
     public static bool HasGobbo(this GameState state, string gobboId) => state.FindGobboById(gobboId) != null;
-
-    public static List<GobboUnitSaveData> GetActiveSquadUnits(this GameState state)
-    {
-        if (state == null) return new List<GobboUnitSaveData>();
-        state.RepairRosterState();
-        return state.GetActiveSquadUnitsInternal();
-    }
-
-    public static List<GobboUnitSaveData> GetReserveGobboUnits(this GameState state)
-    {
-        if (state == null) return new List<GobboUnitSaveData>();
-        state.RepairRosterState();
-        return state.GetReserveGobboUnitsInternal();
-    }
-
-    public static GobboUnitSaveData PullFirstReserveGobbo(this GameState state)
-    {
-        if (state == null) return null;
-        List<GobboUnitSaveData> reserve = state.GetReserveGobboUnits();
-        if (reserve.Count == 0) return null;
-        GobboUnitSaveData unit = reserve[0];
-        if (unit == null) return null;
-        return state.MoveBuddyToActiveSquad(unit.uniqueId) ? unit : null;
-    }
+    public static List<GobboUnitSaveData> GetActiveSquadUnits(this GameState state) => state != null ? state.GetActiveSquadUnits() : new List<GobboUnitSaveData>();
+    public static List<GobboUnitSaveData> GetReserveGobboUnits(this GameState state) => state != null ? state.GetReserveGobboUnits() : new List<GobboUnitSaveData>();
+    public static GobboUnitSaveData PullFirstReserveGobbo(this GameState state) => state != null ? state.PullFirstReserveGobbo() : null;
 
     public static bool PromoteBuddyToLeader(this GameState state, string buddyId)
     {
@@ -101,7 +70,11 @@ public static class GameStateGobboAPI
     {
         if (state == null) return;
         state.RepairRosterState();
-        if (string.IsNullOrWhiteSpace(gobboId)) { state.markedSuccessorId = ""; return; }
+        if (string.IsNullOrWhiteSpace(gobboId))
+        {
+            state.markedSuccessorId = "";
+            return;
+        }
         GobboUnitSaveData unit = state.FindOwnedGobbo(gobboId);
         state.markedSuccessorId = unit != null ? unit.uniqueId : "";
     }
@@ -124,7 +97,12 @@ public static class GameStateGobboAPI
 
     public static GobboUnitSaveData CloneLeaderUnit(this GameState state)
     {
-        GobboUnitSaveData leader = state.GetLeader();
+        GobboUnitSaveData leader = state != null ? state.GetLeader() : null;
         return leader != null ? leader.CloneUnit() : new GobboUnitSaveData { isLeader = true, displayName = "Gobbo" };
+    }
+
+    public static void RegisterGobboFound(this GameState state, GobboUnitSaveData unit)
+    {
+        if (state != null) state.RegisterGobboFound(unit);
     }
 }
