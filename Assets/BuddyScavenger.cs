@@ -6,7 +6,6 @@ public class BuddyScavenger : MonoBehaviour
 {
     [Header("Brain")]
     public bool brainAllowsMovement = false;
-
     public float scanRange = 4f;
     public float pickupRange = 0.45f;
 
@@ -26,11 +25,9 @@ public class BuddyScavenger : MonoBehaviour
     private Rigidbody2D rb;
     private BuddyUnit unit;
     private BuddyDirectionalSprite directionalSprite;
-
     private Transform player;
     private Transform targetFood;
-
-    private List<Vector2> currentPath = new List<Vector2>();
+    private readonly List<Vector2> currentPath = new List<Vector2>();
     private int pathIndex = 0;
     private float repathTimer = 0f;
     private Vector2 lastPathGoal;
@@ -39,10 +36,8 @@ public class BuddyScavenger : MonoBehaviour
     {
         rb = GetComponent<Rigidbody2D>();
         rb.freezeRotation = true;
-
         unit = GetComponent<BuddyUnit>();
         directionalSprite = GetComponent<BuddyDirectionalSprite>();
-
         FindPlayerIfMissing();
     }
 
@@ -55,12 +50,9 @@ public class BuddyScavenger : MonoBehaviour
         }
 
         FindPlayerIfMissing();
-
-        if (player == null)
-            return;
+        if (player == null) return;
 
         float distanceFromPlayer = Vector2.Distance(transform.position, player.position);
-
         if (distanceFromPlayer > abandonFoodDistance)
         {
             DropFoodTarget();
@@ -76,14 +68,10 @@ public class BuddyScavenger : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (!brainAllowsMovement)
-            return;
-
-        if (!CanScavenge() || targetFood == null || player == null)
-            return;
+        if (!brainAllowsMovement) return;
+        if (!CanScavenge() || targetFood == null || player == null) return;
 
         float distanceFromPlayer = Vector2.Distance(transform.position, player.position);
-
         if (distanceFromPlayer > abandonFoodDistance)
         {
             DropFoodTarget();
@@ -91,11 +79,10 @@ public class BuddyScavenger : MonoBehaviour
         }
 
         float distanceToFood = Vector2.Distance(transform.position, targetFood.position);
-
         if (distanceToFood > pickupRange)
         {
             Vector2 moveDir = GetPathDirection(targetFood.position);
-            TileMover.Move(rb, moveDir * unit.data.moveSpeed, bodyRadius);
+            TileMover.Move(rb, moveDir * unit.unitData.moveSpeed, bodyRadius);
 
             if (directionalSprite != null && moveDir.sqrMagnitude > 0.001f)
                 directionalSprite.SetDirection(moveDir);
@@ -113,31 +100,24 @@ public class BuddyScavenger : MonoBehaviour
 
     bool CanScavenge()
     {
-        return unit != null && unit.data != null && unit.data.collectsFood;
+        return unit != null && unit.unitData != null && unit.unitData.collectsFood;
     }
 
     void FindFood()
     {
-        if (foodLayer.value == 0)
-            return;
+        if (foodLayer.value == 0) return;
 
         Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, scanRange, foodLayer);
-
         float closest = Mathf.Infinity;
         Transform closestFood = null;
 
         foreach (Collider2D hit in hits)
         {
             FoodItem food = hit.GetComponent<FoodItem>();
-
-            if (food == null)
-                continue;
-
-            if (!CanReachFood(hit.transform))
-                continue;
+            if (food == null) continue;
+            if (!CanReachFood(hit.transform)) continue;
 
             float dist = Vector2.Distance(transform.position, hit.transform.position);
-
             if (dist < closest)
             {
                 closest = dist;
@@ -151,22 +131,15 @@ public class BuddyScavenger : MonoBehaviour
 
     bool IsFoodStillValid(Transform food)
     {
-        if (food == null || !food.gameObject.activeInHierarchy)
-            return false;
-
-        if (player != null && Vector2.Distance(food.position, player.position) > abandonFoodDistance + 2f)
-            return false;
-
+        if (food == null || !food.gameObject.activeInHierarchy) return false;
+        if (player != null && Vector2.Distance(food.position, player.position) > abandonFoodDistance + 2f) return false;
         return CanReachFood(food);
     }
 
     bool CanReachFood(Transform food)
     {
-        if (food == null)
-            return false;
-
-        if (MapPathfinder.HasLineOfWalkableSight(rb.position, food.position))
-            return true;
+        if (food == null) return false;
+        if (MapPathfinder.HasLineOfWalkableSight(rb.position, food.position)) return true;
 
         List<Vector2> testPath;
         return MapPathfinder.TryFindPath(rb.position, food.position, out testPath) && testPath.Count > 0;
@@ -181,28 +154,20 @@ public class BuddyScavenger : MonoBehaviour
         }
 
         repathTimer -= Time.fixedDeltaTime;
+        bool needsNewPath = currentPath.Count == 0 ||
+                            pathIndex >= currentPath.Count ||
+                            repathTimer <= 0f ||
+                            Vector2.Distance(targetPos, lastPathGoal) > repathDistance;
 
-        bool needsNewPath =
-            currentPath.Count == 0 ||
-            pathIndex >= currentPath.Count ||
-            repathTimer <= 0f ||
-            Vector2.Distance(targetPos, lastPathGoal) > repathDistance;
+        if (needsNewPath) RebuildPath(targetPos);
 
-        if (needsNewPath)
-            RebuildPath(targetPos);
-
-        if (currentPath.Count == 0 || pathIndex >= currentPath.Count)
-            return Vector2.zero;
+        if (currentPath.Count == 0 || pathIndex >= currentPath.Count) return Vector2.zero;
 
         Vector2 waypoint = currentPath[pathIndex];
-
         if (Vector2.Distance(rb.position, waypoint) <= waypointReachDistance)
         {
             pathIndex++;
-
-            if (pathIndex >= currentPath.Count)
-                return Vector2.zero;
-
+            if (pathIndex >= currentPath.Count) return Vector2.zero;
             waypoint = currentPath[pathIndex];
         }
 
@@ -214,20 +179,24 @@ public class BuddyScavenger : MonoBehaviour
         repathTimer = repathTime;
         lastPathGoal = targetPos;
 
-        if (MapPathfinder.TryFindPath(rb.position, targetPos, out currentPath))
+        if (MapPathfinder.TryFindPath(rb.position, targetPos, out List<Vector2> newPath))
+        {
+            currentPath.Clear();
+            currentPath.AddRange(newPath);
             pathIndex = 0;
+        }
         else
+        {
             ClearPath();
+        }
     }
 
     void PickUpFood()
     {
-        if (targetFood == null)
-            return;
+        if (targetFood == null) return;
 
         FoodItem food = targetFood.GetComponent<FoodItem>();
         GobboController playerGobbo = Object.FindAnyObjectByType<GobboController>();
-
         if (food != null && playerGobbo != null)
             food.Eat(playerGobbo);
 
@@ -248,12 +217,8 @@ public class BuddyScavenger : MonoBehaviour
 
     void FindPlayerIfMissing()
     {
-        if (player != null)
-            return;
-
+        if (player != null) return;
         GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
-
-        if (playerObject != null)
-            player = playerObject.transform;
+        if (playerObject != null) player = playerObject.transform;
     }
 }

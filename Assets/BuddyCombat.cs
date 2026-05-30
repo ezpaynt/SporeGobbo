@@ -36,15 +36,12 @@ public class BuddyCombat : MonoBehaviour
     private Transform player;
     private Transform currentTarget;
     private float attackTimer = 0f;
-
-    private List<Vector2> currentPath = new List<Vector2>();
+    private readonly List<Vector2> currentPath = new List<Vector2>();
     private int pathIndex = 0;
     private float repathTimer = 0f;
     private Vector2 lastPathGoal;
-
     private float bounceTimer = 0f;
     private Vector2 bounceVelocity;
-
     private BuddyUnit unit;
     private BuddyDirectionalSprite directionalSprite;
 
@@ -52,10 +49,8 @@ public class BuddyCombat : MonoBehaviour
     {
         rb = GetComponent<Rigidbody2D>();
         rb.freezeRotation = true;
-
         unit = GetComponent<BuddyUnit>();
         directionalSprite = GetComponent<BuddyDirectionalSprite>();
-
         FindPlayerIfMissing();
     }
 
@@ -75,11 +70,8 @@ public class BuddyCombat : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (!brainAllowsMovement)
-            return;
-
-        if (!AllowedToFight() || currentTarget == null)
-            return;
+        if (!brainAllowsMovement) return;
+        if (!AllowedToFight() || currentTarget == null) return;
 
         if (bounceTimer > 0f)
         {
@@ -95,11 +87,8 @@ public class BuddyCombat : MonoBehaviour
         }
 
         float distanceToTarget = Vector2.Distance(transform.position, currentTarget.position);
-
-        if (distanceToTarget > attackRange)
-            MoveTowardTarget();
-        else
-            TryAttack();
+        if (distanceToTarget > attackRange) MoveTowardTarget();
+        else TryAttack();
     }
 
     public bool WantsControl()
@@ -109,45 +98,30 @@ public class BuddyCombat : MonoBehaviour
 
     bool AllowedToFight()
     {
-        if (unit == null || unit.data == null)
-            return true;
-
-        if (unit.data.onlyFightsAfterHit && !unit.data.hasBeenHit)
-            return false;
-
+        if (unit == null || unit.unitData == null) return true;
+        if (unit.unitData.onlyFightsAfterHit && !unit.unitData.hasBeenHit) return false;
         return true;
     }
 
     void FindTarget()
     {
-        if (enemyLayer.value == 0)
-            return;
-
-        if (currentTarget != null && IsStillValidTarget(currentTarget))
-            return;
+        if (enemyLayer.value == 0) return;
+        if (currentTarget != null && IsStillValidTarget(currentTarget)) return;
 
         currentTarget = null;
-
         Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, aggroRange, enemyLayer);
-
         float closestDistance = Mathf.Infinity;
         Transform closestEnemy = null;
 
         foreach (Collider2D hit in hits)
         {
-            if (!hit.gameObject.activeInHierarchy)
-                continue;
+            if (!hit.gameObject.activeInHierarchy) continue;
 
             Transform possibleTarget = hit.transform;
-
-            if (!IsTargetAllowedByPlayerDistance(possibleTarget))
-                continue;
-
-            if (!CanSeeOrPathTo(possibleTarget.position))
-                continue;
+            if (!IsTargetAllowedByPlayerDistance(possibleTarget)) continue;
+            if (!CanSeeOrPathTo(possibleTarget.position)) continue;
 
             float distance = Vector2.Distance(transform.position, possibleTarget.position);
-
             if (distance < closestDistance)
             {
                 closestDistance = distance;
@@ -156,33 +130,23 @@ public class BuddyCombat : MonoBehaviour
         }
 
         currentTarget = closestEnemy;
-
-        if (currentTarget != null)
-            ClearPath();
+        if (currentTarget != null) ClearPath();
     }
 
     bool IsStillValidTarget(Transform target)
     {
-        if (target == null || !target.gameObject.activeInHierarchy)
-            return false;
-
-        if (Vector2.Distance(transform.position, target.position) > aggroRange + 1.5f)
-            return false;
-
-        if (!IsTargetAllowedByPlayerDistance(target))
-            return false;
-
+        if (target == null || !target.gameObject.activeInHierarchy) return false;
+        if (Vector2.Distance(transform.position, target.position) > aggroRange + 1.5f) return false;
+        if (!IsTargetAllowedByPlayerDistance(target)) return false;
         return CanSeeOrPathTo(target.position);
     }
 
     bool IsTargetAllowedByPlayerDistance(Transform target)
     {
-        if (!onlyFightNearPlayer || player == null)
-            return true;
+        if (!onlyFightNearPlayer || player == null) return true;
 
         float buddyDistanceFromPlayer = Vector2.Distance(transform.position, player.position);
         float targetDistanceFromPlayer = Vector2.Distance(target.position, player.position);
-
         return buddyDistanceFromPlayer <= maxDistanceFromPlayerToFight &&
                targetDistanceFromPlayer <= maxDistanceFromPlayerToFight + 2f;
     }
@@ -190,12 +154,8 @@ public class BuddyCombat : MonoBehaviour
     bool CanSeeOrPathTo(Vector2 targetPos)
     {
         bool hasSight = !requireLineOfSightToTarget || MapPathfinder.HasLineOfWalkableSight(rb.position, targetPos);
-
-        if (hasSight)
-            return true;
-
-        if (!requireReachableTarget)
-            return true;
+        if (hasSight) return true;
+        if (!requireReachableTarget) return true;
 
         List<Vector2> testPath;
         return MapPathfinder.TryFindPath(rb.position, targetPos, out testPath) && testPath.Count > 0;
@@ -203,12 +163,10 @@ public class BuddyCombat : MonoBehaviour
 
     void MoveTowardTarget()
     {
-        if (currentTarget == null)
-            return;
+        if (currentTarget == null) return;
 
         Vector2 targetPos = currentTarget.position;
         Vector2 moveDir = GetPathDirection(targetPos);
-
         TileMover.Move(rb, moveDir * chaseSpeed, bodyRadius);
 
         if (directionalSprite != null && moveDir.sqrMagnitude > 0.001f)
@@ -224,28 +182,20 @@ public class BuddyCombat : MonoBehaviour
         }
 
         repathTimer -= Time.fixedDeltaTime;
+        bool needsNewPath = currentPath.Count == 0 ||
+                            pathIndex >= currentPath.Count ||
+                            repathTimer <= 0f ||
+                            Vector2.Distance(targetPos, lastPathGoal) > repathDistance;
 
-        bool needsNewPath =
-            currentPath.Count == 0 ||
-            pathIndex >= currentPath.Count ||
-            repathTimer <= 0f ||
-            Vector2.Distance(targetPos, lastPathGoal) > repathDistance;
+        if (needsNewPath) RebuildPath(targetPos);
 
-        if (needsNewPath)
-            RebuildPath(targetPos);
-
-        if (currentPath.Count == 0 || pathIndex >= currentPath.Count)
-            return Vector2.zero;
+        if (currentPath.Count == 0 || pathIndex >= currentPath.Count) return Vector2.zero;
 
         Vector2 waypoint = currentPath[pathIndex];
-
         if (Vector2.Distance(rb.position, waypoint) <= waypointReachDistance)
         {
             pathIndex++;
-
-            if (pathIndex >= currentPath.Count)
-                return Vector2.zero;
-
+            if (pathIndex >= currentPath.Count) return Vector2.zero;
             waypoint = currentPath[pathIndex];
         }
 
@@ -257,28 +207,27 @@ public class BuddyCombat : MonoBehaviour
         repathTimer = repathTime;
         lastPathGoal = targetPos;
 
-        if (MapPathfinder.TryFindPath(rb.position, targetPos, out currentPath))
+        if (MapPathfinder.TryFindPath(rb.position, targetPos, out List<Vector2> newPath))
+        {
+            currentPath.Clear();
+            currentPath.AddRange(newPath);
             pathIndex = 0;
+        }
         else
+        {
             ClearPath();
+        }
     }
 
     void TryAttack()
     {
         rb.linearVelocity = Vector2.zero;
-
-        if (attackTimer > 0f || currentTarget == null)
-            return;
-
-        if (!MapPathfinder.HasLineOfWalkableSight(rb.position, currentTarget.position))
-            return;
+        if (attackTimer > 0f || currentTarget == null) return;
+        if (!MapPathfinder.HasLineOfWalkableSight(rb.position, currentTarget.position)) return;
 
         attackTimer = attackCooldown;
-
         Vector2 directionToEnemy = ((Vector2)currentTarget.position - rb.position).normalized;
-
-        if (directionalSprite != null)
-            directionalSprite.SetDirection(directionToEnemy);
+        if (directionalSprite != null) directionalSprite.SetDirection(directionToEnemy);
 
         DamageEnemy(currentTarget.gameObject);
         KnockEnemy(currentTarget.gameObject, directionToEnemy);
@@ -293,9 +242,7 @@ public class BuddyCombat : MonoBehaviour
     void KnockEnemy(GameObject enemy, Vector2 direction)
     {
         Rigidbody2D enemyRb = enemy.GetComponent<Rigidbody2D>();
-
-        if (enemyRb != null)
-            enemyRb.AddForce(direction * enemyKnockbackForce, ForceMode2D.Impulse);
+        if (enemyRb != null) enemyRb.AddForce(direction * enemyKnockbackForce, ForceMode2D.Impulse);
     }
 
     void StartSelfBounce(Vector2 direction)
@@ -318,13 +265,9 @@ public class BuddyCombat : MonoBehaviour
 
     void FindPlayerIfMissing()
     {
-        if (player != null)
-            return;
-
+        if (player != null) return;
         GameObject foundPlayer = GameObject.FindGameObjectWithTag("Player");
-
-        if (foundPlayer != null)
-            player = foundPlayer.transform;
+        if (foundPlayer != null) player = foundPlayer.transform;
     }
 
     public void SetPlayer(Transform newPlayer)

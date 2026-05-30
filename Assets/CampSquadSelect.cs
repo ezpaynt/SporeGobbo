@@ -238,7 +238,6 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
     string DisplayName(GobboUnitSaveData gobbo)
     {
         if (gobbo == null) return "Gobbo";
-        if (gobbo is BuddyData buddy && !string.IsNullOrWhiteSpace(buddy.buddyName)) return buddy.buddyName;
         return string.IsNullOrWhiteSpace(gobbo.displayName) ? "Gobbo" : gobbo.displayName;
     }
 
