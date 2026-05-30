@@ -1,152 +1,118 @@
+using System.Collections.Generic;
+using System.Text;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
-[RequireComponent(typeof(Collider2D))]
-public class CampOldBonesWall : MonoBehaviour, ICampInteractable
+/// <summary>
+/// Interactable camp location for reading saved death history.
+/// This should be disabled/hidden until CampDeathHistoryStore has at least one record.
+/// </summary>
+public class CampOldBonesWall : MonoBehaviour
 {
-    [Header("Interaction")]
-    public string interactPrompt = "Read old bones";
+    [Header("Visibility")]
+    public GameObject wallVisualRoot;
+    public bool hideUntilFirstDeath = true;
 
     [Header("UI")]
     public GameObject panel;
     public TMP_Text titleText;
-    public TMP_Text bodyText;
-    public Button closeButton;
+    public TMP_Text deadBuddiesText;
+    public TMP_Text deadLeadersText;
+    public string emptyBuddyText = "No buddies from this run are on the wall.";
+    public string emptyLeaderText = "No fallen leaders yet.";
 
-    [Header("Text")]
-    public string title = "Old Bones Wall";
-    public string emptyMessage = "No little bones remembered yet.";
+    [Header("Input")]
+    public KeyCode interactKey = KeyCode.E;
+    public float interactRange = 1.75f;
+    public Transform playerOverride;
 
-    [Header("Visibility")]
-    [Tooltip("If true, the wall object hides itself until the death-history store has at least one record.")]
-    public bool hideWhenNoDeaths = true;
-
-    private bool isOpen = false;
-
-    void Awake()
-    {
-        HookButtons();
-        CloseMenu();
-    }
+    bool playerNearby;
 
     void Start()
     {
-        HookButtons();
-        RefreshWallVisibility();
-        CloseMenu();
+        if (panel != null) panel.SetActive(false);
+        RefreshVisibility();
     }
 
     void Update()
     {
-        if (isOpen && Input.GetKeyDown(KeyCode.Escape))
-            CloseMenu();
+        RefreshVisibility();
+        Transform player = playerOverride != null ? playerOverride : FindPlayer();
+        playerNearby = player != null && Vector2.Distance(transform.position, player.position) <= interactRange;
+        if (playerNearby && Input.GetKeyDown(interactKey)) TogglePanel();
+        if (panel != null && panel.activeSelf && Input.GetKeyDown(KeyCode.Escape)) panel.SetActive(false);
     }
 
-    public string GetInteractPrompt()
+    public void TogglePanel()
     {
-        return interactPrompt;
+        if (panel == null) return;
+        bool open = !panel.activeSelf;
+        panel.SetActive(open);
+        if (open) RefreshPanel();
     }
 
-    public void Interact(GobboController player)
+    public void OpenPanel()
     {
-        if (isOpen)
-            CloseMenu();
-        else
-            OpenMenu();
-    }
-
-    public void OpenMenu()
-    {
-        RefreshWallVisibility();
-
-        if (panel == null)
-        {
-            Debug.LogWarning("CampOldBonesWall has no Panel assigned.", this);
-            CampMessageUI.Show("Old Bones wall menu is not wired yet.");
-            return;
-        }
-
-        isOpen = true;
-
+        if (panel == null) return;
         panel.SetActive(true);
-        panel.transform.SetAsLastSibling();
-
-        if (titleText != null)
-            titleText.text = title;
-
-        RefreshText();
+        RefreshPanel();
     }
 
-    public void CloseMenu()
+    public void ClosePanel()
     {
-        isOpen = false;
-
-        if (panel != null)
-            panel.SetActive(false);
+        if (panel != null) panel.SetActive(false);
     }
 
-    public void RefreshWallVisibility()
+    public void RefreshVisibility()
     {
-        if (!hideWhenNoDeaths)
-            return;
+        CampDeathHistoryStore store = CampDeathHistoryStore.Instance;
+        bool visible = !hideUntilFirstDeath || (store != null && store.HasAnyDeaths());
+        if (wallVisualRoot != null && wallVisualRoot.activeSelf != visible) wallVisualRoot.SetActive(visible);
+    }
 
+    public void RefreshPanel()
+    {
         CampDeathHistoryStore store = CampDeathHistoryStore.GetOrCreate();
-        bool shouldShow = store != null && store.HasAnyDeaths();
+        if (titleText != null) titleText.text = "Old Bones Wall";
 
-        // Do not hide if this component is on a child interact spot.
-        // Assign the script to the visible wall object for best results.
-        if (gameObject.activeSelf != shouldShow)
-            gameObject.SetActive(shouldShow);
-    }
-
-    public void ForceShowWall()
-    {
-        gameObject.SetActive(true);
-    }
-
-    void HookButtons()
-    {
-        if (closeButton == null)
-            return;
-
-        closeButton.onClick.RemoveAllListeners();
-        closeButton.onClick.AddListener(CloseMenu);
-    }
-
-    void RefreshText()
-    {
-        if (bodyText == null)
+        List<DeadBuddyRecord> buddiesThisRun = new List<DeadBuddyRecord>();
+        List<DeadBuddyRecord> leaders = new List<DeadBuddyRecord>();
+        if (store != null && store.deadBuddyHistory != null)
         {
-            Debug.LogWarning("CampOldBonesWall has no Body Text assigned.", this);
-            return;
+            int currentRun = GameState.Instance != null ? GameState.Instance.currentRunNumber : 1;
+            foreach (DeadBuddyRecord record in store.deadBuddyHistory)
+            {
+                if (record == null) continue;
+                if (record.wasLeader) leaders.Add(record);
+                else if (record.runNumber == currentRun) buddiesThisRun.Add(record);
+            }
         }
 
-        CampDeathHistoryStore store = CampDeathHistoryStore.GetOrCreate();
+        if (deadBuddiesText != null) deadBuddiesText.text = BuildList("Dead Buddies This Run", buddiesThisRun, emptyBuddyText);
+        if (deadLeadersText != null) deadLeadersText.text = BuildList("Fallen Player Gobbos", leaders, emptyLeaderText);
+    }
 
-        if (store == null || store.deadBuddyHistory == null || store.deadBuddyHistory.Count == 0)
+    string BuildList(string header, List<DeadBuddyRecord> records, string empty)
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.AppendLine(header);
+        sb.AppendLine();
+        if (records == null || records.Count == 0)
         {
-            bodyText.text = emptyMessage;
-            return;
+            sb.AppendLine(empty);
+            return sb.ToString();
         }
-
-        string text = "";
-
-        for (int i = store.deadBuddyHistory.Count - 1; i >= 0; i--)
+        foreach (DeadBuddyRecord record in records)
         {
-            DeadBuddyRecord record = store.deadBuddyHistory[i];
-            if (record == null)
-                continue;
-
-            text += record.GetDisplayLine();
-
-            if (i > 0)
-                text += "\n\n";
+            if (record == null) continue;
+            sb.AppendLine("• " + record.GetDisplayLine());
         }
+        return sb.ToString();
+    }
 
-        if (string.IsNullOrWhiteSpace(text))
-            text = emptyMessage;
-
-        bodyText.text = text;
+    Transform FindPlayer()
+    {
+        GobboController player = FindAnyObjectByType<GobboController>();
+        return player != null ? player.transform : null;
     }
 }

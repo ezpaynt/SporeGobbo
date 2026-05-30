@@ -1,69 +1,82 @@
+using System;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 
-[System.Serializable]
+[Serializable]
 public class DeadBuddyRecord
 {
-    public string buddyName = "Unknown Gobbo";
-    public string buddyType = "Gobbo";
-    public string ageStage = "";
+    public string gobboId = "";
+    public string displayName = "Unknown Gobbo";
+    public string gobboType = "Unknown";
     public int level = 1;
     public int runNumber = 1;
-    public string causeOfDeath = "Lost in the caves";
+    public string cause = "Lost in the dirt.";
+    public bool wasLeader = false;
     public bool memorialSeen = false;
-    public bool wasPlayerLeader = false;
 
     public string GetDisplayLine()
     {
-        string typePart = string.IsNullOrWhiteSpace(ageStage) ? buddyType : buddyType + " / " + ageStage;
-        string leaderPart = wasPlayerLeader ? "Leader " : "";
-        return leaderPart + buddyName + " the " + typePart + "\nLv " + Mathf.Max(1, level) + " Run " + Mathf.Max(1, runNumber) + "\n" + (string.IsNullOrWhiteSpace(causeOfDeath) ? "Lost in the caves" : causeOfDeath);
+        string role = wasLeader ? "Leader" : "Buddy";
+        string name = string.IsNullOrWhiteSpace(displayName) ? "Unknown Gobbo" : displayName;
+        string type = string.IsNullOrWhiteSpace(gobboType) ? "Gobbo" : gobboType;
+        string why = string.IsNullOrWhiteSpace(cause) ? "Lost in the dirt." : cause;
+        return $"{name} — {role} {type}, Lv {Mathf.Max(1, level)} | Run {Mathf.Max(1, runNumber)} | {why}";
     }
 }
 
+/// <summary>
+/// Scene-side access point for the saved death history.
+/// Permanent data is copied into/out of SporeSaveSlotData by SporeSaveManager.
+/// This object should NOT be DontDestroyOnLoad; only data should persist through saves.
+/// </summary>
 public class CampDeathHistoryStore : MonoBehaviour
 {
     public static CampDeathHistoryStore Instance { get; private set; }
 
-    [Header("Permanent Death History")]
+    [Header("Saved Memorial Records")]
     public List<DeadBuddyRecord> deadBuddyHistory = new List<DeadBuddyRecord>();
 
-    private void Awake()
+    [Header("Debug")]
+    public bool logDebugMessages = true;
+
+    void Awake()
     {
-        if (deadBuddyHistory == null) deadBuddyHistory = new List<DeadBuddyRecord>();
-        if (Instance != null && Instance != this)
-        {
-            if (IsMixedSceneObject()) { enabled = false; return; }
-            Destroy(gameObject);
-            return;
-        }
         Instance = this;
+        deadBuddyHistory ??= new List<DeadBuddyRecord>();
     }
 
-    private bool IsMixedSceneObject()
+    void OnDestroy()
     {
-        if (GetComponent<CampSuccessionUI>() != null) return true;
-        if (GetComponent<CampSuccessorPreferenceStore>() != null) return true;
-        return false;
+        if (Instance == this) Instance = null;
     }
 
     public static CampDeathHistoryStore GetOrCreate()
     {
         if (Instance != null) return Instance;
-        CampDeathHistoryStore found = Object.FindAnyObjectByType<CampDeathHistoryStore>(FindObjectsInactive.Include);
-        if (found != null) { Instance = found; return Instance; }
+        CampDeathHistoryStore found = FindAnyObjectByType<CampDeathHistoryStore>();
+        if (found != null)
+        {
+            Instance = found;
+            return found;
+        }
+
         GameObject obj = new GameObject("CampDeathHistoryStore");
-        Instance = obj.AddComponent<CampDeathHistoryStore>();
-        return Instance;
+        return obj.AddComponent<CampDeathHistoryStore>();
     }
 
-    public bool HasAnyDeaths() => deadBuddyHistory != null && deadBuddyHistory.Count > 0;
+    public bool HasAnyDeaths()
+    {
+        return deadBuddyHistory != null && deadBuddyHistory.Count > 0;
+    }
 
     public bool HasUnseenMemorials()
     {
         if (deadBuddyHistory == null) return false;
         foreach (DeadBuddyRecord record in deadBuddyHistory)
+        {
             if (record != null && !record.memorialSeen) return true;
+        }
         return false;
     }
 
@@ -71,97 +84,135 @@ public class CampDeathHistoryStore : MonoBehaviour
     {
         if (deadBuddyHistory == null) return;
         foreach (DeadBuddyRecord record in deadBuddyHistory)
+        {
             if (record != null) record.memorialSeen = true;
+        }
+        TrySaveCurrentSlot();
     }
 
-    public DeadBuddyRecord AddFromLabel(string label) => AddFromLabel(label, 1, "Lost in the caves");
-    public DeadBuddyRecord AddFromLabel(string label, int runNumber) => AddFromLabel(label, runNumber, "Lost in the caves");
+    public DeadBuddyRecord AddFromGobbo(GobboUnitSaveData gobbo, int runNumber, string cause, bool wasLeader)
+    {
+        if (gobbo == null) return null;
+        gobbo.EnsureRuntimeDefaults();
+        DeadBuddyRecord record = new DeadBuddyRecord
+        {
+            gobboId = gobbo.uniqueId,
+            displayName = string.IsNullOrWhiteSpace(gobbo.displayName) ? "Unknown Gobbo" : gobbo.displayName,
+            gobboType = gobbo.gobboType.ToString(),
+            level = Mathf.Max(1, gobbo.level),
+            runNumber = Mathf.Max(1, runNumber),
+            cause = string.IsNullOrWhiteSpace(cause) ? "Lost in the dirt." : cause,
+            wasLeader = wasLeader,
+            memorialSeen = false
+        };
+        return AddRecord(record);
+    }
 
-    public DeadBuddyRecord AddFromLabel(string label, int runNumber, string causeOfDeath)
+    public DeadBuddyRecord AddFromLabel(string label, int runNumber, string cause)
     {
         DeadBuddyRecord record = new DeadBuddyRecord
         {
-            buddyName = string.IsNullOrWhiteSpace(label) ? "Unknown Gobbo" : label.Trim(),
-            buddyType = "Gobbo",
-            ageStage = "",
+            gobboId = "",
+            displayName = string.IsNullOrWhiteSpace(label) ? "Unknown Gobbo" : label,
+            gobboType = "Gobbo",
             level = 1,
             runNumber = Mathf.Max(1, runNumber),
-            causeOfDeath = string.IsNullOrWhiteSpace(causeOfDeath) ? "Lost in the caves" : causeOfDeath.Trim(),
-            memorialSeen = false,
-            wasPlayerLeader = false
+            cause = string.IsNullOrWhiteSpace(cause) ? "Lost in the dirt." : cause,
+            wasLeader = false,
+            memorialSeen = false
         };
-        AddRecord(record);
-        return record;
+        return AddRecord(record);
     }
 
-    public DeadBuddyRecord AddFromBuddy(GobboUnitSaveData buddy, int runNumber, string causeOfDeath)
+    public DeadBuddyRecord AddDeadLeaderFromPendingStore()
     {
-        if (buddy == null) return AddFromLabel("Unknown Gobbo", runNumber, causeOfDeath);
-        buddy.EnsureRuntimeDefaults();
+        PlayerDeathRunStore store = PlayerDeathRunStore.Instance;
+        if (store == null || !GetBool(store, "playerDiedThisRun")) return null;
+        if (GetBool(store, "deadLeaderMemorialized")) return null;
+
+        string id = GetString(store, "deadLeaderId", GetString(store, "deadPlayerId", ""));
+        string name = GetString(store, "deadLeaderName", GetString(store, "deadPlayerName", "Unknown Leader"));
+        string type = GetString(store, "deadLeaderType", GetString(store, "deadPlayerType", "Gobbo"));
+        int level = GetInt(store, "deadLeaderLevel", GetInt(store, "deadPlayerLevel", 1));
+        int runNumber = GetInt(store, "runNumber", GameState.Instance != null ? GameState.Instance.currentRunNumber : 1);
+        string cause = GetString(store, "deathCause", "The leader got chewed up in the dirt.");
+
         DeadBuddyRecord record = new DeadBuddyRecord
         {
-            buddyName = string.IsNullOrWhiteSpace(buddy.displayName) ? "Unknown Gobbo" : buddy.displayName,
-            buddyType = buddy.gobboType.ToString(),
-            ageStage = buddy.ageStage.ToString(),
-            level = Mathf.Max(1, buddy.level),
+            gobboId = id,
+            displayName = string.IsNullOrWhiteSpace(name) ? "Unknown Leader" : name,
+            gobboType = string.IsNullOrWhiteSpace(type) ? "Gobbo" : type,
+            level = Mathf.Max(1, level),
             runNumber = Mathf.Max(1, runNumber),
-            causeOfDeath = string.IsNullOrWhiteSpace(causeOfDeath) ? "Lost in the caves" : causeOfDeath.Trim(),
-            memorialSeen = false,
-            wasPlayerLeader = false
+            cause = string.IsNullOrWhiteSpace(cause) ? "The leader got chewed up in the dirt." : cause,
+            wasLeader = true,
+            memorialSeen = false
         };
-        AddRecord(record);
-        return record;
+
+        DeadBuddyRecord added = AddRecord(record);
+        SetBool(store, "deadLeaderMemorialized", true);
+        SetBool(store, "deadPlayerMemorialized", true);
+        return added;
     }
 
-    public DeadBuddyRecord AddDeadLeaderFromPendingStore() => AddDeadLeaderFromPendingStore(PlayerDeathRunStore.Instance);
-
-    public DeadBuddyRecord AddDeadLeaderFromPendingStore(PlayerDeathRunStore pending)
+    public DeadBuddyRecord AddRecord(DeadBuddyRecord record)
     {
-        if (pending == null) return AddDeadLeaderFallback();
-        if (pending.memorialAddedToHistory) return null;
-        pending.SyncCompatibilityFields();
-        DeadBuddyRecord record = new DeadBuddyRecord
+        if (record == null) return null;
+        deadBuddyHistory ??= new List<DeadBuddyRecord>();
+
+        // Prevent duplicate records for the same gobbo/run/role.
+        foreach (DeadBuddyRecord existing in deadBuddyHistory)
         {
-            buddyName = string.IsNullOrWhiteSpace(pending.deadLeaderName) ? "The old leader" : pending.deadLeaderName,
-            buddyType = string.IsNullOrWhiteSpace(pending.deadLeaderType) ? "Gobbo" : pending.deadLeaderType,
-            ageStage = "Leader",
-            level = Mathf.Max(1, pending.deadLeaderLevel),
-            runNumber = Mathf.Max(1, pending.deadLeaderRunNumber),
-            causeOfDeath = string.IsNullOrWhiteSpace(pending.deathCause) ? "Fell leading the horde" : pending.deathCause,
-            memorialSeen = false,
-            wasPlayerLeader = true
-        };
-        AddRecord(record);
-        pending.memorialAddedToHistory = true;
-        return record;
-    }
+            if (existing == null) continue;
+            bool sameId = !string.IsNullOrWhiteSpace(record.gobboId) && existing.gobboId == record.gobboId;
+            bool sameName = string.IsNullOrWhiteSpace(record.gobboId) && existing.displayName == record.displayName;
+            if ((sameId || sameName) && existing.runNumber == record.runNumber && existing.wasLeader == record.wasLeader)
+                return existing;
+        }
 
-    private DeadBuddyRecord AddDeadLeaderFallback()
-    {
-        DeadBuddyRecord record = new DeadBuddyRecord
-        {
-            buddyName = "The old leader",
-            buddyType = "Gobbo",
-            ageStage = "Leader",
-            level = 1,
-            runNumber = GetCurrentRunNumber(),
-            causeOfDeath = "Fell leading the horde",
-            memorialSeen = false,
-            wasPlayerLeader = true
-        };
-        AddRecord(record);
-        return record;
-    }
-
-    private void AddRecord(DeadBuddyRecord record)
-    {
-        if (deadBuddyHistory == null) deadBuddyHistory = new List<DeadBuddyRecord>();
         deadBuddyHistory.Add(record);
+        Log("Added memorial: " + record.GetDisplayLine());
+        TrySaveCurrentSlot();
+        return record;
     }
 
-    private int GetCurrentRunNumber()
+    public List<DeadBuddyRecord> GetDeadBuddiesFromCurrentRun()
     {
-        if (GameState.Instance != null) return Mathf.Max(1, GameState.Instance.currentRunNumber);
-        return 1;
+        int run = GameState.Instance != null ? GameState.Instance.currentRunNumber : 1;
+        List<DeadBuddyRecord> result = new List<DeadBuddyRecord>();
+        if (deadBuddyHistory == null) return result;
+        foreach (DeadBuddyRecord record in deadBuddyHistory)
+        {
+            if (record != null && !record.wasLeader && record.runNumber == run) result.Add(record);
+        }
+        return result;
     }
+
+    public List<DeadBuddyRecord> GetDeadLeaders()
+    {
+        List<DeadBuddyRecord> result = new List<DeadBuddyRecord>();
+        if (deadBuddyHistory == null) return result;
+        foreach (DeadBuddyRecord record in deadBuddyHistory)
+        {
+            if (record != null && record.wasLeader) result.Add(record);
+        }
+        return result;
+    }
+
+    void TrySaveCurrentSlot()
+    {
+        try { SporeSaveManager.SaveCurrentSlotFromGameState(); }
+        catch { /* compile-safe best effort during scene teardown */ }
+    }
+
+    void Log(string message)
+    {
+        if (logDebugMessages) Debug.Log("[CampDeathHistoryStore] " + message);
+    }
+
+    static FieldInfo Field(object obj, string name) => obj != null ? obj.GetType().GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic) : null;
+    static string GetString(object obj, string name, string fallback) { FieldInfo f = Field(obj, name); object v = f != null ? f.GetValue(obj) : null; return v is string s ? s : fallback; }
+    static int GetInt(object obj, string name, int fallback) { FieldInfo f = Field(obj, name); object v = f != null ? f.GetValue(obj) : null; return v is int i ? i : fallback; }
+    static bool GetBool(object obj, string name) { FieldInfo f = Field(obj, name); object v = f != null ? f.GetValue(obj) : null; return v is bool b && b; }
+    static void SetBool(object obj, string name, bool value) { FieldInfo f = Field(obj, name); if (f != null && f.FieldType == typeof(bool)) f.SetValue(obj, value); }
 }
