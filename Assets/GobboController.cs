@@ -708,17 +708,6 @@ public class GobboController : MonoBehaviour
         Debug.Log("Spawned buddy: " + data.displayName + " / " + data.gobboType);
     }
 
-    // Compatibility overloads for older callers. New code should pass GobboUnitSaveData.
-    public void SpawnBuddy(BuddyData data)
-    {
-        SpawnBuddy((GobboUnitSaveData)data);
-    }
-
-    public void SpawnBuddy(BuddyData data, Vector2 spawnPosition)
-    {
-        SpawnBuddy((GobboUnitSaveData)data, spawnPosition);
-    }
-
     public bool PullReserveBuddyIntoRun()
     {
         if (GameState.Instance == null)

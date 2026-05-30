@@ -8,21 +8,12 @@ public static class BuddyProgression
     public const int TestBabyXPToNextLevel = 1;
     public static readonly int[] EvolutionLevels = { 2, 6, 12, 24, 48 };
 
-    public static void PrepareNewBaby(BuddyData buddy)
-    {
-        PrepareNewBaby((GobboUnitSaveData)buddy);
-        if (buddy != null)
-        {
-            buddy.buddyType = BuddyType.Baby;
-            buddy.buddyName = string.IsNullOrWhiteSpace(buddy.buddyName) ? buddy.displayName : buddy.buddyName;
-        }
-    }
-
     public static void PrepareNewBaby(GobboUnitSaveData unit)
     {
         if (unit == null) return;
         unit.EnsureId();
         unit.EnsureRuntimeDefaults();
+        unit.isLeader = false;
         unit.gobboType = BuddyType.Baby;
         unit.ageStage = GobboAgeStage.Baby;
         unit.level = 1;
@@ -35,8 +26,6 @@ public static class BuddyProgression
         unit.loyalty = 100;
         unit.visualSetId = "baby";
     }
-
-    public static void AddXP(BuddyData buddy, int amount) => AddXP((GobboUnitSaveData)buddy, amount);
 
     public static void AddXP(GobboUnitSaveData unit, int amount)
     {
@@ -95,10 +84,8 @@ public static class BuddyProgression
         if (unit.pendingEvolution)
         {
             unit.runsWaitingForEvolution++;
-            if (unit.runsWaitingForEvolution >= 5)
-                ForceNeglectedElder(unit);
-            else if (unit.runsWaitingForEvolution >= 3 && unit.happiness < 50)
-                ForceNeglectedElder(unit);
+            if (unit.runsWaitingForEvolution >= 5) ForceNeglectedElder(unit);
+            else if (unit.runsWaitingForEvolution >= 3 && unit.happiness < 50) ForceNeglectedElder(unit);
         }
     }
 
@@ -108,8 +95,6 @@ public static class BuddyProgression
             if (level == milestone) return true;
         return false;
     }
-
-    public static void MarkPendingEvolution(BuddyData buddy, int level) => MarkPendingEvolution((GobboUnitSaveData)buddy, level);
 
     public static void MarkPendingEvolution(GobboUnitSaveData unit, int level)
     {
@@ -128,16 +113,6 @@ public static class BuddyProgression
         if (level == 24) return GobboAgeStage.Stage3;
         if (level >= 48) return GobboAgeStage.Stage4;
         return GobboAgeStage.Young;
-    }
-
-    public static void ApplyEvolutionChoice(BuddyData buddy, BuddyType chosenType, BuddyRoster roster)
-    {
-        ApplyEvolutionChoice((GobboUnitSaveData)buddy, chosenType, roster);
-        if (buddy != null)
-        {
-            buddy.buddyType = buddy.gobboType;
-            buddy.buddyName = buddy.displayName;
-        }
     }
 
     public static void ApplyEvolutionChoice(GobboUnitSaveData unit, BuddyType chosenType, BuddyRoster roster)
@@ -184,8 +159,6 @@ public static class BuddyProgression
         if (!unit.evolutionHistoryIds.Contains(cardId)) unit.evolutionHistoryIds.Add(cardId);
         unit.EnsureRuntimeDefaults();
     }
-
-    public static void ForceNeglectedElder(BuddyData buddy) => ForceNeglectedElder((GobboUnitSaveData)buddy);
 
     public static void ForceNeglectedElder(GobboUnitSaveData unit)
     {

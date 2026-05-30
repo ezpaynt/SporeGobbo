@@ -36,7 +36,6 @@ public class GobboCard
     public int attackBonus = 0;
     public int defenseBonus = 0;
     public int digPowerBonus = 0;
-
     public float moveSpeedBonus = 0f;
     public float attackCooldownBonus = 0f;
     public float attackRangeBonus = 0f;
@@ -62,53 +61,26 @@ public class GobboCard
 
     public bool CanAppearForPlayer(GobboController gobbo, GobboCardContext context)
     {
-        if (!playerAllowed || gobbo == null)
-            return false;
-
-        if (gobbo.level < minLevel)
-            return false;
-
-        if (!ContextAllowed(context))
-            return false;
-
-        if (requiresSpecificType && gobbo.gobboType != requiredType)
-            return false;
-
-        if (requiresSpecificAgeStage && gobbo.ageStage != requiredAgeStage)
-            return false;
-
-        if (unlockSporeMend && gobbo.hasSporeMend)
-            return false;
-
-        if (unlockDashBite && gobbo.hasDashBite)
-            return false;
-
-        if (gobbo.chosenCardIds != null && gobbo.chosenCardIds.Contains(cardId))
-            return false;
-
+        if (!playerAllowed || gobbo == null) return false;
+        if (gobbo.level < minLevel) return false;
+        if (!ContextAllowed(context)) return false;
+        if (requiresSpecificType && gobbo.gobboType != requiredType) return false;
+        if (requiresSpecificAgeStage && gobbo.ageStage != requiredAgeStage) return false;
+        if (unlockSporeMend && gobbo.hasSporeMend) return false;
+        if (unlockDashBite && gobbo.hasDashBite) return false;
+        if (gobbo.chosenCardIds != null && gobbo.chosenCardIds.Contains(cardId)) return false;
         return true;
     }
 
-    public bool CanAppearForBuddy(BuddyData buddy, GobboCardContext context)
+    public bool CanAppearForBuddy(GobboUnitSaveData buddy, GobboCardContext context)
     {
-        if (!buddyAllowed || buddy == null)
-            return false;
-
-        if (buddy.level < minLevel)
-            return false;
-
-        if (!ContextAllowed(context))
-            return false;
-
-        if (requiresSpecificType && buddy.buddyType != requiredType)
-            return false;
-
-        if (requiresSpecificAgeStage && buddy.ageStage != requiredAgeStage)
-            return false;
-
-        if (buddy.chosenCardIds != null && buddy.chosenCardIds.Contains(cardId))
-            return false;
-
+        if (!buddyAllowed || buddy == null) return false;
+        buddy.EnsureRuntimeDefaults();
+        if (buddy.level < minLevel) return false;
+        if (!ContextAllowed(context)) return false;
+        if (requiresSpecificType && buddy.gobboType != requiredType) return false;
+        if (requiresSpecificAgeStage && buddy.ageStage != requiredAgeStage) return false;
+        if (buddy.chosenCardIds != null && buddy.chosenCardIds.Contains(cardId)) return false;
         return true;
     }
 
@@ -127,30 +99,20 @@ public class GobboCard
             case GobboCardContext.ShadyDeal:
                 return shadyDealAllowed;
         }
-
         return true;
     }
 
     public void ApplyToPlayer(GobboController gobbo)
     {
-        if (gobbo == null)
-            return;
-
-        if (changesType)
-            gobbo.gobboType = setType;
-
-        if (changesAgeStage)
-            gobbo.ageStage = setAgeStage;
-
-        if (!string.IsNullOrWhiteSpace(setVisualSetId))
-            gobbo.visualSetId = setVisualSetId;
-
+        if (gobbo == null) return;
+        if (changesType) gobbo.gobboType = setType;
+        if (changesAgeStage) gobbo.ageStage = setAgeStage;
+        if (!string.IsNullOrWhiteSpace(setVisualSetId)) gobbo.visualSetId = setVisualSetId;
         gobbo.maxHealth += maxHealthBonus;
         gobbo.health = Mathf.Min(gobbo.maxHealth, gobbo.health + Mathf.Max(healthBonus, maxHealthBonus));
         gobbo.attack += attackBonus;
         gobbo.defense += defenseBonus;
         gobbo.digPower += digPowerBonus;
-
         gobbo.moveSpeed = Mathf.Max(1f, gobbo.moveSpeed + moveSpeedBonus);
         gobbo.attackCooldown = Mathf.Max(0.15f, gobbo.attackCooldown + attackCooldownBonus);
         gobbo.attackRange += attackRangeBonus;
@@ -161,66 +123,37 @@ public class GobboCard
         gobbo.critChance = Mathf.Clamp01(gobbo.critChance + critChanceBonus);
         gobbo.critDamageMultiplier = Mathf.Max(1f, gobbo.critDamageMultiplier + critDamageBonus);
         gobbo.knockbackForce = Mathf.Max(0f, gobbo.knockbackForce + knockbackBonus);
-
-        if (unlockSporeMend)
-            gobbo.hasSporeMend = true;
-
-        if (unlockDashBite)
-            gobbo.hasDashBite = true;
-
-        if (gobbo.chosenCardIds != null && !string.IsNullOrWhiteSpace(cardId) && !gobbo.chosenCardIds.Contains(cardId))
-            gobbo.chosenCardIds.Add(cardId);
-
-        if (isEvolutionCard || isTypeChoiceCard)
-            gobbo.ClearPendingEvolutionIfCurrentLevelHandled();
-
+        if (unlockSporeMend) gobbo.hasSporeMend = true;
+        if (unlockDashBite) gobbo.hasDashBite = true;
+        if (gobbo.chosenCardIds != null && !string.IsNullOrWhiteSpace(cardId) && !gobbo.chosenCardIds.Contains(cardId)) gobbo.chosenCardIds.Add(cardId);
+        if (isEvolutionCard || isTypeChoiceCard) gobbo.ClearPendingEvolutionIfCurrentLevelHandled();
         if (GameState.Instance != null)
         {
             GameState.Instance.RegisterUpgradeChosen(cardName);
-
-            if (!string.IsNullOrWhiteSpace(unlockCosmeticId))
-                GameState.Instance.RegisterCosmeticUnlocked(unlockCosmeticId);
-
-            if (!string.IsNullOrWhiteSpace(unlockItemId))
-                GameState.Instance.RegisterItemUnlocked(unlockItemId);
+            if (!string.IsNullOrWhiteSpace(unlockCosmeticId)) GameState.Instance.RegisterCosmeticUnlocked(unlockCosmeticId);
+            if (!string.IsNullOrWhiteSpace(unlockItemId)) GameState.Instance.RegisterItemUnlocked(unlockItemId);
         }
-
         gobbo.RefreshAfterSaveLoad();
     }
 
-    public void ApplyToBuddy(BuddyData buddy)
+    public void ApplyToBuddy(GobboUnitSaveData buddy)
     {
-        if (buddy == null)
-            return;
-
-        if (changesType)
-            buddy.buddyType = setType;
-
-        if (changesAgeStage)
-            buddy.ageStage = setAgeStage;
-
-        if (!string.IsNullOrWhiteSpace(setVisualSetId))
-            buddy.visualSetId = setVisualSetId;
-
+        if (buddy == null) return;
+        buddy.EnsureRuntimeDefaults();
+        if (changesType) buddy.gobboType = setType;
+        if (changesAgeStage) buddy.ageStage = setAgeStage;
+        if (!string.IsNullOrWhiteSpace(setVisualSetId)) buddy.visualSetId = setVisualSetId;
         buddy.maxHealth += maxHealthBonus;
         buddy.health = Mathf.Min(buddy.maxHealth, buddy.health + Mathf.Max(healthBonus, maxHealthBonus));
         buddy.damage += attackBonus;
+        buddy.attack = Mathf.Max(buddy.attack, buddy.damage);
         buddy.defense += defenseBonus;
         buddy.moveSpeed = Mathf.Max(1f, buddy.moveSpeed + moveSpeedBonus);
         buddy.attackCooldown = Mathf.Max(0.15f, buddy.attackCooldown + attackCooldownBonus);
-
-        if (setCollectsFood)
-            buddy.collectsFood = collectsFoodValue;
-
-        if (setOnlyFightsAfterHit)
-            buddy.onlyFightsAfterHit = onlyFightsAfterHitValue;
-
-        if (buddy.chosenCardIds == null)
-            buddy.chosenCardIds = new List<string>();
-
-        if (!string.IsNullOrWhiteSpace(cardId) && !buddy.chosenCardIds.Contains(cardId))
-            buddy.chosenCardIds.Add(cardId);
-
+        if (setCollectsFood) buddy.collectsFood = collectsFoodValue;
+        if (setOnlyFightsAfterHit) buddy.onlyFightsAfterHit = onlyFightsAfterHitValue;
+        buddy.chosenCardIds ??= new List<string>();
+        if (!string.IsNullOrWhiteSpace(cardId) && !buddy.chosenCardIds.Contains(cardId)) buddy.chosenCardIds.Add(cardId);
         if (isEvolutionCard || isTypeChoiceCard)
         {
             buddy.pendingEvolution = false;

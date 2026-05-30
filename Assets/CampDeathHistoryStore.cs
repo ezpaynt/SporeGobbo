@@ -31,28 +31,18 @@ public class CampDeathHistoryStore : MonoBehaviour
     private void Awake()
     {
         if (deadBuddyHistory == null) deadBuddyHistory = new List<DeadBuddyRecord>();
-
-        // This is a scene-facing helper. Do not DontDestroyOnLoad the whole CampDeathSystems
-        // object, because it also has UI references that must be recreated per CampScene.
         if (Instance != null && Instance != this)
         {
-            if (IsMixedSceneObject())
-            {
-                enabled = false;
-                return;
-            }
-
+            if (IsMixedSceneObject()) { enabled = false; return; }
             Destroy(gameObject);
             return;
         }
-
         Instance = this;
     }
 
     private bool IsMixedSceneObject()
     {
         if (GetComponent<CampSuccessionUI>() != null) return true;
-        if (GetComponent<PlayerDeathRunStore>() != null) return true;
         if (GetComponent<CampSuccessorPreferenceStore>() != null) return true;
         return false;
     }
@@ -60,14 +50,8 @@ public class CampDeathHistoryStore : MonoBehaviour
     public static CampDeathHistoryStore GetOrCreate()
     {
         if (Instance != null) return Instance;
-
         CampDeathHistoryStore found = Object.FindAnyObjectByType<CampDeathHistoryStore>(FindObjectsInactive.Include);
-        if (found != null)
-        {
-            Instance = found;
-            return Instance;
-        }
-
+        if (found != null) { Instance = found; return Instance; }
         GameObject obj = new GameObject("CampDeathHistoryStore");
         Instance = obj.AddComponent<CampDeathHistoryStore>();
         return Instance;
@@ -79,9 +63,7 @@ public class CampDeathHistoryStore : MonoBehaviour
     {
         if (deadBuddyHistory == null) return false;
         foreach (DeadBuddyRecord record in deadBuddyHistory)
-        {
             if (record != null && !record.memorialSeen) return true;
-        }
         return false;
     }
 
@@ -89,9 +71,7 @@ public class CampDeathHistoryStore : MonoBehaviour
     {
         if (deadBuddyHistory == null) return;
         foreach (DeadBuddyRecord record in deadBuddyHistory)
-        {
             if (record != null) record.memorialSeen = true;
-        }
     }
 
     public DeadBuddyRecord AddFromLabel(string label) => AddFromLabel(label, 1, "Lost in the caves");
@@ -114,14 +94,14 @@ public class CampDeathHistoryStore : MonoBehaviour
         return record;
     }
 
-    public DeadBuddyRecord AddFromBuddy(BuddyData buddy, int runNumber, string causeOfDeath)
+    public DeadBuddyRecord AddFromBuddy(GobboUnitSaveData buddy, int runNumber, string causeOfDeath)
     {
         if (buddy == null) return AddFromLabel("Unknown Gobbo", runNumber, causeOfDeath);
         buddy.EnsureRuntimeDefaults();
         DeadBuddyRecord record = new DeadBuddyRecord
         {
-            buddyName = string.IsNullOrWhiteSpace(buddy.buddyName) ? "Unknown Gobbo" : buddy.buddyName,
-            buddyType = buddy.buddyType.ToString(),
+            buddyName = string.IsNullOrWhiteSpace(buddy.displayName) ? "Unknown Gobbo" : buddy.displayName,
+            buddyType = buddy.gobboType.ToString(),
             ageStage = buddy.ageStage.ToString(),
             level = Mathf.Max(1, buddy.level),
             runNumber = Mathf.Max(1, runNumber),
@@ -140,7 +120,6 @@ public class CampDeathHistoryStore : MonoBehaviour
         if (pending == null) return AddDeadLeaderFallback();
         if (pending.memorialAddedToHistory) return null;
         pending.SyncCompatibilityFields();
-
         DeadBuddyRecord record = new DeadBuddyRecord
         {
             buddyName = string.IsNullOrWhiteSpace(pending.deadLeaderName) ? "The old leader" : pending.deadLeaderName,
