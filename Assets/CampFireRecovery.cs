@@ -46,8 +46,7 @@ public class CampFireRecovery : MonoBehaviour, ICampInteractable
 
     void Update()
     {
-        if (menuOpen && Input.GetKeyDown(KeyCode.Escape))
-            CloseMenu();
+        if (menuOpen && Input.GetKeyDown(KeyCode.Escape)) CloseMenu();
     }
 
     void HookButtons()
@@ -76,67 +75,46 @@ public class CampFireRecovery : MonoBehaviour, ICampInteractable
 
     void SetButtonText(Button button, string text)
     {
-        if (button == null)
-            return;
-
+        if (button == null) return;
         TMP_Text label = button.GetComponentInChildren<TMP_Text>(true);
-        if (label != null)
-            label.text = text;
+        if (label != null) label.text = text;
     }
 
-    public string GetInteractPrompt()
-    {
-        return recoveredThisCampVisit ? recoveredPrompt : prompt;
-    }
+    public string GetInteractPrompt() => recoveredThisCampVisit ? recoveredPrompt : prompt;
 
     public void Interact(GobboController player)
     {
         currentPlayer = player;
-
-        if (!menuOpen)
-            OpenMenu();
+        if (!menuOpen) OpenMenu();
     }
 
     public void OpenMenu()
     {
         menuOpen = true;
         CampMenuModal.Open(currentPlayer, this, CloseMenu);
-
         if (fireMenuPanel != null)
         {
             fireMenuPanel.SetActive(true);
             fireMenuPanel.transform.SetAsLastSibling();
         }
 
-        if (titleText != null)
-            titleText.text = title;
-
+        if (titleText != null) titleText.text = title;
         RefreshMenuText();
     }
 
     public void CloseMenu()
     {
         menuOpen = false;
-
-        if (fireMenuPanel != null)
-            fireMenuPanel.SetActive(false);
-
-        if (upgradesPanel != null)
-            upgradesPanel.SetActive(false);
-
+        if (fireMenuPanel != null) fireMenuPanel.SetActive(false);
+        if (upgradesPanel != null) upgradesPanel.SetActive(false);
         CampMenuModal.Close(this);
     }
 
     void RefreshMenuText()
     {
-        if (bodyText != null)
-            bodyText.text = recoveredThisCampVisit ? bodyAfterRecovery : bodyBeforeRecovery;
-
-        if (eatAndRestButton != null)
-            eatAndRestButton.interactable = !recoveredThisCampVisit;
-
-        if (upgradesButton != null)
-            upgradesButton.gameObject.SetActive(showUpgradesButton);
+        if (bodyText != null) bodyText.text = recoveredThisCampVisit ? bodyAfterRecovery : bodyBeforeRecovery;
+        if (eatAndRestButton != null) eatAndRestButton.interactable = !recoveredThisCampVisit;
+        if (upgradesButton != null) upgradesButton.gameObject.SetActive(showUpgradesButton);
     }
 
     void DoRecoveryFromMenu()
@@ -153,23 +131,21 @@ public class CampFireRecovery : MonoBehaviour, ICampInteractable
             return;
         }
 
-        if (GameState.Instance != null)
+        GameState state = GameState.Instance;
+        if (state != null)
         {
-            if (healPlayer && GameState.Instance.gobbo != null)
+            if (healPlayer)
             {
-                GameState.Instance.gobbo.health = GameState.Instance.gobbo.maxHealth;
-
-                if (player != null)
-                    player.health = player.maxHealth;
+                GobboUnitSaveData leader = state.GetLeader();
+                leader.health = leader.maxHealth;
+                if (player != null) player.health = player.maxHealth;
             }
 
-            if (healBuddies && GameState.Instance.ownedBuddies != null)
+            if (healBuddies && state.ownedGobbos != null)
             {
-                foreach (BuddyData buddy in GameState.Instance.ownedBuddies)
+                foreach (GobboUnitSaveData buddy in state.ownedGobbos)
                 {
-                    if (buddy == null)
-                        continue;
-
+                    if (buddy == null) continue;
                     buddy.EnsureRuntimeDefaults();
                     buddy.health = buddy.maxHealth;
                     buddy.hasBeenHit = false;
@@ -178,25 +154,25 @@ public class CampFireRecovery : MonoBehaviour, ICampInteractable
                 BuddyUnit[] visibleBuddies = Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None);
                 foreach (BuddyUnit unit in visibleBuddies)
                 {
-                    if (unit != null && unit.data != null)
+                    if (unit != null && unit.unitData != null)
                     {
-                        unit.data.health = unit.data.maxHealth;
-                        unit.data.hasBeenHit = false;
+                        unit.unitData.health = unit.unitData.maxHealth;
+                        unit.unitData.hasBeenHit = false;
                         unit.ApplyVisuals();
                     }
                 }
             }
 
             if (saveAfterRecovery && player != null)
-                GameState.Instance.SavePlayer(player);
+                state.SavePlayer(player);
+
+            if (saveAfterRecovery)
+                SporeSaveManager.SaveCurrentSlotFromGameState();
         }
 
         recoveredThisCampVisit = true;
         CampMessageUI.Show(recoveryMessage);
-
-        if (CampStartRoutineManager.Instance != null)
-            CampStartRoutineManager.Instance.NotifyFireRecovered();
-
+        if (CampStartRoutineManager.Instance != null) CampStartRoutineManager.Instance.NotifyFireRecovered();
         Debug.Log("Camp fire recovery complete.");
     }
 
@@ -207,7 +183,6 @@ public class CampFireRecovery : MonoBehaviour, ICampInteractable
             CampMessageUI.Show("Upgrade menu placeholder. Put the future upgrade UI here.");
             return;
         }
-
         upgradesPanel.SetActive(!upgradesPanel.activeSelf);
     }
 }

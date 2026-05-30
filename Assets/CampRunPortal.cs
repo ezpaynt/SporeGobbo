@@ -28,7 +28,7 @@ public class CampRunPortal : MonoBehaviour
     public bool beginRunSnapshotBeforeLeaving = true;
 
     private Transform player;
-    private bool promptOpen = false;
+    private bool promptOpen;
 
     void Start()
     {
@@ -36,7 +36,7 @@ public class CampRunPortal : MonoBehaviour
         HookButtons();
     }
 
-    void OnEnable() { HookButtons(); }
+    void OnEnable() => HookButtons();
 
     void Update()
     {
@@ -50,7 +50,8 @@ public class CampRunPortal : MonoBehaviour
             return;
         }
 
-        if (!requireKeyPress || Input.GetKeyDown(interactKey)) ShowPrompt();
+        if (!requireKeyPress || Input.GetKeyDown(interactKey))
+            ShowPrompt();
     }
 
     void HookButtons()
@@ -99,12 +100,13 @@ public class CampRunPortal : MonoBehaviour
 
     public void StartNextRun()
     {
-        if (GameState.Instance != null)
+        GameState state = GameState.Instance;
+        if (state != null)
         {
             if (savePlayerBeforeLeaving)
             {
                 GobboController playerController = Object.FindAnyObjectByType<GobboController>();
-                if (playerController != null) GameState.Instance.SavePlayer(playerController);
+                if (playerController != null) state.SavePlayer(playerController);
             }
 
             CampSuccessorPreferenceStore pref = CampSuccessorPreferenceStore.Instance;
@@ -113,11 +115,11 @@ public class CampRunPortal : MonoBehaviour
             if (saveCampBeforeLeaving)
                 SporeSaveManager.SaveCurrentSlotFromGameState();
 
-            string markedSuccessorId = pref != null ? pref.GetMarkedSuccessorId() : "";
+            string markedSuccessorId = pref != null ? pref.GetMarkedSuccessorId() : state.markedSuccessorId;
             PlayerDeathRunStore.GetOrCreate().LockSuccessorForRun(markedSuccessorId);
 
             if (beginRunSnapshotBeforeLeaving)
-                GameState.Instance.BeginRunSnapshot();
+                state.BeginRunSnapshot();
 
             Debug.Log("[CampRunPortal] Starting run. Roster: " + CountRoster() + ", active: " + CountActive() + ", marked successor: " + (string.IsNullOrWhiteSpace(markedSuccessorId) ? "none" : markedSuccessorId));
         }
@@ -128,15 +130,8 @@ public class CampRunPortal : MonoBehaviour
         SceneManager.LoadScene(runSceneName);
     }
 
-    int CountRoster()
-    {
-        return GameState.Instance != null && GameState.Instance.ownedBuddies != null ? GameState.Instance.ownedBuddies.Count : 0;
-    }
-
-    int CountActive()
-    {
-        return GameState.Instance != null && GameState.Instance.activeSquadIds != null ? GameState.Instance.activeSquadIds.Count : 0;
-    }
+    int CountRoster() => GameState.Instance != null && GameState.Instance.ownedGobbos != null ? GameState.Instance.ownedGobbos.Count : 0;
+    int CountActive() => GameState.Instance != null && GameState.Instance.activeSquadIds != null ? GameState.Instance.activeSquadIds.Count : 0;
 
     void FindPlayerIfMissing()
     {

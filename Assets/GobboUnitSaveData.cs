@@ -103,7 +103,9 @@ public class GobboUnitSaveData
 
     public virtual void EnsureId()
     {
-        if (string.IsNullOrWhiteSpace(uniqueId)) uniqueId = GobboIdUtility.NewGobboId();
+        if (string.IsNullOrWhiteSpace(uniqueId))
+            uniqueId = GobboIdUtility.NewGobboId();
+
         EnsureRuntimeDefaults();
     }
 
@@ -114,14 +116,19 @@ public class GobboUnitSaveData
 
     public virtual void EnsureIdentity(string preferredName)
     {
-        if (!string.IsNullOrWhiteSpace(preferredName) && string.IsNullOrWhiteSpace(displayName)) displayName = preferredName.Trim();
+        if (!string.IsNullOrWhiteSpace(preferredName) && string.IsNullOrWhiteSpace(displayName))
+            displayName = preferredName.Trim();
+
         EnsureId();
     }
 
     public virtual void EnsureRuntimeDefaults()
     {
-        if (string.IsNullOrWhiteSpace(uniqueId)) uniqueId = GobboIdUtility.NewGobboId();
-        if (string.IsNullOrWhiteSpace(displayName)) displayName = "Gobbo";
+        if (string.IsNullOrWhiteSpace(uniqueId))
+            uniqueId = GobboIdUtility.NewGobboId();
+
+        if (string.IsNullOrWhiteSpace(displayName))
+            displayName = "Gobbo";
 
         traitIds ??= new List<string>();
         abilityIds ??= new List<string>();
@@ -141,18 +148,27 @@ public class GobboUnitSaveData
         if (campLevel <= 0) campLevel = level;
         if (xp < 0) xp = 0;
         if (xpToNextLevel <= 0) xpToNextLevel = 10;
-        if (maxHealth <= 0) maxHealth = isLeader ? 100 : 10;
-        if (health <= 0 || health > maxHealth) health = maxHealth;
+
+        if (isLeader)
+            EnsureLeaderStatDefaults();
+        else
+            EnsureBuddyStatDefaults();
+
+        if (health <= 0 || health > maxHealth)
+            health = maxHealth;
+
         if (attack <= 0 && damage > 0) attack = damage;
         if (damage <= 0 && attack > 0) damage = attack;
-        if (attack <= 0) attack = 1;
+        if (attack <= 0) attack = isLeader ? 5 : 1;
         if (damage <= 0) damage = attack;
+
         if (moveSpeed <= 0f) moveSpeed = isLeader ? 5f : 3.5f;
         if (attackRange <= 0f) attackRange = 0.85f;
         if (attackRadius <= 0f) attackRadius = 0.45f;
         if (attackCooldown <= 0f) attackCooldown = isLeader ? 0.7f : 0.8f;
         if (critDamageMultiplier <= 0f) critDamageMultiplier = 1.5f;
         if (knockbackForce <= 0f) knockbackForce = 6f;
+
         if (dashSpeed <= 0f) dashSpeed = 12f;
         if (dashDuration <= 0f) dashDuration = 0.12f;
         if (dashCooldown <= 0f) dashCooldown = 0.7f;
@@ -160,11 +176,54 @@ public class GobboUnitSaveData
         if (digRadius <= 0f) digRadius = 0.65f;
         if (digRange <= 0f) digRange = 0.8f;
         if (digTickRate <= 0f) digTickRate = 0.05f;
+
         happiness = Mathf.Clamp(happiness <= 0 ? 100 : happiness, 0, 100);
         loyalty = Mathf.Clamp(loyalty <= 0 ? 100 : loyalty, 0, 100);
-        if (string.IsNullOrWhiteSpace(visualSetId)) visualSetId = gobboType == BuddyType.Baby ? "baby" : gobboType.ToString().ToLowerInvariant() + "_" + ageStage.ToString().ToLowerInvariant();
-        if (shinies == 0 && money > 0) shinies = money;
+
+        if (string.IsNullOrWhiteSpace(visualSetId))
+            visualSetId = gobboType == BuddyType.Baby ? "baby" : gobboType.ToString().ToLowerInvariant() + "_" + ageStage.ToString().ToLowerInvariant();
+
+        if (shinies == 0 && money > 0)
+            shinies = money;
         money = shinies;
+    }
+
+    private void EnsureLeaderStatDefaults()
+    {
+        // Leader/player defaults. This intentionally upgrades old broken 10/10 leader saves
+        // created during the unified-save migration back to the intended player baseline.
+        if (maxHealth < 100)
+            maxHealth = 100;
+
+        if (health <= 10 || health > maxHealth)
+            health = maxHealth;
+
+        if (attack < 5)
+            attack = 5;
+
+        if (damage < attack)
+            damage = attack;
+
+        if (defense < 2)
+            defense = 2;
+
+        if (moveSpeed < 5f)
+            moveSpeed = 5f;
+
+        if (attackCooldown <= 0f || attackCooldown > 0.7f)
+            attackCooldown = 0.7f;
+    }
+
+    private void EnsureBuddyStatDefaults()
+    {
+        if (maxHealth <= 0)
+            maxHealth = 10;
+
+        if (attack <= 0 && damage <= 0)
+        {
+            attack = 1;
+            damage = 1;
+        }
     }
 
     public virtual GobboUnitSaveData CloneUnit()
@@ -178,6 +237,7 @@ public class GobboUnitSaveData
     public virtual void CopyInto(GobboUnitSaveData copy)
     {
         if (copy == null) return;
+
         copy.uniqueId = uniqueId;
         copy.displayName = displayName;
         copy.isLeader = isLeader;

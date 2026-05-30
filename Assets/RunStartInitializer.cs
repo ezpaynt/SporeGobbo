@@ -16,8 +16,6 @@ public class RunStartInitializer : MonoBehaviour
     IEnumerator Start()
     {
         GameState state = EnsureGameState();
-
-        // Wait one frame so MapGenerator/player scene setup has time to finish.
         yield return null;
 
         GobboController player = Object.FindAnyObjectByType<GobboController>();
@@ -26,7 +24,7 @@ public class RunStartInitializer : MonoBehaviour
         if (applySavedPlayerStats && player != null)
             state.ApplyToPlayer(player);
 
-        if (applySavedRosterToSceneRoster && roster != null && state.ownedBuddies != null && state.ownedBuddies.Count > 0)
+        if (applySavedRosterToSceneRoster && roster != null && state.ownedGobbos != null && state.ownedGobbos.Count > 0)
             state.ApplyToRoster(roster);
 
         if (beginRunSnapshotOnStart)
@@ -43,9 +41,7 @@ public class RunStartInitializer : MonoBehaviour
 
     GameState EnsureGameState()
     {
-        if (GameState.Instance != null)
-            return GameState.Instance;
-
+        if (GameState.Instance != null) return GameState.Instance;
         GameObject obj = new GameObject("GameState");
         return obj.AddComponent<GameState>();
     }

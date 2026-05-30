@@ -25,8 +25,7 @@ public class CampVisualSpawner : MonoBehaviour
 
     void Start()
     {
-        if (spawnOnStart)
-            SpawnCampVisuals();
+        if (spawnOnStart) SpawnCampVisuals();
     }
 
     public void SpawnCampVisuals()
@@ -37,9 +36,7 @@ public class CampVisualSpawner : MonoBehaviour
             return;
         }
 
-        if (clearExistingVisualsBeforeSpawn)
-            ClearSpawnedVisuals();
-
+        if (clearExistingVisualsBeforeSpawn) ClearSpawnedVisuals();
         SpawnGobbo();
         SpawnActiveSquad();
         SpawnReserveBuddies();
@@ -49,10 +46,8 @@ public class CampVisualSpawner : MonoBehaviour
     {
         for (int i = spawnedVisuals.Count - 1; i >= 0; i--)
         {
-            if (spawnedVisuals[i] != null)
-                Destroy(spawnedVisuals[i]);
+            if (spawnedVisuals[i] != null) Destroy(spawnedVisuals[i]);
         }
-
         spawnedVisuals.Clear();
     }
 
@@ -66,13 +61,11 @@ public class CampVisualSpawner : MonoBehaviour
 
         Vector3 pos = gobboSpawnPoint != null ? gobboSpawnPoint.position : transform.position;
         pos.z = 0f;
-
         GameObject gobbo = Instantiate(gobboCampPrefab, pos, Quaternion.identity);
         gobbo.name = "Camp Gobbo";
         spawnedVisuals.Add(gobbo);
 
         GobboController controller = gobbo.GetComponent<GobboController>();
-
         if (controller != null)
         {
             GameState.Instance.ApplyToPlayer(controller);
@@ -91,8 +84,7 @@ public class CampVisualSpawner : MonoBehaviour
             return;
         }
 
-        List<BuddyData> active = GameState.Instance.GetActiveSquad();
-
+        List<GobboUnitSaveData> active = GameState.Instance.GetActiveSquadUnits();
         for (int i = 0; i < active.Count; i++)
         {
             Vector3 pos = GetSpot(activeBuddySpots, i, activeCircleRadius, i, active.Count);
@@ -103,12 +95,9 @@ public class CampVisualSpawner : MonoBehaviour
     void SpawnReserveBuddies()
     {
         GameObject prefab = reserveBuddyPrefab != null ? reserveBuddyPrefab : activeBuddyPrefab;
+        if (prefab == null) return;
 
-        if (prefab == null)
-            return;
-
-        List<BuddyData> reserve = GameState.Instance.GetReserveBuddies();
-
+        List<GobboUnitSaveData> reserve = GameState.Instance.GetReserveGobboUnits();
         for (int i = 0; i < reserve.Count; i++)
         {
             Vector3 pos = GetSpot(reserveBuddySpots, i, reserveCircleRadius, i, reserve.Count);
@@ -116,25 +105,19 @@ public class CampVisualSpawner : MonoBehaviour
         }
     }
 
-    void SpawnBuddyVisual(GameObject prefab, BuddyData data, Vector3 position, bool activeSquad, int sortingOrder)
+    void SpawnBuddyVisual(GameObject prefab, GobboUnitSaveData data, Vector3 position, bool activeSquad, int sortingOrder)
     {
-        if (prefab == null || data == null)
-            return;
-
+        if (prefab == null || data == null) return;
+        data.EnsureRuntimeDefaults();
         position.z = 0f;
-
         GameObject buddyObject = Instantiate(prefab, position, Quaternion.identity);
-        buddyObject.name = activeSquad ? data.buddyName : data.buddyName + " Camp Dot";
+        buddyObject.name = activeSquad ? data.displayName : data.displayName + " Camp Dot";
         spawnedVisuals.Add(buddyObject);
 
         BuddyUnit unit = buddyObject.GetComponent<BuddyUnit>();
+        if (unit != null) unit.Initialize(data.CloneUnit());
 
-        if (unit != null)
-            unit.Initialize(data.Clone());
-
-        if (!activeSquad)
-            buddyObject.transform.localScale *= 0.65f;
-
+        if (!activeSquad) buddyObject.transform.localScale *= 0.65f;
         DisableRunBehavior(buddyObject);
         ForceVisible(buddyObject, sortingOrder);
     }
@@ -143,23 +126,18 @@ public class CampVisualSpawner : MonoBehaviour
     {
         BuddyBrain brain = obj.GetComponent<BuddyBrain>();
         if (brain != null) brain.enabled = false;
-
         BuddyFollow follow = obj.GetComponent<BuddyFollow>();
         if (follow != null) follow.enabled = false;
-
         BuddyCombat combat = obj.GetComponent<BuddyCombat>();
         if (combat != null) combat.enabled = false;
-
         BuddyScavenger scavenger = obj.GetComponent<BuddyScavenger>();
         if (scavenger != null) scavenger.enabled = false;
-
         DisableRunMovement(obj);
     }
 
     void DisableRunMovement(GameObject obj)
     {
         Rigidbody2D rb = obj.GetComponent<Rigidbody2D>();
-
         if (rb != null)
         {
             rb.linearVelocity = Vector2.zero;
@@ -170,7 +148,6 @@ public class CampVisualSpawner : MonoBehaviour
     void ForceVisible(GameObject obj, int sortingOrder)
     {
         SpriteRenderer[] renderers = obj.GetComponentsInChildren<SpriteRenderer>(true);
-
         foreach (SpriteRenderer sr in renderers)
         {
             sr.enabled = true;
@@ -182,7 +159,6 @@ public class CampVisualSpawner : MonoBehaviour
     {
         if (spots != null && index < spots.Length && spots[index] != null)
             return spots[index].position;
-
         float angle = circleCount <= 0 ? 0f : (circleIndex / (float)circleCount) * Mathf.PI * 2f;
         Vector3 offset = new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f) * fallbackRadius;
         return transform.position + offset;
