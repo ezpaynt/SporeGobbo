@@ -4792,6 +4792,10 @@ MonoBehaviour:
   target: {fileID: 0}
   smoothSpeed: 5
   offset: {x: 0, y: 1.4, z: -10}
+  allowScrollZoom: 1
+  zoomSpeed: 5
+  minZoom: 3
+  maxZoom: 30
 --- !u!1 &838144955
 GameObject:
   m_ObjectHideFlags: 0
@@ -6137,7 +6141,7 @@ BoxCollider2D:
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
-    oldSize: {x: 14.94, y: 10.24}
+    oldSize: {x: 5.976, y: 4.096}
     newSize: {x: 1, y: 1}
     adaptiveTilingThreshold: 0.5
     drawMode: 0
@@ -13782,8 +13786,8 @@ Transform:
   m_GameObject: {fileID: 1742235993}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -2.5076, y: 6.25, z: 0}
-  m_LocalScale: {x: 5.352385, y: 4.064616, z: 1}
+  m_LocalPosition: {x: -2.7005, y: 6.6968, z: 0}
+  m_LocalScale: {x: 2.1235623, y: 1.7090739, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -13818,7 +13822,7 @@ CircleCollider2D:
   m_CallbackLayers:
     serializedVersion: 2
     m_Bits: 4294967295
-  m_IsTrigger: 1
+  m_IsTrigger: 0
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
