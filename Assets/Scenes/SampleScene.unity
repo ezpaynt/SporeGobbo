@@ -875,6 +875,10 @@ MonoBehaviour:
   target: {fileID: 0}
   smoothSpeed: 5
   offset: {x: 0, y: 0, z: -10}
+  allowScrollZoom: 1
+  zoomSpeed: 5
+  minZoom: 3
+  maxZoom: 40
 --- !u!1 &527835385
 GameObject:
   m_ObjectHideFlags: 0
@@ -6098,13 +6102,37 @@ MonoBehaviour:
   dirtTile1: {fileID: 11400000, guid: a47a570b4943a354e8a840182013b09b, type: 2}
   dirtTile2: {fileID: 11400000, guid: f6ba57d3c8a567544847e0f0e5d9c547, type: 2}
   dirtTile3: {fileID: 11400000, guid: b737d92cbb2bc3f4ba4219713050954a, type: 2}
+  useNoRouteGuideDirt: 1
+  noRouteDirtNear: {fileID: 11400000, guid: 98034764bee2d404183deb338c7f4123, type: 2}
+  noRouteDirtMid: {fileID: 11400000, guid: a774f184928bee24ba5b3b7320433cf3, type: 2}
+  noRouteDirtFar: {fileID: 11400000, guid: 8ad0be2c219d7d646a52a98e22e7b117, type: 2}
+  noRouteNearDistance: 10
+  noRouteMidDistance: 17
+  noRouteFarDistance: 25
+  noRouteDistanceSampleStride: 2
   worldWidthCells: 160
   worldHeightCells: 100
   cellSize: 0.75
   chunkSize: 16
   activeChunkRadius: 3
+  forceIntroMap: 1
+  fallbackProfile: 1
   playerStartPosition: {x: 0, y: 0}
   startClearRadius: 4
+  introWorldWidthCells: 260
+  introWorldHeightCells: 180
+  introStartPitRadius: 15
+  introStartMushrooms: 6
+  introCampCount: 3
+  introCampRadius: 10
+  introBossRadius: 12
+  introRouteStepMin: 4.25
+  introRouteStepMax: 6.25
+  introRouteWobble: 3.25
+  introCampZoneRadius: 23
+  introNearSpawnDiscoveries: 18
+  introSparseOffRoutePockets: 6
+  introRouteSegmentGapChance: 0.06
   gobboPrefab: {fileID: 7125385173725763870, guid: b948977f43f781f45b06ebdb856dcc6b, type: 3}
   buddyPrefab: {fileID: 4202540240149813293, guid: ac9d9833c2b88ed45ab9df32192431a7, type: 3}
   spawnPlayer: 1
@@ -6171,7 +6199,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BuddyRoster
   maxActiveSquad: 5
   buddyTypes: []
-  ownedBuddies: []
+  ownedGobbos: []
   activeSquad: []
 --- !u!1 &1347083518
 GameObject:
@@ -6203,7 +6231,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameState
   currentRunNumber: 1
-  gobbo:
+  leader:
     uniqueId: 
     displayName: Gobbo
     isLeader: 1
@@ -6219,15 +6247,15 @@ MonoBehaviour:
     runsWaitingForEvolution: 0
     happiness: 100
     loyalty: 100
-    maxHealth: 100
-    health: 100
-    attack: 5
-    damage: 5
-    defense: 2
-    moveSpeed: 5
+    maxHealth: 10
+    health: 10
+    attack: 1
+    damage: 1
+    defense: 0
+    moveSpeed: 3.5
     attackRange: 0.85
     attackRadius: 0.45
-    attackCooldown: 0.7
+    attackCooldown: 0.8
     critChance: 0
     critDamageMultiplier: 1.5
     knockbackForce: 6
@@ -6272,7 +6300,7 @@ MonoBehaviour:
     money: 0
     shinies: 0
   maxActiveSquad: 10
-  ownedBuddies: []
+  ownedGobbos: []
   activeSquadIds: []
   markedSuccessorId: 
   campLevel: 1
