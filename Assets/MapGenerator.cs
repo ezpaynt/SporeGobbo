@@ -2,8 +2,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
-// ROUTE_V4_GUIDE_DIRT_BUILD - route dense intro + no-route warning dirt zones
-
 public enum RunGenerationProfile
 {
     Intro,
@@ -26,16 +24,6 @@ public class MapGenerator : MonoBehaviour
     public TileBase dirtTile2;
     public TileBase dirtTile3;
 
-    [Header("No-Route Guide Dirt / Soft Border")]
-    public bool useNoRouteGuideDirt = true;
-    public TileBase noRouteDirtNear;
-    public TileBase noRouteDirtMid;
-    public TileBase noRouteDirtFar;
-    public float noRouteNearDistance = 10f;
-    public float noRouteMidDistance = 17f;
-    public float noRouteFarDistance = 25f;
-    public int noRouteDistanceSampleStride = 2;
-
     [Header("World Size")]
     public int worldWidthCells = 180;
     public int worldHeightCells = 120;
@@ -53,21 +41,41 @@ public class MapGenerator : MonoBehaviour
     public Vector2 playerStartPosition = Vector2.zero;
     public float startClearRadius = 4f;
 
-    [Header("Intro Map - ROUTE_V4_GUIDE_DIRT_BUILD")]
-    public int introWorldWidthCells = 260;
-    public int introWorldHeightCells = 180;
-    public float introStartPitRadius = 15f;
+    [Header("Intro Map - DREAM_MAP_V3_SPACED_NETWORK_BUILD")]
+    public int introWorldWidthCells = 420;
+    public int introWorldHeightCells = 300;
+    public float introStartPitRadius = 20f;
     public int introStartMushrooms = 6;
     public int introCampCount = 3;
-    public float introCampRadius = 10f;
-    public float introBossRadius = 12f;
-    public float introRouteStepMin = 4.25f;
-    public float introRouteStepMax = 6.25f;
-    public float introRouteWobble = 3.25f;
-    public float introCampZoneRadius = 23f;
-    public int introNearSpawnDiscoveries = 18;
-    public int introSparseOffRoutePockets = 6;
-    public float introRouteSegmentGapChance = 0.06f;
+    public float introCampRadius = 11f;
+    public float introBossRadius = 15f;
+    public float introRouteStepMin = 10.5f;
+    public float introRouteStepMax = 17.5f;
+    public float introRouteWobble = 4.2f;
+    public float introRouteSegmentGapChance = 0.36f;
+    public int introNearSpawnDiscoveries = 26;
+    public int introOffRoutePockets = 34;
+    public float introSafeDirtRadius = 126f;
+    public float introMajorZoneEdgePadding = 58f;
+    public float introTunnelTooCloseDistance = 7.1f;
+
+    [Header("No-Route Guide Dirt / Soft Border")]
+    public bool useNoRouteGuideDirt = true;
+    public TileBase noRouteDirtNear;
+    public TileBase noRouteDirtMid;
+    public TileBase noRouteDirtFar;
+    public float noRouteNearDistance = 30f;
+    public float noRouteMidDistance = 48f;
+    public float noRouteFarDistance = 68f;
+    public int noRouteDistanceSampleStride = 2;
+
+    [Header("Debug - True Reveal Overlay")]
+    public bool showTrueRevealDebug = true;
+    public bool hideNormalRevealCoversWhileDebugging = false;
+    public Color tunnelRevealDebugColor = new Color(1f, 0.05f, 0.05f, 0.9f);
+    public Color campRevealDebugColor = new Color(1f, 0.65f, 0.05f, 0.9f);
+    public float trueRevealDebugLineWidth = 0.08f;
+    public int trueRevealDebugCircleSegments = 24;
 
     [Header("Player / Buddy")]
     public GameObject gobboPrefab;
@@ -110,7 +118,7 @@ public class MapGenerator : MonoBehaviour
     public float tunnelRadius = 1.4f;
     public float tunnelStepSize = 0.75f;
     public float tunnelWobble = 0.7f;
-    public float tunnelAvoidCampPadding = 2f;
+    public float tunnelAvoidCampPadding = 7.5f;
 
     [Header("Loose Mushrooms")]
     public int looseMushroomCount = 18;
@@ -119,6 +127,8 @@ public class MapGenerator : MonoBehaviour
     [Header("Rare Shinies")]
     public bool spawnRareShinies = true;
     public float tunnelShinyChance = 0.35f;
+
+    private Transform revealDebugRoot;
 
     private Dictionary<Vector2Int, MapChunk> activeChunks = new Dictionary<Vector2Int, MapChunk>();
     private GameObject spawnedPlayer;
@@ -152,7 +162,6 @@ public class MapGenerator : MonoBehaviour
 
         RunGenerationProfile profile = forceIntroMap ? RunGenerationProfile.Intro : fallbackProfile;
 
-        // Intro uses its own dimensions so old inspector world size cannot secretly keep the map tiny.
         int activeWorldWidth = profile == RunGenerationProfile.Intro ? introWorldWidthCells : worldWidthCells;
         int activeWorldHeight = profile == RunGenerationProfile.Intro ? introWorldHeightCells : worldHeightCells;
         worldWidthCells = activeWorldWidth;
@@ -183,72 +192,75 @@ public class MapGenerator : MonoBehaviour
         GenerateHiddenTunnels();
         SpawnLooseMushrooms();
     }
-
     void GenerateIntroMap()
     {
-        Debug.Log("ROUTE_V4_GUIDE_DIRT_BUILD intro generator is running. If you do not see this, Unity is using the wrong file.");
+        Debug.Log("DREAM_MAP_V3_SPACED_NETWORK_BUILD intro generator is running. If you do not see this, Unity is using the wrong file.");
 
-        // 1. Big playable tutorial hub.
+        playerStartPosition = Vector2.zero;
         GenerateStartHub();
 
-        // 2. Destination zones. These are intentionally arranged, not randomly scattered.
-        CampData campA = CreateIntroCamp(PolarFromStart(32f, 38f), introCampRadius, false);
-        CampData campB = CreateIntroCamp(PolarFromStart(34f, -58f), introCampRadius, false);
-        CampData campC = CreateIntroCamp(PolarFromStart(48f, 2f), introCampRadius + 0.75f, false);
+        CampData campA = CreateIntroCamp(ClampIntroMajorZone(PolarFromStart(82f, 145f)), introCampRadius, false);
+        CampData campB = CreateIntroCamp(ClampIntroMajorZone(PolarFromStart(86f, -118f)), introCampRadius + 0.5f, false);
+        CampData campC = CreateIntroCamp(ClampIntroMajorZone(PolarFromStart(84f, 34f)), introCampRadius, false);
 
-        // Boss remains top-right for testing, but now participates as a route destination.
         CampData boss = null;
         if (generateBossCamp)
-            boss = CreateIntroCamp(GetFarCornerPosition(), introBossRadius, true);
+            boss = CreateIntroCamp(ClampIntroMajorZone(PolarFromStart(132f, 0f)), introBossRadius, true);
 
-        GenerateCampZone(campA);
-        GenerateCampZone(campB);
-        GenerateCampZone(campC);
-        if (boss != null) GenerateBossZone(boss);
-
-        // Extra dense central discoveries stop the intro from feeling like a huge empty dirt rectangle.
-        GenerateCentralDiscoveryRing(campA.center, campB.center, campC.center);
-
-        // 3. Actual route network: start -> camps, camps -> camp, camp -> boss.
-        GenerateBrokenRoute(playerStartPosition, campA.center, 1.75f, true);
-        GenerateBrokenRoute(playerStartPosition, campB.center, 1.65f, true);
-        GenerateBrokenRoute(playerStartPosition, campC.center, 1.45f, true);
-        GenerateBrokenRoute(campA.center, campC.center, 1.15f, false);
-        GenerateBrokenRoute(campB.center, campC.center, 1.15f, false);
-        GenerateBrokenRoute(campA.center, campB.center, 0.85f, false);
+        GenerateCampNeighborhood(campA, 3, false);
+        GenerateCampNeighborhood(campB, 3, false);
+        GenerateCampNeighborhood(campC, 3, false);
         if (boss != null)
-            GenerateBrokenRoute(campC.center, boss.center, 1.25f, false);
+            GenerateCampNeighborhood(boss, 4, true);
 
-        // 4. Tutorial/feel-good filler near start, then sparse optional off-route stuff.
+        // Four main broken routes. They should feel like reveal -> dig -> reveal, not one mega highway.
+        GenerateBrokenRoute(playerStartPosition, campA.center, 1.10f, true);
+        GenerateBrokenRoute(playerStartPosition, campB.center, 1.10f, true);
+        GenerateBrokenRoute(playerStartPosition, campC.center, 1.10f, true);
+        if (boss != null)
+            GenerateBrokenRoute(playerStartPosition, boss.center, 0.92f, true);
+
+        // Between-destination discoveries fill the map without letting routes cut through camps.
+        // They are separated chunks, not continuous camp-to-camp highways.
+        GenerateBetweenDestinationDiscoveries(campA.center, campB.center, 7);
+        GenerateBetweenDestinationDiscoveries(campA.center, campC.center, 7);
+        GenerateBetweenDestinationDiscoveries(campB.center, campC.center, 7);
+
+        GenerateCentralDiscoveryRing(campA.center, campB.center, campC.center);
         GenerateSmallNearSpawnDiscoveries();
-        GenerateSparseOffRoutePockets();
+        GenerateOffRoutePockets();
 
-        // Paint blocked dirt based on distance from real generated content.
-        // This gives the player a soft visual warning when they are digging into a dead direction.
         ApplyNoRouteGuideDirt();
     }
 
     void GenerateStartHub()
     {
-        DigOrganicRoom(playerStartPosition, introStartPitRadius, 8);
+        DigOrganicRoom(playerStartPosition, introStartPitRadius, 9);
 
         for (int i = 0; i < introStartMushrooms; i++)
-            SpawnAround(playerStartPosition, introStartPitRadius * 0.45f, mushroomPrefab);
+            SpawnAround(playerStartPosition, introStartPitRadius * 0.48f, mushroomPrefab);
 
-        // This is the first buddy source.
+        // First buddy source.
         SpawnAround(playerStartPosition + Vector2.right * 1.5f, 0.35f, sporePrefab);
 
-        // A few almost-exits around the hub so it feels like a dug place, not a lonely circle.
-        Vector2[] dirs = { Vector2.right, Vector2.up, Vector2.down, new Vector2(1f, 0.45f).normalized };
+        // Obvious early directions so the player does not dig into blank dirt forever.
+        Vector2[] dirs =
+        {
+            Vector2.right,
+            new Vector2(-0.75f, 0.55f).normalized,
+            new Vector2(-0.55f, -0.8f).normalized,
+            new Vector2(0.25f, -1f).normalized,
+            new Vector2(0.15f, 1f).normalized
+        };
+
         foreach (Vector2 dir in dirs)
         {
-            Vector2 start = playerStartPosition + dir * (introStartPitRadius + 2.5f);
-            CreateTunnelSegment(start, dir, Random.Range(8f, 12f), Random.Range(1.8f, 2.8f), false, false, 0.25f, false, true, false);
+            Vector2 start = playerStartPosition + dir * (introStartPitRadius + 4f);
+            CreateTunnelSegment(start, dir, Random.Range(6f, 9f), Random.Range(2.4f, 3.4f), false, false, 0.05f, false, true, true);
         }
 
-        // Guaranteed first combat tunnel: close, easy to find, one enemy.
-        Vector2 firstTunnelStart = playerStartPosition + Vector2.right * (introStartPitRadius + 3f);
-        CreateTunnelSegment(firstTunnelStart, Vector2.right, 13f, 2.35f, true, false, 0.18f, false, true, false);
+        Vector2 firstTunnelStart = playerStartPosition + Vector2.right * (introStartPitRadius + 7f);
+        CreateTunnelSegment(firstTunnelStart, Vector2.right, 9f, 3.0f, true, false, 0.04f, false, true, true);
     }
 
     CampData CreateIntroCamp(Vector2 center, float radius, bool isBoss)
@@ -273,86 +285,36 @@ public class MapGenerator : MonoBehaviour
         return camp;
     }
 
-    void GenerateCampZone(CampData camp)
-    {
-        GenerateCampNeighborhood(camp, 14, false);
-    }
-
-    void GenerateBossZone(CampData boss)
-    {
-        GenerateCampNeighborhood(boss, 18, true);
-    }
-
     void GenerateCampNeighborhood(CampData camp, int featureCount, bool bossZone)
     {
-        for (int i = 0; i < featureCount; i++)
+        int made = 0;
+        int attempts = 0;
+
+        while (made < featureCount && attempts < featureCount * 70)
         {
+            attempts++;
+
             float angle = Random.Range(0f, Mathf.PI * 2f);
-            float dist = Random.Range(camp.radius + 4f, introCampZoneRadius);
-            Vector2 pos = ClampToWorld(camp.center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * dist);
+            float dist = Random.Range(camp.radius + 13f, camp.radius + 24f);
+            Vector2 radial = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+            Vector2 pos = ClampToWorld(camp.center + radial * dist);
 
-            Vector2 dirToCamp = (camp.center - pos).normalized;
-            if (dirToCamp.sqrMagnitude < 0.01f) dirToCamp = Random.insideUnitCircle.normalized;
+            // Do not let camp neighborhood chunks sit inside the camp reveal radius.
+            if (IsTooCloseToCamp(pos, 8f)) continue;
+            if (IsTooCloseToAnyTunnel(pos, bossZone ? 7.5f : 8.5f)) continue;
 
-            float roll = Random.value;
-            if (roll < 0.45f)
-            {
-                // Approach bite: points toward the camp but does not reveal the camp.
-                CreateTunnelSegment(pos, dirToCamp, Random.Range(7f, 13f), Random.Range(1.7f, 2.6f), Random.value < 0.35f, false, 0.35f, false, true, false);
-            }
-            else if (roll < 0.8f)
-            {
-                // Cavelet / pocket near the camp zone.
-                CreateTunnelSegment(pos, Random.insideUnitCircle.normalized, Random.Range(3.5f, 7f), Random.Range(2.6f, 4.25f), Random.value < 0.25f || bossZone, false, 0.2f, Random.value < 0.12f, true, false);
-            }
+            Vector2 tangent = Vector2.Perpendicular(radial) * (Random.value < 0.5f ? 1f : -1f);
+            Vector2 away = radial;
+            Vector2 dir = Random.value < 0.65f ? tangent : (tangent * 0.55f + away * 0.45f).normalized;
+            if (dir.sqrMagnitude < 0.01f) dir = tangent;
+
+            // These are camp-adjacent clues, not tunnels punching into the camp.
+            if (Random.value < 0.58f)
+                CreateTunnelSegment(pos, dir, Random.Range(4.5f, 7.2f), Random.Range(2.7f, 4.0f), Random.value < 0.18f || bossZone, false, 0.045f, false, true, true);
             else
-            {
-                // Side fork around the destination.
-                Vector2 side = Vector2.Perpendicular(dirToCamp) * (Random.value < 0.5f ? 1f : -1f);
-                CreateTunnelSegment(pos, side, Random.Range(8f, 15f), Random.Range(1.35f, 2.15f), Random.value < 0.3f, false, 0.45f, false, false, false);
-            }
-        }
-    }
+                CreateTunnelSegment(pos, away, Random.Range(2.6f, 4.8f), Random.Range(3.1f, 4.7f), Random.value < 0.12f || bossZone, false, 0.035f, Random.value < 0.08f, true, true);
 
-
-    void GenerateCentralDiscoveryRing(Vector2 campA, Vector2 campB, Vector2 campC)
-    {
-        // This is the "do not let the player dig forever into nothing" layer.
-        // It fills the middle of the intro map with useful short chunks between the start and camp triangle.
-        Vector2[] anchors =
-        {
-            playerStartPosition,
-            Vector2.Lerp(playerStartPosition, campA, 0.45f),
-            Vector2.Lerp(playerStartPosition, campB, 0.45f),
-            Vector2.Lerp(playerStartPosition, campC, 0.35f),
-            Vector2.Lerp(campA, campC, 0.5f),
-            Vector2.Lerp(campB, campC, 0.5f)
-        };
-
-        for (int a = 0; a < anchors.Length; a++)
-        {
-            int count = a == 0 ? 10 : 7;
-            float radius = a == 0 ? introStartPitRadius + 34f : 18f;
-
-            for (int i = 0; i < count; i++)
-            {
-                float ang = Random.Range(0f, Mathf.PI * 2f);
-                float dist = Random.Range(7f, radius);
-                Vector2 pos = ClampToWorld(anchors[a] + new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * dist);
-
-                if (Vector2.Distance(pos, playerStartPosition) < introStartPitRadius + 3f) continue;
-                if (IsTooCloseToCamp(pos, 3f)) continue;
-                if (IsTooCloseToAnyTunnel(pos, 3.5f)) continue;
-
-                Vector2 dir = (Random.value < 0.65f) ? (playerStartPosition - pos).normalized : Random.insideUnitCircle.normalized;
-                if (dir.sqrMagnitude < 0.01f) dir = Vector2.right;
-
-                bool fatPocket = Random.value < 0.42f;
-                if (fatPocket)
-                    CreateTunnelSegment(pos, dir, Random.Range(3.5f, 7.5f), Random.Range(2.5f, 4.3f), Random.value < 0.18f, false, 0.22f, false, Random.value < 0.7f, false);
-                else
-                    CreateTunnelSegment(pos, dir, Random.Range(6.5f, 12f), Random.Range(1.55f, 2.5f), Random.value < 0.22f, false, 0.38f, false, Random.value < 0.55f, false);
-            }
+            made++;
         }
     }
 
@@ -362,43 +324,129 @@ public class MapGenerator : MonoBehaviour
         if (routeDir.sqrMagnitude < 0.01f) routeDir = Vector2.right;
 
         float totalDist = Vector2.Distance(from, to);
-        float traveled = fromStart ? introStartPitRadius + 5f : introCampRadius + 7f;
-        Vector2 lastChunkPos = from + routeDir * traveled;
+        float traveled = fromStart ? introStartPitRadius + 13f : introCampRadius + 10f;
+        int routeStep = 0;
 
-        while (traveled < totalDist - introCampRadius - 8f)
+        while (traveled < totalDist - introCampRadius - 24f)
         {
             Vector2 basePoint = Vector2.Lerp(from, to, traveled / totalDist);
             Vector2 perp = Vector2.Perpendicular(routeDir);
-            Vector2 wobble = perp * Random.Range(-introRouteWobble, introRouteWobble) + Random.insideUnitCircle * 1.5f;
-            Vector2 pos = ClampToWorld(basePoint + wobble);
+
+            float wave = Mathf.Sin(routeStep * 0.85f + totalDist * 0.025f);
+            Vector2 pos = ClampToWorld(basePoint + perp * wave * introRouteWobble + Random.insideUnitCircle * 1.35f);
 
             Vector2 nextAim = (to - pos).normalized;
             if (nextAim.sqrMagnitude < 0.01f) nextAim = routeDir;
-            nextAim = (nextAim + Random.insideUnitCircle * 0.22f).normalized;
+            nextAim = (nextAim + Random.insideUnitCircle * 0.08f).normalized;
 
-            // Sometimes leave a dirt gap so revealing one tunnel chunk does not open the whole path.
-            bool makeGap = Random.value < introRouteSegmentGapChance && !fromStart;
-            if (!makeGap)
+            bool forcedFirst = fromStart && routeStep == 0;
+            bool makeGap = !forcedFirst && Random.value < introRouteSegmentGapChance;
+
+            if (!makeGap && !IsTooCloseToCamp(pos, 12f) && !IsTooCloseToAnyTunnel(pos, introTunnelTooCloseDistance))
             {
                 float distFromStart = Vector2.Distance(pos, playerStartPosition);
-                float nearStartBoost = Mathf.InverseLerp(80f, 10f, distFromStart);
-                float radius = Random.Range(1.65f, 2.45f) + nearStartBoost * 0.55f;
-                float length = Random.Range(7.5f, 12.5f) + nearStartBoost * 3f;
-                bool enemy = Random.value < (fromStart ? 0.25f : 0.4f);
-                bool mushroom = Random.value < 0.35f;
+                float nearStartBoost = Mathf.InverseLerp(95f, 15f, distFromStart);
+                float radius = Random.Range(2.25f, 3.35f) + nearStartBoost * 0.20f;
+                float length = Random.Range(5.8f, 9.2f) + nearStartBoost * 1.1f;
+                bool enemy = Random.value < (fromStart ? 0.15f : 0.22f);
+                bool mushroom = Random.value < 0.55f;
 
-                CreateTunnelSegment(pos, nextAim, length, radius, enemy, false, 0.28f, false, mushroom, false);
+                CreateTunnelSegment(pos, nextAim, length, radius, enemy, false, 0.045f, false, mushroom, true);
 
-                // Little side branch sometimes, so the route feels cave-ish instead of dashed lines only.
-                if (Random.value < 0.65f * density)
+                // Tiny side pocket sometimes, but not a big branching road.
+                if (Random.value < 0.06f * density)
                 {
                     Vector2 side = Vector2.Perpendicular(nextAim) * (Random.value < 0.5f ? 1f : -1f);
-                    CreateTunnelSegment(pos + side * Random.Range(2f, 4f), side, Random.Range(4.5f, 9f), Random.Range(1.45f, 2.35f), Random.value < 0.2f, false, 0.35f, false, Random.value < 0.4f, false);
+                    Vector2 sidePos = ClampToWorld(pos + side * Random.Range(6f, 9f));
+                    if (!IsTooCloseToAnyTunnel(sidePos, 5.8f))
+                        CreateTunnelSegment(sidePos, side, Random.Range(2.5f, 4.8f), Random.Range(2.8f, 4.2f), Random.value < 0.08f, false, 0.04f, false, Random.value < 0.65f, true);
                 }
             }
 
-            lastChunkPos = pos;
-            traveled += Random.Range(introRouteStepMin, introRouteStepMax) / Mathf.Max(0.2f, density);
+            traveled += Random.Range(introRouteStepMin, introRouteStepMax) / Mathf.Max(0.45f, density);
+            routeStep++;
+        }
+    }
+
+    void GenerateHalfConnector(Vector2 from, Vector2 to, float tStart, float tEnd)
+    {
+        Vector2 a = Vector2.Lerp(from, to, tStart);
+        Vector2 b = Vector2.Lerp(from, to, tEnd);
+        GenerateBrokenRoute(a, b, 0.55f, false);
+    }
+
+    void GenerateBetweenDestinationDiscoveries(Vector2 a, Vector2 b, int count)
+    {
+        Vector2 line = (b - a);
+        float dist = line.magnitude;
+        if (dist < 1f) return;
+        Vector2 dir = line.normalized;
+        Vector2 perp = Vector2.Perpendicular(dir);
+
+        int made = 0;
+        int attempts = 0;
+        while (made < count && attempts < count * 40)
+        {
+            attempts++;
+            float t = Random.Range(0.18f, 0.82f);
+            Vector2 basePos = Vector2.Lerp(a, b, t);
+            Vector2 pos = ClampToWorld(basePos + perp * Random.Range(-14f, 14f) + Random.insideUnitCircle * 5f);
+
+            // This is the important camp rule: between-camp chunks may live in the space between camps,
+            // but they should never be inside or touching a camp reveal.
+            if (IsTooCloseToCamp(pos, 11f)) continue;
+            if (IsTooCloseToAnyTunnel(pos, introTunnelTooCloseDistance * 0.95f)) continue;
+
+            Vector2 chunkDir;
+            if (Random.value < 0.50f)
+                chunkDir = (dir + Random.insideUnitCircle * 0.22f).normalized;
+            else
+                chunkDir = (perp * (Random.value < 0.5f ? 1f : -1f) + Random.insideUnitCircle * 0.20f).normalized;
+            if (chunkDir.sqrMagnitude < 0.01f) chunkDir = dir;
+
+            bool pocket = Random.value < 0.48f;
+            if (pocket)
+                CreateTunnelSegment(pos, chunkDir, Random.Range(2.8f, 5.8f), Random.Range(3.0f, 4.6f), Random.value < 0.12f, false, 0.035f, false, true, true);
+            else
+                CreateTunnelSegment(pos, chunkDir, Random.Range(6.0f, 10.5f), Random.Range(2.1f, 3.2f), Random.value < 0.16f, false, 0.07f, false, Random.value < 0.55f, true);
+
+            made++;
+        }
+    }
+
+    void GenerateCentralDiscoveryRing(Vector2 campA, Vector2 campB, Vector2 campC)
+    {
+        Vector2[] anchors =
+        {
+            Vector2.Lerp(playerStartPosition, campA, 0.35f),
+            Vector2.Lerp(playerStartPosition, campB, 0.35f),
+            Vector2.Lerp(playerStartPosition, campC, 0.35f),
+            Vector2.Lerp(playerStartPosition, campA, 0.62f),
+            Vector2.Lerp(playerStartPosition, campB, 0.62f),
+            Vector2.Lerp(playerStartPosition, campC, 0.62f)
+        };
+
+        for (int a = 0; a < anchors.Length; a++)
+        {
+            int count = 4;
+            float scatter = 15f;
+
+            for (int i = 0; i < count; i++)
+            {
+                Vector2 pos = ClampToWorld(anchors[a] + Random.insideUnitCircle * scatter);
+
+                if (Vector2.Distance(pos, playerStartPosition) < introStartPitRadius + 6f) continue;
+                if (IsTooCloseToCamp(pos, 10f)) continue;
+                if (IsTooCloseToAnyTunnel(pos, introTunnelTooCloseDistance * 0.85f)) continue;
+
+                Vector2 dir = Random.insideUnitCircle.normalized;
+                if (dir.sqrMagnitude < 0.01f) dir = Vector2.right;
+
+                if (Random.value < 0.62f)
+                    CreateTunnelSegment(pos, dir, Random.Range(2.5f, 5.5f), Random.Range(3.2f, 5.0f), Random.value < 0.12f, false, 0.04f, false, true, true);
+                else
+                    CreateTunnelSegment(pos, dir, Random.Range(5.0f, 8.5f), Random.Range(2.2f, 3.2f), Random.value < 0.16f, false, 0.08f, false, Random.value < 0.55f, true);
+            }
         }
     }
 
@@ -406,37 +454,41 @@ public class MapGenerator : MonoBehaviour
     {
         for (int i = 0; i < introNearSpawnDiscoveries; i++)
         {
-            float angle = (Mathf.PI * 2f / introNearSpawnDiscoveries) * i + Random.Range(-0.35f, 0.35f);
-            float dist = Random.Range(introStartPitRadius + 3f, introStartPitRadius + 30f);
+            float angle = (Mathf.PI * 2f / introNearSpawnDiscoveries) * i + Random.Range(-0.25f, 0.25f);
+            float dist = Random.Range(introStartPitRadius + 14f, introStartPitRadius + 62f);
             Vector2 pos = ClampToWorld(playerStartPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * dist);
-            Vector2 tangent = new Vector2(-Mathf.Sin(angle), Mathf.Cos(angle));
 
-            if (Random.value < 0.55f)
-                CreateTunnelSegment(pos, tangent * (Random.value < 0.5f ? 1f : -1f), Random.Range(6f, 11f), Random.Range(1.7f, 2.8f), Random.value < 0.2f, false, 0.35f, false, true, false);
+            if (IsTooCloseToAnyTunnel(pos, 5.2f)) continue;
+
+            Vector2 tangent = new Vector2(-Mathf.Sin(angle), Mathf.Cos(angle));
+            if (Random.value < 0.45f)
+                CreateTunnelSegment(pos, tangent * (Random.value < 0.5f ? 1f : -1f), Random.Range(4.8f, 8.0f), Random.Range(2.2f, 3.3f), Random.value < 0.13f, false, 0.06f, false, true, true);
             else
-                CreateTunnelSegment(pos, Random.insideUnitCircle.normalized, Random.Range(3f, 6f), Random.Range(2.5f, 4f), false, false, 0.15f, false, true, false);
+                CreateTunnelSegment(pos, Random.insideUnitCircle.normalized, Random.Range(2.5f, 5.5f), Random.Range(3.0f, 4.9f), false, false, 0.04f, false, true, true);
         }
     }
 
-    void GenerateSparseOffRoutePockets()
+    void GenerateOffRoutePockets()
     {
         int made = 0;
         int attempts = 0;
 
-        while (made < introSparseOffRoutePockets && attempts < introSparseOffRoutePockets * 80)
+        while (made < introOffRoutePockets && attempts < introOffRoutePockets * 80)
         {
             attempts++;
-            Vector2 pos = GetRandomWorldPosition(8f);
 
-            if (Vector2.Distance(pos, playerStartPosition) < introStartPitRadius + 20f) continue;
+            float dist = Random.Range(introStartPitRadius + 38f, introSafeDirtRadius + 18f);
+            float ang = Random.Range(0f, Mathf.PI * 2f);
+            Vector2 pos = ClampToWorld(playerStartPosition + new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * dist);
+
+            if (Vector2.Distance(pos, playerStartPosition) < introStartPitRadius + 25f) continue;
             if (IsTooCloseToCamp(pos, 6f)) continue;
-            if (IsTooCloseToAnyTunnel(pos, 7f)) continue;
+            if (IsTooCloseToAnyTunnel(pos, 6.2f)) continue;
 
-            float roll = Random.value;
-            if (roll < 0.6f)
-                CreateTunnelSegment(pos, Random.insideUnitCircle.normalized, Random.Range(2f, 5f), Random.Range(2f, 3.25f), Random.value < 0.18f, false, 0.2f, false, Random.value < 0.55f, false);
+            if (Random.value < 0.72f)
+                CreateTunnelSegment(pos, Random.insideUnitCircle.normalized, Random.Range(2.7f, 5.7f), Random.Range(2.8f, 4.4f), Random.value < 0.12f, false, 0.04f, false, Random.value < 0.72f, true);
             else
-                CreateTunnelSegment(pos, Random.insideUnitCircle.normalized, Random.Range(5f, 10f), Random.Range(1.05f, 1.55f), Random.value < 0.25f, false, 0.5f, false, Random.value < 0.35f, false);
+                CreateTunnelSegment(pos, Random.insideUnitCircle.normalized, Random.Range(5.5f, 8.5f), Random.Range(1.8f, 2.7f), Random.value < 0.16f, false, 0.08f, false, Random.value < 0.5f, true);
 
             made++;
         }
@@ -455,12 +507,27 @@ public class MapGenerator : MonoBehaviour
         return false;
     }
 
+    Vector2 ClampIntroMajorZone(Vector2 pos)
+    {
+        float pad = Mathf.Max(introMajorZoneEdgePadding, introBossRadius + 12f);
+        float minX = Data.origin.x + pad;
+        float maxX = Data.origin.x + Data.width * Data.cellSize - pad;
+        float minY = Data.origin.y + pad;
+        float maxY = Data.origin.y + Data.height * Data.cellSize - pad;
+
+        return new Vector2(
+            Mathf.Clamp(pos.x, minX, maxX),
+            Mathf.Clamp(pos.y, minY, maxY)
+        );
+    }
+
     Vector2 PolarFromStart(float distance, float degrees)
     {
         float radians = degrees * Mathf.Deg2Rad;
         return ClampToWorld(playerStartPosition + new Vector2(Mathf.Cos(radians), Mathf.Sin(radians)) * distance);
     }
 
+    
     void CreateTunnelSegment(
         Vector2 start,
         Vector2 dir,
@@ -483,17 +550,32 @@ public class MapGenerator : MonoBehaviour
 
         int steps = Mathf.Max(1, Mathf.CeilToInt(length / tunnelStepSize));
 
+        int skippedForCamp = 0;
+
         for (int s = 0; s < steps; s++)
         {
             if (avoidCamps && IsTooCloseToCamp(current, radius + tunnelAvoidCampPadding))
             {
                 dir = GetDirectionAwayFromCamps(current, dir);
-                current = ClampToWorld(current + dir * tunnelStepSize);
+                current = ClampToWorld(current + dir * tunnelStepSize * 1.8f);
+                skippedForCamp++;
+                if (skippedForCamp > 10) break;
                 continue;
             }
 
             tunnel.points.Add(current);
+            if (showTrueRevealDebug)
+                SpawnTrueRevealDebugCircle(current, radius, tunnelRevealDebugColor, "TunnelRevealDebug_" + tunnel.id);
+
+            // Cover markers are spread across the tunnel width, not only along the centerline.
+            // This makes the thing you dig into closer to the real reveal area.
             SpawnTunnelRevealCover(tunnel.id, current);
+            if (radius > 2.05f)
+            {
+                Vector2 width = Vector2.Perpendicular(dir).normalized * radius * 0.55f;
+                SpawnTunnelRevealCover(tunnel.id, current + width);
+                SpawnTunnelRevealCover(tunnel.id, current - width);
+            }
 
             if (wobble > 0f)
             {
@@ -519,6 +601,52 @@ public class MapGenerator : MonoBehaviour
         // Keeping this method parameterized so it is easy to move into TunnelData later.
     }
 
+
+    void SpawnTrueRevealDebugCircle(Vector2 center, float radius, Color color, string objectName)
+    {
+        if (trueRevealDebugCircleSegments < 8) trueRevealDebugCircleSegments = 8;
+
+        if (revealDebugRoot == null)
+        {
+            GameObject root = new GameObject("DREAM_MAP_V3_TrueRevealDebugRoot");
+            revealDebugRoot = root.transform;
+        }
+
+        GameObject go = new GameObject(objectName);
+        go.transform.SetParent(revealDebugRoot);
+        go.transform.position = center;
+
+        LineRenderer lr = go.AddComponent<LineRenderer>();
+        lr.useWorldSpace = false;
+        lr.loop = true;
+        lr.positionCount = trueRevealDebugCircleSegments;
+        lr.startWidth = trueRevealDebugLineWidth;
+        lr.endWidth = trueRevealDebugLineWidth;
+        lr.material = new Material(Shader.Find("Sprites/Default"));
+        lr.startColor = color;
+        lr.endColor = color;
+        lr.sortingOrder = 500;
+
+        for (int i = 0; i < trueRevealDebugCircleSegments; i++)
+        {
+            float a = Mathf.PI * 2f * i / trueRevealDebugCircleSegments;
+            lr.SetPosition(i, new Vector3(Mathf.Cos(a) * radius, Mathf.Sin(a) * radius, 0f));
+        }
+    }
+
+    void ClearRevealDebugObjects()
+    {
+        if (revealDebugRoot != null)
+        {
+            Destroy(revealDebugRoot.gameObject);
+            revealDebugRoot = null;
+        }
+
+        GameObject existing = GameObject.Find("DREAM_MAP_V3_TrueRevealDebugRoot");
+        if (existing != null)
+            Destroy(existing);
+    }
+
     void ClearOldChunksAndRuntimeObjects()
     {
         if (grid != null)
@@ -528,6 +656,8 @@ public class MapGenerator : MonoBehaviour
         }
 
         activeChunks.Clear();
+
+        ClearRevealDebugObjects();
 
         RevealCover[] oldCovers = Object.FindObjectsByType<RevealCover>(FindObjectsSortMode.None);
         foreach (RevealCover cover in oldCovers)
@@ -656,9 +786,6 @@ public class MapGenerator : MonoBehaviour
             case 0: return dirtTile1;
             case 1: return dirtTile2;
             case 2: return dirtTile3;
-
-            // These are optional guide/soft-border dirt tiles.
-            // Assign darker/weirder dirt sprites here in the inspector.
             case 3: return noRouteDirtNear != null ? noRouteDirtNear : dirtTile3;
             case 4: return noRouteDirtMid != null ? noRouteDirtMid : (noRouteDirtNear != null ? noRouteDirtNear : dirtTile3);
             case 5: return noRouteDirtFar != null ? noRouteDirtFar : (noRouteDirtMid != null ? noRouteDirtMid : dirtTile3);
@@ -666,14 +793,38 @@ public class MapGenerator : MonoBehaviour
         }
     }
 
+
+    void AddIntroGuideProtectionPoints(List<Vector2> contentPoints)
+    {
+        float[] rings = { introStartPitRadius + 14f, introStartPitRadius + 34f, introSafeDirtRadius * 0.88f };
+        for (int r = 0; r < rings.Length; r++)
+        {
+            float radius = rings[r];
+            for (int i = 0; i < 20; i++)
+            {
+                float angle = Mathf.PI * 2f * i / 20f;
+                contentPoints.Add(ClampToWorld(playerStartPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius));
+            }
+        }
+
+        foreach (CampData camp in Data.camps)
+        {
+            contentPoints.Add(camp.center);
+            for (int i = 0; i < 12; i++)
+            {
+                float angle = Mathf.PI * 2f * i / 12f;
+                contentPoints.Add(ClampToWorld(camp.center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * (camp.radius + 20f)));
+            }
+        }
+    }
+
     void ApplyNoRouteGuideDirt()
     {
         if (!useNoRouteGuideDirt || Data == null) return;
 
-        // Build a list of places that count as "real map": start, camps, and every tunnel reveal point.
-        // Dirt far from these points gets painted with warning dirt.
         List<Vector2> contentPoints = new List<Vector2>();
         contentPoints.Add(playerStartPosition);
+        AddIntroGuideProtectionPoints(contentPoints);
 
         foreach (CampData camp in Data.camps)
             contentPoints.Add(camp.center);
@@ -700,8 +851,24 @@ public class MapGenerator : MonoBehaviour
                 if (!Data.IsBlocked(cell)) continue;
 
                 Vector2 world = Data.CellToWorld(cell);
-                float closestSqr = float.MaxValue;
 
+                // Big normal-dirt basin around the start so black dirt does not appear immediately.
+                if (Vector2.Distance(world, playerStartPosition) < introSafeDirtRadius)
+                    continue;
+
+                bool insideMajorZoneComfort = false;
+                foreach (CampData camp in Data.camps)
+                {
+                    float comfort = camp.radius + 26f;
+                    if (Vector2.Distance(world, camp.center) < comfort)
+                    {
+                        insideMajorZoneComfort = true;
+                        break;
+                    }
+                }
+                if (insideMajorZoneComfort) continue;
+
+                float closestSqr = float.MaxValue;
                 for (int i = 0; i < contentPoints.Count; i++)
                 {
                     float d = (contentPoints[i] - world).sqrMagnitude;
@@ -718,7 +885,7 @@ public class MapGenerator : MonoBehaviour
             }
         }
 
-        Debug.Log("ROUTE_V4 guide dirt painted using " + contentPoints.Count + " content points.");
+        Debug.Log("DREAM_MAP_V3 guide dirt painted using " + contentPoints.Count + " content/protection points.");
     }
 
     public void DigCircle(Vector2 worldCenter, float radius)
@@ -844,45 +1011,25 @@ public class MapGenerator : MonoBehaviour
 
     void SpawnCampRevealPatch(CampData camp)
     {
+        if (showTrueRevealDebug)
+            SpawnTrueRevealDebugCircle(camp.center, camp.radius, campRevealDebugColor, "CampRevealDebug_" + camp.id);
+
         if (revealCoverPrefab == null) return;
+        if (hideNormalRevealCoversWhileDebugging && showTrueRevealDebug) return;
 
-        // ROUTE_V2_BUILD: Camp reveal covers are blobby, not perfect meatball circles.
-        List<Vector2> lobeCenters = new List<Vector2>();
-        List<float> lobeRadii = new List<float>();
-        lobeCenters.Add(camp.center);
-        lobeRadii.Add(camp.radius);
-
-        int lobes = camp.isBossCamp ? 8 : 5;
-        for (int i = 0; i < lobes; i++)
-        {
-            Vector2 offset = Random.insideUnitCircle * camp.radius * Random.Range(0.3f, 0.85f);
-            lobeCenters.Add(camp.center + offset);
-            lobeRadii.Add(camp.radius * Random.Range(0.3f, 0.58f));
-        }
-
+        // Real camps are intentionally a big reveal patch.
         float spacing = cellSize;
-        int steps = Mathf.CeilToInt(camp.radius * 1.35f / spacing);
+        int steps = Mathf.CeilToInt(camp.radius / spacing);
 
         for (int x = -steps; x <= steps; x++)
         {
             for (int y = -steps; y <= steps; y++)
             {
-                Vector2 pos = camp.center + new Vector2(x * spacing, y * spacing);
+                Vector2 offset = new Vector2(x * spacing, y * spacing);
+                if (offset.magnitude > camp.radius) continue;
+                if (Random.value > 0.55f) continue;
 
-                bool insideBlob = false;
-                for (int i = 0; i < lobeCenters.Count; i++)
-                {
-                    if (Vector2.Distance(pos, lobeCenters[i]) <= lobeRadii[i])
-                    {
-                        insideBlob = true;
-                        break;
-                    }
-                }
-
-                if (!insideBlob) continue;
-                if (Random.value > 0.52f) continue;
-
-                GameObject cover = Instantiate(revealCoverPrefab, pos, Quaternion.identity);
+                GameObject cover = Instantiate(revealCoverPrefab, camp.center + offset, Quaternion.identity);
                 RevealCover reveal = cover.GetComponent<RevealCover>();
                 if (reveal != null)
                 {
@@ -892,7 +1039,7 @@ public class MapGenerator : MonoBehaviour
             }
         }
 
-        Debug.Log("Spawned ROUTE_V3 blobby camp cover patch id " + camp.id + " at " + camp.center);
+        Debug.Log("Spawned camp cover patch id " + camp.id + " at " + camp.center);
     }
 
     public void RevealCamp(int campId)
@@ -1001,6 +1148,7 @@ public class MapGenerator : MonoBehaviour
     void SpawnTunnelRevealCover(int tunnelId, Vector2 position)
     {
         if (revealCoverPrefab == null) return;
+        if (hideNormalRevealCoversWhileDebugging && showTrueRevealDebug) return;
 
         GameObject cover = Instantiate(revealCoverPrefab, position, Quaternion.identity);
         RevealCover reveal = cover.GetComponent<RevealCover>();
