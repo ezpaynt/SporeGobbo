@@ -1,0 +1,84 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cd9232684bc860346a8d360f37999b89, type: 3}
+  m_Name: IntroLevelMapProfile
+  m_EditorClassIdentifier: Assembly-CSharp::BranchMapProfile
+  seed: 0
+  randomSeed: 1
+  width: 180
+  height: 120
+  cellSize: 0.75
+  spawnCenter: {x: 0, y: 0}
+  spawnRadius: 5
+  darkDistance: 20
+  darkerDistance: 35
+  fillerTunnelCount: 99
+  fillerPocketCount: 99
+  fillerMinDistanceFromMainPath: 2
+  fillerMaxDistanceFromMainPath: 35
+  branches:
+  - branchName: North
+    direction: {x: 0, y: 1}
+    length: 80
+    tunnelHalfWidth: 3
+    wobble: 3
+    forkCount: 1
+    forkLengthMin: 20
+    forkLengthMax: 30
+    smallRooms: 2
+    camps: 1
+    bosses: 0
+    minAttachmentDistanceFromSpawn: 5
+    attachmentConnectorLength: 3
+    minGapBetweenAttachments: 8
+  - branchName: East
+    direction: {x: 1, y: 0}
+    length: 200
+    tunnelHalfWidth: 2
+    wobble: 10
+    forkCount: 3
+    forkLengthMin: 40
+    forkLengthMax: 60
+    smallRooms: 5
+    camps: 1
+    bosses: 0
+    minAttachmentDistanceFromSpawn: 10
+    attachmentConnectorLength: 3
+    minGapBetweenAttachments: 8
+  - branchName: West
+    direction: {x: -1, y: 0}
+    length: 28
+    tunnelHalfWidth: 2
+    wobble: 2
+    forkCount: 0
+    forkLengthMin: 0
+    forkLengthMax: 0
+    smallRooms: 2
+    camps: 1
+    bosses: 0
+    minAttachmentDistanceFromSpawn: 8
+    attachmentConnectorLength: 3
+    minGapBetweenAttachments: 8
+  - branchName: Boss
+    direction: {x: 0, y: -1}
+    length: 300
+    tunnelHalfWidth: 2
+    wobble: 10
+    forkCount: 4
+    forkLengthMin: 20
+    forkLengthMax: 40
+    smallRooms: 4
+    camps: 0
+    bosses: 1
+    minAttachmentDistanceFromSpawn: 15
+    attachmentConnectorLength: 4
+    minGapBetweenAttachments: 10
