@@ -24,6 +24,12 @@ public class RunContentSpawner : MonoBehaviour
     private readonly HashSet<int> spawnedCampIds = new HashSet<int>();
     private readonly HashSet<int> spawnedTunnelIds = new HashSet<int>();
 
+    public void ResetSpawnedContentTracking()
+    {
+        spawnedCampIds.Clear();
+        spawnedTunnelIds.Clear();
+    }
+
     private IEnumerator<WaitForSeconds> Start()
     {
         if (!spawnInitialRevealedContentOnStart)
@@ -66,7 +72,10 @@ public class RunContentSpawner : MonoBehaviour
         spawnedTunnelIds.Add(tunnel.id);
 
         if (enemyPrefab == null)
+        {
+            Debug.LogWarning($"RunContentSpawner: tunnel {tunnel.id} wanted 1 enemy, but Enemy Prefab is missing.", this);
             return;
+        }
 
         Vector2 spawnPoint = tunnel.enemySpawnPoint;
 
@@ -74,6 +83,8 @@ public class RunContentSpawner : MonoBehaviour
             clearPoint = spawnPoint;
 
         Spawn(enemyPrefab, clearPoint, enemyParent);
+
+        Debug.Log($"RunContentSpawner spawned tunnel enemy | Tunnel:{tunnel.id}", this);
     }
 
     public void SpawnCamp(CampData camp)
@@ -103,6 +114,11 @@ public class RunContentSpawner : MonoBehaviour
 
         if (camp.hasExitPortal)
             SpawnInCircle(exitPortalPrefab, camp.center, Mathf.Max(0.5f, camp.radius * 0.5f), exitParent);
+
+        Debug.Log(
+            $"RunContentSpawner spawned camp content | Id:{camp.id} NormalEnemies:{camp.enemyCount} BossEnemies:{camp.bossEnemyCount} Mushrooms:{camp.mushroomCount} Spores:{camp.sporeCount} Shinies:{camp.shinyCount} Exit:{camp.hasExitPortal}",
+            this
+        );
     }
 
     private void SpawnInCircle(GameObject prefab, Vector2 center, float radius, Transform parent)

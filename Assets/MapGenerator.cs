@@ -20,7 +20,8 @@ public class MapGenerator : MonoBehaviour
         Camp,
         Boss,
         FillerTunnel,
-        FillerPocket
+        FillerPocket,
+        FillerPocketLoot
     }
 
     [Serializable]
@@ -57,13 +58,16 @@ public class MapGenerator : MonoBehaviour
         public int seed = 0;
         public bool randomSeed = true;
 
-        [Header("World Size")]
+        [Header("Generation Bounds")]
         public int width = 180;
         public int height = 120;
         public float cellSize = 0.75f;
 
         [Header("Spawn")]
-        public Vector2Int spawnCenter = new Vector2Int(90, 60);
+        public bool autoCenterSpawn = true;
+
+        [Header("Spawn")]
+        [HideInInspector] public Vector2Int spawnCenter = new Vector2Int(90, 60);
         public int spawnRadius = 5;
 
         [Header("Dirt Darkness")]
@@ -73,6 +77,7 @@ public class MapGenerator : MonoBehaviour
         [Header("Filler")]
         public int fillerTunnelCount = 12;
         public int fillerPocketCount = 8;
+        public int fillerLootPocketCount = 2;
         public int fillerMinDistanceFromMainPath = 7;
         public int fillerMaxDistanceFromMainPath = 35;
     }
@@ -101,7 +106,6 @@ public class MapGenerator : MonoBehaviour
     [Header("Tilemaps")]
     public Grid grid;
     public Tilemap dirtTilemap;
-    public Tilemap markerTilemap;
 
     [Header("Tiles")]
     public TileBase dirtTile1;
@@ -111,14 +115,8 @@ public class MapGenerator : MonoBehaviour
     public TileBase darkerDirtTile;
     public TileBase revealDirtTile;
 
-    [Header("Debug / Marker Tiles")]
-    public TileBase bossMarkerTile;
-    public TileBase campMarkerTile;
-    public TileBase branchDebugTile;
-
     [Header("Debug")]
     public bool generateOnStart = true;
-    public bool showBranchDebugTiles = true;
     public bool revealMainTunnelsAtStart = false;
 
     [Header("Content Spawning")]
@@ -130,6 +128,7 @@ public class MapGenerator : MonoBehaviour
 
     private readonly HashSet<Vector2Int> spawnOpen = new HashSet<Vector2Int>();
     private readonly HashSet<Vector2Int> mainPathCells = new HashSet<Vector2Int>();
+    private readonly HashSet<Vector2Int> generatedAreaCells = new HashSet<Vector2Int>();
     private readonly HashSet<Vector2Int> plannedTunnelCells = new HashSet<Vector2Int>();
     private readonly HashSet<Vector2Int> hiddenRevealCells = new HashSet<Vector2Int>();
 
@@ -151,6 +150,9 @@ public class MapGenerator : MonoBehaviour
         if (map.width <= 0) map.width = 180;
         if (map.height <= 0) map.height = 120;
         if (map.cellSize <= 0f) map.cellSize = 0.75f;
+
+        if (map.autoCenterSpawn)
+            map.spawnCenter = new Vector2Int(map.width / 2, map.height / 2);
 
         if (!defaultsInitialized && (branches == null || branches.Count == 0))
             SetDefaultFirstLevelInspectorSettings();
@@ -194,22 +196,31 @@ public class MapGenerator : MonoBehaviour
         map.width = 180;
         map.height = 120;
         map.cellSize = 0.75f;
-        map.spawnCenter = new Vector2Int(90, 60);
+        map.autoCenterSpawn = true;
+        map.spawnCenter = new Vector2Int(map.width / 2, map.height / 2);
         map.spawnRadius = 5;
         map.darkDistance = 20;
         map.darkerDistance = 35;
-        map.fillerTunnelCount = 12;
-        map.fillerPocketCount = 8;
+        map.fillerTunnelCount = 5;
+        map.fillerPocketCount = 3;
+        map.fillerLootPocketCount = 2;
         map.fillerMinDistanceFromMainPath = 7;
         map.fillerMaxDistanceFromMainPath = 35;
 
         branches = CreateDefaultBranches();
     }
 
+    private void ApplyAutoSpawnCenter()
+    {
+        if (map.autoCenterSpawn)
+            map.spawnCenter = new Vector2Int(map.width / 2, map.height / 2);
+    }
+
     [ContextMenu("Generate Map")]
     public void Generate()
     {
         ApplyProfileForThisRunIfNeeded();
+        ApplyAutoSpawnCenter();
         EnsureTilemaps();
 
         Data = new MapData(map.width, map.height, map.cellSize);
@@ -237,11 +248,97 @@ public class MapGenerator : MonoBehaviour
 
         RunContentSpawner spawner = GetContentSpawner();
         if (spawner != null)
+        {
+            spawner.ResetSpawnedContentTracking();
             spawner.SpawnInitialContent();
+        }
+
+        LogGenerationSummary();
     }
 
     public void GenerateMap() => Generate();
     public void Regenerate() => Generate();
+
+    private void LogGenerationSummary()
+    {
+        int smallRooms = 0;
+        int camps = 0;
+        int bosses = 0;
+        int fillerPockets = 0;
+        int fillerLootPockets = 0;
+
+        foreach (PlannedArea area in plannedAreas)
+        {
+            switch (area.type)
+            {
+                case AreaType.SmallRoom: smallRooms++; break;
+                case AreaType.Camp: camps++; break;
+                case AreaType.Boss: bosses++; break;
+                case AreaType.FillerPocket: fillerPockets++; break;
+                case AreaType.FillerPocketLoot: fillerLootPockets++; break;
+            }
+        }
+
+        int normalEnemies = 0;
+        int bossEnemies = 0;
+        int mushrooms = 0;
+        int spores = 0;
+        int shinies = 0;
+        int exits = 0;
+
+        if (Data != null)
+        {
+            foreach (CampData camp in Data.camps)
+            {
+                normalEnemies += camp.enemyCount;
+                bossEnemies += camp.bossEnemyCount;
+                mushrooms += camp.mushroomCount;
+                spores += camp.sporeCount;
+                shinies += camp.shinyCount;
+                if (camp.hasExitPortal) exits++;
+            }
+        }
+
+        string profileName = selectedProfile != null ? selectedProfile.name : "Manual Inspector Settings";
+        int tunnelCount = Data != null ? Data.tunnels.Count : 0;
+        int campDataCount = Data != null ? Data.camps.Count : 0;
+        int revealTriggers = revealGroupByTriggerCell.Count;
+
+        Debug.Log(
+            "\n========== SPORE GOBBO MAP REPORT ==========\n" +
+            $"Profile: {profileName}\n" +
+            $"Seed: {(map.randomSeed ? "Random" : map.seed.ToString())}\n" +
+            $"Map Size: {map.width} x {map.height} | Cell Size: {map.cellSize}\n" +
+            $"Spawn Cell: {map.spawnCenter} | Spawn Radius: {map.spawnRadius}\n\n" +
+
+            "Structure\n" +
+            "---------\n" +
+            $"Branches: {branches.Count}\n" +
+            $"Tunnels Registered: {tunnelCount}\n" +
+            $"Reveal Triggers: {revealTriggers}\n" +
+            $"Generated Area Cells: {generatedAreaCells.Count}\n\n" +
+
+            "Rooms\n" +
+            "-----\n" +
+            $"Small Rooms: {smallRooms}\n" +
+            $"Camps: {camps}\n" +
+            $"Boss Rooms: {bosses}\n" +
+            $"Filler Pockets: {fillerPockets}\n" +
+            $"Filler Loot Pockets: {fillerLootPockets}\n" +
+            $"Content Areas Registered: {campDataCount}\n\n" +
+
+            "Planned Content\n" +
+            "---------------\n" +
+            $"Normal Enemies: {normalEnemies}\n" +
+            $"Boss Enemies: {bossEnemies}\n" +
+            $"Mushrooms: {mushrooms}\n" +
+            $"Spores: {spores}\n" +
+            $"Shinies: {shinies}\n" +
+            $"Exit Portals: {exits}\n" +
+            "===========================================\n",
+            this
+        );
+    }
 
     private void ApplyProfileForThisRunIfNeeded()
     {
@@ -324,12 +421,14 @@ public class MapGenerator : MonoBehaviour
         map.width = profile.width;
         map.height = profile.height;
         map.cellSize = profile.cellSize;
-        map.spawnCenter = profile.spawnCenter;
+        map.autoCenterSpawn = profile.autoCenterSpawn;
+        map.spawnCenter = profile.autoCenterSpawn ? new Vector2Int(profile.width / 2, profile.height / 2) : profile.spawnCenter;
         map.spawnRadius = profile.spawnRadius;
         map.darkDistance = profile.darkDistance;
         map.darkerDistance = profile.darkerDistance;
         map.fillerTunnelCount = profile.fillerTunnelCount;
         map.fillerPocketCount = profile.fillerPocketCount;
+        map.fillerLootPocketCount = profile.fillerLootPocketCount;
         map.fillerMinDistanceFromMainPath = profile.fillerMinDistanceFromMainPath;
         map.fillerMaxDistanceFromMainPath = profile.fillerMaxDistanceFromMainPath;
 
@@ -350,12 +449,14 @@ public class MapGenerator : MonoBehaviour
         selectedProfile.width = map.width;
         selectedProfile.height = map.height;
         selectedProfile.cellSize = map.cellSize;
+        selectedProfile.autoCenterSpawn = map.autoCenterSpawn;
         selectedProfile.spawnCenter = map.spawnCenter;
         selectedProfile.spawnRadius = map.spawnRadius;
         selectedProfile.darkDistance = map.darkDistance;
         selectedProfile.darkerDistance = map.darkerDistance;
         selectedProfile.fillerTunnelCount = map.fillerTunnelCount;
         selectedProfile.fillerPocketCount = map.fillerPocketCount;
+        selectedProfile.fillerLootPocketCount = map.fillerLootPocketCount;
         selectedProfile.fillerMinDistanceFromMainPath = map.fillerMinDistanceFromMainPath;
         selectedProfile.fillerMaxDistanceFromMainPath = map.fillerMaxDistanceFromMainPath;
         selectedProfile.branches = CopyBranches(branches);
@@ -436,6 +537,7 @@ public class MapGenerator : MonoBehaviour
     {
         spawnOpen.Clear();
         mainPathCells.Clear();
+        generatedAreaCells.Clear();
         plannedTunnelCells.Clear();
         hiddenRevealCells.Clear();
         revealAreaByCell.Clear();
@@ -457,6 +559,7 @@ public class MapGenerator : MonoBehaviour
         {
             spawnOpen.Add(cell);
             mainPathCells.Add(cell);
+            generatedAreaCells.Add(cell);
             Data.SetBlocked(cell, false);
         }
 
@@ -583,6 +686,15 @@ public class MapGenerator : MonoBehaviour
             int radius = rng.Next(2, 5);
             AddRevealArea(AreaType.FillerPocket, pos, radius);
         }
+
+        for (int i = 0; i < map.fillerLootPocketCount; i++)
+        {
+            Vector2Int pos = FindFillerPosition();
+            if (pos == map.spawnCenter) continue;
+
+            int radius = rng.Next(2, 4);
+            AddRevealArea(AreaType.FillerPocketLoot, pos, radius);
+        }
     }
 
     private void AddTunnel(List<Vector2Int> path, int halfWidthCells, AreaType type, bool revealedNow)
@@ -607,6 +719,7 @@ public class MapGenerator : MonoBehaviour
             foreach (Vector2Int cell in CellsInCircle(p, Mathf.Max(1, halfWidthCells)))
             {
                 plannedTunnelCells.Add(cell);
+                generatedAreaCells.Add(cell);
 
                 if (revealedNow)
                     Data.SetBlocked(cell, false);
@@ -630,33 +743,76 @@ public class MapGenerator : MonoBehaviour
         foreach (Vector2Int cell in CellsInCircle(centerCell, radiusCells))
         {
             hiddenRevealCells.Add(cell);
+            generatedAreaCells.Add(cell);
             revealAreaByCell[cell] = area;
             area.cells.Add(cell);
         }
 
         plannedAreas.Add(area);
 
-        if (type == AreaType.Camp || type == AreaType.Boss)
+        if (ShouldCreateContentData(type))
         {
-            CampData camp = new CampData
-            {
-                id = area.id,
-                center = Data.CellToWorld(centerCell),
-                radius = area.radiusWorld,
-                revealed = false,
-                isBossCamp = type == AreaType.Boss,
-                hasExitPortal = type == AreaType.Boss,
-                enemyCount = type == AreaType.Boss ? 2 : 3,
-                bossEnemyCount = type == AreaType.Boss ? 1 : 0,
-                sporeCount = type == AreaType.Boss ? 3 : 2,
-                mushroomCount = type == AreaType.Boss ? 5 : 3,
-                shinyCount = type == AreaType.Boss ? 2 : 0
-            };
-
+            CampData camp = CreateContentDataForArea(type, area);
             Data.camps.Add(camp);
         }
 
-        PaintMarker(type, centerCell);
+    }
+
+    private bool ShouldCreateContentData(AreaType type)
+    {
+        return type == AreaType.SmallRoom ||
+               type == AreaType.Camp ||
+               type == AreaType.Boss ||
+               type == AreaType.FillerPocketLoot;
+    }
+
+    private CampData CreateContentDataForArea(AreaType type, PlannedArea area)
+    {
+        CampData camp = new CampData
+        {
+            id = area.id,
+            center = Data.CellToWorld(area.centerCell),
+            radius = area.radiusWorld,
+            revealed = false,
+            isBossCamp = type == AreaType.Boss,
+            hasExitPortal = type == AreaType.Boss,
+            enemyCount = 0,
+            bossEnemyCount = 0,
+            sporeCount = 0,
+            mushroomCount = 0,
+            shinyCount = 0
+        };
+
+        switch (type)
+        {
+            case AreaType.SmallRoom:
+                camp.enemyCount = rng.Next(0, 2);
+                if (rng.NextDouble() < 0.5)
+                    camp.mushroomCount = 1;
+                else
+                    camp.sporeCount = 1;
+                break;
+
+            case AreaType.Camp:
+                camp.enemyCount = 3;
+                camp.mushroomCount = 3;
+                camp.sporeCount = rng.Next(1, 3);
+                break;
+
+            case AreaType.Boss:
+                camp.enemyCount = 2;
+                camp.bossEnemyCount = 1;
+                camp.hasExitPortal = true;
+                camp.mushroomCount = 5;
+                camp.sporeCount = 1;
+                break;
+
+            case AreaType.FillerPocketLoot:
+                camp.mushroomCount = rng.Next(1, 3);
+                break;
+        }
+
+        return camp;
     }
 
     private void PaintTilemaps()
@@ -677,9 +833,6 @@ public class MapGenerator : MonoBehaviour
                 SetCellTilesFromData(cell);
             }
         }
-
-        if (showBranchDebugTiles)
-            PaintBranchDebug();
     }
 
     private void BuildRevealTriggers()
@@ -944,7 +1097,7 @@ public class MapGenerator : MonoBehaviour
 
     private TileBase GetDirtTileByDistance(Vector2Int cell)
     {
-        int dist = DistanceToNearestMainPath(cell);
+        int dist = DistanceToNearestGeneratedArea(cell);
 
         if (dist >= map.darkerDistance && darkerDirtTile != null) return darkerDirtTile;
         if (dist >= map.darkDistance && darkDirtTile != null) return darkDirtTile;
@@ -1047,27 +1200,9 @@ public class MapGenerator : MonoBehaviour
             case AreaType.Boss: return rng.Next(7, 11);
             case AreaType.Camp: return rng.Next(6, 9);
             case AreaType.SmallRoom: return rng.Next(4, 7);
+            case AreaType.FillerPocketLoot: return rng.Next(2, 4);
             default: return rng.Next(2, 5);
         }
-    }
-
-    private void PaintMarker(AreaType type, Vector2Int cell)
-    {
-        if (markerTilemap == null) return;
-
-        if (type == AreaType.Boss && bossMarkerTile != null)
-            markerTilemap.SetTile(ToTilePos(cell), bossMarkerTile);
-
-        if (type == AreaType.Camp && campMarkerTile != null)
-            markerTilemap.SetTile(ToTilePos(cell), campMarkerTile);
-    }
-
-    private void PaintBranchDebug()
-    {
-        if (markerTilemap == null || branchDebugTile == null) return;
-
-        foreach (Vector2Int cell in mainPathCells)
-            markerTilemap.SetTile(ToTilePos(cell), branchDebugTile);
     }
 
     private Vector2Int PickSideDirection(List<Vector2Int> path, int index)
@@ -1105,6 +1240,19 @@ public class MapGenerator : MonoBehaviour
             case 2: return Vector2Int.left;
             default: return Vector2Int.right;
         }
+    }
+
+    private int DistanceToNearestGeneratedArea(Vector2Int cell)
+    {
+        int best = int.MaxValue;
+
+        foreach (Vector2Int p in generatedAreaCells)
+        {
+            int d = Mathf.Abs(cell.x - p.x) + Mathf.Abs(cell.y - p.y);
+            if (d < best) best = d;
+        }
+
+        return best == int.MaxValue ? 9999 : best;
     }
 
     private int DistanceToNearestMainPath(Vector2Int cell)
