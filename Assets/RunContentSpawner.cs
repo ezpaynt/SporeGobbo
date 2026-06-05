@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -30,7 +31,7 @@ public class RunContentSpawner : MonoBehaviour
         spawnedTunnelIds.Clear();
     }
 
-    private IEnumerator<WaitForSeconds> Start()
+    private IEnumerator Start()
     {
         if (!spawnInitialRevealedContentOnStart)
             yield break;
@@ -49,19 +50,36 @@ public class RunContentSpawner : MonoBehaviour
     {
         MapGenerator map = MapGenerator.Instance;
         if (map == null || map.Data == null)
+        {
+            Debug.LogWarning("RunContentSpawner: SpawnInitialContent called, but MapGenerator/Data is missing.", this);
             return;
+        }
+
+        int revealedTunnels = 0;
+        int revealedCamps = 0;
 
         foreach (TunnelData tunnel in map.Data.tunnels)
         {
             if (tunnel.revealed)
+            {
+                revealedTunnels++;
                 SpawnTunnel(tunnel);
+            }
         }
 
         foreach (CampData camp in map.Data.camps)
         {
             if (camp.revealed)
+            {
+                revealedCamps++;
                 SpawnCamp(camp);
+            }
         }
+
+        Debug.Log(
+            $"RunContentSpawner initial content check | Tunnels:{map.Data.tunnels.Count} RevealedTunnels:{revealedTunnels} Camps:{map.Data.camps.Count} RevealedCamps:{revealedCamps}",
+            this
+        );
     }
 
     public void SpawnTunnel(TunnelData tunnel)

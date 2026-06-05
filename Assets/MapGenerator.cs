@@ -571,7 +571,15 @@ public class MapGenerator : MonoBehaviour
         foreach (BranchSettings branch in branches)
         {
             Vector2Int dir = NormalizeCardinal(branch.direction);
-            if (dir == Vector2Int.zero) continue;
+
+            if (dir == Vector2Int.zero)
+            {
+                dir = Vector2Int.up;
+                Debug.LogWarning(
+                    $"MapGenerator: Branch '{branch.branchName}' had direction (0,0). Defaulting to Up so the branch can generate. Set Direction to X/Y like (1,0), (-1,0), (0,1), or (0,-1).",
+                    this
+                );
+            }
 
             List<Vector2Int> path = BuildWobblyPath(map.spawnCenter, dir, branch.length, branch.wobble);
             AddTunnel(path, branch.tunnelHalfWidth, AreaType.MainTunnel, revealMainTunnelsAtStart);
