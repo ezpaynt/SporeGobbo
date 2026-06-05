@@ -123,6 +123,9 @@ public class MapGenerator : MonoBehaviour
     public bool showBranchDebugTiles = true;
     public bool revealMainTunnelsAtStart = false;
 
+    [Header("Content Spawning")]
+    public RunContentSpawner contentSpawner;
+
     public MapData Data { get; private set; }
 
     private System.Random rng;
@@ -175,6 +178,14 @@ public class MapGenerator : MonoBehaviour
             Generate();
     }
 
+    private RunContentSpawner GetContentSpawner()
+    {
+        if (contentSpawner == null)
+            contentSpawner = UnityEngine.Object.FindAnyObjectByType<RunContentSpawner>(FindObjectsInactive.Include);
+
+        return contentSpawner;
+    }
+
     [ContextMenu("Set Default First Level Inspector Settings")]
     public void SetDefaultFirstLevelInspectorSettings()
     {
@@ -225,6 +236,10 @@ public class MapGenerator : MonoBehaviour
         BuildBranches();
         BuildFiller();
         PaintTilemaps();
+
+        RunContentSpawner spawner = GetContentSpawner();
+        if (spawner != null)
+            spawner.SpawnInitialContent();
     }
 
     public void GenerateMap() => Generate();
@@ -766,6 +781,10 @@ public class MapGenerator : MonoBehaviour
             Data.ClearCircle(point, Mathf.Max(tunnel.radius, map.cellSize * 1.5f));
 
         RefreshAllTiles();
+
+        RunContentSpawner spawner = GetContentSpawner();
+        if (spawner != null)
+            spawner.SpawnTunnel(tunnel);
     }
 
     public void RevealCamp()
@@ -798,6 +817,11 @@ public class MapGenerator : MonoBehaviour
             if (camp.id == areaId)
             {
                 camp.revealed = true;
+
+                RunContentSpawner spawner = GetContentSpawner();
+                if (spawner != null)
+                    spawner.SpawnCamp(camp);
+
                 break;
             }
         }
