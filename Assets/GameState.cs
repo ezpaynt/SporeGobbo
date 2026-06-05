@@ -41,6 +41,40 @@ public class RunSummaryData
     public List<string> newBuddyNames = new List<string>();
     public List<string> deadBuddyNames = new List<string>();
     public List<string> upgradesChosen = new List<string>();
+
+    public List<BuddyRunReport> activeBuddyReports = new List<BuddyRunReport>();
+    public List<BuddyRunReport> reserveBuddyReports = new List<BuddyRunReport>();
+    public List<string> leveledBuddyNames = new List<string>();
+}
+
+
+[System.Serializable]
+public class BuddyRunReport
+{
+    public string buddyId = "";
+    public string displayName = "Gobbo";
+    public string role = "";
+    public bool wasActive = false;
+    public bool survived = true;
+    public bool died = false;
+
+    public int levelStart = 1;
+    public int levelEnd = 1;
+    public int xpStart = 0;
+    public int xpEnd = 0;
+    public int xpGained = 0;
+    public int killsStart = 0;
+    public int killsEnd = 0;
+    public int killsGained = 0;
+    public int nightsStart = 0;
+    public int nightsEnd = 0;
+    public int nightsGained = 0;
+    public int happinessStart = 100;
+    public int happinessEnd = 100;
+
+    public bool leveledUp = false;
+    public bool readyToGrow = false;
+    public string traitLabel = "None";
 }
 
 public class GameState : MonoBehaviour
@@ -153,7 +187,8 @@ public class GameState : MonoBehaviour
             if (unit == null) continue;
             unit.EnsureRuntimeDefaults();
             runStartBuddyIds.Add(unit.uniqueId);
-            if (activeSquadIds.Contains(unit.uniqueId)) runStartActiveBuddyIds.Add(unit.uniqueId);
+            if (activeSquadIds != null && activeSquadIds.Contains(unit.uniqueId))
+                runStartActiveBuddyIds.Add(unit.uniqueId);
         }
 
         lastRun = new RunSummaryData();
@@ -187,9 +222,9 @@ public class GameState : MonoBehaviour
         RepairRosterState();
         BuddyProgression.DistributeEndRunFoodXP(this, lastRun != null ? lastRun.foodValueGained : 0);
         bool survived = player != null && player.gameObject.activeInHierarchy;
-        ApplyEndRunGobboHistory(survived);
         BuildRunSummary(before, beforeIds, beforeGobbos, survived);
         currentRunNumber = Mathf.Max(1, currentRunNumber + 1);
+        leader.runsSurvived++;
     }
 
     void SaveVisibleRunBuddies()
@@ -403,6 +438,9 @@ public class GameState : MonoBehaviour
         lastRun.newBuddyNames ??= new List<string>();
         lastRun.deadBuddyNames ??= new List<string>();
         lastRun.upgradesChosen ??= new List<string>();
+        lastRun.activeBuddyReports ??= new List<BuddyRunReport>();
+        lastRun.reserveBuddyReports ??= new List<BuddyRunReport>();
+        lastRun.leveledBuddyNames ??= new List<string>();
     }
 
     public void RepairRosterState()
@@ -602,67 +640,6 @@ public class GameState : MonoBehaviour
     public GobboUnitSaveData PullFirstReserveBuddy() => PullFirstReserveGobbo();
     public bool HasReserveBuddy() => GetReserveGobboUnitsInternal().Count > 0;
 
-    void ApplyEndRunGobboHistory(bool leaderSurvived)
-    {
-        EnsureRuntimeDefaults();
-
-        if (leaderSurvived && leader != null)
-            leader.AddNightSurvived();
-
-        List<GobboUnitSaveData> survivingActive = GetSurvivingRunActiveGobbos();
-        foreach (GobboUnitSaveData unit in survivingActive)
-        {
-            unit.AddNightSurvived();
-            unit.survivedLastRun = true;
-        }
-
-        AddSharedRunRelationshipProgress(survivingActive);
-    }
-
-    List<GobboUnitSaveData> GetSurvivingRunActiveGobbos()
-    {
-        RepairRosterState();
-        List<GobboUnitSaveData> result = new List<GobboUnitSaveData>();
-        List<string> sourceIds = runStartActiveBuddyIds != null && runStartActiveBuddyIds.Count > 0
-            ? runStartActiveBuddyIds
-            : new List<string>(activeSquadIds);
-
-        foreach (string id in sourceIds)
-        {
-            if (string.IsNullOrWhiteSpace(id)) continue;
-            if (deadBuddyIdsThisRun.Contains(id)) continue;
-            GobboUnitSaveData unit = FindOwnedGobboRaw(id);
-            if (unit == null || unit.isDead) continue;
-            unit.EnsureRuntimeDefaults();
-            if (!result.Contains(unit)) result.Add(unit);
-        }
-
-        return result;
-    }
-
-    void AddSharedRunRelationshipProgress(List<GobboUnitSaveData> survivingActive)
-    {
-        if (survivingActive == null || survivingActive.Count < 2) return;
-
-        for (int i = 0; i < survivingActive.Count; i++)
-        {
-            GobboUnitSaveData a = survivingActive[i];
-            if (a == null) continue;
-            for (int j = i + 1; j < survivingActive.Count; j++)
-            {
-                GobboUnitSaveData b = survivingActive[j];
-                if (b == null) continue;
-                a.AddRelationshipPoints(b.uniqueId, "SharedRun", 1);
-                b.AddRelationshipPoints(a.uniqueId, "SharedRun", 1);
-
-                GobboRelationshipSaveData aShared = a.GetRelationship(b.uniqueId, "SharedRun");
-                GobboRelationshipSaveData bShared = b.GetRelationship(a.uniqueId, "SharedRun");
-                if (aShared != null && aShared.points >= 3) a.AddRelationshipPoints(b.uniqueId, "Friend", 1);
-                if (bShared != null && bShared.points >= 3) b.AddRelationshipPoints(a.uniqueId, "Friend", 1);
-            }
-        }
-    }
-
     void BuildRunSummary(GobboUnitSaveData before, List<string> beforeIds, List<GobboUnitSaveData> beforeGobbos, bool survived)
     {
         EnsureLastRun();
@@ -674,6 +651,7 @@ public class GameState : MonoBehaviour
         int trackedShiniesGained = lastRun.shiniesGained;
         int trackedEnemiesKilled = lastRun.enemiesKilled;
         List<string> trackedUpgrades = new List<string>(lastRun.upgradesChosen);
+        List<string> trackedNewBuddyNames = lastRun.newBuddyNames != null ? new List<string>(lastRun.newBuddyNames) : new List<string>();
 
         lastRun.survived = survived;
         lastRun.timeSpent = runStartTime > 0f ? Time.time - runStartTime : 0f;
@@ -700,14 +678,26 @@ public class GameState : MonoBehaviour
         lastRun.upgradesChosen = trackedUpgrades;
         lastRun.buddiesStart = beforeIds.Count;
         lastRun.buddiesEnd = ownedGobbos.Count;
+
         lastRun.newBuddyNames.Clear();
         lastRun.deadBuddyNames.Clear();
+        lastRun.activeBuddyReports.Clear();
+        lastRun.reserveBuddyReports.Clear();
+        lastRun.leveledBuddyNames.Clear();
+
+        foreach (string trackedName in trackedNewBuddyNames)
+            if (!string.IsNullOrWhiteSpace(trackedName) && !lastRun.newBuddyNames.Contains(trackedName))
+                lastRun.newBuddyNames.Add(trackedName);
 
         foreach (GobboUnitSaveData unit in ownedGobbos)
         {
             if (unit == null) continue;
             unit.EnsureRuntimeDefaults();
-            if (!beforeIds.Contains(unit.uniqueId)) lastRun.newBuddyNames.Add(GetGobboLabel(unit));
+            if (!beforeIds.Contains(unit.uniqueId))
+            {
+                string label = GetGobboLabel(unit);
+                if (!lastRun.newBuddyNames.Contains(label)) lastRun.newBuddyNames.Add(label);
+            }
         }
 
         foreach (string deadName in deadBuddyNamesThisRun)
@@ -724,8 +714,117 @@ public class GameState : MonoBehaviour
             }
         }
 
+        BuildBuddyRunReports(beforeGobbos);
+
         lastRun.buddiesFound = lastRun.newBuddyNames.Count;
         lastRun.buddiesLost = lastRun.deadBuddyNames.Count;
+    }
+
+    void BuildBuddyRunReports(List<GobboUnitSaveData> beforeGobbos)
+    {
+        EnsureLastRun();
+        List<string> activeRunIds = runStartActiveBuddyIds != null && runStartActiveBuddyIds.Count > 0
+            ? new List<string>(runStartActiveBuddyIds)
+            : new List<string>(activeSquadIds);
+
+        foreach (string id in activeRunIds)
+        {
+            BuddyRunReport report = MakeBuddyRunReport(id, true, beforeGobbos);
+            if (report != null) lastRun.activeBuddyReports.Add(report);
+        }
+
+        foreach (GobboUnitSaveData unit in ownedGobbos)
+        {
+            if (unit == null) continue;
+            unit.EnsureRuntimeDefaults();
+            if (activeRunIds.Contains(unit.uniqueId)) continue;
+
+            BuddyRunReport report = MakeBuddyRunReport(unit.uniqueId, false, beforeGobbos);
+            if (report != null) lastRun.reserveBuddyReports.Add(report);
+        }
+
+        foreach (BuddyRunReport report in lastRun.activeBuddyReports)
+            RegisterLeveledBuddyReport(report);
+        foreach (BuddyRunReport report in lastRun.reserveBuddyReports)
+            RegisterLeveledBuddyReport(report);
+    }
+
+    BuddyRunReport MakeBuddyRunReport(string buddyId, bool wasActive, List<GobboUnitSaveData> beforeGobbos)
+    {
+        if (string.IsNullOrWhiteSpace(buddyId)) return null;
+
+        GobboUnitSaveData beforeUnit = FindSnapshotGobbo(beforeGobbos, buddyId);
+        GobboUnitSaveData afterUnit = FindOwnedGobboRaw(buddyId);
+        GobboUnitSaveData source = afterUnit != null ? afterUnit : beforeUnit;
+        if (source == null) return null;
+
+        source.EnsureRuntimeDefaults();
+        if (beforeUnit != null) beforeUnit.EnsureRuntimeDefaults();
+        if (afterUnit != null) afterUnit.EnsureRuntimeDefaults();
+
+        BuddyRunReport report = new BuddyRunReport();
+        report.buddyId = buddyId;
+        report.displayName = GetGobboLabel(source);
+        report.role = wasActive ? "Run Squad" : "Camp";
+        report.wasActive = wasActive;
+        report.died = afterUnit == null || source.isDead;
+        report.survived = !report.died;
+
+        report.levelStart = beforeUnit != null ? beforeUnit.level : 1;
+        report.levelEnd = afterUnit != null ? afterUnit.level : source.level;
+        report.xpStart = beforeUnit != null ? beforeUnit.xp : 0;
+        report.xpEnd = afterUnit != null ? afterUnit.xp : source.xp;
+        report.xpGained = CalculateXpDelta(beforeUnit, afterUnit);
+
+        report.killsStart = beforeUnit != null ? beforeUnit.kills : 0;
+        report.killsEnd = afterUnit != null ? afterUnit.kills : source.kills;
+        report.killsGained = Mathf.Max(0, report.killsEnd - report.killsStart);
+
+        report.nightsStart = beforeUnit != null ? beforeUnit.runsSurvived : 0;
+        report.nightsEnd = afterUnit != null ? afterUnit.runsSurvived : source.runsSurvived;
+        report.nightsGained = Mathf.Max(0, report.nightsEnd - report.nightsStart);
+
+        report.happinessStart = beforeUnit != null ? beforeUnit.happiness : source.happiness;
+        report.happinessEnd = afterUnit != null ? afterUnit.happiness : source.happiness;
+        report.leveledUp = report.levelEnd > report.levelStart;
+        report.readyToGrow = afterUnit != null && afterUnit.pendingEvolution;
+        report.traitLabel = GetPrimaryTraitLabel(source);
+        return report;
+    }
+
+    int CalculateXpDelta(GobboUnitSaveData beforeUnit, GobboUnitSaveData afterUnit)
+    {
+        if (afterUnit == null) return 0;
+        if (beforeUnit == null) return Mathf.Max(0, afterUnit.xp);
+        if (afterUnit.level == beforeUnit.level) return Mathf.Max(0, afterUnit.xp - beforeUnit.xp);
+
+        // XP can wrap when leveling up. This gives a readable "at least this much" number
+        // for the roll-call without needing a full XP transaction log yet.
+        int rough = Mathf.Max(0, beforeUnit.xpToNextLevel - beforeUnit.xp) + Mathf.Max(0, afterUnit.xp);
+        return Mathf.Max(rough, afterUnit.level - beforeUnit.level);
+    }
+
+    GobboUnitSaveData FindSnapshotGobbo(List<GobboUnitSaveData> snapshots, string buddyId)
+    {
+        if (snapshots == null || string.IsNullOrWhiteSpace(buddyId)) return null;
+        foreach (GobboUnitSaveData unit in snapshots)
+            if (unit != null && unit.uniqueId == buddyId) return unit;
+        return null;
+    }
+
+    void RegisterLeveledBuddyReport(BuddyRunReport report)
+    {
+        if (report == null || !report.leveledUp) return;
+        string label = report.displayName + " Lv " + report.levelStart + " → " + report.levelEnd;
+        if (!lastRun.leveledBuddyNames.Contains(label)) lastRun.leveledBuddyNames.Add(label);
+    }
+
+    string GetPrimaryTraitLabel(GobboUnitSaveData unit)
+    {
+        if (unit == null || unit.traitIds == null || unit.traitIds.Count == 0) return "None";
+        string trait = unit.traitIds[0];
+        if (string.IsNullOrWhiteSpace(trait)) return "None";
+        return trait;
     }
 
     List<string> GetOwnedGobboIds()

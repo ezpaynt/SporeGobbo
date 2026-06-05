@@ -37,8 +37,14 @@ public class CampSceneController : MonoBehaviour
 
     [Header("Optional Future UI")]
     public TMP_Text playerStatsText;
+    [Tooltip("Left list on SurvivorsPanel: buddies who went on the run.")]
+    public Transform runBuddyListParent;
+    [Tooltip("Optional legacy/fallback list parent. If runBuddyListParent is empty, this is used for the run squad list.")]
     public Transform activeSquadListParent;
+    [Tooltip("Right list on SurvivorsPanel: buddies who stayed home at camp.")]
     public Transform reserveListParent;
+    [Tooltip("Optional list for growth-ready buddies. Continue button still opens growth choices one at a time.")]
+    public Transform pendingEvolutionListParent;
     public Button buddyButtonPrefab;
 
     private readonly List<BuddyTypeSetup> currentEvolutionChoices = new List<BuddyTypeSetup>();
@@ -87,7 +93,51 @@ public class CampSceneController : MonoBehaviour
         if (survivorsText == null && survivorsPanel != null) survivorsText = survivorsPanel.GetComponentInChildren<TMP_Text>(true);
         if (continueToSurvivorsButton == null && runStatsPanel != null) continueToSurvivorsButton = runStatsPanel.GetComponentInChildren<Button>(true);
         if (continueToCampButton == null && survivorsPanel != null) continueToCampButton = survivorsPanel.GetComponentInChildren<Button>(true);
+        AutoFillSurvivorListReferences();
         AutoFillCampBuddyEvolutionPanel();
+    }
+
+    void AutoFillSurvivorListReferences()
+    {
+        if (survivorsPanel == null) return;
+
+        if (runBuddyListParent == null)
+            runBuddyListParent = FindChildTransform(survivorsPanel.transform, "RunBuddyList", "CurrentRunList", "ActiveRunList", "ActiveSquadList");
+
+        if (activeSquadListParent == null)
+            activeSquadListParent = FindChildTransform(survivorsPanel.transform, "ActiveSquadList", "RunBuddyList", "CurrentRunList", "ActiveRunList");
+
+        if (runBuddyListParent == null)
+            runBuddyListParent = activeSquadListParent;
+
+        if (reserveListParent == null)
+            reserveListParent = FindChildTransform(survivorsPanel.transform, "ReserveList", "CampReserveList", "HomeBuddyList");
+
+        if (pendingEvolutionListParent == null)
+            pendingEvolutionListParent = FindChildTransform(survivorsPanel.transform, "PendingEvolutionList", "GrowthList", "ReadyToGrowList");
+    }
+
+    Transform FindChildTransform(Transform root, params string[] names)
+    {
+        if (root == null || names == null) return null;
+        foreach (string name in names)
+        {
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            Transform direct = root.Find(name);
+            if (direct != null) return direct;
+        }
+
+        Transform[] children = root.GetComponentsInChildren<Transform>(true);
+        foreach (Transform child in children)
+        {
+            if (child == null) continue;
+            foreach (string name in names)
+            {
+                if (!string.IsNullOrWhiteSpace(name) && child.name == name)
+                    return child;
+            }
+        }
+        return null;
     }
 
     void AutoFillCampBuddyEvolutionPanel()
@@ -247,57 +297,187 @@ public class CampSceneController : MonoBehaviour
 
     void FillSurvivorsText()
     {
-        if (survivorsText == null || GameState.Instance == null) return;
+        if (GameState.Instance == null) return;
         RunSummaryData run = GameState.Instance.lastRun;
-        List<GobboUnitSaveData> pending = GetPendingBuddyEvolutions();
-        string text = "Look who made it! (or didn't)" + "\n\nNew buddies: " + run.buddiesFound;
+        if (run == null) return;
 
+        List<GobboUnitSaveData> pending = GetPendingBuddyEvolutions();
+
+        if (survivorsText != null)
+            survivorsText.text = BuildMiddleSurvivorSummary(run, pending);
+
+        FillRunBuddyList(run);
+        FillCampReserveList(run);
+        FillPendingEvolutionList(pending);
+    }
+
+    string BuildMiddleSurvivorSummary(RunSummaryData run, List<GobboUnitSaveData> pending)
+    {
+        string text = "Roll call";
+
+        text += "\n\nNew buddies: " + run.buddiesFound;
         if (run.newBuddyNames != null && run.newBuddyNames.Count > 0)
         {
-            foreach (string name in run.newBuddyNames) text += "\n+ " + name;
+            foreach (string name in run.newBuddyNames)
+                text += "\n+ " + name;
         }
-        else text += "\n- Nobody new joined this time.";
+        else text += "\n- Nobody new joined.";
 
         text += "\n\nBuddies lost: " + run.buddiesLost;
         if (run.deadBuddyNames != null && run.deadBuddyNames.Count > 0)
         {
-            foreach (string name in run.deadBuddyNames) text += "\n- " + name;
+            foreach (string name in run.deadBuddyNames)
+                text += "\n- " + name;
         }
         else text += "\n- Nobody died.";
 
-        if (pending.Count > 0)
+        text += "\n\nLeveled up:";
+        if (run.leveledBuddyNames != null && run.leveledBuddyNames.Count > 0)
         {
-            text += "\n\nREADY TO GROW:";
-            foreach (GobboUnitSaveData buddy in pending)
-                text += "\n* " + GetBuddyLine(buddy) + " CLICK THEIR BUTTON";
+            foreach (string name in run.leveledBuddyNames)
+                text += "\n↑ " + name;
         }
-        else text += "\n\nNo buddies need growth choices right now.";
+        else text += "\n- Nobody leveled this time.";
 
-        text += "\n\nActive squad:";
-        List<GobboUnitSaveData> active = GameState.Instance.GetActiveSquadUnits();
-        if (active.Count == 0) text += "\n- Nobody in active squad.";
-        else foreach (GobboUnitSaveData buddy in active) if (buddy != null) text += "\n- " + GetBuddyLine(buddy);
+        text += "\n\nReady to grow: " + pending.Count;
+        if (pending.Count > 0)
+            text += "\nPress the Grow Ready Buddy button before camp opens.";
 
-        List<GobboUnitSaveData> reserve = GameState.Instance.GetReserveGobboUnits();
-        text += "\n\nCamp reserve:";
-        if (reserve.Count == 0) text += "\n- Nobody waiting at camp.";
-        else foreach (GobboUnitSaveData buddy in reserve) if (buddy != null) text += "\n- " + GetBuddyLine(buddy);
+        int total = GameState.Instance.ownedGobbos != null ? GameState.Instance.ownedGobbos.Count : 0;
+        text += "\n\nTotal little guys: " + total;
+        return text;
+    }
 
-        text += "\n\nTotal little guys: " + (GameState.Instance.ownedGobbos != null ? GameState.Instance.ownedGobbos.Count : 0);
-        if (pending.Count > 0) text += "\n\nPress Grow Ready Buddy to choose each path before camp opens.";
-        survivorsText.text = text;
+    void FillRunBuddyList(RunSummaryData run)
+    {
+        Transform parent = runBuddyListParent != null ? runBuddyListParent : activeSquadListParent;
+        if (parent == null) return;
+
+        ClearListParent(parent);
+        AddListText(parent, "RUN SQUAD", true);
+
+        if (run.activeBuddyReports == null || run.activeBuddyReports.Count == 0)
+        {
+            AddListText(parent, "Nobody came on this run.", false);
+            return;
+        }
+
+        foreach (BuddyRunReport report in run.activeBuddyReports)
+            AddListText(parent, FormatRunBuddyReport(report), false);
+    }
+
+    void FillCampReserveList(RunSummaryData run)
+    {
+        if (reserveListParent == null) return;
+
+        ClearListParent(reserveListParent);
+        AddListText(reserveListParent, "CAMP BUDDIES", true);
+
+        if (run.reserveBuddyReports == null || run.reserveBuddyReports.Count == 0)
+        {
+            AddListText(reserveListParent, "Nobody stayed home.", false);
+            return;
+        }
+
+        foreach (BuddyRunReport report in run.reserveBuddyReports)
+            AddListText(reserveListParent, FormatCampBuddyReport(report), false);
+    }
+
+    void FillPendingEvolutionList(List<GobboUnitSaveData> pending)
+    {
+        if (pendingEvolutionListParent == null) return;
+
+        ClearListParent(pendingEvolutionListParent);
+        AddListText(pendingEvolutionListParent, "READY TO GROW", true);
+
+        if (pending == null || pending.Count == 0)
+        {
+            AddListText(pendingEvolutionListParent, "No growth choices waiting.", false);
+            return;
+        }
+
+        foreach (GobboUnitSaveData buddy in pending)
+        {
+            if (buddy == null) continue;
+            buddy.EnsureRuntimeDefaults();
+            AddListText(pendingEvolutionListParent, buddy.displayName + " needs a growth choice", false);
+        }
+    }
+
+    string FormatRunBuddyReport(BuddyRunReport report)
+    {
+        if (report == null) return "Missing buddy report";
+
+        string line = report.displayName;
+        line += "\nLv " + report.levelStart + " → " + report.levelEnd;
+        line += " | XP +" + report.xpGained;
+        line += " | Kills +" + report.killsGained;
+        line += "\nNights +" + report.nightsGained + " | Happy " + report.happinessEnd;
+        if (!string.IsNullOrWhiteSpace(report.traitLabel) && report.traitLabel != "None")
+            line += " | " + report.traitLabel;
+        if (report.readyToGrow) line += "\nREADY TO GROW";
+        if (report.died) line += "\nDIED";
+        return line;
+    }
+
+    string FormatCampBuddyReport(BuddyRunReport report)
+    {
+        if (report == null) return "Missing buddy report";
+
+        string line = report.displayName;
+        line += "\nLv " + report.levelStart + " → " + report.levelEnd;
+        line += " | Camp XP +" + report.xpGained;
+        line += "\nNights " + report.nightsEnd + " | Happy " + report.happinessEnd;
+        if (!string.IsNullOrWhiteSpace(report.traitLabel) && report.traitLabel != "None")
+            line += " | " + report.traitLabel;
+        if (report.readyToGrow) line += "\nREADY TO GROW";
+        return line;
     }
 
     string GetBuddyLine(GobboUnitSaveData buddy)
     {
         if (buddy == null) return "Missing buddy";
         buddy.EnsureRuntimeDefaults();
+        string trait = buddy.traitIds != null && buddy.traitIds.Count > 0 ? buddy.traitIds[0] : "None";
         return buddy.displayName + " the " + buddy.gobboType + " " + buddy.ageStage +
             " Lv " + buddy.level +
             " XP " + buddy.xp + "/" + buddy.xpToNextLevel +
             " HP " + buddy.health + "/" + buddy.maxHealth +
+            " Nights " + buddy.runsSurvived +
+            " Kills " + buddy.kills +
+            " Happy " + buddy.happiness +
+            (trait != "None" ? " Trait " + trait : "") +
             (buddy.pendingEvolution ? " READY TO GROW" : "") +
             (buddy.runsWaitingForEvolution >= 2 ? " ANGRY DOT" : "");
+    }
+
+    void ClearListParent(Transform parent)
+    {
+        if (parent == null) return;
+        for (int i = parent.childCount - 1; i >= 0; i--)
+            Destroy(parent.GetChild(i).gameObject);
+    }
+
+    TMP_Text AddListText(Transform parent, string text, bool header)
+    {
+        if (parent == null) return null;
+
+        GameObject item = new GameObject(header ? "ListHeader" : "ListItem", typeof(RectTransform));
+        item.transform.SetParent(parent, false);
+        TMP_Text label = item.AddComponent<TextMeshProUGUI>();
+        label.text = text;
+        label.fontSize = header ? 24 : 18;
+        label.fontStyle = header ? FontStyles.Bold : FontStyles.Normal;
+        label.color = Color.white;
+        label.enableWordWrapping = true;
+        label.raycastTarget = false;
+
+        RectTransform rect = item.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0f, 1f);
+        rect.anchorMax = new Vector2(1f, 1f);
+        rect.pivot = new Vector2(0.5f, 1f);
+        rect.sizeDelta = new Vector2(0f, header ? 34f : 72f);
+        return label;
     }
 
     public void OpenBuddyGrowthChoice(string buddyId)
