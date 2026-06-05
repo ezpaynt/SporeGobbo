@@ -109,6 +109,21 @@ public class GameState : MonoBehaviour
         return leader;
     }
 
+    public void SetLeaderName(string newName)
+    {
+        EnsureRuntimeDefaults();
+
+        if (string.IsNullOrWhiteSpace(newName))
+            newName = "Gobbo";
+
+        newName = newName.Trim();
+
+        leader.displayName = newName;
+        leader.isLeader = true;
+        leader.EnsureIdentity(newName);
+        leader.EnsureRuntimeDefaults();
+    }
+
     public void SetLeader(GobboUnitSaveData newLeader)
     {
         if (newLeader == null)
@@ -193,6 +208,8 @@ public class GameState : MonoBehaviour
         if (player == null) return;
         EnsureRuntimeDefaults();
         leader.isLeader = true;
+        leader.displayName = string.IsNullOrWhiteSpace(player.displayName) ? leader.displayName : player.displayName.Trim();
+        leader.EnsureIdentity(string.IsNullOrWhiteSpace(leader.displayName) ? "Gobbo" : leader.displayName);
         leader.level = player.level;
         leader.xp = player.xp;
         leader.xpToNextLevel = player.xpToNextLevel;
@@ -234,6 +251,7 @@ public class GameState : MonoBehaviour
     {
         if (player == null) return;
         EnsureRuntimeDefaults();
+        player.displayName = string.IsNullOrWhiteSpace(leader.displayName) ? "Gobbo" : leader.displayName;
         player.level = leader.level;
         player.xp = leader.xp;
         player.xpToNextLevel = leader.xpToNextLevel;

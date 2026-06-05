@@ -5,6 +5,9 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody2D))]
 public class GobboController : MonoBehaviour
 {
+    [Header("Identity")]
+    public string displayName = "Gobbo";
+
     [Header("Growth Identity")]
     public BuddyType gobboType = BuddyType.Baby;
     public GobboAgeStage ageStage = GobboAgeStage.Baby;

@@ -2312,7 +2312,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.392}
+  m_Color: {r: 0.019446427, g: 0.1792453, b: 0.027301101, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -5307,7 +5307,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.392}
+  m_Color: {r: 0.6698113, g: 0.2432805, b: 0.2432805, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -5649,7 +5649,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.392}
+  m_Color: {r: 0.24616612, g: 0.4716981, b: 0.17577429, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -5705,11 +5705,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NewGameButton
   defaultPlayerName: Gobbo
   firstSceneName: SampleScene
-  namePromptPanel: {fileID: 0}
-  playerNameInput: {fileID: 0}
-  confirmNameButton: {fileID: 0}
+  namePromptPanel: {fileID: 780705230}
+  playerNameInput: {fileID: 1367105811}
+  confirmNameButton: {fileID: 1534672521}
   cancelNameButton: {fileID: 0}
-  newGameButton: {fileID: 0}
+  newGameButton: {fileID: 411045578}
   autoHookButton: 1
   savesFullPanel: {fileID: 0}
   savesFullText: {fileID: 0}
@@ -6416,7 +6416,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.392}
+  m_Color: {r: 0, g: 0.63529414, b: 0.29014823, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -6448,5 +6448,5 @@ SceneRoots:
   - {fileID: 2055325344}
   - {fileID: 1321856921}
   - {fileID: 653476484}
-  - {fileID: 461689712}
   - {fileID: 1980790368}
+  - {fileID: 461689712}

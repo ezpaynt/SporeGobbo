@@ -102,6 +102,15 @@ public class NewGameButton : MonoBehaviour
         OnNewGameClicked();
     }
 
+    GameState EnsureGameStateForNewGame()
+    {
+        if (GameState.Instance != null)
+            return GameState.Instance;
+
+        GameObject stateObject = new GameObject("GameState");
+        return stateObject.AddComponent<GameState>();
+    }
+
     void StartNewGameWithName(string playerName)
     {
         if (string.IsNullOrWhiteSpace(playerName)) playerName = defaultPlayerName;
@@ -112,6 +121,9 @@ public class NewGameButton : MonoBehaviour
             HookButtons();
             return;
         }
+
+        GameState state = EnsureGameStateForNewGame();
+        state.SetLeaderName(playerName.Trim());
 
         Debug.Log("[NewGameButton] New game in slot " + data.slotIndex + " for " + playerName + ". Loading " + firstSceneName);
         Time.timeScale = 1f;
