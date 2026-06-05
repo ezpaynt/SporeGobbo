@@ -1462,7 +1462,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Back
+  m_text: Confirm
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -4864,9 +4864,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NewGameButton
   defaultPlayerName: Gobbo
   firstSceneName: SampleScene
+  namePromptPanel: {fileID: 0}
   playerNameInput: {fileID: 0}
+  confirmNameButton: {fileID: 0}
+  cancelNameButton: {fileID: 0}
   newGameButton: {fileID: 0}
   autoHookButton: 1
+  savesFullPanel: {fileID: 0}
+  savesFullText: {fileID: 0}
+  savesFullMessage: All 3 save slots are full. Delete a save before starting a new
+    camp.
 --- !u!4 &1980790368
 Transform:
   m_ObjectHideFlags: 0

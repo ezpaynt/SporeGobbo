@@ -16,7 +16,6 @@ GameObject:
   - component: {fileID: 6043718599403557944}
   - component: {fileID: 4756207911077610566}
   - component: {fileID: 12771526620130999}
-  - component: {fileID: -1226210754520547144}
   m_Layer: 3
   m_Name: Gobbo
   m_TagString: Player
@@ -314,19 +313,4 @@ MonoBehaviour:
   loadGameOverSceneIfNoSuccessors: 0
   saveRunBeforeLeaving: 1
   deathCause: The leader got chewed up in the dirt.
---- !u!114 &-1226210754520547144
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7125385173725763870}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fab388c948c147d478389c1059fcf654, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerDeathDebugProbe
-  logEverySecond: 1
-  logLifecycle: 1
-  logWhenHealthLooksDead: 1
-  inspectPlayerDeathWatcher: 1
+  logDebug: 1

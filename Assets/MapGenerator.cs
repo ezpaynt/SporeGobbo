@@ -100,12 +100,10 @@ public class MapGenerator : MonoBehaviour
 
     [Header("Tilemaps")]
     public Grid grid;
-    public Tilemap floorTilemap;
     public Tilemap dirtTilemap;
     public Tilemap markerTilemap;
 
     [Header("Tiles")]
-    public TileBase floorTile;
     public TileBase dirtTile1;
     public TileBase dirtTile2;
     public TileBase dirtTile3;
@@ -122,9 +120,6 @@ public class MapGenerator : MonoBehaviour
     public bool generateOnStart = true;
     public bool showBranchDebugTiles = true;
     public bool revealMainTunnelsAtStart = false;
-
-    [Header("Content Spawning")]
-    public RunContentSpawner contentSpawner;
 
     public MapData Data { get; private set; }
 
@@ -178,14 +173,6 @@ public class MapGenerator : MonoBehaviour
             Generate();
     }
 
-    private RunContentSpawner GetContentSpawner()
-    {
-        if (contentSpawner == null)
-            contentSpawner = UnityEngine.Object.FindAnyObjectByType<RunContentSpawner>(FindObjectsInactive.Include);
-
-        return contentSpawner;
-    }
-
     [ContextMenu("Set Default First Level Inspector Settings")]
     public void SetDefaultFirstLevelInspectorSettings()
     {
@@ -236,10 +223,6 @@ public class MapGenerator : MonoBehaviour
         BuildBranches();
         BuildFiller();
         PaintTilemaps();
-
-        RunContentSpawner spawner = GetContentSpawner();
-        if (spawner != null)
-            spawner.SpawnInitialContent();
     }
 
     public void GenerateMap() => Generate();
@@ -421,28 +404,17 @@ public class MapGenerator : MonoBehaviour
         {
             string n = tm.name.ToLowerInvariant();
 
-            if (floorTilemap == null && (n.Contains("floor") || n.Contains("ground")))
-                floorTilemap = tm;
-
             if (dirtTilemap == null && n.Contains("dirt"))
                 dirtTilemap = tm;
-
-            if (markerTilemap == null && (n.Contains("marker") || n.Contains("debug")))
-                markerTilemap = tm;
         }
 
-        if (floorTilemap == null && maps.Length > 0)
-            floorTilemap = maps[0];
-
-        if (dirtTilemap == null && maps.Length > 1)
-            dirtTilemap = maps[1];
+        if (dirtTilemap == null && maps.Length > 0)
+            dirtTilemap = maps[0];
     }
 
     private void ClearTilemaps()
     {
-        if (floorTilemap != null) floorTilemap.ClearAllTiles();
         if (dirtTilemap != null) dirtTilemap.ClearAllTiles();
-        if (markerTilemap != null) markerTilemap.ClearAllTiles();
     }
 
     private void ClearPlanData()
@@ -674,9 +646,9 @@ public class MapGenerator : MonoBehaviour
 
     private void PaintTilemaps()
     {
-        if (floorTilemap == null || dirtTilemap == null)
+        if (dirtTilemap == null)
         {
-            Debug.LogError("MapGenerator needs a Floor Tilemap and Dirt Tilemap assigned.");
+            Debug.LogError("MapGenerator needs a Dirt Tilemap assigned.");
             return;
         }
 
@@ -781,10 +753,6 @@ public class MapGenerator : MonoBehaviour
             Data.ClearCircle(point, Mathf.Max(tunnel.radius, map.cellSize * 1.5f));
 
         RefreshAllTiles();
-
-        RunContentSpawner spawner = GetContentSpawner();
-        if (spawner != null)
-            spawner.SpawnTunnel(tunnel);
     }
 
     public void RevealCamp()
@@ -817,11 +785,6 @@ public class MapGenerator : MonoBehaviour
             if (camp.id == areaId)
             {
                 camp.revealed = true;
-
-                RunContentSpawner spawner = GetContentSpawner();
-                if (spawner != null)
-                    spawner.SpawnCamp(camp);
-
                 break;
             }
         }
@@ -925,15 +888,13 @@ public class MapGenerator : MonoBehaviour
 
     private void SetCellTilesFromData(Vector2Int cell)
     {
-        if (floorTilemap == null || dirtTilemap == null || Data == null || !Data.InBounds(cell))
+        if (dirtTilemap == null || Data == null || !Data.InBounds(cell))
             return;
 
         Vector3Int pos = ToTilePos(cell);
 
         if (Data.IsBlocked(cell))
         {
-            floorTilemap.SetTile(pos, null);
-
             if (revealGroupByTriggerCell.ContainsKey(cell) && revealDirtTile != null)
                 dirtTilemap.SetTile(pos, revealDirtTile);
             else
@@ -941,7 +902,7 @@ public class MapGenerator : MonoBehaviour
         }
         else
         {
-            floorTilemap.SetTile(pos, floorTile);
+            // Revealed/open space is now just empty dirt, so the background art shows through.
             dirtTilemap.SetTile(pos, null);
         }
     }
