@@ -11,6 +11,9 @@ public class DeadBuddyRecord
     public string gobboType = "Unknown";
     public int level = 1;
     public int runNumber = 1;
+    public int nightsSurvived = 0;
+    public int kills = 0;
+    public string traitId = "";
     public string cause = "Lost in the dirt.";
     public bool wasLeader = false;
     public bool memorialSeen = false;
@@ -21,7 +24,9 @@ public class DeadBuddyRecord
         string name = string.IsNullOrWhiteSpace(displayName) ? "Unknown Gobbo" : displayName;
         string type = string.IsNullOrWhiteSpace(gobboType) ? "Gobbo" : gobboType;
         string why = string.IsNullOrWhiteSpace(cause) ? "Lost in the dirt." : cause;
-        return $"{name} — {role} {type}, Lv {Mathf.Max(1, level)} | Run {Mathf.Max(1, runNumber)} | {why}";
+        string history = $"{Mathf.Max(0, nightsSurvived)} nights, {Mathf.Max(0, kills)} kills";
+        string trait = string.IsNullOrWhiteSpace(traitId) ? "" : $" | {traitId}";
+        return $"{name} — {role} {type}, Lv {Mathf.Max(1, level)}{trait} | {history} | Run {Mathf.Max(1, runNumber)} | {why}";
     }
 }
 
@@ -101,6 +106,9 @@ public class CampDeathHistoryStore : MonoBehaviour
             gobboType = gobbo.gobboType.ToString(),
             level = Mathf.Max(1, gobbo.level),
             runNumber = Mathf.Max(1, runNumber),
+            nightsSurvived = Mathf.Max(0, gobbo.nightsSurvived),
+            kills = Mathf.Max(0, gobbo.kills),
+            traitId = string.IsNullOrWhiteSpace(gobbo.primaryTraitId) ? "" : gobbo.primaryTraitId,
             cause = string.IsNullOrWhiteSpace(cause) ? "Lost in the dirt." : cause,
             wasLeader = wasLeader,
             memorialSeen = false

@@ -7,6 +7,29 @@ using UnityEngine;
 /// Player leaders and buddies should both be representable by this shape.
 /// Scene objects are temporary; this data is the saved identity.
 /// </summary>
+
+[Serializable]
+public class GobboRelationshipSaveData
+{
+    public string otherGobboId = "";
+    public string relationshipType = "SharedRun";
+    public int points = 0;
+
+    public GobboRelationshipSaveData() { }
+
+    public GobboRelationshipSaveData(string otherId, string type, int startingPoints = 0)
+    {
+        otherGobboId = otherId;
+        relationshipType = string.IsNullOrWhiteSpace(type) ? "SharedRun" : type;
+        points = Mathf.Max(0, startingPoints);
+    }
+
+    public GobboRelationshipSaveData Clone()
+    {
+        return new GobboRelationshipSaveData(otherGobboId, relationshipType, points);
+    }
+}
+
 [Serializable]
 public class GobboUnitSaveData
 {
@@ -77,8 +100,13 @@ public class GobboUnitSaveData
 
     [Header("Progress / History")]
     public int runsSurvived = 0;
+    public int nightsSurvived = 0; // UI/story alias for runsSurvived. Kept synced in EnsureRuntimeDefaults.
     public int kills = 0;
     public string causeOfDeath = "";
+
+    [Header("Traits / Relationships")]
+    public string primaryTraitId = "";
+    public List<GobboRelationshipSaveData> relationships = new List<GobboRelationshipSaveData>();
 
     [Header("Content IDs")]
     public List<string> traitIds = new List<string>();
@@ -131,6 +159,7 @@ public class GobboUnitSaveData
             displayName = "Gobbo";
 
         traitIds ??= new List<string>();
+        relationships ??= new List<GobboRelationshipSaveData>();
         abilityIds ??= new List<string>();
         itemIds ??= new List<string>();
         relationshipIds ??= new List<string>();
@@ -179,6 +208,17 @@ public class GobboUnitSaveData
 
         happiness = Mathf.Clamp(happiness <= 0 ? 100 : happiness, 0, 100);
         loyalty = Mathf.Clamp(loyalty <= 0 ? 100 : loyalty, 0, 100);
+
+        if (runsSurvived < 0) runsSurvived = 0;
+        if (nightsSurvived < 0) nightsSurvived = 0;
+        if (nightsSurvived > runsSurvived) runsSurvived = nightsSurvived;
+        else nightsSurvived = runsSurvived;
+        if (kills < 0) kills = 0;
+
+        if (string.IsNullOrWhiteSpace(primaryTraitId) && traitIds.Count > 0)
+            primaryTraitId = traitIds[0];
+        if (!string.IsNullOrWhiteSpace(primaryTraitId) && !traitIds.Contains(primaryTraitId))
+            traitIds.Insert(0, primaryTraitId);
 
         if (string.IsNullOrWhiteSpace(visualSetId))
             visualSetId = gobboType == BuddyType.Baby ? "baby" : gobboType.ToString().ToLowerInvariant() + "_" + ageStage.ToString().ToLowerInvariant();
@@ -286,8 +326,11 @@ public class GobboUnitSaveData
         copy.portraitId = portraitId;
         copy.equippedHat = equippedHat;
         copy.runsSurvived = runsSurvived;
+        copy.nightsSurvived = nightsSurvived;
         copy.kills = kills;
         copy.causeOfDeath = causeOfDeath;
+        copy.primaryTraitId = primaryTraitId;
+        copy.relationships = CloneRelationships(relationships);
         copy.traitIds = traitIds != null ? new List<string>(traitIds) : new List<string>();
         copy.abilityIds = abilityIds != null ? new List<string>(abilityIds) : new List<string>();
         copy.itemIds = itemIds != null ? new List<string>(itemIds) : new List<string>();
@@ -306,6 +349,62 @@ public class GobboUnitSaveData
         copy.money = money;
         copy.shinies = shinies;
         copy.EnsureRuntimeDefaults();
+    }
+
+    public void AddTrait(string traitId, bool makePrimary = false)
+    {
+        if (string.IsNullOrWhiteSpace(traitId)) return;
+        EnsureRuntimeDefaults();
+        traitId = traitId.Trim();
+        if (!traitIds.Contains(traitId)) traitIds.Add(traitId);
+        if (makePrimary || string.IsNullOrWhiteSpace(primaryTraitId)) primaryTraitId = traitId;
+    }
+
+    public GobboRelationshipSaveData GetRelationship(string otherGobboId, string relationshipType = "SharedRun")
+    {
+        if (string.IsNullOrWhiteSpace(otherGobboId)) return null;
+        EnsureRuntimeDefaults();
+        relationshipType = string.IsNullOrWhiteSpace(relationshipType) ? "SharedRun" : relationshipType;
+
+        foreach (GobboRelationshipSaveData rel in relationships)
+        {
+            if (rel == null) continue;
+            if (rel.otherGobboId == otherGobboId && rel.relationshipType == relationshipType) return rel;
+        }
+
+        return null;
+    }
+
+    public GobboRelationshipSaveData AddRelationshipPoints(string otherGobboId, string relationshipType, int amount)
+    {
+        if (string.IsNullOrWhiteSpace(otherGobboId) || amount == 0) return null;
+        EnsureRuntimeDefaults();
+        relationshipType = string.IsNullOrWhiteSpace(relationshipType) ? "SharedRun" : relationshipType;
+
+        GobboRelationshipSaveData rel = GetRelationship(otherGobboId, relationshipType);
+        if (rel == null)
+        {
+            rel = new GobboRelationshipSaveData(otherGobboId, relationshipType, 0);
+            relationships.Add(rel);
+        }
+
+        rel.points = Mathf.Max(0, rel.points + amount);
+        return rel;
+    }
+
+    public void AddNightSurvived()
+    {
+        runsSurvived = Mathf.Max(0, runsSurvived) + 1;
+        nightsSurvived = runsSurvived;
+    }
+
+    static List<GobboRelationshipSaveData> CloneRelationships(List<GobboRelationshipSaveData> source)
+    {
+        List<GobboRelationshipSaveData> result = new List<GobboRelationshipSaveData>();
+        if (source == null) return result;
+        foreach (GobboRelationshipSaveData rel in source)
+            if (rel != null) result.Add(rel.Clone());
+        return result;
     }
 }
 

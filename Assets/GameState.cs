@@ -71,6 +71,7 @@ public class GameState : MonoBehaviour
     private GobboUnitSaveData runStartLeaderSnapshot;
     private List<GobboUnitSaveData> runStartGobboRosterSnapshot = new List<GobboUnitSaveData>();
     private List<string> runStartBuddyIds = new List<string>();
+    private List<string> runStartActiveBuddyIds = new List<string>();
     private List<string> deadBuddyIdsThisRun = new List<string>();
     private List<string> deadBuddyNamesThisRun = new List<string>();
 
@@ -143,6 +144,7 @@ public class GameState : MonoBehaviour
         runStartLeaderSnapshot = leader.CloneUnit();
         runStartGobboRosterSnapshot = CloneUnitList(ownedGobbos);
         runStartBuddyIds.Clear();
+        runStartActiveBuddyIds.Clear();
         deadBuddyIdsThisRun.Clear();
         deadBuddyNamesThisRun.Clear();
 
@@ -151,6 +153,7 @@ public class GameState : MonoBehaviour
             if (unit == null) continue;
             unit.EnsureRuntimeDefaults();
             runStartBuddyIds.Add(unit.uniqueId);
+            if (activeSquadIds.Contains(unit.uniqueId)) runStartActiveBuddyIds.Add(unit.uniqueId);
         }
 
         lastRun = new RunSummaryData();
@@ -184,9 +187,9 @@ public class GameState : MonoBehaviour
         RepairRosterState();
         BuddyProgression.DistributeEndRunFoodXP(this, lastRun != null ? lastRun.foodValueGained : 0);
         bool survived = player != null && player.gameObject.activeInHierarchy;
+        ApplyEndRunGobboHistory(survived);
         BuildRunSummary(before, beforeIds, beforeGobbos, survived);
         currentRunNumber = Mathf.Max(1, currentRunNumber + 1);
-        leader.runsSurvived++;
     }
 
     void SaveVisibleRunBuddies()
@@ -598,6 +601,67 @@ public class GameState : MonoBehaviour
 
     public GobboUnitSaveData PullFirstReserveBuddy() => PullFirstReserveGobbo();
     public bool HasReserveBuddy() => GetReserveGobboUnitsInternal().Count > 0;
+
+    void ApplyEndRunGobboHistory(bool leaderSurvived)
+    {
+        EnsureRuntimeDefaults();
+
+        if (leaderSurvived && leader != null)
+            leader.AddNightSurvived();
+
+        List<GobboUnitSaveData> survivingActive = GetSurvivingRunActiveGobbos();
+        foreach (GobboUnitSaveData unit in survivingActive)
+        {
+            unit.AddNightSurvived();
+            unit.survivedLastRun = true;
+        }
+
+        AddSharedRunRelationshipProgress(survivingActive);
+    }
+
+    List<GobboUnitSaveData> GetSurvivingRunActiveGobbos()
+    {
+        RepairRosterState();
+        List<GobboUnitSaveData> result = new List<GobboUnitSaveData>();
+        List<string> sourceIds = runStartActiveBuddyIds != null && runStartActiveBuddyIds.Count > 0
+            ? runStartActiveBuddyIds
+            : new List<string>(activeSquadIds);
+
+        foreach (string id in sourceIds)
+        {
+            if (string.IsNullOrWhiteSpace(id)) continue;
+            if (deadBuddyIdsThisRun.Contains(id)) continue;
+            GobboUnitSaveData unit = FindOwnedGobboRaw(id);
+            if (unit == null || unit.isDead) continue;
+            unit.EnsureRuntimeDefaults();
+            if (!result.Contains(unit)) result.Add(unit);
+        }
+
+        return result;
+    }
+
+    void AddSharedRunRelationshipProgress(List<GobboUnitSaveData> survivingActive)
+    {
+        if (survivingActive == null || survivingActive.Count < 2) return;
+
+        for (int i = 0; i < survivingActive.Count; i++)
+        {
+            GobboUnitSaveData a = survivingActive[i];
+            if (a == null) continue;
+            for (int j = i + 1; j < survivingActive.Count; j++)
+            {
+                GobboUnitSaveData b = survivingActive[j];
+                if (b == null) continue;
+                a.AddRelationshipPoints(b.uniqueId, "SharedRun", 1);
+                b.AddRelationshipPoints(a.uniqueId, "SharedRun", 1);
+
+                GobboRelationshipSaveData aShared = a.GetRelationship(b.uniqueId, "SharedRun");
+                GobboRelationshipSaveData bShared = b.GetRelationship(a.uniqueId, "SharedRun");
+                if (aShared != null && aShared.points >= 3) a.AddRelationshipPoints(b.uniqueId, "Friend", 1);
+                if (bShared != null && bShared.points >= 3) b.AddRelationshipPoints(a.uniqueId, "Friend", 1);
+            }
+        }
+    }
 
     void BuildRunSummary(GobboUnitSaveData before, List<string> beforeIds, List<GobboUnitSaveData> beforeGobbos, bool survived)
     {
