@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-public class CampRunPortal : MonoBehaviour
+public class CampRunPortal : MonoBehaviour, ICampInteractable
 {
     [Header("Run Scene")]
     public string runSceneName = "SampleScene";
@@ -12,6 +12,9 @@ public class CampRunPortal : MonoBehaviour
     public float interactRange = 1.35f;
     public KeyCode interactKey = KeyCode.E;
     public bool requireKeyPress = true;
+
+    [Tooltip("ON = CampInteractionDetector owns the E prompt. OFF = this script uses its old distance/E check.")]
+    public bool useSharedCampInteraction = true;
 
     [Header("Prompt UI")]
     public GameObject promptPanel;
@@ -40,6 +43,9 @@ public class CampRunPortal : MonoBehaviour
 
     void Update()
     {
+        if (useSharedCampInteraction)
+            return;
+
         FindPlayerIfMissing();
         if (player == null) return;
 
@@ -52,6 +58,19 @@ public class CampRunPortal : MonoBehaviour
 
         if (!requireKeyPress || Input.GetKeyDown(interactKey))
             ShowPrompt();
+    }
+
+    public string GetInteractPrompt()
+    {
+        return promptMessage;
+    }
+
+    public void Interact(GobboController playerController)
+    {
+        if (playerController != null)
+            player = playerController.transform;
+
+        ShowPrompt();
     }
 
     void HookButtons()
@@ -92,7 +111,7 @@ public class CampRunPortal : MonoBehaviour
         }
     }
 
-    void HidePrompt()
+    public void HidePrompt()
     {
         promptOpen = false;
         if (promptPanel != null) promptPanel.SetActive(false);

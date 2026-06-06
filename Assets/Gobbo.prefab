@@ -213,6 +213,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fd2037c5cc0c454b869300371eab57b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GobboController
+  displayName: Gobbo
   gobboType: 0
   ageStage: 0
   visualSetId: baby
@@ -221,7 +222,7 @@ MonoBehaviour:
   chosenCardIds: []
   level: 1
   xp: 0
-  xpToNextLevel: 10
+  xpToNextLevel: 50
   maxHealth: 100
   health: 100
   attack: 5
@@ -245,8 +246,8 @@ MonoBehaviour:
   back: {fileID: 1931723117781632034, guid: d244fb54f3b4abd46ae9d28336c08f6b, type: 3}
   backLeft: {fileID: -958872580517964384, guid: 10ce77c8f40b18d4b82d7d3f5cee303a, type: 3}
   backRight: {fileID: -5897826424011949532, guid: cc5377d4cbd96074783ba0cb50a53e7e, type: 3}
-  digRange: 0.8
-  digRadius: 0.65
+  digRange: 1
+  digRadius: 0.85
   digTickRate: 0.05
   diggableLayers:
     serializedVersion: 2

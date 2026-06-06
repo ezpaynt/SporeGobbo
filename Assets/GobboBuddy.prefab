@@ -185,27 +185,45 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1355bd31172b5914a9115fbc78b78309, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BuddyUnit
-  data:
+  unitData:
     uniqueId: 
-    buddyName: Gobbo
-    buddyType: 0
+    displayName: Gobbo
+    isLeader: 0
+    isDead: 0
+    gobboType: 0
     ageStage: 0
     level: 1
     xp: 0
-    xpToNextLevel: 1
+    xpToNextLevel: 50
     campLevel: 1
     pendingEvolution: 0
     evolutionLevelWaiting: 0
     runsWaitingForEvolution: 0
-    neglectedElder: 0
     happiness: 100
     loyalty: 100
-    maxHealth: 5
-    health: 5
-    damage: 1
+    maxHealth: 50
+    health: 50
+    attack: 2
+    damage: 2
     defense: 0
     moveSpeed: 3.5
+    attackRange: 0.85
+    attackRadius: 0.45
     attackCooldown: 0.8
+    critChance: 0
+    critDamageMultiplier: 1.5
+    knockbackForce: 6
+    dashSpeed: 12
+    dashDuration: 0.12
+    dashCooldown: 0.7
+    digPower: 1
+    digRadius: 0.65
+    digRange: 0.8
+    digTickRate: 0.05
+    hasSporeMend: 0
+    hasDashBite: 0
+    healthControlsSize: 0
+    healthSizeMultiplier: 0
     onlyFightsAfterHit: 0
     collectsFood: 0
     hasBeenHit: 0
@@ -215,13 +233,32 @@ MonoBehaviour:
     visualSetId: baby
     portraitId: 
     equippedHat: 
+    runsSurvived: 0
+    nightsSurvived: 0
+    kills: 0
+    causeOfDeath: 
+    primaryTraitId: 
+    relationships: []
+    traitIds: []
+    abilityIds: []
+    itemIds: []
+    relationshipIds: []
+    evolutionHistoryIds: []
     chosenCardIds: []
     mutationIds: []
     upgradeIds: []
-    equippedItem: 
-  follow: {fileID: 0}
-  combat: {fileID: 0}
-  scavenger: {fileID: 0}
+    unlockedUpgrades: []
+    unlockedAbilities: []
+    unlockedCosmetics: []
+    equippedCosmetics: []
+    unlockedItems: []
+    spores: 0
+    mushrooms: 0
+    money: 0
+    shinies: 0
+  follow: {fileID: 4104174008056883796}
+  combat: {fileID: 5913229172689951968}
+  scavenger: {fileID: 8278558320599509318}
   spriteRenderer: {fileID: 0}
   visualController: {fileID: 0}
   hurtColor: {r: 1, g: 0, b: 0, a: 1}

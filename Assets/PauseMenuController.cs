@@ -34,8 +34,10 @@ public class PauseMenuController : MonoBehaviour
     {
         if (Input.GetKeyDown(pauseKey))
         {
+            // If a UI button stayed selected after clicking Resume, do not let that block future pause input.
             if (EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null)
-                return;
+                EventSystem.current.SetSelectedGameObject(null);
+
             SetPaused(!paused);
         }
     }
@@ -69,7 +71,12 @@ public class PauseMenuController : MonoBehaviour
         if (label != null) label.text = text;
     }
 
-    public void Resume() => SetPaused(false);
+    public void Resume()
+    {
+        SetPaused(false);
+        if (EventSystem.current != null)
+            EventSystem.current.SetSelectedGameObject(null);
+    }
 
     public void SetPaused(bool value)
     {
@@ -80,6 +87,9 @@ public class PauseMenuController : MonoBehaviour
             if (paused) pausePanel.transform.SetAsLastSibling();
         }
         Time.timeScale = paused ? 0f : 1f;
+
+        if (!paused && EventSystem.current != null)
+            EventSystem.current.SetSelectedGameObject(null);
     }
 
     public void QuitToMainMenu()

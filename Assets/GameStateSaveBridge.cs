@@ -5,6 +5,9 @@ public class GameStateSaveBridge : MonoBehaviour
 {
     public static GameStateSaveBridge Instance { get; private set; }
 
+    public const string CampLoadReasonPrefsKey = "SporeGobbo_CampLoadReason";
+    public const string CampLoadReasonContinue = "continue";
+
     [Header("Current Save")]
     public int currentSlotIndex = 0;
     public string currentSaveId = "";
@@ -63,7 +66,12 @@ public class GameStateSaveBridge : MonoBehaviour
     {
         if (!int.TryParse((saveId ?? "").Replace("slot_", ""), out int slot)) slot = SporeSaveManager.GetLastPlayedSlot();
         bool loaded = LoadSaveSlot(slot);
-        if (loaded) SceneManager.LoadScene(string.IsNullOrWhiteSpace(sceneName) ? campSceneName : sceneName);
+        if (loaded)
+        {
+            string targetScene = string.IsNullOrWhiteSpace(sceneName) ? campSceneName : sceneName;
+            if (targetScene == campSceneName) MarkNextCampLoadAsContinue();
+            SceneManager.LoadScene(targetScene);
+        }
         return loaded;
     }
 
@@ -85,7 +93,11 @@ public class GameStateSaveBridge : MonoBehaviour
         SporeSaveSlotData data = SporeSaveManager.LoadLastPlayedSlot();
         if (data == null || !data.hasSave) return false;
         bool loaded = SporeSaveManager.ApplySlotToGameState(data);
-        if (loaded) Log("Loaded most recent slot " + data.slotIndex + " for " + data.playerName);
+        if (loaded)
+        {
+            MarkNextCampLoadAsContinue();
+            Log("Loaded most recent slot " + data.slotIndex + " for " + data.playerName);
+        }
         return loaded;
     }
 
@@ -131,6 +143,12 @@ public class GameStateSaveBridge : MonoBehaviour
             Log("Marked successor no longer exists. Clearing: " + markedSuccessorId);
             ClearMarkedSuccessor(writeImmediately);
         }
+    }
+
+    void MarkNextCampLoadAsContinue()
+    {
+        PlayerPrefs.SetString(CampLoadReasonPrefsKey, CampLoadReasonContinue);
+        PlayerPrefs.Save();
     }
 
     void Log(string message)

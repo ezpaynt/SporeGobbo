@@ -3833,6 +3833,7 @@ MonoBehaviour:
   interactRange: 1.35
   interactKey: 101
   requireKeyPress: 1
+  useSharedCampInteraction: 1
   promptPanel: {fileID: 905886036}
   promptText: {fileID: 1969653623}
   goButton: {fileID: 925440158}
@@ -9837,7 +9838,7 @@ SpriteRenderer:
   m_SortingOrder: 2
   m_MaskInteraction: 0
   m_Sprite: {fileID: -2413806693520163455, guid: ebe73ca9363db456bacf42c025bb4847, type: 3}
-  m_Color: {r: 0.8, g: 0.8, b: 0.8, a: 0.45}
+  m_Color: {r: 1, g: 1, b: 1, a: 0}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -9875,10 +9876,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CampOldBonesWall
   wallVisualRoot: {fileID: 2130448048}
   hideUntilFirstDeath: 1
+  hideThisMarkerSpriteUntilVisible: 1
+  interactPrompt: Read Old Bones
+  useSharedCampInteraction: 1
   panel: {fileID: 1995234855}
   titleText: {fileID: 153949711}
   deadBuddiesText: {fileID: 1616227534}
   deadLeadersText: {fileID: 1511692062}
+  continueButton: {fileID: 0}
   emptyBuddyText: No buddies from this run are on the wall.
   emptyLeaderText: No fallen leaders yet.
   interactKey: 101
@@ -10348,7 +10353,7 @@ SpriteRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: -2413806693520163455, guid: a86470a33a6bf42c4b3595704624658b, type: 3}
-  m_Color: {r: 1, g: 0.64, b: 0.05, a: 1}
+  m_Color: {r: 0.9716981, g: 0.9716981, b: 0.9716981, a: 0}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -10366,7 +10371,7 @@ Transform:
   m_GameObject: {fileID: 1233565115}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.7208, y: 4.558, z: 0}
+  m_LocalPosition: {x: 9.21, y: 9.35, z: 0}
   m_LocalScale: {x: 1.3754137, y: 2.2142222, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -13968,7 +13973,7 @@ SpriteRenderer:
   m_SortingOrder: 23
   m_MaskInteraction: 0
   m_Sprite: {fileID: -2413806693520163455, guid: ebe73ca9363db456bacf42c025bb4847, type: 3}
-  m_Color: {r: 0.8, g: 0.8, b: 0.8, a: 0.45}
+  m_Color: {r: 0.8, g: 0.8, b: 0.8, a: 0}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -16256,7 +16261,7 @@ SpriteRenderer:
   m_SortingOrder: 27
   m_MaskInteraction: 0
   m_Sprite: {fileID: -2413806693520163455, guid: ebe73ca9363db456bacf42c025bb4847, type: 3}
-  m_Color: {r: 0.8, g: 0.8, b: 0.8, a: 0.45}
+  m_Color: {r: 0.8, g: 0.8, b: 0.8, a: 0}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
