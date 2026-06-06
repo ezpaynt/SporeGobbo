@@ -89,8 +89,10 @@ public class RunStartInitializer : MonoBehaviour
         if (applySavedRosterToSceneRoster && roster != null && state.ownedGobbos != null && state.ownedGobbos.Count > 0)
             state.ApplyToRoster(roster);
 
-        if (beginRunSnapshotOnStart)
-            state.BeginRunSnapshot();
+        // Always capture the actual run-start roster here. This keeps post-run
+        // roll-call lists from confusing newly recruited buddies with the squad
+        // that left camp, even if the camp portal forgot to take the snapshot.
+        state.BeginRunSnapshot();
 
         CameraFollow cameraFollow = Object.FindAnyObjectByType<CameraFollow>();
         if (cameraFollow != null)

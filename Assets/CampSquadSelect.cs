@@ -37,6 +37,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
     public int panelSortingOrder = 500;
 
     private Transform player;
+    private bool playerInsideTrigger;
     private bool isOpen;
     private readonly List<GameObject> spawnedRows = new List<GameObject>();
 
@@ -70,8 +71,24 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
             return;
         }
 
-        if (Vector2.Distance(transform.position, player.position) <= interactRange && Input.GetKeyDown(interactKey))
+        bool closeEnough = Vector2.Distance(transform.position, player.position) <= interactRange;
+        if ((playerInsideTrigger || closeEnough) && Input.GetKeyDown(interactKey))
             OpenMenu();
+    }
+
+    void OnTriggerEnter2D(Collider2D other)
+    {
+        if (other != null && other.CompareTag("Player"))
+        {
+            playerInsideTrigger = true;
+            player = other.transform;
+        }
+    }
+
+    void OnTriggerExit2D(Collider2D other)
+    {
+        if (other != null && other.CompareTag("Player"))
+            playerInsideTrigger = false;
     }
 
     public string GetInteractPrompt() => interactPrompt;

@@ -375,13 +375,25 @@ public class GameState : MonoBehaviour
     public void RegisterGobboDeath(GobboUnitSaveData unit)
     {
         if (unit == null) return;
+
         unit.EnsureRuntimeDefaults();
+        if (string.IsNullOrWhiteSpace(unit.causeOfDeath))
+            unit.causeOfDeath = "Killed in the dirt.";
+
         if (!deadBuddyIdsThisRun.Contains(unit.uniqueId)) deadBuddyIdsThisRun.Add(unit.uniqueId);
         string label = GetGobboLabel(unit);
         if (!deadBuddyNamesThisRun.Contains(label)) deadBuddyNamesThisRun.Add(label);
+
         EnsureLastRun();
         if (!lastRun.deadBuddyNames.Contains(label)) lastRun.deadBuddyNames.Add(label);
         lastRun.buddiesLost = lastRun.deadBuddyNames.Count;
+
+        // Write the permanent memorial immediately, before BuddyUnit removes this
+        // gobbo from the live roster. The CampDeathHistoryStore also saves this
+        // into the current slot so the camp scene can reveal the Bone Wall.
+        CampDeathHistoryStore store = CampDeathHistoryStore.GetOrCreate();
+        if (store != null)
+            store.AddFromGobbo(unit, currentRunNumber, unit.causeOfDeath, false);
     }
 
     public void RegisterBuddyDeath(GobboUnitSaveData unit) => RegisterGobboDeath(unit);
@@ -723,9 +735,21 @@ public class GameState : MonoBehaviour
     void BuildBuddyRunReports(List<GobboUnitSaveData> beforeGobbos)
     {
         EnsureLastRun();
-        List<string> activeRunIds = runStartActiveBuddyIds != null && runStartActiveBuddyIds.Count > 0
-            ? new List<string>(runStartActiveBuddyIds)
-            : new List<string>(activeSquadIds);
+        // The left roll-call should show everyone who was part of the run AND
+        // everyone who currently belongs to the active squad after the run.
+        // New recruits are usually auto-added to activeSquadIds, so without this
+        // union they incorrectly showed up as "camp buddies".
+        List<string> activeRunIds = new List<string>();
+        if (runStartActiveBuddyIds != null)
+        {
+            foreach (string id in runStartActiveBuddyIds)
+                if (!string.IsNullOrWhiteSpace(id) && !activeRunIds.Contains(id)) activeRunIds.Add(id);
+        }
+        if (activeSquadIds != null)
+        {
+            foreach (string id in activeSquadIds)
+                if (!string.IsNullOrWhiteSpace(id) && !activeRunIds.Contains(id)) activeRunIds.Add(id);
+        }
 
         foreach (string id in activeRunIds)
         {

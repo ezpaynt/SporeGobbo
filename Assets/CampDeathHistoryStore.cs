@@ -49,6 +49,22 @@ public class CampDeathHistoryStore : MonoBehaviour
     {
         Instance = this;
         deadBuddyHistory ??= new List<DeadBuddyRecord>();
+        LoadFromCurrentSaveIfEmpty();
+    }
+
+    void LoadFromCurrentSaveIfEmpty()
+    {
+        if (deadBuddyHistory != null && deadBuddyHistory.Count > 0) return;
+
+        int slotIndex = SporeSaveManager.GetCurrentSlot();
+        if (slotIndex <= 0) slotIndex = SporeSaveManager.GetLastPlayedSlot();
+        if (slotIndex <= 0) return;
+
+        SporeSaveSlotData data = SporeSaveManager.LoadSlot(slotIndex);
+        if (data == null || !data.hasSave || data.deathHistory == null || data.deathHistory.Count == 0) return;
+
+        deadBuddyHistory = new List<DeadBuddyRecord>(data.deathHistory);
+        Log("Loaded " + deadBuddyHistory.Count + " memorial records from save slot " + slotIndex + ".");
     }
 
     void OnDestroy()

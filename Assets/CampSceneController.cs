@@ -47,6 +47,10 @@ public class CampSceneController : MonoBehaviour
     public Transform pendingEvolutionListParent;
     public Button buddyButtonPrefab;
 
+    [Header("Camp Pause")]
+    public GameObject pauseMenu;
+    public KeyCode pauseKey = KeyCode.Escape;
+
     private readonly List<BuddyTypeSetup> currentEvolutionChoices = new List<BuddyTypeSetup>();
     private string currentlyEvolvingBuddyId = "";
 
@@ -66,6 +70,59 @@ public class CampSceneController : MonoBehaviour
             RevealCampVisuals();
         else
             ShowRunStatsScreen();
+    }
+
+    private void Update()
+    {
+        // Safety: if a Resume button hides PauseMenu but forgets to unpause time,
+        // immediately unfreeze the camp. This prevents the "resume once, then stuck" bug.
+        if (Time.timeScale == 0f && pauseMenu != null && !pauseMenu.activeSelf)
+            Time.timeScale = 1f;
+
+        if (!Input.GetKeyDown(pauseKey)) return;
+
+        // Do not steal Escape while report/evolution panels are open.
+        if ((runStatsPanel != null && runStatsPanel.activeSelf) ||
+            (survivorsPanel != null && survivorsPanel.activeSelf) ||
+            (campBuddyEvolutionPanel != null && campBuddyEvolutionPanel.activeSelf))
+            return;
+
+        FindPauseMenuIfMissing();
+        if (pauseMenu == null) return;
+
+        bool open = !pauseMenu.activeSelf;
+        pauseMenu.SetActive(open);
+        Time.timeScale = open ? 0f : 1f;
+    }
+
+    public void ResumeCampFromPause()
+    {
+        FindPauseMenuIfMissing();
+        if (pauseMenu != null) pauseMenu.SetActive(false);
+        Time.timeScale = 1f;
+    }
+
+    void FindPauseMenuIfMissing()
+    {
+        if (pauseMenu != null) return;
+
+        GameObject activeFound = GameObject.Find("PauseMenu");
+        if (activeFound != null)
+        {
+            pauseMenu = activeFound;
+            return;
+        }
+
+        // GameObject.Find cannot see inactive objects, so search loaded objects too.
+        GameObject[] allObjects = Resources.FindObjectsOfTypeAll<GameObject>();
+        foreach (GameObject obj in allObjects)
+        {
+            if (obj != null && obj.name == "PauseMenu" && obj.scene.IsValid())
+            {
+                pauseMenu = obj;
+                return;
+            }
+        }
     }
 
     bool TryStartDeathSuccessionFlow()
@@ -89,6 +146,7 @@ public class CampSceneController : MonoBehaviour
         if (campPlayableSpawner == null) campPlayableSpawner = Object.FindAnyObjectByType<CampPlayableSpawner>(FindObjectsInactive.Include);
         if (campStartRoutineManager == null) campStartRoutineManager = Object.FindAnyObjectByType<CampStartRoutineManager>(FindObjectsInactive.Include);
         if (campVisualSpawner == null) campVisualSpawner = Object.FindAnyObjectByType<CampVisualSpawner>(FindObjectsInactive.Include);
+        FindPauseMenuIfMissing();
         if (runStatsText == null && runStatsPanel != null) runStatsText = runStatsPanel.GetComponentInChildren<TMP_Text>(true);
         if (survivorsText == null && survivorsPanel != null) survivorsText = survivorsPanel.GetComponentInChildren<TMP_Text>(true);
         if (continueToSurvivorsButton == null && runStatsPanel != null) continueToSurvivorsButton = runStatsPanel.GetComponentInChildren<Button>(true);
@@ -237,6 +295,7 @@ public class CampSceneController : MonoBehaviour
         }
 
         if (campVisualSpawner == null) campVisualSpawner = Object.FindAnyObjectByType<CampVisualSpawner>(FindObjectsInactive.Include);
+        FindPauseMenuIfMissing();
         if (campVisualSpawner != null)
         {
             campVisualSpawner.SpawnCampVisuals();

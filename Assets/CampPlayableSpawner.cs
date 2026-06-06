@@ -43,6 +43,7 @@ public class CampPlayableSpawner : MonoBehaviour
     public bool clearExistingBeforeSpawn = true;
     public bool disablePlayerCombatInCamp = false;
     public bool disablePlayerDiggingInCamp = false;
+    public bool hideAttackDebugInCamp = true;
     public bool faceMovementInCamp = true;
 
     private readonly List<GameObject> spawnedObjects = new List<GameObject>();
@@ -116,6 +117,7 @@ public class CampPlayableSpawner : MonoBehaviour
                 controller.faceMovementWhenNotFacingCursor = true;
             }
 
+            if (hideAttackDebugInCamp) controller.attackDebugPrefab = null;
             if (disablePlayerCombatInCamp) controller.enemyLayers = 0;
             if (disablePlayerDiggingInCamp) controller.diggableLayers = 0;
             controller.enabled = true;

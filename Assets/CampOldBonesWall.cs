@@ -67,7 +67,17 @@ public class CampOldBonesWall : MonoBehaviour
     {
         CampDeathHistoryStore store = CampDeathHistoryStore.Instance;
         bool visible = !hideUntilFirstDeath || (store != null && store.HasAnyDeaths());
-        if (wallVisualRoot != null && wallVisualRoot.activeSelf != visible) wallVisualRoot.SetActive(visible);
+
+        if (wallVisualRoot != null)
+            wallVisualRoot.SetActive(visible);
+
+        Collider2D col = GetComponent<Collider2D>();
+        if (col != null)
+            col.enabled = visible;
+
+        SpriteRenderer sr = GetComponent<SpriteRenderer>();
+        if (sr != null)
+            sr.enabled = visible;
     }
 
     public void RefreshPanel()
