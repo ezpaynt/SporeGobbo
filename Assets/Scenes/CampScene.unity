@@ -10067,7 +10067,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!58 &1058529328
 CircleCollider2D:
   m_ObjectHideFlags: 0
@@ -10191,8 +10191,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CampOldBonesWall
   wallVisualRoot: {fileID: 2130448048}
-  hideUntilFirstDeath: 0
-  hideThisMarkerSpriteUntilVisible: 1
+  hideUntilFirstDeath: 1
+  hideThisMarkerSpriteUntilVisible: 0
   interactPrompt: Read Old Bones
   panel: {fileID: 1995234855}
   titleText: {fileID: 153949711}
@@ -11592,6 +11592,7 @@ RectTransform:
   - {fileID: 802840056}
   - {fileID: 838144956}
   - {fileID: 931897595}
+  - {fileID: 1995234856}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -15565,12 +15566,12 @@ RectTransform:
   - {fileID: 1511692064}
   - {fileID: 300817216}
   - {fileID: 1579673082}
-  m_Father: {fileID: 0}
+  m_Father: {fileID: 1408705602}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 960, y: 540}
-  m_SizeDelta: {x: 1920, y: 1080}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1995234857
 MonoBehaviour:
@@ -17807,7 +17808,6 @@ SceneRoots:
   - {fileID: 2130448052}
   - {fileID: 1058529330}
   - {fileID: 1679887849}
-  - {fileID: 1995234856}
   - {fileID: 609549347}
   - {fileID: 2101103186}
   - {fileID: 1791788851}

@@ -109,9 +109,6 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
         if (wallVisualRoot != null)
             wallVisualRoot.SetActive(visible);
 
-        Collider2D col = GetComponent<Collider2D>();
-        if (col != null)
-            col.enabled = visible;
 
         if (hideThisMarkerSpriteUntilVisible)
         {
