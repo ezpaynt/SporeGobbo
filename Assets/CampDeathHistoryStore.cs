@@ -56,6 +56,13 @@ public class CampDeathHistoryStore : MonoBehaviour
     {
         if (deadBuddyHistory != null && deadBuddyHistory.Count > 0) return;
 
+        if (GameState.Instance != null && GameState.Instance.deathHistory != null && GameState.Instance.deathHistory.Count > 0)
+        {
+            deadBuddyHistory = GameState.Instance.GetDeathHistoryCopy();
+            Log("Loaded " + deadBuddyHistory.Count + " memorial records from GameState.");
+            return;
+        }
+
         int slotIndex = SporeSaveManager.GetCurrentSlot();
         if (slotIndex <= 0) slotIndex = SporeSaveManager.GetLastPlayedSlot();
         if (slotIndex <= 0) return;
@@ -64,6 +71,7 @@ public class CampDeathHistoryStore : MonoBehaviour
         if (data == null || !data.hasSave || data.deathHistory == null || data.deathHistory.Count == 0) return;
 
         deadBuddyHistory = new List<DeadBuddyRecord>(data.deathHistory);
+        if (GameState.Instance != null) GameState.Instance.SetDeathHistory(deadBuddyHistory);
         Log("Loaded " + deadBuddyHistory.Count + " memorial records from save slot " + slotIndex + ".");
     }
 
@@ -109,6 +117,7 @@ public class CampDeathHistoryStore : MonoBehaviour
         {
             if (record != null) record.memorialSeen = true;
         }
+        if (GameState.Instance != null) GameState.Instance.SetDeathHistory(deadBuddyHistory);
         TrySaveCurrentSlot();
     }
 
@@ -196,6 +205,7 @@ public class CampDeathHistoryStore : MonoBehaviour
         }
 
         deadBuddyHistory.Add(record);
+        if (GameState.Instance != null) GameState.Instance.AddDeathHistoryRecord(record);
         Log("Added memorial: " + record.GetDisplayLine());
         TrySaveCurrentSlot();
         return record;

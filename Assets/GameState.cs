@@ -98,6 +98,9 @@ public class GameState : MonoBehaviour
     public List<string> unlockedStations = new List<string>();
     public List<string> decorationsUnlocked = new List<string>();
 
+    [Header("Death History Save")]
+    public List<DeadBuddyRecord> deathHistory = new List<DeadBuddyRecord>();
+
     [Header("Last Run")]
     public RunSummaryData lastRun = new RunSummaryData();
 
@@ -134,6 +137,7 @@ public class GameState : MonoBehaviour
         activeSquadIds ??= new List<string>();
         unlockedStations ??= new List<string>();
         decorationsUnlocked ??= new List<string>();
+        deathHistory ??= new List<DeadBuddyRecord>();
         if (lastRun == null) lastRun = new RunSummaryData();
         RepairRosterState();
     }
@@ -388,12 +392,60 @@ public class GameState : MonoBehaviour
         if (!lastRun.deadBuddyNames.Contains(label)) lastRun.deadBuddyNames.Add(label);
         lastRun.buddiesLost = lastRun.deadBuddyNames.Count;
 
-        // Write the permanent memorial immediately, before BuddyUnit removes this
-        // gobbo from the live roster. The CampDeathHistoryStore also saves this
-        // into the current slot so the camp scene can reveal the Bone Wall.
-        CampDeathHistoryStore store = CampDeathHistoryStore.GetOrCreate();
-        if (store != null)
-            store.AddFromGobbo(unit, currentRunNumber, unit.causeOfDeath, false);
+        // Permanent memorial data belongs to GameState/save data.
+        // The camp-side CampDeathHistoryStore mirrors this list when CampScene opens.
+        AddDeathHistoryRecord(BuildDeathRecord(unit, currentRunNumber, unit.causeOfDeath, false));
+        SporeSaveManager.SaveCurrentSlotFromGameState();
+    }
+
+
+    public DeadBuddyRecord BuildDeathRecord(GobboUnitSaveData gobbo, int runNumber, string cause, bool wasLeader)
+    {
+        if (gobbo == null) return null;
+        gobbo.EnsureRuntimeDefaults();
+        return new DeadBuddyRecord
+        {
+            gobboId = gobbo.uniqueId,
+            displayName = string.IsNullOrWhiteSpace(gobbo.displayName) ? "Unknown Gobbo" : gobbo.displayName,
+            gobboType = gobbo.gobboType.ToString(),
+            level = Mathf.Max(1, gobbo.level),
+            runNumber = Mathf.Max(1, runNumber),
+            nightsSurvived = Mathf.Max(0, gobbo.nightsSurvived),
+            kills = Mathf.Max(0, gobbo.kills),
+            traitId = string.IsNullOrWhiteSpace(gobbo.primaryTraitId) ? "" : gobbo.primaryTraitId,
+            cause = string.IsNullOrWhiteSpace(cause) ? "Lost in the dirt." : cause,
+            wasLeader = wasLeader,
+            memorialSeen = false
+        };
+    }
+
+    public DeadBuddyRecord AddDeathHistoryRecord(DeadBuddyRecord record)
+    {
+        if (record == null) return null;
+        deathHistory ??= new List<DeadBuddyRecord>();
+
+        foreach (DeadBuddyRecord existing in deathHistory)
+        {
+            if (existing == null) continue;
+            bool sameId = !string.IsNullOrWhiteSpace(record.gobboId) && existing.gobboId == record.gobboId;
+            bool sameName = string.IsNullOrWhiteSpace(record.gobboId) && existing.displayName == record.displayName;
+            if ((sameId || sameName) && existing.runNumber == record.runNumber && existing.wasLeader == record.wasLeader)
+                return existing;
+        }
+
+        deathHistory.Add(record);
+        return record;
+    }
+
+    public void SetDeathHistory(List<DeadBuddyRecord> records)
+    {
+        deathHistory = records != null ? new List<DeadBuddyRecord>(records) : new List<DeadBuddyRecord>();
+    }
+
+    public List<DeadBuddyRecord> GetDeathHistoryCopy()
+    {
+        deathHistory ??= new List<DeadBuddyRecord>();
+        return new List<DeadBuddyRecord>(deathHistory);
     }
 
     public void RegisterBuddyDeath(GobboUnitSaveData unit) => RegisterGobboDeath(unit);

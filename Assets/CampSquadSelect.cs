@@ -7,8 +7,6 @@ using UnityEngine.UI;
 public class CampSquadSelect : MonoBehaviour, ICampInteractable
 {
     [Header("Interaction")]
-    public float interactRange = 1.35f;
-    public KeyCode interactKey = KeyCode.E;
     public string interactPrompt = "Choose who comes";
 
     [Header("Optional Assigned UI")]
@@ -37,8 +35,6 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
     [HideInInspector] public Vector2 panelSize = new Vector2(860f, 560f);
     [HideInInspector] public int panelSortingOrder = 500;
 
-    private Transform player;
-    private bool playerInsideTrigger;
     private bool isOpen;
     private readonly List<GameObject> spawnedRows = new List<GameObject>();
 
@@ -56,35 +52,14 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         CloseMenu();
     }
 
-    void Update()
-    {
-        if (isOpen && (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(interactKey)))
-            CloseMenu();
-    }
-
-    void OnTriggerEnter2D(Collider2D other)
-    {
-        if (other != null && other.CompareTag("Player"))
-        {
-            playerInsideTrigger = true;
-            player = other.transform;
-        }
-    }
-
-    void OnTriggerExit2D(Collider2D other)
-    {
-        if (other != null && other.CompareTag("Player"))
-            playerInsideTrigger = false;
-    }
-
     public string GetInteractPrompt() => interactPrompt;
 
     public void Interact(GobboController playerController)
     {
-        OpenMenu();
+        OpenMenu(playerController);
     }
 
-    public void OpenMenu()
+    public void OpenMenu(GobboController playerController = null)
     {
         if (panel == null)
         {
@@ -93,7 +68,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         }
 
         isOpen = true;
-        CampMenuModal.Open(null, this, CloseMenu);
+        CampMenuModal.Open(playerController, this, CloseMenu);
         if (panel != null)
         {
             panel.SetActive(true);
@@ -417,7 +392,10 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
 
     void OnDrawGizmosSelected()
     {
+        Collider2D col = GetComponent<Collider2D>();
+        if (col == null) return;
+
         Gizmos.color = Color.green;
-        Gizmos.DrawWireSphere(transform.position, interactRange);
+        Gizmos.DrawWireCube(col.bounds.center, col.bounds.size);
     }
 }

@@ -35,7 +35,6 @@ public class CampSceneController : MonoBehaviour
     public CampPlayableSpawner campPlayableSpawner;
     public CampStartRoutineManager campStartRoutineManager;
     public CampSuccessionUI campSuccessionUI;
-    public BuddyRoster buddyRoster;
 
     [Header("Camp Arrival Options")]
     public bool healAutomaticallyWhenCampOpens = false;
@@ -146,7 +145,6 @@ public class CampSceneController : MonoBehaviour
         if (campPlayableSpawner == null) Debug.LogWarning("CampSceneController missing CampPlayableSpawner. Camp will not spawn.");
         if (campStartRoutineManager == null) Debug.LogWarning("CampSceneController missing CampStartRoutineManager. Camp arrival routine will be skipped.");
         if (campSuccessionUI == null) Debug.LogWarning("CampSceneController missing CampSuccessionUI. Player death succession flow will not open.");
-        if (buddyRoster == null) Debug.LogWarning("CampSceneController missing BuddyRoster. Buddy growth will use fallback choices.");
         if (campBuddyEvolutionPanel != null)
         {
             if (campBuddyEvolutionButtons == null || campBuddyEvolutionButtons.Length == 0)
@@ -552,8 +550,9 @@ public class CampSceneController : MonoBehaviour
     {
         currentEvolutionChoices.Clear();
 
-        BuddyRoster roster = buddyRoster;
-        List<BuddyTypeSetup> choices = roster != null ? roster.GetRandomBuddyChoices(3) : GetFallbackEvolutionChoices(3);
+        // Camp growth no longer depends on the run-scene BuddyRoster.
+        // Replace GetFallbackEvolutionChoices with a shared BuddyTypeDatabase later.
+        List<BuddyTypeSetup> choices = GetFallbackEvolutionChoices(3);
 
         foreach (BuddyTypeSetup setup in choices)
         {
@@ -576,10 +575,8 @@ public class CampSceneController : MonoBehaviour
         }
 
         BuddyTypeSetup choice = currentEvolutionChoices[choiceIndex];
-        BuddyRoster roster = buddyRoster;
-
-        BuddyProgression.ApplyEvolutionChoice(buddy, choice.buddyType, roster);
-        ApplySetupDirectlyIfNeeded(buddy, choice, roster);
+        BuddyProgression.ApplyEvolutionChoice(buddy, choice.buddyType, null);
+        ApplySetupDirectlyIfNeeded(buddy, choice);
 
         SporeSaveManager.SaveCurrentSlotFromGameState();
 
@@ -587,9 +584,9 @@ public class CampSceneController : MonoBehaviour
         RefreshSurvivorsScreen();
     }
 
-    void ApplySetupDirectlyIfNeeded(GobboUnitSaveData buddy, BuddyTypeSetup setup, BuddyRoster roster)
+    void ApplySetupDirectlyIfNeeded(GobboUnitSaveData buddy, BuddyTypeSetup setup)
     {
-        if (buddy == null || setup == null || roster != null) return;
+        if (buddy == null || setup == null) return;
 
         buddy.maxHealth = setup.maxHealth;
         buddy.health = Mathf.Min(Mathf.Max(1, buddy.health), buddy.maxHealth);

@@ -14,15 +14,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BranchMapProfile
   seed: 0
   randomSeed: 1
-  width: 180
-  height: 120
-  cellSize: 0.75
-  spawnCenter: {x: 0, y: 0}
+  width: 150
+  height: 150
+  cellSize: 0.6
+  autoCenterSpawn: 1
+  spawnCenter: {x: 75, y: 75}
   spawnRadius: 5
   darkDistance: 20
   darkerDistance: 35
-  fillerTunnelCount: 99
-  fillerPocketCount: 99
+  fillerTunnelCount: 50
+  fillerPocketCount: 50
+  fillerLootPocketCount: 50
   fillerMinDistanceFromMainPath: 2
   fillerMaxDistanceFromMainPath: 35
   branches:
@@ -30,7 +32,7 @@ MonoBehaviour:
     direction: {x: 0, y: 1}
     length: 80
     tunnelHalfWidth: 3
-    wobble: 3
+    wobble: 5
     forkCount: 1
     forkLengthMin: 20
     forkLengthMax: 30
@@ -42,7 +44,7 @@ MonoBehaviour:
     minGapBetweenAttachments: 8
   - branchName: East
     direction: {x: 1, y: 0}
-    length: 200
+    length: 50
     tunnelHalfWidth: 2
     wobble: 10
     forkCount: 3
@@ -56,7 +58,7 @@ MonoBehaviour:
     minGapBetweenAttachments: 8
   - branchName: West
     direction: {x: -1, y: 0}
-    length: 28
+    length: 29
     tunnelHalfWidth: 2
     wobble: 2
     forkCount: 0
@@ -70,7 +72,7 @@ MonoBehaviour:
     minGapBetweenAttachments: 8
   - branchName: Boss
     direction: {x: 0, y: -1}
-    length: 300
+    length: 120
     tunnelHalfWidth: 2
     wobble: 10
     forkCount: 4

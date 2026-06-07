@@ -163,6 +163,7 @@ public static class SporeSaveManager
             existing.decorationsUnlocked = gs.decorationsUnlocked != null ? new List<string>(gs.decorationsUnlocked) : new List<string>();
             existing.lastRun = CloneRunSummary(gs.lastRun);
             existing.markedSuccessorId = gs.markedSuccessorId;
+            existing.deathHistory = gs.GetDeathHistoryCopy();
         }
 
         GameStateSaveBridge bridge = GameStateSaveBridge.GetOrCreate();
@@ -181,7 +182,11 @@ public static class SporeSaveManager
         }
 
         CampDeathHistoryStore deathStore = UnityEngine.Object.FindAnyObjectByType<CampDeathHistoryStore>(FindObjectsInactive.Include);
-        if (deathStore != null && deathStore.deadBuddyHistory != null) existing.deathHistory = new List<DeadBuddyRecord>(deathStore.deadBuddyHistory);
+        if (deathStore != null && deathStore.deadBuddyHistory != null)
+        {
+            existing.deathHistory = new List<DeadBuddyRecord>(deathStore.deadBuddyHistory);
+            if (gs != null) gs.SetDeathHistory(existing.deathHistory);
+        }
         else if (existing.deathHistory == null) existing.deathHistory = new List<DeadBuddyRecord>();
 
         existing.nextSceneName = "CampScene";
@@ -206,6 +211,7 @@ public static class SporeSaveManager
         gs.decorationsUnlocked = data.decorationsUnlocked != null ? new List<string>(data.decorationsUnlocked) : new List<string>();
         gs.lastRun = CloneRunSummary(data.lastRun);
         gs.markedSuccessorId = data.markedSuccessorId;
+        gs.SetDeathHistory(data.deathHistory);
         gs.RepairRosterState();
 
         GameStateSaveBridge bridge = GameStateSaveBridge.GetOrCreate();
@@ -223,7 +229,7 @@ public static class SporeSaveManager
         if (deathStore != null && deathStore.deadBuddyHistory != null)
         {
             deathStore.deadBuddyHistory.Clear();
-            if (data.deathHistory != null) deathStore.deadBuddyHistory.AddRange(data.deathHistory);
+            if (gs.deathHistory != null) deathStore.deadBuddyHistory.AddRange(gs.deathHistory);
         }
 
         SetCurrentSlot(data.slotIndex);
