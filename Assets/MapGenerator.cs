@@ -244,6 +244,7 @@ public class MapGenerator : MonoBehaviour
         BuildSpawn();
         BuildBranches();
         BuildFiller();
+        EnsureExitPortalExists();
         PaintTilemaps();
 
         RunContentSpawner spawner = GetContentSpawner();
@@ -821,6 +822,112 @@ public class MapGenerator : MonoBehaviour
         }
 
         return camp;
+    }
+
+    private void EnsureExitPortalExists()
+    {
+        if (Data == null) return;
+
+        foreach (CampData camp in Data.camps)
+        {
+            if (camp.hasExitPortal)
+                return;
+        }
+
+        // If a boss room was created but somehow lost its portal flag, fix that first.
+        foreach (CampData camp in Data.camps)
+        {
+            if (camp.isBossCamp || camp.bossEnemyCount > 0)
+            {
+                camp.isBossCamp = true;
+                camp.hasExitPortal = true;
+                if (camp.bossEnemyCount <= 0) camp.bossEnemyCount = 1;
+                Debug.LogWarning($"MapGenerator repaired missing exit portal on existing boss camp id:{camp.id}.", this);
+                return;
+            }
+        }
+
+        bool created = TryCreateFallbackBossExitRoom();
+
+        if (!created)
+        {
+            Debug.LogError("MapGenerator could not create a fallback exit portal room. Check map bounds/spawn settings.", this);
+            return;
+        }
+
+        Debug.LogWarning("MapGenerator created a fallback boss exit room because normal boss placement failed.", this);
+    }
+
+    private bool TryCreateFallbackBossExitRoom()
+    {
+        if (Data == null) return false;
+
+        List<Vector2Int> candidates = new List<Vector2Int>(mainPathCells);
+        if (candidates.Count == 0)
+            candidates.Add(map.spawnCenter);
+
+        candidates.Sort((a, b) =>
+            Vector2Int.Distance(b, map.spawnCenter).CompareTo(Vector2Int.Distance(a, map.spawnCenter)));
+
+        int radiusCells = 8;
+        int connectorLength = 4;
+
+        foreach (Vector2Int attachPoint in candidates)
+        {
+            Vector2Int away = NormalizeCardinal(attachPoint - map.spawnCenter);
+            if (away == Vector2Int.zero) away = Vector2Int.up;
+
+            Vector2Int left = new Vector2Int(-away.y, away.x);
+            Vector2Int right = new Vector2Int(away.y, -away.x);
+
+            Vector2Int[] dirs = new Vector2Int[]
+            {
+                left,
+                right,
+                away,
+                -away,
+                Vector2Int.up,
+                Vector2Int.down,
+                Vector2Int.left,
+                Vector2Int.right
+            };
+
+            foreach (Vector2Int dir in dirs)
+            {
+                if (dir == Vector2Int.zero) continue;
+
+                Vector2Int connectorEnd = attachPoint + dir * connectorLength;
+                Vector2Int roomCenter = connectorEnd + dir * (radiusCells + 1);
+
+                if (!CircleFitsInBounds(roomCenter, radiusCells))
+                    continue;
+
+                AddTunnel(StraightPath(attachPoint, connectorEnd), 1, AreaType.MainTunnel, false);
+                AddRevealArea(AreaType.Boss, roomCenter, radiusCells);
+                return true;
+            }
+        }
+
+        // Last resort: put the exit room in-bounds near the farthest reachable path cell.
+        Vector2Int fallback = candidates[0];
+        fallback.x = Mathf.Clamp(fallback.x, radiusCells + 2, map.width - radiusCells - 3);
+        fallback.y = Mathf.Clamp(fallback.y, radiusCells + 2, map.height - radiusCells - 3);
+
+        if (!CircleFitsInBounds(fallback, radiusCells))
+            return false;
+
+        AddRevealArea(AreaType.Boss, fallback, radiusCells);
+        return true;
+    }
+
+    private bool CircleFitsInBounds(Vector2Int center, int radiusCells)
+    {
+        if (Data == null) return false;
+
+        return center.x - radiusCells >= 1 &&
+               center.y - radiusCells >= 1 &&
+               center.x + radiusCells < Data.width - 1 &&
+               center.y + radiusCells < Data.height - 1;
     }
 
     private void PaintTilemaps()
