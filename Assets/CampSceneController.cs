@@ -4,6 +4,11 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Serialization;
 
+/// <summary>
+/// Owns only the camp arrival/report flow.
+/// It does not spawn fallback objects, build UI, or repair scene setup.
+/// Required scene references should be assigned in the Inspector.
+/// </summary>
 public class CampSceneController : MonoBehaviour
 {
     [Header("Run Stats Screen")]
@@ -17,7 +22,7 @@ public class CampSceneController : MonoBehaviour
     public Button continueToCampButton;
 
     [Header("Camp Buddy Evolution Panel")]
-    [Tooltip("New camp-only panel. Do not use the old BuddyChoiceScreen for camp evolution.")]
+    [Tooltip("Camp-only panel. Do not use the old BuddyChoiceScreen for camp evolution.")]
     public GameObject campBuddyEvolutionPanel;
     public TMP_Text campBuddyEvolutionTitle;
     public Button[] campBuddyEvolutionButtons = new Button[3];
@@ -26,14 +31,15 @@ public class CampSceneController : MonoBehaviour
     [Header("Optional Camp Management Screen Later")]
     public GameObject campMenuPanel;
 
-    [Header("Playable Camp Spawn")]
+    [Header("Required Camp Flow References")]
     public CampPlayableSpawner campPlayableSpawner;
     public CampStartRoutineManager campStartRoutineManager;
+    public CampSuccessionUI campSuccessionUI;
+    public BuddyRoster buddyRoster;
+
+    [Header("Camp Arrival Options")]
     public bool healAutomaticallyWhenCampOpens = false;
     public bool skipReportsAndOpenCampImmediatelyForTesting = false;
-
-    [Header("Legacy Camp Visuals / Fallback")]
-    public CampVisualSpawner campVisualSpawner;
 
     [Header("Optional Future UI")]
     public TMP_Text playerStatsText;
@@ -51,20 +57,24 @@ public class CampSceneController : MonoBehaviour
     public GameObject pauseMenu;
     public KeyCode pauseKey = KeyCode.Escape;
 
+    [Header("Debug")]
+    public bool logMissingReferences = true;
+
     private readonly List<BuddyTypeSetup> currentEvolutionChoices = new List<BuddyTypeSetup>();
     private string currentlyEvolvingBuddyId = "";
 
-    private void Awake()
+    void Awake()
     {
-        AutoFillMissingReferences();
+        ValidateRequiredReferences();
+        HideAllCampFlowPanels();
     }
 
-    private void Start()
+    void Start()
     {
-        EnsureGameState();
         HookButtons();
 
-        if (TryStartDeathSuccessionFlow()) return;
+        if (TryStartDeathSuccessionFlow())
+            return;
 
         if (skipReportsAndOpenCampImmediatelyForTesting)
             RevealCampVisuals();
@@ -72,23 +82,19 @@ public class CampSceneController : MonoBehaviour
             ShowRunStatsScreen();
     }
 
-    private void Update()
+    void Update()
     {
-        // Safety: if a Resume button hides PauseMenu but forgets to unpause time,
-        // immediately unfreeze the camp. This prevents the "resume once, then stuck" bug.
         if (Time.timeScale == 0f && pauseMenu != null && !pauseMenu.activeSelf)
             Time.timeScale = 1f;
 
-        if (!Input.GetKeyDown(pauseKey)) return;
-
-        // Do not steal Escape while report/evolution panels are open.
-        if ((runStatsPanel != null && runStatsPanel.activeSelf) ||
-            (survivorsPanel != null && survivorsPanel.activeSelf) ||
-            (campBuddyEvolutionPanel != null && campBuddyEvolutionPanel.activeSelf))
+        if (!Input.GetKeyDown(pauseKey))
             return;
 
-        FindPauseMenuIfMissing();
-        if (pauseMenu == null) return;
+        if (IsReportOrEvolutionPanelOpen())
+            return;
+
+        if (pauseMenu == null)
+            return;
 
         bool open = !pauseMenu.activeSelf;
         pauseMenu.SetActive(open);
@@ -97,131 +103,55 @@ public class CampSceneController : MonoBehaviour
 
     public void ResumeCampFromPause()
     {
-        FindPauseMenuIfMissing();
-        if (pauseMenu != null) pauseMenu.SetActive(false);
+        if (pauseMenu != null)
+            pauseMenu.SetActive(false);
+
         Time.timeScale = 1f;
     }
 
-    void FindPauseMenuIfMissing()
+    bool IsReportOrEvolutionPanelOpen()
     {
-        if (pauseMenu != null) return;
-
-        GameObject activeFound = GameObject.Find("PauseMenu");
-        if (activeFound != null)
-        {
-            pauseMenu = activeFound;
-            return;
-        }
-
-        // GameObject.Find cannot see inactive objects, so search loaded objects too.
-        GameObject[] allObjects = Resources.FindObjectsOfTypeAll<GameObject>();
-        foreach (GameObject obj in allObjects)
-        {
-            if (obj != null && obj.name == "PauseMenu" && obj.scene.IsValid())
-            {
-                pauseMenu = obj;
-                return;
-            }
-        }
+        return (runStatsPanel != null && runStatsPanel.activeSelf) ||
+               (survivorsPanel != null && survivorsPanel.activeSelf) ||
+               (campBuddyEvolutionPanel != null && campBuddyEvolutionPanel.activeSelf);
     }
 
     bool TryStartDeathSuccessionFlow()
     {
         PlayerDeathRunStore pendingDeath = PlayerDeathRunStore.Instance;
-        if (pendingDeath == null || !pendingDeath.playerDiedThisRun) return false;
+        if (pendingDeath == null || !pendingDeath.playerDiedThisRun)
+            return false;
 
-        if (runStatsPanel != null) runStatsPanel.SetActive(false);
-        if (survivorsPanel != null) survivorsPanel.SetActive(false);
-        if (campMenuPanel != null) campMenuPanel.SetActive(false);
-        if (campBuddyEvolutionPanel != null) campBuddyEvolutionPanel.SetActive(false);
+        HideAllCampFlowPanels();
 
-        CampSuccessionUI successionUI = Object.FindAnyObjectByType<CampSuccessionUI>(FindObjectsInactive.Include);
-        if (successionUI != null) successionUI.TryOpenDeathFlow();
-        else Debug.LogWarning("Player died, but no CampSuccessionUI was found in CampScene.");
+        if (campSuccessionUI != null)
+        {
+            campSuccessionUI.TryOpenDeathFlow();
+        }
+        else
+        {
+            Debug.LogWarning("Player died, but CampSceneController has no CampSuccessionUI assigned.");
+        }
+
         return true;
     }
 
-    void AutoFillMissingReferences()
+    void ValidateRequiredReferences()
     {
-        if (campPlayableSpawner == null) campPlayableSpawner = Object.FindAnyObjectByType<CampPlayableSpawner>(FindObjectsInactive.Include);
-        if (campStartRoutineManager == null) campStartRoutineManager = Object.FindAnyObjectByType<CampStartRoutineManager>(FindObjectsInactive.Include);
-        if (campVisualSpawner == null) campVisualSpawner = Object.FindAnyObjectByType<CampVisualSpawner>(FindObjectsInactive.Include);
-        FindPauseMenuIfMissing();
-        if (runStatsText == null && runStatsPanel != null) runStatsText = runStatsPanel.GetComponentInChildren<TMP_Text>(true);
-        if (survivorsText == null && survivorsPanel != null) survivorsText = survivorsPanel.GetComponentInChildren<TMP_Text>(true);
-        if (continueToSurvivorsButton == null && runStatsPanel != null) continueToSurvivorsButton = runStatsPanel.GetComponentInChildren<Button>(true);
-        if (continueToCampButton == null && survivorsPanel != null) continueToCampButton = survivorsPanel.GetComponentInChildren<Button>(true);
-        AutoFillSurvivorListReferences();
-        AutoFillCampBuddyEvolutionPanel();
-    }
+        if (!logMissingReferences)
+            return;
 
-    void AutoFillSurvivorListReferences()
-    {
-        if (survivorsPanel == null) return;
-
-        if (runBuddyListParent == null)
-            runBuddyListParent = FindChildTransform(survivorsPanel.transform, "RunBuddyList", "CurrentRunList", "ActiveRunList", "ActiveSquadList");
-
-        if (activeSquadListParent == null)
-            activeSquadListParent = FindChildTransform(survivorsPanel.transform, "ActiveSquadList", "RunBuddyList", "CurrentRunList", "ActiveRunList");
-
-        if (runBuddyListParent == null)
-            runBuddyListParent = activeSquadListParent;
-
-        if (reserveListParent == null)
-            reserveListParent = FindChildTransform(survivorsPanel.transform, "ReserveList", "CampReserveList", "HomeBuddyList");
-
-        if (pendingEvolutionListParent == null)
-            pendingEvolutionListParent = FindChildTransform(survivorsPanel.transform, "PendingEvolutionList", "GrowthList", "ReadyToGrowList");
-    }
-
-    Transform FindChildTransform(Transform root, params string[] names)
-    {
-        if (root == null || names == null) return null;
-        foreach (string name in names)
+        if (continueToSurvivorsButton == null) Debug.LogWarning("CampSceneController missing Continue To Survivors Button.");
+        if (continueToCampButton == null) Debug.LogWarning("CampSceneController missing Continue To Camp Button.");
+        if (campPlayableSpawner == null) Debug.LogWarning("CampSceneController missing CampPlayableSpawner. Camp will not spawn.");
+        if (campStartRoutineManager == null) Debug.LogWarning("CampSceneController missing CampStartRoutineManager. Camp arrival routine will be skipped.");
+        if (campSuccessionUI == null) Debug.LogWarning("CampSceneController missing CampSuccessionUI. Player death succession flow will not open.");
+        if (buddyRoster == null) Debug.LogWarning("CampSceneController missing BuddyRoster. Buddy growth will use fallback choices.");
+        if (campBuddyEvolutionPanel != null)
         {
-            if (string.IsNullOrWhiteSpace(name)) continue;
-            Transform direct = root.Find(name);
-            if (direct != null) return direct;
+            if (campBuddyEvolutionButtons == null || campBuddyEvolutionButtons.Length == 0)
+                Debug.LogWarning("CampSceneController has CampBuddyEvolutionPanel but no evolution buttons assigned.");
         }
-
-        Transform[] children = root.GetComponentsInChildren<Transform>(true);
-        foreach (Transform child in children)
-        {
-            if (child == null) continue;
-            foreach (string name in names)
-            {
-                if (!string.IsNullOrWhiteSpace(name) && child.name == name)
-                    return child;
-            }
-        }
-        return null;
-    }
-
-    void AutoFillCampBuddyEvolutionPanel()
-    {
-        if (campBuddyEvolutionPanel == null)
-        {
-            GameObject found = GameObject.Find("CampBuddyEvolutionPanel");
-            if (found != null) campBuddyEvolutionPanel = found;
-        }
-        if (campBuddyEvolutionPanel == null) return;
-
-        if (campBuddyEvolutionTitle == null)
-        {
-            Transform title = campBuddyEvolutionPanel.transform.Find("TitleText");
-            if (title != null) campBuddyEvolutionTitle = title.GetComponent<TMP_Text>();
-        }
-
-        Button[] buttons = campBuddyEvolutionPanel.GetComponentsInChildren<Button>(true);
-        for (int i = 0; i < campBuddyEvolutionButtons.Length && i < buttons.Length; i++)
-        {
-            if (campBuddyEvolutionButtons[i] == null) campBuddyEvolutionButtons[i] = buttons[i];
-            if (campBuddyEvolutionTexts[i] == null && campBuddyEvolutionButtons[i] != null)
-                campBuddyEvolutionTexts[i] = campBuddyEvolutionButtons[i].GetComponentInChildren<TMP_Text>(true);
-        }
-
-        campBuddyEvolutionPanel.SetActive(false);
     }
 
     void HookButtons()
@@ -231,6 +161,7 @@ public class CampSceneController : MonoBehaviour
             continueToSurvivorsButton.onClick.RemoveAllListeners();
             continueToSurvivorsButton.onClick.AddListener(ShowSurvivorsScreen);
         }
+
         if (continueToCampButton != null)
         {
             continueToCampButton.onClick.RemoveAllListeners();
@@ -238,21 +169,38 @@ public class CampSceneController : MonoBehaviour
         }
     }
 
-    void ShowRunStatsScreen()
+    void HideAllCampFlowPanels()
     {
-        if (runStatsPanel != null) runStatsPanel.SetActive(true);
+        if (runStatsPanel != null) runStatsPanel.SetActive(false);
         if (survivorsPanel != null) survivorsPanel.SetActive(false);
         if (campMenuPanel != null) campMenuPanel.SetActive(false);
         if (campBuddyEvolutionPanel != null) campBuddyEvolutionPanel.SetActive(false);
+    }
+
+    void ShowRunStatsScreen()
+    {
+        HideAllCampFlowPanels();
+
+        if (GameState.Instance == null)
+        {
+            Debug.LogWarning("CampSceneController could not show run stats because no GameState exists.");
+            RevealCampVisuals();
+            return;
+        }
+
+        if (runStatsPanel != null)
+            runStatsPanel.SetActive(true);
+
         FillRunStatsText();
     }
 
     public void ShowSurvivorsScreen()
     {
-        if (runStatsPanel != null) runStatsPanel.SetActive(false);
-        if (survivorsPanel != null) survivorsPanel.SetActive(true);
-        if (campMenuPanel != null) campMenuPanel.SetActive(false);
-        if (campBuddyEvolutionPanel != null) campBuddyEvolutionPanel.SetActive(false);
+        HideAllCampFlowPanels();
+
+        if (survivorsPanel != null)
+            survivorsPanel.SetActive(true);
+
         RefreshSurvivorsScreen();
     }
 
@@ -270,6 +218,7 @@ public class CampSceneController : MonoBehaviour
             OpenBuddyGrowthChoice(pending[0].uniqueId);
             return;
         }
+
         RevealCampVisuals();
     }
 
@@ -281,42 +230,29 @@ public class CampSceneController : MonoBehaviour
             HealAllBuddiesForCamp();
         }
 
-        if (runStatsPanel != null) runStatsPanel.SetActive(false);
-        if (survivorsPanel != null) survivorsPanel.SetActive(false);
-        if (campMenuPanel != null) campMenuPanel.SetActive(false);
-        if (campBuddyEvolutionPanel != null) campBuddyEvolutionPanel.SetActive(false);
+        HideAllCampFlowPanels();
 
-        if (campPlayableSpawner == null) campPlayableSpawner = Object.FindAnyObjectByType<CampPlayableSpawner>(FindObjectsInactive.Include);
-        if (campPlayableSpawner != null)
+        if (campPlayableSpawner == null)
         {
-            campPlayableSpawner.SpawnPlayableCamp();
-            BeginCampStartRoutineIfPresent();
+            Debug.LogWarning("CampSceneController cannot spawn camp: CampPlayableSpawner is not assigned.");
             return;
         }
 
-        if (campVisualSpawner == null) campVisualSpawner = Object.FindAnyObjectByType<CampVisualSpawner>(FindObjectsInactive.Include);
-        FindPauseMenuIfMissing();
-        if (campVisualSpawner != null)
-        {
-            campVisualSpawner.SpawnCampVisuals();
-            BeginCampStartRoutineIfPresent();
-        }
-        else
-        {
-            Debug.LogWarning("No CampPlayableSpawner or CampVisualSpawner assigned/found. Camp UI hid, but no camp objects could spawn.");
-        }
+        campPlayableSpawner.SpawnPlayableCamp();
+        BeginCampStartRoutineIfPresent();
     }
 
     void BeginCampStartRoutineIfPresent()
     {
-        if (campStartRoutineManager == null) campStartRoutineManager = Object.FindAnyObjectByType<CampStartRoutineManager>(FindObjectsInactive.Include);
-        if (campStartRoutineManager != null) campStartRoutineManager.BeginCampVisit();
+        if (campStartRoutineManager != null)
+            campStartRoutineManager.BeginCampVisit();
     }
 
     void HealAllBuddiesForCamp()
     {
         GameState state = GameState.Instance;
         if (state == null || state.ownedGobbos == null) return;
+
         foreach (GobboUnitSaveData buddy in state.ownedGobbos)
         {
             if (buddy == null) continue;
@@ -330,14 +266,22 @@ public class CampSceneController : MonoBehaviour
     {
         if (GameState.Instance == null) return;
         GobboUnitSaveData leader = GameState.Instance.GetLeader();
+        if (leader == null) return;
         leader.health = leader.maxHealth;
     }
 
     void FillRunStatsText()
     {
         if (runStatsText == null || GameState.Instance == null) return;
+
         RunSummaryData run = GameState.Instance.lastRun;
         GobboUnitSaveData leader = GameState.Instance.GetLeader();
+        if (run == null || leader == null)
+        {
+            runStatsText.text = "Welcome back to camp.";
+            return;
+        }
+
         runStatsText.text = "You made it back to camp!" +
             "\n\nRun: " + run.runNumber +
             "\nLevel: " + run.playerLevelStart + " → " + run.playerLevelEnd +
@@ -357,6 +301,7 @@ public class CampSceneController : MonoBehaviour
     void FillSurvivorsText()
     {
         if (GameState.Instance == null) return;
+
         RunSummaryData run = GameState.Instance.lastRun;
         if (run == null) return;
 
@@ -493,23 +438,6 @@ public class CampSceneController : MonoBehaviour
         return line;
     }
 
-    string GetBuddyLine(GobboUnitSaveData buddy)
-    {
-        if (buddy == null) return "Missing buddy";
-        buddy.EnsureRuntimeDefaults();
-        string trait = buddy.traitIds != null && buddy.traitIds.Count > 0 ? buddy.traitIds[0] : "None";
-        return buddy.displayName + " the " + buddy.gobboType + " " + buddy.ageStage +
-            " Lv " + buddy.level +
-            " XP " + buddy.xp + "/" + buddy.xpToNextLevel +
-            " HP " + buddy.health + "/" + buddy.maxHealth +
-            " Nights " + buddy.runsSurvived +
-            " Kills " + buddy.kills +
-            " Happy " + buddy.happiness +
-            (trait != "None" ? " Trait " + trait : "") +
-            (buddy.pendingEvolution ? " READY TO GROW" : "") +
-            (buddy.runsWaitingForEvolution >= 2 ? " ANGRY DOT" : "");
-    }
-
     void ClearListParent(Transform parent)
     {
         if (parent == null) return;
@@ -523,6 +451,7 @@ public class CampSceneController : MonoBehaviour
 
         GameObject item = new GameObject(header ? "ListHeader" : "ListItem", typeof(RectTransform));
         item.transform.SetParent(parent, false);
+
         TMP_Text label = item.AddComponent<TextMeshProUGUI>();
         label.text = text;
         label.fontSize = header ? 24 : 18;
@@ -536,12 +465,12 @@ public class CampSceneController : MonoBehaviour
         rect.anchorMax = new Vector2(1f, 1f);
         rect.pivot = new Vector2(0.5f, 1f);
         rect.sizeDelta = new Vector2(0f, header ? 34f : 72f);
+
         return label;
     }
 
     public void OpenBuddyGrowthChoice(string buddyId)
     {
-        Debug.Log("OpenBuddyGrowthChoice called for id: " + buddyId);
         if (string.IsNullOrWhiteSpace(buddyId))
         {
             Debug.LogWarning("Tried to open buddy growth choice with no buddy id.");
@@ -565,20 +494,21 @@ public class CampSceneController : MonoBehaviour
     {
         if (campBuddyEvolutionPanel == null)
         {
-            Debug.LogError("No CampBuddyEvolutionPanel assigned/found. Add it under Canvas and assign it on CampSceneController.");
+            Debug.LogError("No CampBuddyEvolutionPanel assigned. Add it under Canvas and assign it on CampSceneController.");
             return;
         }
 
         BuildCampEvolutionChoices(buddy);
-        if (survivorsPanel != null) survivorsPanel.SetActive(false);
-        if (runStatsPanel != null) runStatsPanel.SetActive(false);
-        if (campMenuPanel != null) campMenuPanel.SetActive(false);
-        if (campBuddyEvolutionTitle != null) campBuddyEvolutionTitle.text = "Choose what " + buddy.displayName + " grows into";
+        HideAllCampFlowPanels();
+
+        if (campBuddyEvolutionTitle != null)
+            campBuddyEvolutionTitle.text = "Choose what " + buddy.displayName + " grows into";
 
         for (int i = 0; i < campBuddyEvolutionButtons.Length; i++)
         {
             Button button = campBuddyEvolutionButtons[i];
             if (button == null) continue;
+
             if (i >= currentEvolutionChoices.Count)
             {
                 button.gameObject.SetActive(false);
@@ -589,19 +519,26 @@ public class CampSceneController : MonoBehaviour
             button.gameObject.SetActive(true);
             button.interactable = true;
             button.onClick.RemoveAllListeners();
+
             int index = i;
             button.onClick.AddListener(() => ChooseCampEvolution(index));
+
             Image image = button.GetComponent<Image>();
             if (image != null) image.raycastTarget = true;
+
             if (i < campBuddyEvolutionTexts.Length && campBuddyEvolutionTexts[i] != null)
             {
-                campBuddyEvolutionTexts[i].text = setup.displayName + "\nHP: " + setup.maxHealth + "\nDMG: " + setup.damage + "\nSPD: " + setup.moveSpeed.ToString("0.0");
+                campBuddyEvolutionTexts[i].text = setup.displayName +
+                    "\nHP: " + setup.maxHealth +
+                    "\nDMG: " + setup.damage +
+                    "\nSPD: " + setup.moveSpeed.ToString("0.0");
                 campBuddyEvolutionTexts[i].raycastTarget = false;
             }
         }
 
         campBuddyEvolutionPanel.SetActive(true);
         campBuddyEvolutionPanel.transform.SetAsLastSibling();
+
         CanvasGroup group = campBuddyEvolutionPanel.GetComponent<CanvasGroup>();
         if (group != null)
         {
@@ -609,24 +546,26 @@ public class CampSceneController : MonoBehaviour
             group.interactable = true;
             group.blocksRaycasts = true;
         }
-
-        Debug.Log("Opened CampBuddyEvolutionPanel with " + currentEvolutionChoices.Count + " choices for " + buddy.displayName);
     }
 
     void BuildCampEvolutionChoices(GobboUnitSaveData buddy)
     {
         currentEvolutionChoices.Clear();
-        BuddyRoster roster = Object.FindAnyObjectByType<BuddyRoster>(FindObjectsInactive.Include);
+
+        BuddyRoster roster = buddyRoster;
         List<BuddyTypeSetup> choices = roster != null ? roster.GetRandomBuddyChoices(3) : GetFallbackEvolutionChoices(3);
+
         foreach (BuddyTypeSetup setup in choices)
         {
-            if (setup != null && setup.buddyType != BuddyType.Baby) currentEvolutionChoices.Add(setup);
+            if (setup != null && setup.buddyType != BuddyType.Baby)
+                currentEvolutionChoices.Add(setup);
         }
     }
 
     void ChooseCampEvolution(int choiceIndex)
     {
         if (choiceIndex < 0 || choiceIndex >= currentEvolutionChoices.Count) return;
+
         GobboUnitSaveData buddy = GameState.Instance != null ? GameState.Instance.FindOwnedGobbo(currentlyEvolvingBuddyId) : null;
         if (buddy == null)
         {
@@ -637,11 +576,13 @@ public class CampSceneController : MonoBehaviour
         }
 
         BuddyTypeSetup choice = currentEvolutionChoices[choiceIndex];
-        BuddyRoster roster = Object.FindAnyObjectByType<BuddyRoster>(FindObjectsInactive.Include);
-        Debug.Log("Camp evolving " + buddy.displayName + " into " + choice.buddyType);
+        BuddyRoster roster = buddyRoster;
+
         BuddyProgression.ApplyEvolutionChoice(buddy, choice.buddyType, roster);
         ApplySetupDirectlyIfNeeded(buddy, choice, roster);
+
         SporeSaveManager.SaveCurrentSlotFromGameState();
+
         CloseCampBuddyEvolutionPanel();
         RefreshSurvivorsScreen();
     }
@@ -649,6 +590,7 @@ public class CampSceneController : MonoBehaviour
     void ApplySetupDirectlyIfNeeded(GobboUnitSaveData buddy, BuddyTypeSetup setup, BuddyRoster roster)
     {
         if (buddy == null || setup == null || roster != null) return;
+
         buddy.maxHealth = setup.maxHealth;
         buddy.health = Mathf.Min(Mathf.Max(1, buddy.health), buddy.maxHealth);
         buddy.damage = setup.damage;
@@ -666,8 +608,12 @@ public class CampSceneController : MonoBehaviour
     {
         currentlyEvolvingBuddyId = "";
         currentEvolutionChoices.Clear();
-        if (campBuddyEvolutionPanel != null) campBuddyEvolutionPanel.SetActive(false);
-        if (survivorsPanel != null) survivorsPanel.SetActive(true);
+
+        if (campBuddyEvolutionPanel != null)
+            campBuddyEvolutionPanel.SetActive(false);
+
+        if (survivorsPanel != null)
+            survivorsPanel.SetActive(true);
     }
 
     List<BuddyTypeSetup> GetFallbackEvolutionChoices(int amount)
@@ -691,6 +637,7 @@ public class CampSceneController : MonoBehaviour
             choices.Add(all[index]);
             all.RemoveAt(index);
         }
+
         return choices;
     }
 
@@ -715,10 +662,13 @@ public class CampSceneController : MonoBehaviour
     void RefreshContinueButtonState()
     {
         if (continueToCampButton == null) return;
+
         bool hasPending = HasPendingBuddyEvolutions();
         continueToCampButton.interactable = true;
+
         TMP_Text label = continueToCampButton.GetComponentInChildren<TMP_Text>(true);
-        if (label != null) label.text = hasPending ? "Grow Ready Buddy" : "Continue";
+        if (label != null)
+            label.text = hasPending ? "Grow Ready Buddy" : "Continue";
     }
 
     bool HasPendingBuddyEvolutions() => GetPendingBuddyEvolutions().Count > 0;
@@ -727,19 +677,14 @@ public class CampSceneController : MonoBehaviour
     {
         List<GobboUnitSaveData> result = new List<GobboUnitSaveData>();
         if (GameState.Instance == null || GameState.Instance.ownedGobbos == null) return result;
+
         foreach (GobboUnitSaveData buddy in GameState.Instance.ownedGobbos)
         {
             if (buddy == null) continue;
             buddy.EnsureRuntimeDefaults();
             if (buddy.pendingEvolution) result.Add(buddy);
         }
-        return result;
-    }
 
-    void EnsureGameState()
-    {
-        if (GameState.Instance != null) return;
-        GameObject stateObject = new GameObject("GameState");
-        stateObject.AddComponent<GameState>();
+        return result;
     }
 }

@@ -3,14 +3,13 @@ using UnityEngine;
 
 /// <summary>
 /// Scene-level camp interaction system.
-/// Put this on a scene object like CampInteractionSystem, not on the player prefab.
+/// Put this on a scene object like CampInteractionSystem.
+/// CampPlayableSpawner should call SetPlayer when it spawns the camp player.
 /// </summary>
 public class CampInteractionDetector : MonoBehaviour
 {
     [Header("Player")]
     public Transform playerTransform;
-    public bool findPlayerByTag = true;
-    public string playerTag = "Player";
 
     [Header("Input")]
     public KeyCode interactKey = KeyCode.E;
@@ -27,18 +26,13 @@ public class CampInteractionDetector : MonoBehaviour
     public string pressPrefix = "E - ";
     public string holdPrefix = "Hold E - ";
 
-    [Header("Prompt Auto-Find")]
-    public bool autoFindPromptUi = true;
-    public string promptPanelObjectName = "CampInteractPrompt";
-    public string promptTextObjectName = "PromptText";
-
     [Header("Input Safety")]
     public float interactionCooldown = 0.15f;
 
     [Header("Debug")]
     public bool drawDebugRadius = true;
     public bool logInteractions = true;
-    public bool logPromptWarnings = true;
+    public bool logMissingReferences = true;
 
     private ICampInteractable currentInteractable;
     private ICampHoldInteractable currentHoldInteractable;
@@ -51,13 +45,12 @@ public class CampInteractionDetector : MonoBehaviour
 
     void Awake()
     {
-        TryAutoFindPromptUi();
-        HidePrompt();
-    }
+        if (promptPanel == null && logMissingReferences)
+            Debug.LogWarning("CampInteractionDetector missing Prompt Panel reference.");
 
-    void Start()
-    {
-        TryAutoFindPromptUi();
+        if (promptText == null && logMissingReferences)
+            Debug.LogWarning("CampInteractionDetector missing Prompt Text reference.");
+
         HidePrompt();
     }
 
@@ -66,10 +59,9 @@ public class CampInteractionDetector : MonoBehaviour
         if (cooldownTimer > 0f)
             cooldownTimer -= Time.deltaTime;
 
-        RefreshPlayerReference();
+        if (playerTransform != null && player == null)
+            player = playerTransform.GetComponent<GobboController>();
 
-        // If any camp menu is open, no new prompts/interactions should show.
-        // But pressing E/Escape should close that menu.
         if (CampMenuModal.IsOpen)
         {
             ClearCurrent();
@@ -88,95 +80,50 @@ public class CampInteractionDetector : MonoBehaviour
             return;
         }
 
-        if (autoFindPromptUi && (promptPanel == null || promptText == null))
-            TryAutoFindPromptUi();
-
         FindBestInteractable();
         UpdatePrompt();
         HandleInput();
     }
 
-    void TryAutoFindPromptUi()
+    public void SetPlayer(Transform player)
     {
-        if (!autoFindPromptUi)
-            return;
-
-        if (promptPanel == null && !string.IsNullOrWhiteSpace(promptPanelObjectName))
-        {
-            GameObject foundPanel = GameObject.Find(promptPanelObjectName);
-            if (foundPanel != null)
-                promptPanel = foundPanel;
-        }
-
-        if (promptText == null)
-        {
-            if (!string.IsNullOrWhiteSpace(promptTextObjectName))
-            {
-                GameObject foundTextObject = GameObject.Find(promptTextObjectName);
-                if (foundTextObject != null)
-                    promptText = foundTextObject.GetComponent<TMP_Text>();
-            }
-
-            if (promptText == null && promptPanel != null)
-                promptText = promptPanel.GetComponentInChildren<TMP_Text>(true);
-        }
-    }
-
-    void RefreshPlayerReference()
-    {
-        if (playerTransform != null)
-        {
-            if (player == null)
-                player = playerTransform.GetComponent<GobboController>();
-
-            return;
-        }
-
-        if (!findPlayerByTag)
-            return;
-
-        GameObject found = GameObject.FindGameObjectWithTag(playerTag);
-        if (found == null)
-            return;
-
-        playerTransform = found.transform;
-        player = found.GetComponent<GobboController>();
+        playerTransform = player;
+        this.player = player != null ? player.GetComponent<GobboController>() : null;
     }
 
     void FindBestInteractable()
     {
         Collider2D[] hits = Physics2D.OverlapCircleAll(playerTransform.position, interactRadius, interactableLayers);
 
-        float closestDistance = Mathf.Infinity;
+        float bestDistance = float.MaxValue;
         ICampInteractable bestInteractable = null;
         ICampHoldInteractable bestHoldInteractable = null;
         GameObject bestObject = null;
 
         foreach (Collider2D hit in hits)
         {
-            if (hit == null || !hit.gameObject.activeInHierarchy)
+            if (hit == null) continue;
+
+            ICampInteractable interactable = hit.GetComponentInParent<ICampInteractable>();
+            ICampHoldInteractable holdInteractable = hit.GetComponentInParent<ICampHoldInteractable>();
+
+            if (interactable == null && holdInteractable == null)
                 continue;
 
-            ICampInteractable interactable = FindInterface<ICampInteractable>(hit.gameObject);
-            if (interactable == null)
+            string prompt = interactable != null ? interactable.GetInteractPrompt() : "";
+            string holdPrompt = holdInteractable != null ? holdInteractable.GetHoldPrompt() : "";
+
+            if (string.IsNullOrWhiteSpace(prompt) && string.IsNullOrWhiteSpace(holdPrompt))
                 continue;
 
-            Vector2 closestPoint = hit.ClosestPoint(playerTransform.position);
-            float distance = Vector2.Distance(playerTransform.position, closestPoint);
-
-            if (distance >= closestDistance)
-                continue;
-
-            closestDistance = distance;
-            bestInteractable = interactable;
-            bestHoldInteractable = FindInterface<ICampHoldInteractable>(hit.gameObject);
-            bestObject = hit.gameObject;
-        }
-
-        if (bestObject != currentObject)
-        {
-            holdTimer = 0f;
-            holdTriggered = false;
+            float distance = Vector2.Distance(playerTransform.position, hit.transform.position);
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                bestInteractable = interactable;
+                bestHoldInteractable = holdInteractable;
+                bestObject = hit.gameObject;
+            }
         }
 
         currentInteractable = bestInteractable;
@@ -186,99 +133,63 @@ public class CampInteractionDetector : MonoBehaviour
 
     void UpdatePrompt()
     {
-        if (currentInteractable == null)
-        {
-            HidePrompt();
-            return;
-        }
+        string prompt = currentInteractable != null ? currentInteractable.GetInteractPrompt() : "";
+        string holdPrompt = currentHoldInteractable != null ? currentHoldInteractable.GetHoldPrompt() : "";
 
-        string prompt = currentInteractable.GetInteractPrompt();
-        string holdPrompt = "";
-
-        if (allowHoldInteractions && currentHoldInteractable != null)
-            holdPrompt = currentHoldInteractable.GetHoldPrompt();
-
-        string finalText = "";
-
-        if (!string.IsNullOrWhiteSpace(prompt))
-            finalText = pressPrefix + prompt;
-
-        if (!string.IsNullOrWhiteSpace(holdPrompt))
-        {
-            if (!string.IsNullOrWhiteSpace(finalText))
-                finalText += "\n";
-
-            finalText += holdPrefix + holdPrompt;
-        }
-
-        if (string.IsNullOrWhiteSpace(finalText))
+        if (string.IsNullOrWhiteSpace(prompt) && string.IsNullOrWhiteSpace(holdPrompt))
         {
             HidePrompt();
             return;
         }
 
         if (promptText != null)
-            promptText.text = finalText;
+        {
+            if (!string.IsNullOrWhiteSpace(prompt) && !string.IsNullOrWhiteSpace(holdPrompt))
+                promptText.text = pressPrefix + prompt + "\n" + holdPrefix + holdPrompt;
+            else if (!string.IsNullOrWhiteSpace(prompt))
+                promptText.text = pressPrefix + prompt;
+            else
+                promptText.text = holdPrefix + holdPrompt;
+        }
 
         if (promptPanel != null)
-        {
             promptPanel.SetActive(true);
-            promptPanel.transform.SetAsLastSibling();
-        }
-        else if (logPromptWarnings)
-        {
-            Debug.LogWarning("CampInteractionDetector found an interactable but has no Prompt Panel assigned/found.", this);
-        }
     }
 
     void HandleInput()
     {
-        if (currentInteractable == null)
+        if (cooldownTimer > 0f)
+            return;
+
+        if (currentInteractable != null && Input.GetKeyDown(interactKey))
         {
+            LogInteraction("Pressed", currentObject);
+            currentInteractable.Interact(player);
+            cooldownTimer = interactionCooldown;
             holdTimer = 0f;
             holdTriggered = false;
             return;
         }
 
-        if (Input.GetKeyDown(interactKey))
+        if (!allowHoldInteractions || currentHoldInteractable == null)
         {
             holdTimer = 0f;
             holdTriggered = false;
-
-            if (cooldownTimer <= 0f)
-            {
-                if (logInteractions && currentObject != null)
-                    Debug.Log("CampInteractionDetector interacting with: " + currentObject.name, currentObject);
-
-                currentInteractable.Interact(player);
-                cooldownTimer = interactionCooldown;
-            }
-
             return;
         }
 
         if (Input.GetKey(interactKey))
         {
             holdTimer += Time.deltaTime;
-
-            if (allowHoldInteractions &&
-                !holdTriggered &&
-                cooldownTimer <= 0f &&
-                currentHoldInteractable != null &&
-                holdTimer >= holdSeconds)
+            if (!holdTriggered && holdTimer >= holdSeconds)
             {
-                string holdPrompt = currentHoldInteractable.GetHoldPrompt();
-
-                if (!string.IsNullOrWhiteSpace(holdPrompt))
-                {
-                    holdTriggered = true;
-                    currentHoldInteractable.HoldInteract(player);
-                    cooldownTimer = interactionCooldown;
-                }
+                LogInteraction("Held", currentObject);
+                currentHoldInteractable.HoldInteract(player);
+                holdTriggered = true;
+                cooldownTimer = interactionCooldown;
             }
         }
-
-        if (Input.GetKeyUp(interactKey))
+        else
         {
             holdTimer = 0f;
             holdTriggered = false;
@@ -300,36 +211,16 @@ public class CampInteractionDetector : MonoBehaviour
             promptPanel.SetActive(false);
     }
 
-    T FindInterface<T>(GameObject source) where T : class
+    void LogInteraction(string action, GameObject target)
     {
-        if (source == null)
-            return null;
-
-        MonoBehaviour[] behaviours = source.GetComponents<MonoBehaviour>();
-        foreach (MonoBehaviour behaviour in behaviours)
-        {
-            if (behaviour is T match)
-                return match;
-        }
-
-        behaviours = source.GetComponentsInParent<MonoBehaviour>();
-        foreach (MonoBehaviour behaviour in behaviours)
-        {
-            if (behaviour is T match)
-                return match;
-        }
-
-        return null;
+        if (!logInteractions) return;
+        Debug.Log("[CampInteractionDetector] " + action + " interaction with " + (target != null ? target.name : "unknown"));
     }
 
     void OnDrawGizmosSelected()
     {
-        if (!drawDebugRadius)
-            return;
-
-        Vector3 center = playerTransform != null ? playerTransform.position : transform.position;
-
+        if (!drawDebugRadius || playerTransform == null) return;
         Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(center, interactRadius);
+        Gizmos.DrawWireSphere(playerTransform.position, interactRadius);
     }
 }

@@ -37,6 +37,7 @@ public class CampPlayableSpawner : MonoBehaviour
     [Header("Camera")]
     public CameraFollow cameraFollow;
     public bool assignMainCameraIfMissing = true;
+    public CampInteractionDetector interactionDetector;
 
     [Header("Behavior")]
     public bool spawnOnStart = false;
@@ -130,6 +131,7 @@ public class CampPlayableSpawner : MonoBehaviour
 
         ForceVisible(playerObject, playerSortingOrder);
         AssignCamera(playerObject.transform);
+        AssignInteractionDetector(playerObject.transform);
         return controller;
     }
 
@@ -219,6 +221,12 @@ public class CampPlayableSpawner : MonoBehaviour
             cameraFollow = Camera.main.GetComponent<CameraFollow>();
 
         if (cameraFollow != null) cameraFollow.target = target;
+    }
+
+    void AssignInteractionDetector(Transform target)
+    {
+        if (interactionDetector != null)
+            interactionDetector.SetPlayer(target);
     }
 
     void ForceVisible(GameObject obj, int sortingOrder)

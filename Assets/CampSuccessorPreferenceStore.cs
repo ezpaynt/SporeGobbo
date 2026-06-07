@@ -40,11 +40,16 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
     public static CampSuccessorPreferenceStore GetOrCreate()
     {
         if (Instance != null) return Instance;
+
         CampSuccessorPreferenceStore found = Object.FindAnyObjectByType<CampSuccessorPreferenceStore>(FindObjectsInactive.Include);
-        if (found != null) { Instance = found; return Instance; }
-        GameObject obj = new GameObject("CampSuccessorPreferenceStore");
-        Instance = obj.AddComponent<CampSuccessorPreferenceStore>();
-        return Instance;
+        if (found != null)
+        {
+            Instance = found;
+            return Instance;
+        }
+
+        Debug.LogWarning("CampSuccessorPreferenceStore.GetOrCreate could not find a CampSuccessorPreferenceStore in the scene. Add one to CampScene.");
+        return null;
     }
 
     public void MarkSuccessor(GobboUnitSaveData unit) => SetMarkedSuccessor(unit);

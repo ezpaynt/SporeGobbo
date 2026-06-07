@@ -75,6 +75,7 @@ public class CampDeathHistoryStore : MonoBehaviour
     public static CampDeathHistoryStore GetOrCreate()
     {
         if (Instance != null) return Instance;
+
         CampDeathHistoryStore found = FindAnyObjectByType<CampDeathHistoryStore>();
         if (found != null)
         {
@@ -82,8 +83,8 @@ public class CampDeathHistoryStore : MonoBehaviour
             return found;
         }
 
-        GameObject obj = new GameObject("CampDeathHistoryStore");
-        return obj.AddComponent<CampDeathHistoryStore>();
+        Debug.LogWarning("CampDeathHistoryStore.GetOrCreate could not find a CampDeathHistoryStore in the scene. Add one to CampScene.");
+        return null;
     }
 
     public bool HasAnyDeaths()
