@@ -7,6 +7,8 @@ using UnityEngine.UI;
 public class CampSquadSelect : MonoBehaviour, ICampInteractable
 {
     [Header("Interaction")]
+    [Tooltip("Only used to draw a helpful scene gizmo. Actual range is controlled by CampInteractionDetector.")]
+    public float gizmoRadius = 1.35f;
     public string interactPrompt = "Choose who comes";
 
     [Header("Optional Assigned UI")]
@@ -29,13 +31,11 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
     public CampPlayableSpawner campPlayableSpawner;
     public bool refreshCampVisualsAfterChange = false;
 
-    [Header("Debug")]
-    public bool logMissingReferences = true;
+    [Header("Auto UI Style")]
+    public bool buildReadableUiIfMissing = false;
+    public Vector2 panelSize = new Vector2(860f, 560f);
+    public int panelSortingOrder = 500;
 
-    [HideInInspector] public Vector2 panelSize = new Vector2(860f, 560f);
-    [HideInInspector] public int panelSortingOrder = 500;
-
-    private bool isOpen;
     private readonly List<GameObject> spawnedRows = new List<GameObject>();
 
     void Awake()
@@ -47,7 +47,9 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
 
     void Start()
     {
-        ValidateReferences();
+        if (buildReadableUiIfMissing && (panel == null || activeListParent == null || reserveListParent == null || closeButton == null))
+            BuildReadableUi();
+
         HookCloseButton();
         CloseMenu();
     }
@@ -61,13 +63,13 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
 
     public void OpenMenu(GobboController playerController = null)
     {
+        if (panel == null && buildReadableUiIfMissing) BuildReadableUi();
         if (panel == null)
         {
             Debug.LogWarning("CampSquadSelect missing Panel reference.");
             return;
         }
 
-        isOpen = true;
         CampMenuModal.Open(playerController, this, CloseMenu);
         if (panel != null)
         {
@@ -88,20 +90,8 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
 
     public void CloseMenu()
     {
-        isOpen = false;
         if (panel != null) panel.SetActive(false);
         CampMenuModal.Close(this);
-    }
-
-    void ValidateReferences()
-    {
-        if (!logMissingReferences) return;
-        if (panel == null) Debug.LogWarning("CampSquadSelect missing Panel reference.");
-        if (activeListParent == null) Debug.LogWarning("CampSquadSelect missing Active List Parent reference.");
-        if (reserveListParent == null) Debug.LogWarning("CampSquadSelect missing Reserve List Parent reference.");
-        if (closeButton == null) Debug.LogWarning("CampSquadSelect missing Close Button reference.");
-        if (campPlayableSpawner == null && refreshCampVisualsAfterChange)
-            Debug.LogWarning("CampSquadSelect refreshes camp visuals after change but has no CampPlayableSpawner assigned.");
     }
 
     void HookCloseButton()
@@ -266,25 +256,19 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         if (isMarked && allowClickMarkedButtonToClear)
         {
             GameState.Instance.SetMarkedSuccessorId("");
-            SyncSuccessorPreferenceStore();
+            CampSuccessorPreferenceStore.GetOrCreate().SyncFromGameState();
             CampMessageUI.Show("No successor marked.");
         }
         else
         {
             GameState.Instance.SetMarkedSuccessorId(gobboId);
-            SyncSuccessorPreferenceStore();
+            CampSuccessorPreferenceStore.GetOrCreate().SyncFromGameState();
             GobboUnitSaveData gobbo = GameState.Instance.FindGobboById(gobboId);
             CampMessageUI.Show((gobbo != null ? DisplayName(gobbo) : "That gobbo") + " is marked as successor.");
         }
 
         SporeSaveManager.SaveCurrentSlotFromGameState();
         RefreshMenu();
-    }
-
-    void SyncSuccessorPreferenceStore()
-    {
-        CampSuccessorPreferenceStore store = CampSuccessorPreferenceStore.Instance;
-        if (store != null) store.SyncFromGameState();
     }
 
     bool IsMarkedSuccessor(string gobboId)
@@ -302,7 +286,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         if (GameState.Instance.GetMarkedSuccessor() == null)
             GameState.Instance.SetMarkedSuccessorId("");
 
-        SyncSuccessorPreferenceStore();
+        CampSuccessorPreferenceStore.GetOrCreate().SyncFromGameState();
     }
 
     void EnsureListParentLayout(Transform parent)
@@ -377,6 +361,111 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         spawnedRows.Clear();
     }
 
+    void BuildReadableUi()
+    {
+        if (targetCanvas == null)
+            targetCanvas = Object.FindAnyObjectByType<Canvas>(FindObjectsInactive.Include);
+
+        if (targetCanvas == null)
+        {
+            GameObject canvasObj = new GameObject("CampCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            targetCanvas = canvasObj.GetComponent<Canvas>();
+            targetCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            CanvasScaler scaler = canvasObj.GetComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+        }
+
+        targetCanvas.sortingOrder = Mathf.Max(targetCanvas.sortingOrder, panelSortingOrder);
+
+        panel = new GameObject("SquadSelectPanel_AUTO", typeof(RectTransform), typeof(Image), typeof(CanvasGroup));
+        panel.transform.SetParent(targetCanvas.transform, false);
+        RectTransform panelRt = panel.GetComponent<RectTransform>();
+        panelRt.anchorMin = new Vector2(0.5f, 0.5f);
+        panelRt.anchorMax = new Vector2(0.5f, 0.5f);
+        panelRt.pivot = new Vector2(0.5f, 0.5f);
+        panelRt.anchoredPosition = Vector2.zero;
+        panelRt.sizeDelta = panelSize;
+        panel.GetComponent<Image>().color = new Color(0.055f, 0.045f, 0.035f, 0.94f);
+
+        CanvasGroup group = panel.GetComponent<CanvasGroup>();
+        group.alpha = 1f;
+        group.interactable = true;
+        group.blocksRaycasts = true;
+
+        GameObject titleObj = new GameObject("Title", typeof(RectTransform));
+        titleObj.transform.SetParent(panel.transform, false);
+        titleText = titleObj.AddComponent<TextMeshProUGUI>();
+        titleText.alignment = TextAlignmentOptions.Center;
+        titleText.fontSize = 26;
+        titleText.fontStyle = FontStyles.Bold;
+        titleText.color = Color.white;
+        RectTransform titleRt = titleText.rectTransform;
+        titleRt.anchorMin = new Vector2(0f, 1f);
+        titleRt.anchorMax = new Vector2(1f, 1f);
+        titleRt.pivot = new Vector2(0.5f, 1f);
+        titleRt.offsetMin = new Vector2(20f, -86f);
+        titleRt.offsetMax = new Vector2(-20f, -16f);
+
+        activeListParent = CreateColumn(panel.transform, "ActiveList", new Vector2(0.04f, 0.16f), new Vector2(0.48f, 0.78f));
+        reserveListParent = CreateColumn(panel.transform, "ReserveList", new Vector2(0.52f, 0.16f), new Vector2(0.96f, 0.78f));
+        closeButton = CreateButton(panel.transform, "CloseButton", "Close", new Vector2(0.5f, 0.055f), new Vector2(160f, 42f));
+        HookCloseButton();
+    }
+
+    Transform CreateColumn(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax)
+    {
+        GameObject col = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
+        col.transform.SetParent(parent, false);
+        RectTransform rt = col.GetComponent<RectTransform>();
+        rt.anchorMin = anchorMin;
+        rt.anchorMax = anchorMax;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+
+        Image image = col.GetComponent<Image>();
+        image.color = new Color(0.13f, 0.11f, 0.085f, 0.96f);
+
+        VerticalLayoutGroup layout = col.GetComponent<VerticalLayoutGroup>();
+        layout.padding = new RectOffset(10, 10, 10, 10);
+        layout.spacing = 7f;
+        layout.childControlHeight = false;
+        layout.childControlWidth = true;
+        layout.childForceExpandHeight = false;
+        layout.childForceExpandWidth = true;
+
+        return col.transform;
+    }
+
+    Button CreateButton(Transform parent, string name, string label, Vector2 normalizedPos, Vector2 size)
+    {
+        GameObject obj = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+        obj.transform.SetParent(parent, false);
+        RectTransform rt = obj.GetComponent<RectTransform>();
+        rt.anchorMin = normalizedPos;
+        rt.anchorMax = normalizedPos;
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = size;
+        rt.anchoredPosition = Vector2.zero;
+
+        Image image = obj.GetComponent<Image>();
+        image.color = new Color(0.62f, 0.48f, 0.25f, 1f);
+
+        Button button = obj.GetComponent<Button>();
+        button.targetGraphic = image;
+
+        TMP_Text txt = CreateText(obj.transform, "Text", TextAlignmentOptions.Center, 18, FontStyles.Bold);
+        txt.rectTransform.anchorMin = Vector2.zero;
+        txt.rectTransform.anchorMax = Vector2.one;
+        txt.rectTransform.offsetMin = Vector2.zero;
+        txt.rectTransform.offsetMax = Vector2.zero;
+        txt.color = Color.white;
+        txt.text = label;
+        txt.raycastTarget = false;
+
+        return button;
+    }
+
     TMP_Text CreateText(Transform parent, string name, TextAlignmentOptions alignment, int fontSize, FontStyles style)
     {
         GameObject obj = new GameObject(name, typeof(RectTransform));
@@ -390,12 +479,10 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         return text;
     }
 
+
     void OnDrawGizmosSelected()
     {
-        Collider2D col = GetComponent<Collider2D>();
-        if (col == null) return;
-
         Gizmos.color = Color.green;
-        Gizmos.DrawWireCube(col.bounds.center, col.bounds.size);
+        Gizmos.DrawWireSphere(transform.position, gizmoRadius);
     }
 }

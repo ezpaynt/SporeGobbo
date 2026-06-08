@@ -1,10 +1,12 @@
+using System.Collections.Generic;
+using System.Text;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
 /// Interactable camp location for reading saved death history.
-/// Visibility is controlled by CampDeathHistoryStore data.
+/// Keep this GameObject active in the scene. This script hides/shows only the art, collider, and optional marker sprite.
 /// </summary>
 public class CampOldBonesWall : MonoBehaviour, ICampInteractable
 {
@@ -15,6 +17,8 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
 
     [Header("Camp Interaction")]
     public string interactPrompt = "Read Old Bones";
+    [Tooltip("ON = CampInteractionDetector owns the E prompt. OFF = this script uses its old distance/E check.")]
+    public bool useSharedCampInteraction = true;
 
     [Header("UI")]
     public GameObject panel;
@@ -25,24 +29,42 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
     public string emptyBuddyText = "No fallen buddies are on the wall yet.";
     public string emptyLeaderText = "No fallen leaders yet.";
 
+    [Header("Legacy Input Fallback")]
+    public KeyCode interactKey = KeyCode.E;
+    public float interactRange = 1.75f;
+    public Transform playerOverride;
+
+    bool playerNearby;
+
     void Awake()
     {
         HookButtons();
-        if (panel != null) panel.SetActive(false);
     }
 
     void Start()
     {
+        HookButtons();
+        if (panel != null) panel.SetActive(false);
         RefreshVisibility();
     }
 
     void OnEnable()
     {
+        HookButtons();
         RefreshVisibility();
     }
 
     void Update()
     {
+        RefreshVisibility();
+
+        if (!useSharedCampInteraction)
+        {
+            Transform player = playerOverride != null ? playerOverride : FindPlayer();
+            playerNearby = player != null && Vector2.Distance(transform.position, player.position) <= interactRange;
+            if (playerNearby && Input.GetKeyDown(interactKey)) TogglePanel();
+        }
+
         if (panel != null && panel.activeSelf && Input.GetKeyDown(KeyCode.Escape))
             ClosePanel();
     }
@@ -55,11 +77,15 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
     public void Interact(GobboController player)
     {
         if (!IsVisible()) return;
+        if (player != null) playerOverride = player.transform;
         OpenPanel();
     }
 
     void HookButtons()
     {
+        if (continueButton == null && panel != null)
+            continueButton = panel.GetComponentInChildren<Button>(true);
+
         if (continueButton != null)
         {
             continueButton.onClick.RemoveAllListeners();
@@ -76,14 +102,8 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
 
     public void OpenPanel()
     {
-        if (panel == null)
-        {
-            Debug.LogWarning("CampOldBonesWall missing Panel reference.");
-            return;
-        }
-
+        if (panel == null) return;
         HookButtons();
-        CampMenuModal.Open(null, this, ClosePanel);
         panel.SetActive(true);
         panel.transform.SetAsLastSibling();
         RefreshPanel();
@@ -92,7 +112,6 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
     public void ClosePanel()
     {
         if (panel != null) panel.SetActive(false);
-        CampMenuModal.Close(this);
         Time.timeScale = 1f;
     }
 
@@ -109,6 +128,9 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
         if (wallVisualRoot != null)
             wallVisualRoot.SetActive(visible);
 
+        // Keep the interaction collider alive even while the wall is hidden.
+        // CampInteractionDetector needs this spot to stay detectable; GetInteractPrompt()
+        // and Interact() already prevent use before the wall is unlocked.
 
         if (hideThisMarkerSpriteUntilVisible)
         {
@@ -120,44 +142,51 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
 
     public void RefreshPanel()
     {
-        CampDeathHistoryStore store = CampDeathHistoryStore.Instance;
+        CampDeathHistoryStore store = CampDeathHistoryStore.GetOrCreate();
+        if (titleText != null) titleText.text = "Old Bones";
 
-        if (titleText != null)
-            titleText.text = "Old Bones Wall";
+        List<DeadBuddyRecord> buddies = new List<DeadBuddyRecord>();
+        List<DeadBuddyRecord> leaders = new List<DeadBuddyRecord>();
 
-        if (store == null)
+        if (store != null && store.deadBuddyHistory != null)
         {
-            if (deadBuddiesText != null) deadBuddiesText.text = "No CampDeathHistoryStore exists in this scene.";
-            if (deadLeadersText != null) deadLeadersText.text = emptyLeaderText;
-            return;
-        }
-
-        if (deadBuddiesText != null)
-        {
-            System.Text.StringBuilder buddyBuilder = new System.Text.StringBuilder();
-            if (store.deadBuddyHistory != null)
+            foreach (DeadBuddyRecord record in store.deadBuddyHistory)
             {
-                foreach (DeadBuddyRecord record in store.deadBuddyHistory)
-                {
-                    if (record != null && !record.wasLeader)
-                        buddyBuilder.AppendLine(record.GetDisplayLine());
-                }
+                if (record == null) continue;
+                if (record.wasLeader) leaders.Add(record);
+                else buddies.Add(record);
             }
-            deadBuddiesText.text = buddyBuilder.Length > 0 ? buddyBuilder.ToString() : emptyBuddyText;
         }
 
-        if (deadLeadersText != null)
+        if (deadBuddiesText != null) deadBuddiesText.text = BuildList("Fallen Buddies", buddies, emptyBuddyText);
+        if (deadLeadersText != null) deadLeadersText.text = BuildList("Fallen Leaders", leaders, emptyLeaderText);
+    }
+
+    string BuildList(string header, List<DeadBuddyRecord> records, string empty)
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.AppendLine(header);
+        sb.AppendLine();
+
+        if (records == null || records.Count == 0)
         {
-            System.Text.StringBuilder leaderBuilder = new System.Text.StringBuilder();
-            if (store.deadBuddyHistory != null)
-            {
-                foreach (DeadBuddyRecord record in store.deadBuddyHistory)
-                {
-                    if (record != null && record.wasLeader)
-                        leaderBuilder.AppendLine(record.GetDisplayLine());
-                }
-            }
-            deadLeadersText.text = leaderBuilder.Length > 0 ? leaderBuilder.ToString() : emptyLeaderText;
+            sb.AppendLine(empty);
+            return sb.ToString();
         }
+
+        foreach (DeadBuddyRecord record in records)
+        {
+            if (record == null) continue;
+            sb.AppendLine("• " + record.GetDisplayLine());
+            sb.AppendLine();
+        }
+
+        return sb.ToString();
+    }
+
+    Transform FindPlayer()
+    {
+        GobboController player = FindAnyObjectByType<GobboController>();
+        return player != null ? player.transform : null;
     }
 }
