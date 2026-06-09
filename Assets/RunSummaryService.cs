@@ -223,7 +223,7 @@ public static class RunSummaryService
     static void RegisterLeveledBuddyReport(RunSummaryData lastRun, BuddyRunReport report)
     {
         if (lastRun == null || report == null || !report.leveledUp) return;
-        string label = report.displayName + " Lv " + report.levelStart + "  " + report.levelEnd;
+        string label = report.displayName + " Lv " + report.levelStart + " \u2192 " + report.levelEnd;
         if (!lastRun.leveledBuddyNames.Contains(label)) lastRun.leveledBuddyNames.Add(label);
     }
 
