@@ -46,6 +46,8 @@ public class GobboUnitSaveData
     public int xp = 0;
     public int xpToNextLevel = 10;
     public int campLevel = 1;
+    public BuddyGrowthChoiceType pendingGrowthChoiceType = BuddyGrowthChoiceType.None;
+    public int pendingGrowthLevelWaiting = 0;
     public bool pendingEvolution = false;
     public int evolutionLevelWaiting = 0;
     public int runsWaitingForEvolution = 0;
@@ -173,6 +175,22 @@ public class GobboUnitSaveData
         equippedCosmetics ??= new List<string>();
         unlockedItems ??= new List<string>();
 
+        if (pendingEvolution && pendingGrowthChoiceType == BuddyGrowthChoiceType.None)
+        {
+            pendingGrowthChoiceType = BuddyGrowthChoiceType.Evolution;
+            pendingGrowthLevelWaiting = evolutionLevelWaiting;
+        }
+
+        if (pendingGrowthChoiceType == BuddyGrowthChoiceType.Evolution)
+        {
+            pendingEvolution = true;
+            if (pendingGrowthLevelWaiting <= 0) pendingGrowthLevelWaiting = evolutionLevelWaiting;
+            if (evolutionLevelWaiting <= 0) evolutionLevelWaiting = pendingGrowthLevelWaiting;
+        }
+
+        if (pendingGrowthChoiceType == BuddyGrowthChoiceType.None)
+            pendingGrowthLevelWaiting = 0;
+
         if (level <= 0) level = 1;
         if (campLevel <= 0) campLevel = level;
         if (xp < 0) xp = 0;
@@ -288,6 +306,8 @@ public class GobboUnitSaveData
         copy.xp = xp;
         copy.xpToNextLevel = xpToNextLevel;
         copy.campLevel = campLevel;
+        copy.pendingGrowthChoiceType = pendingGrowthChoiceType;
+        copy.pendingGrowthLevelWaiting = pendingGrowthLevelWaiting;
         copy.pendingEvolution = pendingEvolution;
         copy.evolutionLevelWaiting = evolutionLevelWaiting;
         copy.runsWaitingForEvolution = runsWaitingForEvolution;
