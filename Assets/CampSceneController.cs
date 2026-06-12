@@ -23,6 +23,11 @@ public class CampSceneController : MonoBehaviour
     public Button[] campBuddyEvolutionButtons = new Button[3];
     public TMP_Text[] campBuddyEvolutionTexts = new TMP_Text[3];
 
+    [Header("Buddy Stat Card Rerolls")]
+    public Button buddyStatRerollButton;
+    public TMP_Text buddyStatRerollText;
+    public int buddyStatStartingRerollCost = 1;
+
     [Header("Optional Camp Management Screen Later")]
     public GameObject campMenuPanel;
 
@@ -51,7 +56,9 @@ public class CampSceneController : MonoBehaviour
 
     private readonly List<BuddyTypeSetup> currentEvolutionChoices = new List<BuddyTypeSetup>();
     private readonly List<GobboCard> currentStatCardChoices = new List<GobboCard>();
+    private readonly List<string> currentBuddyStatSeenCardIds = new List<string>();
     private string currentlyEvolvingBuddyId = "";
+    private int currentBuddyStatRerollCost = 1;
 
     private void Awake()
     {
@@ -133,6 +140,7 @@ public class CampSceneController : MonoBehaviour
         if (survivorsPanel != null) survivorsPanel.SetActive(false);
         if (campMenuPanel != null) campMenuPanel.SetActive(false);
         if (campBuddyEvolutionPanel != null) campBuddyEvolutionPanel.SetActive(false);
+        HideBuddyStatRerollUI();
 
         CampSuccessionUI successionUI = Object.FindAnyObjectByType<CampSuccessionUI>(FindObjectsInactive.Include);
         if (successionUI != null) successionUI.TryOpenDeathFlow();
@@ -217,6 +225,21 @@ public class CampSceneController : MonoBehaviour
             if (back != null) campBuddyEvolutionBackButton = back.GetComponent<Button>();
         }
 
+        if (buddyStatRerollButton == null)
+        {
+            Transform reroll = FindChildTransform(campBuddyEvolutionPanel.transform, "BuddyStatRerollButton", "StatCardRerollButton", "RerollButton", "Reroll");
+            if (reroll != null) buddyStatRerollButton = reroll.GetComponent<Button>();
+        }
+
+        if (buddyStatRerollText == null && buddyStatRerollButton != null)
+            buddyStatRerollText = buddyStatRerollButton.GetComponentInChildren<TMP_Text>(true);
+
+        if (buddyStatRerollText == null)
+        {
+            Transform rerollText = FindChildTransform(campBuddyEvolutionPanel.transform, "BuddyStatRerollText", "StatCardRerollText", "RerollText");
+            if (rerollText != null) buddyStatRerollText = rerollText.GetComponent<TMP_Text>();
+        }
+
         Button[] buttons = campBuddyEvolutionPanel.GetComponentsInChildren<Button>(true);
         int choiceIndex = 0;
         foreach (Button button in buttons)
@@ -236,8 +259,10 @@ public class CampSceneController : MonoBehaviour
     {
         if (button == null) return false;
         if (campBuddyEvolutionBackButton != null && button == campBuddyEvolutionBackButton) return false;
+        if (buddyStatRerollButton != null && button == buddyStatRerollButton) return false;
         string name = button.gameObject.name;
         if (name == "BackButton" || name == "Back" || name == "CancelButton" || name == "CloseButton") return false;
+        if (name == "BuddyStatRerollButton" || name == "StatCardRerollButton" || name == "RerollButton" || name == "Reroll") return false;
         return true;
     }
 
@@ -258,6 +283,11 @@ public class CampSceneController : MonoBehaviour
             campBuddyEvolutionBackButton.onClick.RemoveAllListeners();
             campBuddyEvolutionBackButton.onClick.AddListener(CloseCampBuddyEvolutionPanel);
         }
+        if (buddyStatRerollButton != null)
+        {
+            buddyStatRerollButton.onClick.RemoveAllListeners();
+            buddyStatRerollButton.onClick.AddListener(TryRerollBuddyStatCards);
+        }
     }
 
     void ShowRunStatsScreen()
@@ -266,6 +296,7 @@ public class CampSceneController : MonoBehaviour
         if (survivorsPanel != null) survivorsPanel.SetActive(false);
         if (campMenuPanel != null) campMenuPanel.SetActive(false);
         if (campBuddyEvolutionPanel != null) campBuddyEvolutionPanel.SetActive(false);
+        HideBuddyStatRerollUI();
         FillRunStatsText();
     }
 
@@ -275,6 +306,7 @@ public class CampSceneController : MonoBehaviour
         if (survivorsPanel != null) survivorsPanel.SetActive(true);
         if (campMenuPanel != null) campMenuPanel.SetActive(false);
         if (campBuddyEvolutionPanel != null) campBuddyEvolutionPanel.SetActive(false);
+        HideBuddyStatRerollUI();
         RefreshSurvivorsScreen();
     }
 
@@ -295,6 +327,7 @@ public class CampSceneController : MonoBehaviour
         if (survivorsPanel != null) survivorsPanel.SetActive(false);
         if (campMenuPanel != null) campMenuPanel.SetActive(false);
         if (campBuddyEvolutionPanel != null) campBuddyEvolutionPanel.SetActive(false);
+        HideBuddyStatRerollUI();
 
         if (campPlayableSpawner != null)
         {
@@ -476,6 +509,7 @@ public class CampSceneController : MonoBehaviour
             return;
         }
 
+        HideBuddyStatRerollUI();
         BuildCampEvolutionChoices(buddy);
         if (survivorsPanel != null) survivorsPanel.SetActive(false);
         if (runStatsPanel != null) runStatsPanel.SetActive(false);
@@ -503,7 +537,8 @@ public class CampSceneController : MonoBehaviour
             return;
         }
 
-        BuildCampStatCardChoices(buddy);
+        ResetBuddyStatRerollSession();
+        BuildCampStatCardChoices(buddy, true);
         if (currentStatCardChoices.Count == 0)
         {
             Debug.LogWarning("No buddy stat card choices available for " + buddy.displayName);
@@ -526,6 +561,7 @@ public class CampSceneController : MonoBehaviour
             ChooseCampStatCard);
 
         if (campBuddyEvolutionBackButton != null) campBuddyEvolutionBackButton.gameObject.SetActive(true);
+        ShowBuddyStatRerollUI();
 
         Debug.Log("Opened buddy stat card panel with " + currentStatCardChoices.Count + " choices for " + buddy.displayName);
     }
@@ -541,14 +577,98 @@ public class CampSceneController : MonoBehaviour
         }
     }
 
-    void BuildCampStatCardChoices(GobboUnitSaveData buddy)
+    void BuildCampStatCardChoices(GobboUnitSaveData buddy, bool excludeSeen = false)
     {
         currentStatCardChoices.Clear();
-        List<GobboCard> choices = BuddyProgression.GetStatCardChoices(buddy, 3);
+        List<string> excludeIds = excludeSeen ? currentBuddyStatSeenCardIds : null;
+        List<GobboCard> choices = BuddyProgression.GetStatCardChoices(buddy, 3, excludeIds);
+
+        if (choices.Count == 0 && excludeSeen && currentBuddyStatSeenCardIds.Count > 0)
+            choices = BuddyProgression.GetStatCardChoices(buddy, 3, null);
+
         foreach (GobboCard card in choices)
         {
             if (card != null) currentStatCardChoices.Add(card);
         }
+
+        AddSeenBuddyStatCards(currentStatCardChoices);
+    }
+
+    void AddSeenBuddyStatCards(List<GobboCard> choices)
+    {
+        if (choices == null) return;
+        foreach (GobboCard card in choices)
+        {
+            if (card == null || string.IsNullOrWhiteSpace(card.cardId)) continue;
+            if (!currentBuddyStatSeenCardIds.Contains(card.cardId)) currentBuddyStatSeenCardIds.Add(card.cardId);
+        }
+    }
+
+    void ResetBuddyStatRerollSession()
+    {
+        currentBuddyStatRerollCost = Mathf.Max(1, buddyStatStartingRerollCost);
+        currentBuddyStatSeenCardIds.Clear();
+    }
+
+    void TryRerollBuddyStatCards()
+    {
+        GobboUnitSaveData buddy = GameState.Instance != null ? GameState.Instance.FindOwnedGobbo(currentlyEvolvingBuddyId) : null;
+        if (buddy == null)
+        {
+            Debug.LogWarning("Could not find currently growing buddy for reroll: " + currentlyEvolvingBuddyId);
+            RefreshBuddyStatRerollUI("No buddy selected");
+            return;
+        }
+
+        if (!CampResourceService.TrySpend(GameState.Instance, CampResourceType.Shinies, currentBuddyStatRerollCost, true))
+        {
+            Debug.Log("Not enough shinies to reroll buddy stat cards.");
+            RefreshBuddyStatRerollUI("Not enough shinies");
+            return;
+        }
+
+        currentBuddyStatRerollCost++;
+        BuildCampStatCardChoices(buddy, true);
+        if (currentStatCardChoices.Count == 0)
+            BuildCampStatCardChoices(buddy, false);
+
+        CampBuddyStatCardChoicePresenter.Show(
+            campBuddyEvolutionPanel,
+            campBuddyEvolutionTitle,
+            campBuddyEvolutionButtons,
+            campBuddyEvolutionTexts,
+            buddy,
+            currentStatCardChoices,
+            ChooseCampStatCard);
+
+        ShowBuddyStatRerollUI();
+    }
+
+    void ShowBuddyStatRerollUI()
+    {
+        if (buddyStatRerollButton != null) buddyStatRerollButton.gameObject.SetActive(true);
+        if (buddyStatRerollText != null) buddyStatRerollText.gameObject.SetActive(true);
+        RefreshBuddyStatRerollUI();
+    }
+
+    void HideBuddyStatRerollUI()
+    {
+        if (buddyStatRerollButton != null) buddyStatRerollButton.gameObject.SetActive(false);
+        if (buddyStatRerollText != null) buddyStatRerollText.gameObject.SetActive(false);
+    }
+
+    void RefreshBuddyStatRerollUI(string overrideText = "")
+    {
+        int cost = Mathf.Max(1, currentBuddyStatRerollCost);
+        int shinies = CampResourceService.GetAmount(GameState.Instance, CampResourceType.Shinies);
+        bool hasEnough = shinies >= cost;
+        bool hasChoices = currentStatCardChoices.Count > 0;
+
+        if (buddyStatRerollText != null)
+            buddyStatRerollText.text = string.IsNullOrWhiteSpace(overrideText) ? "Reroll (" + cost + " shiny)" : overrideText;
+
+        if (buddyStatRerollButton != null)
+            buddyStatRerollButton.interactable = hasEnough && hasChoices;
     }
 
     void ChooseCampEvolution(int choiceIndex)
@@ -615,9 +735,11 @@ public class CampSceneController : MonoBehaviour
         currentlyEvolvingBuddyId = "";
         currentEvolutionChoices.Clear();
         currentStatCardChoices.Clear();
+        currentBuddyStatSeenCardIds.Clear();
         CampBuddyGrowthChoicePresenter.Hide(campBuddyEvolutionPanel, campBuddyEvolutionButtons, campBuddyEvolutionTexts);
         CampBuddyStatCardChoicePresenter.Hide(campBuddyEvolutionPanel, campBuddyEvolutionButtons, campBuddyEvolutionTexts);
         if (campBuddyEvolutionBackButton != null) campBuddyEvolutionBackButton.gameObject.SetActive(true);
+        HideBuddyStatRerollUI();
         if (survivorsPanel != null) survivorsPanel.SetActive(true);
     }
 
