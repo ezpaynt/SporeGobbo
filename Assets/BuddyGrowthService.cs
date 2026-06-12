@@ -31,6 +31,13 @@ public static class BuddyGrowthService
     {
         if (buddy == null) return false;
         buddy.EnsureRuntimeDefaults();
+        return HasCurrentPendingGrowth(buddy) || GetQueuedGrowthCount(buddy) > 0;
+    }
+
+    public static bool HasCurrentPendingGrowth(GobboUnitSaveData buddy)
+    {
+        if (buddy == null) return false;
+        buddy.EnsureRuntimeDefaults();
         return buddy.pendingGrowthChoiceType != BuddyGrowthChoiceType.None || buddy.pendingEvolution;
     }
 
@@ -39,6 +46,16 @@ public static class BuddyGrowthService
         if (buddy == null) return BuddyGrowthChoiceType.None;
         buddy.EnsureRuntimeDefaults();
         if (buddy.pendingGrowthChoiceType != BuddyGrowthChoiceType.None) return buddy.pendingGrowthChoiceType;
-        return buddy.pendingEvolution ? BuddyGrowthChoiceType.Evolution : BuddyGrowthChoiceType.None;
+        if (buddy.pendingEvolution) return BuddyGrowthChoiceType.Evolution;
+        if (buddy.pendingGrowthQueue != null && buddy.pendingGrowthQueue.Count > 0 && buddy.pendingGrowthQueue[0] != null)
+            return buddy.pendingGrowthQueue[0].growthType;
+        return BuddyGrowthChoiceType.None;
+    }
+
+    public static int GetQueuedGrowthCount(GobboUnitSaveData buddy)
+    {
+        if (buddy == null) return 0;
+        buddy.EnsureRuntimeDefaults();
+        return buddy.pendingGrowthQueue != null ? buddy.pendingGrowthQueue.Count : 0;
     }
 }
