@@ -9,9 +9,7 @@ public static class BuddyGrowthService
 
         foreach (GobboUnitSaveData buddy in state.ownedGobbos)
         {
-            if (buddy == null) continue;
-            buddy.EnsureRuntimeDefaults();
-            if (buddy.pendingEvolution) result.Add(buddy);
+            if (HasPendingGrowth(buddy)) result.Add(buddy);
         }
 
         return result;
@@ -23,11 +21,24 @@ public static class BuddyGrowthService
 
         foreach (GobboUnitSaveData buddy in state.ownedGobbos)
         {
-            if (buddy == null) continue;
-            buddy.EnsureRuntimeDefaults();
-            if (buddy.pendingEvolution) return true;
+            if (HasPendingGrowth(buddy)) return true;
         }
 
         return false;
+    }
+
+    public static bool HasPendingGrowth(GobboUnitSaveData buddy)
+    {
+        if (buddy == null) return false;
+        buddy.EnsureRuntimeDefaults();
+        return buddy.pendingGrowthChoiceType != BuddyGrowthChoiceType.None || buddy.pendingEvolution;
+    }
+
+    public static BuddyGrowthChoiceType GetPendingGrowthChoiceType(GobboUnitSaveData buddy)
+    {
+        if (buddy == null) return BuddyGrowthChoiceType.None;
+        buddy.EnsureRuntimeDefaults();
+        if (buddy.pendingGrowthChoiceType != BuddyGrowthChoiceType.None) return buddy.pendingGrowthChoiceType;
+        return buddy.pendingEvolution ? BuddyGrowthChoiceType.Evolution : BuddyGrowthChoiceType.None;
     }
 }
