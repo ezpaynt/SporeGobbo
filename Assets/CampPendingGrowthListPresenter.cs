@@ -41,16 +41,24 @@ public static class CampPendingGrowthListPresenter
         rowRect.pivot = new Vector2(0.5f, 1f);
         rowRect.sizeDelta = new Vector2(0f, 48f);
 
+        LayoutElement rowLayout = row.AddComponent<LayoutElement>();
+        rowLayout.minHeight = 48f;
+        rowLayout.preferredHeight = 48f;
+
         HorizontalLayoutGroup layout = row.AddComponent<HorizontalLayoutGroup>();
         layout.childAlignment = TextAnchor.MiddleLeft;
         layout.spacing = 10f;
         layout.padding = new RectOffset(0, 0, 4, 4);
+        layout.childControlWidth = true;
+        layout.childControlHeight = true;
         layout.childForceExpandWidth = false;
-        layout.childForceExpandHeight = true;
+        layout.childForceExpandHeight = false;
 
         string label = buddy.displayName + " - " + FormatGrowthType(BuddyGrowthService.GetPendingGrowthChoiceType(buddy));
         TMP_Text text = AddText(row.transform, label, false);
         LayoutElement textLayout = text.gameObject.AddComponent<LayoutElement>();
+        textLayout.minWidth = 160f;
+        textLayout.preferredWidth = 240f;
         textLayout.flexibleWidth = 1f;
         textLayout.minHeight = 40f;
 
@@ -85,7 +93,14 @@ public static class CampPendingGrowthListPresenter
         item.transform.SetParent(parent, false);
 
         RectTransform rect = item.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(110f, 36f);
+        rect.sizeDelta = new Vector2(120f, 36f);
+
+        LayoutElement layout = item.AddComponent<LayoutElement>();
+        layout.minWidth = 120f;
+        layout.preferredWidth = 120f;
+        layout.flexibleWidth = 0f;
+        layout.minHeight = 36f;
+        layout.preferredHeight = 36f;
 
         Image image = item.AddComponent<Image>();
         image.color = Color.white;
@@ -108,6 +123,8 @@ public static class CampPendingGrowthListPresenter
         label.fontStyle = FontStyles.Bold;
         label.alignment = TextAlignmentOptions.Center;
         label.color = new Color(0.196f, 0.196f, 0.196f, 1f);
+        label.enableWordWrapping = false;
+        label.overflowMode = TextOverflowModes.Overflow;
         label.raycastTarget = false;
 
         return button;
