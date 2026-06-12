@@ -455,42 +455,15 @@ public class CampSceneController : MonoBehaviour
         if (survivorsPanel != null) survivorsPanel.SetActive(false);
         if (runStatsPanel != null) runStatsPanel.SetActive(false);
         if (campMenuPanel != null) campMenuPanel.SetActive(false);
-        if (campBuddyEvolutionTitle != null) campBuddyEvolutionTitle.text = "Choose what " + buddy.displayName + " grows into";
 
-        for (int i = 0; i < campBuddyEvolutionButtons.Length; i++)
-        {
-            Button button = campBuddyEvolutionButtons[i];
-            if (button == null) continue;
-            if (i >= currentEvolutionChoices.Count)
-            {
-                button.gameObject.SetActive(false);
-                continue;
-            }
-
-            BuddyTypeSetup setup = currentEvolutionChoices[i];
-            button.gameObject.SetActive(true);
-            button.interactable = true;
-            button.onClick.RemoveAllListeners();
-            int index = i;
-            button.onClick.AddListener(() => ChooseCampEvolution(index));
-            Image image = button.GetComponent<Image>();
-            if (image != null) image.raycastTarget = true;
-            if (i < campBuddyEvolutionTexts.Length && campBuddyEvolutionTexts[i] != null)
-            {
-                campBuddyEvolutionTexts[i].text = setup.displayName + "\nHP: " + setup.maxHealth + "\nDMG: " + setup.damage + "\nSPD: " + setup.moveSpeed.ToString("0.0");
-                campBuddyEvolutionTexts[i].raycastTarget = false;
-            }
-        }
-
-        campBuddyEvolutionPanel.SetActive(true);
-        campBuddyEvolutionPanel.transform.SetAsLastSibling();
-        CanvasGroup group = campBuddyEvolutionPanel.GetComponent<CanvasGroup>();
-        if (group != null)
-        {
-            group.alpha = 1f;
-            group.interactable = true;
-            group.blocksRaycasts = true;
-        }
+        CampBuddyGrowthChoicePresenter.Show(
+            campBuddyEvolutionPanel,
+            campBuddyEvolutionTitle,
+            campBuddyEvolutionButtons,
+            campBuddyEvolutionTexts,
+            buddy,
+            currentEvolutionChoices,
+            ChooseCampEvolution);
 
         Debug.Log("Opened CampBuddyEvolutionPanel with " + currentEvolutionChoices.Count + " choices for " + buddy.displayName);
     }
@@ -548,7 +521,7 @@ public class CampSceneController : MonoBehaviour
     {
         currentlyEvolvingBuddyId = "";
         currentEvolutionChoices.Clear();
-        if (campBuddyEvolutionPanel != null) campBuddyEvolutionPanel.SetActive(false);
+        CampBuddyGrowthChoicePresenter.Hide(campBuddyEvolutionPanel, campBuddyEvolutionButtons, campBuddyEvolutionTexts);
         if (survivorsPanel != null) survivorsPanel.SetActive(true);
     }
 
