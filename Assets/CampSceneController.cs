@@ -576,19 +576,11 @@ public class CampSceneController : MonoBehaviour
         if (label != null) label.text = hasPending ? "Grow Ready Buddy" : "Continue";
     }
 
-    bool HasPendingBuddyEvolutions() => GetPendingBuddyEvolutions().Count > 0;
+    bool HasPendingBuddyEvolutions() => BuddyGrowthService.HasPendingGrowth(GameState.Instance);
 
     List<GobboUnitSaveData> GetPendingBuddyEvolutions()
     {
-        List<GobboUnitSaveData> result = new List<GobboUnitSaveData>();
-        if (GameState.Instance == null || GameState.Instance.ownedGobbos == null) return result;
-        foreach (GobboUnitSaveData buddy in GameState.Instance.ownedGobbos)
-        {
-            if (buddy == null) continue;
-            buddy.EnsureRuntimeDefaults();
-            if (buddy.pendingEvolution) result.Add(buddy);
-        }
-        return result;
+        return BuddyGrowthService.GetPendingGrowthBuddies(GameState.Instance);
     }
 
     void EnsureGameState()
