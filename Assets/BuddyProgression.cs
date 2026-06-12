@@ -5,7 +5,12 @@ public static class BuddyProgression
 {
     public const float ActiveFoodShare = 0.70f;
     public const float ReserveFoodShare = 0.30f;
-    public const int TestBabyXPToNextLevel = 1;
+
+    public const int BuddyBaseXPToNextLevel = 8;
+    public const float BuddyXPGrowthRate = 1.35f;
+    public const bool UseFastBuddyXPForTesting = false;
+    public const float BuddyTestingXPCostDivisor = 4f;
+
     public static readonly int[] EvolutionLevels = { 2, 6, 12, 24, 48 };
 
     public static void PrepareNewBaby(GobboUnitSaveData unit)
@@ -18,7 +23,7 @@ public static class BuddyProgression
         unit.ageStage = GobboAgeStage.Baby;
         unit.level = 1;
         unit.xp = 0;
-        unit.xpToNextLevel = TestBabyXPToNextLevel;
+        unit.xpToNextLevel = GetXPToNextLevel(unit.level);
         unit.pendingGrowthChoiceType = BuddyGrowthChoiceType.None;
         unit.pendingGrowthLevelWaiting = 0;
         unit.pendingEvolution = false;
@@ -34,20 +39,40 @@ public static class BuddyProgression
         if (unit == null || amount <= 0) return;
         unit.EnsureId();
         unit.EnsureRuntimeDefaults();
-        if (unit.xpToNextLevel <= 0) unit.xpToNextLevel = TestBabyXPToNextLevel;
+        EnsureBuddyXPThreshold(unit);
 
         unit.xp += amount;
         while (unit.xp >= unit.xpToNextLevel)
         {
             unit.xp -= unit.xpToNextLevel;
             unit.level++;
-            unit.xpToNextLevel = Mathf.Max(2, Mathf.RoundToInt(unit.xpToNextLevel * 1.35f) + 1);
+            unit.xpToNextLevel = GetXPToNextLevel(unit.level);
             unit.maxHealth += 2;
             unit.health = Mathf.Clamp(unit.health, 1, unit.maxHealth);
             if (unit.level % 3 == 0) unit.damage += 1;
             unit.attack = Mathf.Max(unit.attack, unit.damage);
             if (IsEvolutionLevel(unit.level)) MarkPendingEvolution(unit, unit.level);
         }
+    }
+
+    public static int GetXPToNextLevel(int currentLevel)
+    {
+        int safeLevel = Mathf.Max(1, currentLevel);
+        float scaled = BuddyBaseXPToNextLevel * Mathf.Pow(BuddyXPGrowthRate, safeLevel - 1);
+
+        if (UseFastBuddyXPForTesting)
+            scaled /= Mathf.Max(1f, BuddyTestingXPCostDivisor);
+
+        return Mathf.Max(1, Mathf.RoundToInt(scaled));
+    }
+
+    static void EnsureBuddyXPThreshold(GobboUnitSaveData unit)
+    {
+        if (unit == null) return;
+
+        int expected = GetXPToNextLevel(unit.level);
+        if (unit.xpToNextLevel <= 1 || unit.xpToNextLevel < expected)
+            unit.xpToNextLevel = expected;
     }
 
     public static void DistributeEndRunFoodXP(GameState state, int foodXP)
