@@ -37,7 +37,8 @@ public enum GobboCardContext
     EvolutionChoice,
     CampShop,
     FightPitReward,
-    ShadyDeal
+    ShadyDeal,
+    BuddyStatGrowth
 }
 
 public enum GobboAnimationState
