@@ -1113,7 +1113,6 @@ MonoBehaviour:
   campMenuPanel: {fileID: 0}
   campPlayableSpawner: {fileID: 227819281}
   campStartRoutineManager: {fileID: 1554174811}
-  campSuccessionUI: {fileID: 714760110}
   healAutomaticallyWhenCampOpens: 0
   skipReportsAndOpenCampImmediatelyForTesting: 0
   playerStatsText: {fileID: 0}
@@ -1124,7 +1123,6 @@ MonoBehaviour:
   buddyButtonPrefab: {fileID: 534331450}
   pauseMenu: {fileID: 227296237}
   pauseKey: 27
-  logMissingReferences: 1
 --- !u!1 &233705239
 GameObject:
   m_ObjectHideFlags: 0
@@ -2496,6 +2494,97 @@ MonoBehaviour:
     activeBuddyReports: []
     reserveBuddyReports: []
     leveledBuddyNames: []
+--- !u!1 &497551939
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 497551940}
+  - component: {fileID: 497551941}
+  m_Layer: 20
+  m_Name: MushroomPile
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &497551940
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 497551939}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 0.0625, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1119152412}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!212 &497551941
+SpriteRenderer:
+  serializedVersion: 2
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 497551939}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 0
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_Sprite: {fileID: 7482667652216324306, guid: 75f5f34dc1b5347e0b8351032682f224, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_FlipX: 0
+  m_FlipY: 0
+  m_DrawMode: 0
+  m_Size: {x: 1, y: 1}
+  m_AdaptiveModeThreshold: 0.5
+  m_SpriteTileMode: 0
+  m_WasSpriteAssigned: 1
+  m_SpriteSortPoint: 0
 --- !u!1 &508792562
 GameObject:
   m_ObjectHideFlags: 0
@@ -3405,6 +3494,38 @@ Rigidbody2D:
   m_SleepingMode: 1
   m_CollisionDetection: 0
   m_Constraints: 0
+--- !u!1 &658515622
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 658515623}
+  m_Layer: 20
+  m_Name: GoopPile
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &658515623
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 658515622}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -2.87, y: 1.76, z: 0}
+  m_LocalScale: {x: 0.5736979, y: 0.6092697, z: 1.25}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1119152412}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &695350333
 GameObject:
   m_ObjectHideFlags: 0
@@ -4244,6 +4365,97 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 1, y: 1}
   m_EdgeRadius: 0
+--- !u!1 &748331814
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 748331815}
+  - component: {fileID: 748331816}
+  m_Layer: 20
+  m_Name: ShiniesPile
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &748331815
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 748331814}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.198, y: 0.16, z: 0}
+  m_LocalScale: {x: 0.050001, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1119152412}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!212 &748331816
+SpriteRenderer:
+  serializedVersion: 2
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 748331814}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 0
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_Sprite: {fileID: -2413806693520163455, guid: a86470a33a6bf42c4b3595704624658b, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_FlipX: 0
+  m_FlipY: 0
+  m_DrawMode: 0
+  m_Size: {x: 1, y: 1}
+  m_AdaptiveModeThreshold: 0.5
+  m_SpriteTileMode: 0
+  m_WasSpriteAssigned: 1
+  m_SpriteSortPoint: 0
 --- !u!1 &757200321
 GameObject:
   m_ObjectHideFlags: 0
@@ -6467,6 +6679,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a31d9c0f9a8a4e03a49f112abc001001, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CampSquadSelect
+  gizmoRadius: 1.35
   interactPrompt: Choose who comes
   targetCanvas: {fileID: 0}
   panel: {fileID: 1437228373}
@@ -6482,7 +6695,7 @@ MonoBehaviour:
   allowClickMarkedButtonToClear: 1
   campPlayableSpawner: {fileID: 0}
   refreshCampVisualsAfterChange: 0
-  logMissingReferences: 1
+  buildReadableUiIfMissing: 0
   panelSize: {x: 860, y: 560}
   panelSortingOrder: 500
 --- !u!50 &930000065
@@ -10194,6 +10407,7 @@ MonoBehaviour:
   hideUntilFirstDeath: 1
   hideThisMarkerSpriteUntilVisible: 0
   interactPrompt: Read Old Bones
+  useSharedCampInteraction: 1
   panel: {fileID: 1995234855}
   titleText: {fileID: 153949711}
   deadBuddiesText: {fileID: 1616227534}
@@ -10201,6 +10415,122 @@ MonoBehaviour:
   continueButton: {fileID: 300817213}
   emptyBuddyText: No buddies from this run are on the wall.
   emptyLeaderText: No fallen leaders yet.
+  interactKey: 101
+  interactRange: 1.75
+  playerOverride: {fileID: 0}
+--- !u!1 &1119152411
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1119152412}
+  - component: {fileID: 1119152414}
+  - component: {fileID: 1119152413}
+  m_Layer: 20
+  m_Name: CampResourcePile
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1119152412
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1119152411}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -15.34, y: 10.14, z: 0}
+  m_LocalScale: {x: 21.987, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 497551940}
+  - {fileID: 748331815}
+  m_Father: {fileID: 658515623}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1119152413
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1119152411}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3c96b3526d034d1eb0600551ecf5b70f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CampResourcePile
+  resourceVisuals:
+  - resourceType: 0
+    displayName: Mushrooms
+    spriteRenderer: {fileID: 497551941}
+    stageSprites:
+    - {fileID: 0}
+    - {fileID: -4642900573032903848, guid: a617c756e8c81fd4b93a4e91f7e3236a, type: 3}
+    - {fileID: -6515964057850748805, guid: 47cf6148ae2c12e478020b698b605c24, type: 3}
+    - {fileID: -8623136417795293766, guid: 70cc2a30edda23a4d9af86c6c691a843, type: 3}
+    - {fileID: -8623136417795293766, guid: 70cc2a30edda23a4d9af86c6c691a843, type: 3}
+    thresholds: 0000000002000000050000000f0000001e000000
+    hideRendererWhenNoSprite: 1
+  - resourceType: 1
+    displayName: Shinies
+    spriteRenderer: {fileID: 748331816}
+    stageSprites:
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    - {fileID: 0}
+    thresholds: 0000000001000000050000000f0000001e000000
+    hideRendererWhenNoSprite: 1
+  popupPanel: {fileID: 0}
+  popupText: {fileID: 0}
+  popupHeader: 
+  useCampMessageFallback: 1
+  popupRefreshSeconds: 0.35
+  playerTag: Player
+  warnIfColliderIsNotTrigger: 1
+--- !u!58 &1119152414
+CircleCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1119152411}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 1
+  m_UsedByEffector: 0
+  m_CompositeOperation: 0
+  m_CompositeOrder: 0
+  m_Offset: {x: 0, y: -0.0000009536743}
+  m_Radius: 0.49999997
 --- !u!1 &1125449439
 GameObject:
   m_ObjectHideFlags: 0
@@ -17808,6 +18138,7 @@ SceneRoots:
   - {fileID: 2130448052}
   - {fileID: 1058529330}
   - {fileID: 1679887849}
+  - {fileID: 658515623}
   - {fileID: 609549347}
   - {fileID: 2101103186}
   - {fileID: 1791788851}
