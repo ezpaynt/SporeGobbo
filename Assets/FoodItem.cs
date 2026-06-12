@@ -32,18 +32,16 @@ public class FoodItem : MonoBehaviour
     void RegisterCollection()
     {
         if (GameState.Instance == null) return;
-        GobboUnitSaveData leader = GameState.Instance.GetLeader();
         FoodKind resolvedKind = ResolveFoodKind();
         if (resolvedKind == FoodKind.Mushroom)
         {
             int amount = Mathf.Max(1, mushroomValue);
-            leader.mushrooms += amount;
-            GameState.Instance.RegisterMushroomsGained(amount);
+            CampResourceService.Add(GameState.Instance, CampResourceType.Mushrooms, amount, false);
         }
 
         int shinyAmount = shinyValue + moneyValue;
         if (shinyAmount > 0)
-            GameState.Instance.RegisterShiniesGained(shinyAmount);
+            CampResourceService.Add(GameState.Instance, CampResourceType.Shinies, shinyAmount, false);
     }
 
     FoodKind ResolveFoodKind()
