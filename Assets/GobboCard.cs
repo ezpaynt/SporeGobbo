@@ -98,6 +98,8 @@ public class GobboCard
                 return fightPitRewardAllowed;
             case GobboCardContext.ShadyDeal:
                 return shadyDealAllowed;
+            case GobboCardContext.BuddyStatGrowth:
+                return !isEvolutionCard && !isTypeChoiceCard && !campShopAllowed && !fightPitRewardAllowed && !shadyDealAllowed;
         }
         return true;
     }
