@@ -327,7 +327,10 @@ public class CampStartRoutineManager : MonoBehaviour
     {
         if (GameState.Instance == null || string.IsNullOrWhiteSpace(id)) return;
         if (GameState.Instance.unlockedStations == null) GameState.Instance.unlockedStations = new List<string>();
-        if (!GameState.Instance.unlockedStations.Contains(id)) GameState.Instance.unlockedStations.Add(id);
+        if (GameState.Instance.unlockedStations.Contains(id)) return;
+
+        GameState.Instance.unlockedStations.Add(id);
+        SporeSaveManager.SaveCurrentSlotFromGameState();
     }
 
     void PlayVoice(AudioClip clip)
