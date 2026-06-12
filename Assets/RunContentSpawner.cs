@@ -114,6 +114,7 @@ public class RunContentSpawner : MonoBehaviour
 
         GameObject normalEnemy = enemyPrefab;
         GameObject bossEnemy = bossEnemyPrefab != null ? bossEnemyPrefab : enemyPrefab;
+        int shinyCount = GetEffectiveShinyCount(camp);
 
         for (int i = 0; i < camp.enemyCount; i++)
             SpawnInCircle(normalEnemy, camp.center, camp.radius, enemyParent);
@@ -127,27 +128,59 @@ public class RunContentSpawner : MonoBehaviour
         for (int i = 0; i < camp.sporeCount; i++)
             SpawnInCircle(sporePrefab, camp.center, camp.radius, itemParent);
 
-        for (int i = 0; i < camp.shinyCount; i++)
-            SpawnInCircle(shinyPrefab, camp.center, camp.radius, itemParent);
+        for (int i = 0; i < shinyCount; i++)
+            SpawnShinyInCircle(camp.center, camp.radius, itemParent);
 
         if (camp.hasExitPortal)
             SpawnInCircle(exitPortalPrefab, camp.center, Mathf.Max(0.5f, camp.radius * 0.5f), exitParent);
 
         Debug.Log(
-            $"RunContentSpawner spawned camp content | Id:{camp.id} NormalEnemies:{camp.enemyCount} BossEnemies:{camp.bossEnemyCount} Mushrooms:{camp.mushroomCount} Spores:{camp.sporeCount} Shinies:{camp.shinyCount} Exit:{camp.hasExitPortal}",
+            $"RunContentSpawner spawned camp content | Id:{camp.id} NormalEnemies:{camp.enemyCount} BossEnemies:{camp.bossEnemyCount} Mushrooms:{camp.mushroomCount} Spores:{camp.sporeCount} Shinies:{shinyCount} Exit:{camp.hasExitPortal}",
             this
         );
     }
 
-    private void SpawnInCircle(GameObject prefab, Vector2 center, float radius, Transform parent)
+    private int GetEffectiveShinyCount(CampData camp)
+    {
+        if (camp == null) return 0;
+        if (camp.shinyCount > 0) return camp.shinyCount;
+
+        bool isBossCamp = camp.isBossCamp || camp.bossEnemyCount > 0 || camp.hasExitPortal;
+        bool isResourceCamp = camp.enemyCount >= 3 && camp.mushroomCount >= 3;
+        return isBossCamp || isResourceCamp ? 1 : 0;
+    }
+
+    private void SpawnShinyInCircle(Vector2 center, float radius, Transform parent)
+    {
+        GameObject shiny = SpawnInCircle(shinyPrefab, center, radius, parent);
+        EnsureShinyPickup(shiny);
+    }
+
+    private void EnsureShinyPickup(GameObject shiny)
+    {
+        if (shiny == null) return;
+
+        if (shiny.GetComponent<CollectibleShiny>() == null)
+            shiny.AddComponent<CollectibleShiny>();
+
+        Collider2D collider = shiny.GetComponent<Collider2D>();
+        if (collider == null)
+        {
+            CircleCollider2D circle = shiny.AddComponent<CircleCollider2D>();
+            circle.isTrigger = true;
+            circle.radius = 0.5f;
+        }
+    }
+
+    private GameObject SpawnInCircle(GameObject prefab, Vector2 center, float radius, Transform parent)
     {
         if (prefab == null)
-            return;
+            return null;
 
         if (!TryFindClearPoint(center, radius, out Vector2 point))
             point = center;
 
-        Spawn(prefab, point, parent);
+        return Spawn(prefab, point, parent);
     }
 
     private GameObject Spawn(GameObject prefab, Vector2 position, Transform parent)
