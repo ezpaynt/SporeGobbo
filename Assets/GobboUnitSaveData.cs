@@ -31,6 +31,26 @@ public class GobboRelationshipSaveData
 }
 
 [Serializable]
+public class BuddyPendingGrowthSaveData
+{
+    public BuddyGrowthChoiceType growthType = BuddyGrowthChoiceType.None;
+    public int level = 0;
+
+    public BuddyPendingGrowthSaveData() { }
+
+    public BuddyPendingGrowthSaveData(BuddyGrowthChoiceType type, int growthLevel)
+    {
+        growthType = type;
+        level = growthLevel;
+    }
+
+    public BuddyPendingGrowthSaveData Clone()
+    {
+        return new BuddyPendingGrowthSaveData(growthType, level);
+    }
+}
+
+[Serializable]
 public class GobboUnitSaveData
 {
     [Header("Identity")]
@@ -48,6 +68,7 @@ public class GobboUnitSaveData
     public int campLevel = 1;
     public BuddyGrowthChoiceType pendingGrowthChoiceType = BuddyGrowthChoiceType.None;
     public int pendingGrowthLevelWaiting = 0;
+    public List<BuddyPendingGrowthSaveData> pendingGrowthQueue = new List<BuddyPendingGrowthSaveData>();
     public bool pendingEvolution = false;
     public int evolutionLevelWaiting = 0;
     public int runsWaitingForEvolution = 0;
@@ -174,6 +195,8 @@ public class GobboUnitSaveData
         unlockedCosmetics ??= new List<string>();
         equippedCosmetics ??= new List<string>();
         unlockedItems ??= new List<string>();
+        pendingGrowthQueue ??= new List<BuddyPendingGrowthSaveData>();
+        pendingGrowthQueue.RemoveAll(item => item == null || item.growthType == BuddyGrowthChoiceType.None || item.level <= 0);
 
         if (pendingEvolution && pendingGrowthChoiceType == BuddyGrowthChoiceType.None)
         {
@@ -186,6 +209,11 @@ public class GobboUnitSaveData
             pendingEvolution = true;
             if (pendingGrowthLevelWaiting <= 0) pendingGrowthLevelWaiting = evolutionLevelWaiting;
             if (evolutionLevelWaiting <= 0) evolutionLevelWaiting = pendingGrowthLevelWaiting;
+        }
+        else if (pendingGrowthChoiceType != BuddyGrowthChoiceType.Evolution)
+        {
+            pendingEvolution = false;
+            evolutionLevelWaiting = 0;
         }
 
         if (pendingGrowthChoiceType == BuddyGrowthChoiceType.None)
@@ -308,6 +336,7 @@ public class GobboUnitSaveData
         copy.campLevel = campLevel;
         copy.pendingGrowthChoiceType = pendingGrowthChoiceType;
         copy.pendingGrowthLevelWaiting = pendingGrowthLevelWaiting;
+        copy.pendingGrowthQueue = ClonePendingGrowthQueue(pendingGrowthQueue);
         copy.pendingEvolution = pendingEvolution;
         copy.evolutionLevelWaiting = evolutionLevelWaiting;
         copy.runsWaitingForEvolution = runsWaitingForEvolution;
@@ -424,6 +453,15 @@ public class GobboUnitSaveData
         if (source == null) return result;
         foreach (GobboRelationshipSaveData rel in source)
             if (rel != null) result.Add(rel.Clone());
+        return result;
+    }
+
+    static List<BuddyPendingGrowthSaveData> ClonePendingGrowthQueue(List<BuddyPendingGrowthSaveData> source)
+    {
+        List<BuddyPendingGrowthSaveData> result = new List<BuddyPendingGrowthSaveData>();
+        if (source == null) return result;
+        foreach (BuddyPendingGrowthSaveData item in source)
+            if (item != null) result.Add(item.Clone());
         return result;
     }
 }
