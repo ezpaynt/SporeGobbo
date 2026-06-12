@@ -134,34 +134,7 @@ public class CampFireRecovery : MonoBehaviour, ICampInteractable
         GameState state = GameState.Instance;
         if (state != null)
         {
-            if (healPlayer)
-            {
-                GobboUnitSaveData leader = state.GetLeader();
-                leader.health = leader.maxHealth;
-                if (player != null) player.health = player.maxHealth;
-            }
-
-            if (healBuddies && state.ownedGobbos != null)
-            {
-                foreach (GobboUnitSaveData buddy in state.ownedGobbos)
-                {
-                    if (buddy == null) continue;
-                    buddy.EnsureRuntimeDefaults();
-                    buddy.health = buddy.maxHealth;
-                    buddy.hasBeenHit = false;
-                }
-
-                BuddyUnit[] visibleBuddies = Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None);
-                foreach (BuddyUnit unit in visibleBuddies)
-                {
-                    if (unit != null && unit.unitData != null)
-                    {
-                        unit.unitData.health = unit.unitData.maxHealth;
-                        unit.unitData.hasBeenHit = false;
-                        unit.ApplyVisuals();
-                    }
-                }
-            }
+            CampRecoveryService.Recover(state, player, healPlayer, healBuddies, true);
 
             if (saveAfterRecovery && player != null)
                 state.SavePlayer(player);
