@@ -28,6 +28,7 @@ public class CampSceneController : MonoBehaviour
     [Header("Playable Camp Spawn")]
     public CampPlayableSpawner campPlayableSpawner;
     public CampStartRoutineManager campStartRoutineManager;
+    [Tooltip("Unused. Returning to camp should not heal; camp healing currently happens only through CampFireRecovery.")]
     public bool healAutomaticallyWhenCampOpens = false;
     public bool skipReportsAndOpenCampImmediatelyForTesting = false;
 
@@ -270,12 +271,6 @@ public class CampSceneController : MonoBehaviour
 
     public void RevealCampVisuals()
     {
-        if (healAutomaticallyWhenCampOpens)
-        {
-            HealPlayerForCamp();
-            HealAllBuddiesForCamp();
-        }
-
         if (runStatsPanel != null) runStatsPanel.SetActive(false);
         if (survivorsPanel != null) survivorsPanel.SetActive(false);
         if (campMenuPanel != null) campMenuPanel.SetActive(false);
@@ -294,16 +289,6 @@ public class CampSceneController : MonoBehaviour
     void BeginCampStartRoutineIfPresent()
     {
         if (campStartRoutineManager != null) campStartRoutineManager.BeginCampVisit();
-    }
-
-    void HealAllBuddiesForCamp()
-    {
-        CampRecoveryService.HealAllBuddiesForCamp(GameState.Instance);
-    }
-
-    void HealPlayerForCamp()
-    {
-        CampRecoveryService.HealPlayerForCamp(GameState.Instance);
     }
 
     void FillRunStatsText()
