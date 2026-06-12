@@ -19,6 +19,7 @@ public class CampSceneController : MonoBehaviour
     [Header("Camp Buddy Evolution Panel")]
     [Tooltip("New camp-only panel. Do not use the old BuddyChoiceScreen for camp evolution.")] public GameObject campBuddyEvolutionPanel;
     public TMP_Text campBuddyEvolutionTitle;
+    public Button campBuddyEvolutionBackButton;
     public Button[] campBuddyEvolutionButtons = new Button[3];
     public TMP_Text[] campBuddyEvolutionTexts = new TMP_Text[3];
 
@@ -209,15 +210,34 @@ public class CampSceneController : MonoBehaviour
             if (title != null) campBuddyEvolutionTitle = title.GetComponent<TMP_Text>();
         }
 
-        Button[] buttons = campBuddyEvolutionPanel.GetComponentsInChildren<Button>(true);
-        for (int i = 0; i < campBuddyEvolutionButtons.Length && i < buttons.Length; i++)
+        if (campBuddyEvolutionBackButton == null)
         {
-            if (campBuddyEvolutionButtons[i] == null) campBuddyEvolutionButtons[i] = buttons[i];
-            if (campBuddyEvolutionTexts[i] == null && campBuddyEvolutionButtons[i] != null)
-                campBuddyEvolutionTexts[i] = campBuddyEvolutionButtons[i].GetComponentInChildren<TMP_Text>(true);
+            Transform back = FindChildTransform(campBuddyEvolutionPanel.transform, "BackButton", "Back", "CancelButton", "CloseButton");
+            if (back != null) campBuddyEvolutionBackButton = back.GetComponent<Button>();
+        }
+
+        Button[] buttons = campBuddyEvolutionPanel.GetComponentsInChildren<Button>(true);
+        int choiceIndex = 0;
+        foreach (Button button in buttons)
+        {
+            if (button == null || !IsCampBuddyEvolutionChoiceButton(button)) continue;
+            if (choiceIndex >= campBuddyEvolutionButtons.Length) break;
+            if (campBuddyEvolutionButtons[choiceIndex] == null) campBuddyEvolutionButtons[choiceIndex] = button;
+            if (campBuddyEvolutionTexts[choiceIndex] == null)
+                campBuddyEvolutionTexts[choiceIndex] = button.GetComponentInChildren<TMP_Text>(true);
+            choiceIndex++;
         }
 
         campBuddyEvolutionPanel.SetActive(false);
+    }
+
+    bool IsCampBuddyEvolutionChoiceButton(Button button)
+    {
+        if (button == null) return false;
+        if (campBuddyEvolutionBackButton != null && button == campBuddyEvolutionBackButton) return false;
+        string name = button.gameObject.name;
+        if (name == "BackButton" || name == "Back" || name == "CancelButton" || name == "CloseButton") return false;
+        return true;
     }
 
     void HookButtons()
@@ -230,7 +250,12 @@ public class CampSceneController : MonoBehaviour
         if (continueToCampButton != null)
         {
             continueToCampButton.onClick.RemoveAllListeners();
-            continueToCampButton.onClick.AddListener(TryRevealCampVisuals);
+            continueToCampButton.onClick.AddListener(RevealCampVisuals);
+        }
+        if (campBuddyEvolutionBackButton != null)
+        {
+            campBuddyEvolutionBackButton.onClick.RemoveAllListeners();
+            campBuddyEvolutionBackButton.onClick.AddListener(CloseCampBuddyEvolutionPanel);
         }
     }
 
@@ -260,12 +285,6 @@ public class CampSceneController : MonoBehaviour
 
     void TryRevealCampVisuals()
     {
-        List<GobboUnitSaveData> pending = GetPendingBuddyEvolutions();
-        if (pending.Count > 0)
-        {
-            OpenBuddyGrowthChoice(pending[0].uniqueId);
-            return;
-        }
         RevealCampVisuals();
     }
 
@@ -358,23 +377,7 @@ public class CampSceneController : MonoBehaviour
 
     void FillPendingEvolutionList(List<GobboUnitSaveData> pending)
     {
-        if (pendingEvolutionListParent == null) return;
-
-        ClearListParent(pendingEvolutionListParent);
-        AddListText(pendingEvolutionListParent, "READY TO GROW", true);
-
-        if (pending == null || pending.Count == 0)
-        {
-            AddListText(pendingEvolutionListParent, "No growth choices waiting.", false);
-            return;
-        }
-
-        foreach (GobboUnitSaveData buddy in pending)
-        {
-            if (buddy == null) continue;
-            buddy.EnsureRuntimeDefaults();
-            AddListText(pendingEvolutionListParent, buddy.displayName + " needs a growth choice", false);
-        }
+        CampPendingGrowthListPresenter.Show(pendingEvolutionListParent, pending, OpenBuddyGrowthChoice);
     }
 
     string FormatRunBuddyReport(BuddyRunReport report)
@@ -439,6 +442,14 @@ public class CampSceneController : MonoBehaviour
         }
 
         buddy.EnsureRuntimeDefaults();
+        BuddyGrowthChoiceType growthType = BuddyGrowthService.GetPendingGrowthChoiceType(buddy);
+        if (growthType != BuddyGrowthChoiceType.Evolution)
+        {
+            Debug.LogWarning("No camp UI exists yet for buddy growth type: " + growthType);
+            RefreshSurvivorsScreen();
+            return;
+        }
+
         currentlyEvolvingBuddyId = buddy.uniqueId;
         OpenCampBuddyEvolutionPanel(buddy);
     }
@@ -464,6 +475,8 @@ public class CampSceneController : MonoBehaviour
             buddy,
             currentEvolutionChoices,
             ChooseCampEvolution);
+
+        if (campBuddyEvolutionBackButton != null) campBuddyEvolutionBackButton.gameObject.SetActive(true);
 
         Debug.Log("Opened CampBuddyEvolutionPanel with " + currentEvolutionChoices.Count + " choices for " + buddy.displayName);
     }
@@ -522,6 +535,7 @@ public class CampSceneController : MonoBehaviour
         currentlyEvolvingBuddyId = "";
         currentEvolutionChoices.Clear();
         CampBuddyGrowthChoicePresenter.Hide(campBuddyEvolutionPanel, campBuddyEvolutionButtons, campBuddyEvolutionTexts);
+        if (campBuddyEvolutionBackButton != null) campBuddyEvolutionBackButton.gameObject.SetActive(true);
         if (survivorsPanel != null) survivorsPanel.SetActive(true);
     }
 
@@ -570,10 +584,9 @@ public class CampSceneController : MonoBehaviour
     void RefreshContinueButtonState()
     {
         if (continueToCampButton == null) return;
-        bool hasPending = HasPendingBuddyEvolutions();
         continueToCampButton.interactable = true;
         TMP_Text label = continueToCampButton.GetComponentInChildren<TMP_Text>(true);
-        if (label != null) label.text = hasPending ? "Grow Ready Buddy" : "Continue";
+        if (label != null) label.text = "Continue";
     }
 
     bool HasPendingBuddyEvolutions() => BuddyGrowthService.HasPendingGrowth(GameState.Instance);
