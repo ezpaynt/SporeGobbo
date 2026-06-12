@@ -26,6 +26,7 @@ public static class BuddyProgression
         unit.xpToNextLevel = GetXPToNextLevel(unit.level);
         unit.pendingGrowthChoiceType = BuddyGrowthChoiceType.None;
         unit.pendingGrowthLevelWaiting = 0;
+        unit.pendingGrowthQueue.Clear();
         unit.pendingEvolution = false;
         unit.evolutionLevelWaiting = 0;
         unit.runsWaitingForEvolution = 0;
@@ -51,7 +52,7 @@ public static class BuddyProgression
             unit.health = Mathf.Clamp(unit.health, 1, unit.maxHealth);
             if (unit.level % 3 == 0) unit.damage += 1;
             unit.attack = Mathf.Max(unit.attack, unit.damage);
-            MarkPendingGrowthForLevel(unit, unit.level);
+            AddPendingGrowthForLevel(unit, unit.level);
         }
     }
 
@@ -123,37 +124,87 @@ public static class BuddyProgression
         return false;
     }
 
-    static void MarkPendingGrowthForLevel(GobboUnitSaveData unit, int level)
+    static void AddPendingGrowthForLevel(GobboUnitSaveData unit, int level)
     {
-        if (unit == null) return;
-        unit.EnsureRuntimeDefaults();
-        if (BuddyGrowthService.HasPendingGrowth(unit)) return;
+        BuddyGrowthChoiceType type = IsEvolutionLevel(level) ? BuddyGrowthChoiceType.Evolution : BuddyGrowthChoiceType.StatCard;
+        AddPendingGrowth(unit, type, level);
+    }
 
-        if (IsEvolutionLevel(level))
-            MarkPendingEvolution(unit, level);
-        else
-            MarkPendingStatCard(unit, level);
+    public static void AddPendingGrowth(GobboUnitSaveData unit, BuddyGrowthChoiceType type, int level)
+    {
+        if (unit == null || type == BuddyGrowthChoiceType.None || level <= 0) return;
+        unit.EnsureRuntimeDefaults();
+
+        if (!BuddyGrowthService.HasCurrentPendingGrowth(unit))
+        {
+            SetCurrentPendingGrowth(unit, type, level);
+            return;
+        }
+
+        unit.pendingGrowthQueue.Add(new BuddyPendingGrowthSaveData(type, level));
     }
 
     public static void MarkPendingEvolution(GobboUnitSaveData unit, int level)
     {
-        if (unit == null) return;
-        unit.pendingGrowthChoiceType = BuddyGrowthChoiceType.Evolution;
-        unit.pendingGrowthLevelWaiting = level;
-        unit.pendingEvolution = true;
-        unit.evolutionLevelWaiting = level;
-        unit.runsWaitingForEvolution = 0;
+        AddPendingGrowth(unit, BuddyGrowthChoiceType.Evolution, level);
     }
 
     public static void MarkPendingStatCard(GobboUnitSaveData unit, int level)
     {
-        if (unit == null) return;
-        unit.EnsureRuntimeDefaults();
-        if (BuddyGrowthService.HasPendingGrowth(unit)) return;
+        AddPendingGrowth(unit, BuddyGrowthChoiceType.StatCard, level);
+    }
 
-        unit.pendingGrowthChoiceType = BuddyGrowthChoiceType.StatCard;
+    static void SetCurrentPendingGrowth(GobboUnitSaveData unit, BuddyGrowthChoiceType type, int level)
+    {
+        if (unit == null) return;
+
+        unit.pendingGrowthChoiceType = type;
         unit.pendingGrowthLevelWaiting = level;
         unit.runsWaitingForEvolution = 0;
+
+        if (type == BuddyGrowthChoiceType.Evolution)
+        {
+            unit.pendingEvolution = true;
+            unit.evolutionLevelWaiting = level;
+        }
+        else
+        {
+            unit.pendingEvolution = false;
+            unit.evolutionLevelWaiting = 0;
+        }
+    }
+
+    public static void CompleteCurrentPendingGrowth(GobboUnitSaveData unit)
+    {
+        if (unit == null) return;
+        unit.EnsureRuntimeDefaults();
+
+        unit.pendingGrowthChoiceType = BuddyGrowthChoiceType.None;
+        unit.pendingGrowthLevelWaiting = 0;
+        unit.pendingEvolution = false;
+        unit.evolutionLevelWaiting = 0;
+        unit.runsWaitingForEvolution = 0;
+
+        PromoteNextPendingGrowth(unit);
+    }
+
+    public static bool PromoteNextPendingGrowth(GobboUnitSaveData unit)
+    {
+        if (unit == null) return false;
+        unit.EnsureRuntimeDefaults();
+        if (BuddyGrowthService.HasCurrentPendingGrowth(unit)) return false;
+
+        while (unit.pendingGrowthQueue.Count > 0)
+        {
+            BuddyPendingGrowthSaveData next = unit.pendingGrowthQueue[0];
+            unit.pendingGrowthQueue.RemoveAt(0);
+            if (next == null || next.growthType == BuddyGrowthChoiceType.None || next.level <= 0) continue;
+
+            SetCurrentPendingGrowth(unit, next.growthType, next.level);
+            return true;
+        }
+
+        return false;
     }
 
     public static List<GobboCard> GetStatCardChoices(GobboUnitSaveData unit, int count, List<string> excludeIds = null)
@@ -188,10 +239,7 @@ public static class BuddyProgression
             unit.chosenCardIds.Add(card.cardId);
 
         if (unit.pendingGrowthChoiceType == BuddyGrowthChoiceType.StatCard)
-        {
-            unit.pendingGrowthChoiceType = BuddyGrowthChoiceType.None;
-            unit.pendingGrowthLevelWaiting = 0;
-        }
+            CompleteCurrentPendingGrowth(unit);
 
         unit.EnsureRuntimeDefaults();
         return true;
@@ -253,7 +301,7 @@ public static class BuddyProgression
             unit.gobboType = chosenType;
 
         unit.ageStage = GetStageForEvolutionLevel(Mathf.Max(2, unit.evolutionLevelWaiting));
-        ClearPendingGrowth(unit);
+        CompleteCurrentPendingGrowth(unit);
 
         int healthBeforeEvolution = unit.health;
         BuddyTypeSetup setup = roster != null ? roster.GetSetup(unit.gobboType) : null;
@@ -291,7 +339,7 @@ public static class BuddyProgression
         if (unit == null) return;
         unit.EnsureRuntimeDefaults();
         unit.ageStage = GobboAgeStage.NeglectedElder;
-        ClearPendingGrowth(unit);
+        ClearAllPendingGrowth(unit);
         unit.visualSetId = unit.gobboType.ToString().ToLowerInvariant() + "_neglectedelder";
         unit.maxHealth += 5;
         unit.health = unit.maxHealth;
@@ -300,7 +348,7 @@ public static class BuddyProgression
         unit.moveSpeed = Mathf.Max(1f, unit.moveSpeed - 0.25f);
     }
 
-    static void ClearPendingGrowth(GobboUnitSaveData unit)
+    static void ClearAllPendingGrowth(GobboUnitSaveData unit)
     {
         if (unit == null) return;
         unit.pendingGrowthChoiceType = BuddyGrowthChoiceType.None;
@@ -308,5 +356,6 @@ public static class BuddyProgression
         unit.pendingEvolution = false;
         unit.runsWaitingForEvolution = 0;
         unit.evolutionLevelWaiting = 0;
+        unit.pendingGrowthQueue.Clear();
     }
 }
