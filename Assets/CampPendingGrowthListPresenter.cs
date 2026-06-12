@@ -54,7 +54,7 @@ public static class CampPendingGrowthListPresenter
         layout.childForceExpandWidth = false;
         layout.childForceExpandHeight = false;
 
-        string label = buddy.displayName + " - " + FormatGrowthType(BuddyGrowthService.GetPendingGrowthChoiceType(buddy));
+        string label = BuildBuddyGrowthLabel(buddy);
         TMP_Text text = AddText(row.transform, label, false);
         LayoutElement textLayout = text.gameObject.AddComponent<LayoutElement>();
         textLayout.minWidth = 160f;
@@ -65,6 +65,14 @@ public static class CampPendingGrowthListPresenter
         Button button = AddButton(row.transform, "Evolve");
         string buddyId = buddy.uniqueId;
         button.onClick.AddListener(() => onResolveSelected?.Invoke(buddyId));
+    }
+
+    static string BuildBuddyGrowthLabel(GobboUnitSaveData buddy)
+    {
+        string label = buddy.displayName + " - " + FormatGrowthType(BuddyGrowthService.GetPendingGrowthChoiceType(buddy));
+        int queued = BuddyGrowthService.GetQueuedGrowthCount(buddy);
+        if (queued > 0) label += " (+" + queued + " waiting)";
+        return label;
     }
 
     static TMP_Text AddText(Transform parent, string text, bool header)
