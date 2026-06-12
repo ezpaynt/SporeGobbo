@@ -2094,7 +2094,7 @@ Canvas:
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 0
   m_UseReflectionProbes: 0
-  m_AdditionalShaderChannelsFlag: 0
+  m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
   m_SortingOrder: 0
@@ -2393,6 +2393,8 @@ MonoBehaviour:
     xp: 0
     xpToNextLevel: 10
     campLevel: 1
+    pendingGrowthChoiceType: 0
+    pendingGrowthLevelWaiting: 0
     pendingEvolution: 0
     evolutionLevelWaiting: 0
     runsWaitingForEvolution: 0
