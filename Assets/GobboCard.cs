@@ -156,6 +156,8 @@ public class GobboCard
         if (!string.IsNullOrWhiteSpace(cardId) && !buddy.chosenCardIds.Contains(cardId)) buddy.chosenCardIds.Add(cardId);
         if (isEvolutionCard || isTypeChoiceCard)
         {
+            buddy.pendingGrowthChoiceType = BuddyGrowthChoiceType.None;
+            buddy.pendingGrowthLevelWaiting = 0;
             buddy.pendingEvolution = false;
             buddy.runsWaitingForEvolution = 0;
             buddy.evolutionLevelWaiting = 0;
