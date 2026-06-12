@@ -509,46 +509,7 @@ public class GameState : MonoBehaviour
 
     public void RepairRosterState()
     {
-        ownedGobbos ??= new List<GobboUnitSaveData>();
-        activeSquadIds ??= new List<string>();
-        ownedGobbos.RemoveAll(g => g == null);
-
-        Dictionary<string, GobboUnitSaveData> unique = new Dictionary<string, GobboUnitSaveData>();
-        List<GobboUnitSaveData> repaired = new List<GobboUnitSaveData>();
-        foreach (GobboUnitSaveData unit in ownedGobbos)
-        {
-            if (unit == null) continue;
-            unit.isLeader = false;
-            unit.EnsureRuntimeDefaults();
-            if (unique.ContainsKey(unit.uniqueId)) continue;
-            unique.Add(unit.uniqueId, unit);
-            repaired.Add(unit);
-        }
-        ownedGobbos = repaired;
-
-        HashSet<string> ownedIds = new HashSet<string>();
-        foreach (GobboUnitSaveData unit in ownedGobbos)
-        {
-            unit.isInActiveSquad = false;
-            ownedIds.Add(unit.uniqueId);
-        }
-
-        List<string> repairedActive = new List<string>();
-        foreach (string id in activeSquadIds)
-        {
-            if (string.IsNullOrWhiteSpace(id)) continue;
-            if (!ownedIds.Contains(id)) continue;
-            if (repairedActive.Contains(id)) continue;
-            if (repairedActive.Count >= Mathf.Max(1, maxActiveSquad)) break;
-            repairedActive.Add(id);
-        }
-        activeSquadIds = repairedActive;
-
-        foreach (GobboUnitSaveData unit in ownedGobbos)
-            unit.isInActiveSquad = activeSquadIds.Contains(unit.uniqueId);
-
-        if (!string.IsNullOrWhiteSpace(markedSuccessorId) && !ownedIds.Contains(markedSuccessorId))
-            markedSuccessorId = "";
+        BuddyRosterService.RepairRosterState(this);
     }
 
     public void AddGobbo(GobboUnitSaveData unit, bool preferActiveSquad = true)
@@ -587,134 +548,71 @@ public class GameState : MonoBehaviour
 
     public GobboUnitSaveData FindOwnedGobbo(string gobboId)
     {
-        if (string.IsNullOrWhiteSpace(gobboId)) return null;
-        RepairRosterStateNoFullRepair();
-        return FindOwnedGobboRaw(gobboId);
+        return BuddyRosterService.FindOwnedGobbo(this, gobboId);
     }
 
     public GobboUnitSaveData FindBuddy(string gobboId) => FindOwnedGobbo(gobboId);
 
     GobboUnitSaveData FindOwnedGobboRaw(string gobboId)
     {
-        if (string.IsNullOrWhiteSpace(gobboId) || ownedGobbos == null) return null;
-        foreach (GobboUnitSaveData unit in ownedGobbos)
-        {
-            if (unit == null) continue;
-            unit.EnsureRuntimeDefaults();
-            if (unit.uniqueId == gobboId) return unit;
-        }
-        return null;
+        return BuddyRosterService.FindOwnedGobboRaw(this, gobboId);
     }
 
     void RepairRosterStateNoFullRepair()
     {
-        ownedGobbos ??= new List<GobboUnitSaveData>();
-        activeSquadIds ??= new List<string>();
-        ownedGobbos.RemoveAll(g => g == null);
-        foreach (GobboUnitSaveData unit in ownedGobbos) unit.EnsureRuntimeDefaults();
+        BuddyRosterService.RepairRosterStateNoFullRepair(this);
     }
 
     public List<GobboUnitSaveData> GetActiveSquadUnits()
     {
-        RepairRosterState();
-        return GetActiveSquadUnitsInternal();
+        return BuddyRosterService.GetActiveSquadUnits(this);
     }
 
     public List<GobboUnitSaveData> GetActiveSquad() => GetActiveSquadUnits();
 
     public List<GobboUnitSaveData> GetActiveSquadUnitsInternal()
     {
-        List<GobboUnitSaveData> result = new List<GobboUnitSaveData>();
-        foreach (string id in activeSquadIds)
-        {
-            GobboUnitSaveData unit = FindOwnedGobboRaw(id);
-            if (unit != null && !unit.isDead) result.Add(unit);
-        }
-        return result;
+        return BuddyRosterService.GetActiveSquadUnitsInternal(this);
     }
 
     public List<GobboUnitSaveData> GetReserveGobboUnits()
     {
-        RepairRosterState();
-        return GetReserveGobboUnitsInternal();
+        return BuddyRosterService.GetReserveGobboUnits(this);
     }
 
     public List<GobboUnitSaveData> GetReserveBuddies() => GetReserveGobboUnits();
 
     public List<GobboUnitSaveData> GetReserveGobboUnitsInternal()
     {
-        List<GobboUnitSaveData> result = new List<GobboUnitSaveData>();
-        foreach (GobboUnitSaveData unit in ownedGobbos)
-        {
-            if (unit == null) continue;
-            unit.EnsureRuntimeDefaults();
-            if (unit.isDead) continue;
-            if (!activeSquadIds.Contains(unit.uniqueId)) result.Add(unit);
-        }
-        return result;
+        return BuddyRosterService.GetReserveGobboUnitsInternal(this);
     }
 
     public bool MoveBuddyToActiveSquad(string buddyId)
     {
-        RepairRosterState();
-        GobboUnitSaveData unit = FindOwnedGobboRaw(buddyId);
-        if (unit == null) return false;
-        if (activeSquadIds.Contains(buddyId)) return true;
-        if (activeSquadIds.Count >= maxActiveSquad) return false;
-        activeSquadIds.Add(buddyId);
-        unit.isInActiveSquad = true;
-        RepairRosterState();
-        return true;
+        return BuddyRosterService.MoveBuddyToActiveSquad(this, buddyId);
     }
 
     public bool MoveBuddyToReserve(string buddyId)
     {
-        RepairRosterState();
-        GobboUnitSaveData unit = FindOwnedGobboRaw(buddyId);
-        if (unit == null) return false;
-        activeSquadIds.Remove(buddyId);
-        unit.isInActiveSquad = false;
-        RepairRosterState();
-        return true;
+        return BuddyRosterService.MoveBuddyToReserve(this, buddyId);
     }
 
     public bool SwapBuddies(string activeBuddyId, string reserveBuddyId)
     {
-        RepairRosterState();
-        GobboUnitSaveData activeUnit = FindOwnedGobboRaw(activeBuddyId);
-        GobboUnitSaveData reserveUnit = FindOwnedGobboRaw(reserveBuddyId);
-        if (activeUnit == null || reserveUnit == null) return false;
-        int index = activeSquadIds.IndexOf(activeBuddyId);
-        if (index < 0) return false;
-        activeSquadIds[index] = reserveBuddyId;
-        activeUnit.isInActiveSquad = false;
-        reserveUnit.isInActiveSquad = true;
-        RepairRosterState();
-        return true;
+        return BuddyRosterService.SwapBuddies(this, activeBuddyId, reserveBuddyId);
     }
 
     public GobboUnitSaveData PullFirstReserveGobbo()
     {
-        List<GobboUnitSaveData> reserve = GetReserveGobboUnits();
-        if (reserve.Count == 0) return null;
-        GobboUnitSaveData unit = reserve[0];
-        return MoveBuddyToActiveSquad(unit.uniqueId) ? unit : null;
+        return BuddyRosterService.PullFirstReserveGobbo(this);
     }
 
     public GobboUnitSaveData PullFirstReserveBuddy() => PullFirstReserveGobbo();
-    public bool HasReserveBuddy() => GetReserveGobboUnitsInternal().Count > 0;
+    public bool HasReserveBuddy() => BuddyRosterService.HasReserveBuddy(this);
 
     List<string> GetOwnedGobboIds()
     {
-        RepairRosterState();
-        List<string> result = new List<string>();
-        foreach (GobboUnitSaveData unit in ownedGobbos)
-        {
-            if (unit == null) continue;
-            unit.EnsureRuntimeDefaults();
-            result.Add(unit.uniqueId);
-        }
-        return result;
+        return BuddyRosterService.GetOwnedGobboIds(this);
     }
 
     List<GobboUnitSaveData> CloneUnitList(List<GobboUnitSaveData> source)
