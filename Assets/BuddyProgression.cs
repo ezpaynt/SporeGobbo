@@ -19,6 +19,8 @@ public static class BuddyProgression
         unit.level = 1;
         unit.xp = 0;
         unit.xpToNextLevel = TestBabyXPToNextLevel;
+        unit.pendingGrowthChoiceType = BuddyGrowthChoiceType.None;
+        unit.pendingGrowthLevelWaiting = 0;
         unit.pendingEvolution = false;
         unit.evolutionLevelWaiting = 0;
         unit.runsWaitingForEvolution = 0;
@@ -81,7 +83,7 @@ public static class BuddyProgression
         unit.hasBeenHit = false;
         unit.survivedLastRun = true;
 
-        if (unit.pendingEvolution)
+        if (BuddyGrowthService.HasPendingGrowth(unit))
         {
             unit.runsWaitingForEvolution++;
             if (unit.runsWaitingForEvolution >= 5) ForceNeglectedElder(unit);
@@ -99,6 +101,8 @@ public static class BuddyProgression
     public static void MarkPendingEvolution(GobboUnitSaveData unit, int level)
     {
         if (unit == null) return;
+        unit.pendingGrowthChoiceType = BuddyGrowthChoiceType.Evolution;
+        unit.pendingGrowthLevelWaiting = level;
         unit.pendingEvolution = true;
         unit.evolutionLevelWaiting = level;
         unit.runsWaitingForEvolution = 0;
@@ -125,9 +129,7 @@ public static class BuddyProgression
             unit.gobboType = chosenType;
 
         unit.ageStage = GetStageForEvolutionLevel(Mathf.Max(2, unit.evolutionLevelWaiting));
-        unit.pendingEvolution = false;
-        unit.runsWaitingForEvolution = 0;
-        unit.evolutionLevelWaiting = 0;
+        ClearPendingGrowth(unit);
 
         int healthBeforeEvolution = unit.health;
         BuddyTypeSetup setup = roster != null ? roster.GetSetup(unit.gobboType) : null;
@@ -165,14 +167,22 @@ public static class BuddyProgression
         if (unit == null) return;
         unit.EnsureRuntimeDefaults();
         unit.ageStage = GobboAgeStage.NeglectedElder;
-        unit.pendingEvolution = false;
-        unit.runsWaitingForEvolution = 0;
-        unit.evolutionLevelWaiting = 0;
+        ClearPendingGrowth(unit);
         unit.visualSetId = unit.gobboType.ToString().ToLowerInvariant() + "_neglectedelder";
         unit.maxHealth += 5;
         unit.health = unit.maxHealth;
         unit.damage += 1;
         unit.attack = Mathf.Max(unit.attack, unit.damage);
         unit.moveSpeed = Mathf.Max(1f, unit.moveSpeed - 0.25f);
+    }
+
+    static void ClearPendingGrowth(GobboUnitSaveData unit)
+    {
+        if (unit == null) return;
+        unit.pendingGrowthChoiceType = BuddyGrowthChoiceType.None;
+        unit.pendingGrowthLevelWaiting = 0;
+        unit.pendingEvolution = false;
+        unit.runsWaitingForEvolution = 0;
+        unit.evolutionLevelWaiting = 0;
     }
 }
