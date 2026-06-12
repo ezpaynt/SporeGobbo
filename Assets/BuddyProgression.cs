@@ -51,7 +51,7 @@ public static class BuddyProgression
             unit.health = Mathf.Clamp(unit.health, 1, unit.maxHealth);
             if (unit.level % 3 == 0) unit.damage += 1;
             unit.attack = Mathf.Max(unit.attack, unit.damage);
-            if (IsEvolutionLevel(unit.level)) MarkPendingEvolution(unit, unit.level);
+            MarkPendingGrowthForLevel(unit, unit.level);
         }
     }
 
@@ -123,6 +123,18 @@ public static class BuddyProgression
         return false;
     }
 
+    static void MarkPendingGrowthForLevel(GobboUnitSaveData unit, int level)
+    {
+        if (unit == null) return;
+        unit.EnsureRuntimeDefaults();
+        if (BuddyGrowthService.HasPendingGrowth(unit)) return;
+
+        if (IsEvolutionLevel(level))
+            MarkPendingEvolution(unit, level);
+        else
+            MarkPendingStatCard(unit, level);
+    }
+
     public static void MarkPendingEvolution(GobboUnitSaveData unit, int level)
     {
         if (unit == null) return;
@@ -130,6 +142,17 @@ public static class BuddyProgression
         unit.pendingGrowthLevelWaiting = level;
         unit.pendingEvolution = true;
         unit.evolutionLevelWaiting = level;
+        unit.runsWaitingForEvolution = 0;
+    }
+
+    public static void MarkPendingStatCard(GobboUnitSaveData unit, int level)
+    {
+        if (unit == null) return;
+        unit.EnsureRuntimeDefaults();
+        if (BuddyGrowthService.HasPendingGrowth(unit)) return;
+
+        unit.pendingGrowthChoiceType = BuddyGrowthChoiceType.StatCard;
+        unit.pendingGrowthLevelWaiting = level;
         unit.runsWaitingForEvolution = 0;
     }
 
