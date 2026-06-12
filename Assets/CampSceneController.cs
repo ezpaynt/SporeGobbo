@@ -17,8 +17,7 @@ public class CampSceneController : MonoBehaviour
     public Button continueToCampButton;
 
     [Header("Camp Buddy Evolution Panel")]
-    [Tooltip("New camp-only panel. Do not use the old BuddyChoiceScreen for camp evolution.")]
-    public GameObject campBuddyEvolutionPanel;
+    [Tooltip("New camp-only panel. Do not use the old BuddyChoiceScreen for camp evolution.")] public GameObject campBuddyEvolutionPanel;
     public TMP_Text campBuddyEvolutionTitle;
     public Button[] campBuddyEvolutionButtons = new Button[3];
     public TMP_Text[] campBuddyEvolutionTexts = new TMP_Text[3];
@@ -299,22 +298,12 @@ public class CampSceneController : MonoBehaviour
 
     void HealAllBuddiesForCamp()
     {
-        GameState state = GameState.Instance;
-        if (state == null || state.ownedGobbos == null) return;
-        foreach (GobboUnitSaveData buddy in state.ownedGobbos)
-        {
-            if (buddy == null) continue;
-            buddy.EnsureRuntimeDefaults();
-            buddy.health = buddy.maxHealth;
-            buddy.hasBeenHit = false;
-        }
+        CampRecoveryService.HealAllBuddiesForCamp(GameState.Instance);
     }
 
     void HealPlayerForCamp()
     {
-        if (GameState.Instance == null) return;
-        GobboUnitSaveData leader = GameState.Instance.GetLeader();
-        leader.health = leader.maxHealth;
+        CampRecoveryService.HealPlayerForCamp(GameState.Instance);
     }
 
     void FillRunStatsText()
