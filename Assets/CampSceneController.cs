@@ -50,6 +50,7 @@ public class CampSceneController : MonoBehaviour
     public KeyCode pauseKey = KeyCode.Escape;
 
     private readonly List<BuddyTypeSetup> currentEvolutionChoices = new List<BuddyTypeSetup>();
+    private readonly List<GobboCard> currentStatCardChoices = new List<GobboCard>();
     private string currentlyEvolvingBuddyId = "";
 
     private void Awake()
@@ -442,16 +443,29 @@ public class CampSceneController : MonoBehaviour
         }
 
         buddy.EnsureRuntimeDefaults();
-        BuddyGrowthChoiceType growthType = BuddyGrowthService.GetPendingGrowthChoiceType(buddy);
-        if (growthType != BuddyGrowthChoiceType.Evolution)
-        {
-            Debug.LogWarning("No camp UI exists yet for buddy growth type: " + growthType);
-            RefreshSurvivorsScreen();
-            return;
-        }
-
         currentlyEvolvingBuddyId = buddy.uniqueId;
-        OpenCampBuddyEvolutionPanel(buddy);
+
+        BuddyGrowthChoiceType growthType = BuddyGrowthService.GetPendingGrowthChoiceType(buddy);
+        switch (growthType)
+        {
+            case BuddyGrowthChoiceType.Evolution:
+                OpenCampBuddyEvolutionPanel(buddy);
+                return;
+            case BuddyGrowthChoiceType.StatCard:
+                OpenCampBuddyStatCardPanel(buddy);
+                return;
+            case BuddyGrowthChoiceType.Trait:
+            case BuddyGrowthChoiceType.Mutation:
+                Debug.LogWarning("No camp UI exists yet for buddy growth type: " + growthType);
+                currentlyEvolvingBuddyId = "";
+                RefreshSurvivorsScreen();
+                return;
+            default:
+                Debug.LogWarning("No pending camp growth found for: " + buddy.displayName);
+                currentlyEvolvingBuddyId = "";
+                RefreshSurvivorsScreen();
+                return;
+        }
     }
 
     void OpenCampBuddyEvolutionPanel(GobboUnitSaveData buddy)
@@ -481,6 +495,41 @@ public class CampSceneController : MonoBehaviour
         Debug.Log("Opened CampBuddyEvolutionPanel with " + currentEvolutionChoices.Count + " choices for " + buddy.displayName);
     }
 
+    void OpenCampBuddyStatCardPanel(GobboUnitSaveData buddy)
+    {
+        if (campBuddyEvolutionPanel == null)
+        {
+            Debug.LogError("No CampBuddyEvolutionPanel assigned/found. Reuse it for buddy stat cards and assign it on CampSceneController.");
+            return;
+        }
+
+        BuildCampStatCardChoices(buddy);
+        if (currentStatCardChoices.Count == 0)
+        {
+            Debug.LogWarning("No buddy stat card choices available for " + buddy.displayName);
+            currentlyEvolvingBuddyId = "";
+            RefreshSurvivorsScreen();
+            return;
+        }
+
+        if (survivorsPanel != null) survivorsPanel.SetActive(false);
+        if (runStatsPanel != null) runStatsPanel.SetActive(false);
+        if (campMenuPanel != null) campMenuPanel.SetActive(false);
+
+        CampBuddyStatCardChoicePresenter.Show(
+            campBuddyEvolutionPanel,
+            campBuddyEvolutionTitle,
+            campBuddyEvolutionButtons,
+            campBuddyEvolutionTexts,
+            buddy,
+            currentStatCardChoices,
+            ChooseCampStatCard);
+
+        if (campBuddyEvolutionBackButton != null) campBuddyEvolutionBackButton.gameObject.SetActive(true);
+
+        Debug.Log("Opened buddy stat card panel with " + currentStatCardChoices.Count + " choices for " + buddy.displayName);
+    }
+
     void BuildCampEvolutionChoices(GobboUnitSaveData buddy)
     {
         currentEvolutionChoices.Clear();
@@ -489,6 +538,16 @@ public class CampSceneController : MonoBehaviour
         foreach (BuddyTypeSetup setup in choices)
         {
             if (setup != null && setup.buddyType != BuddyType.Baby) currentEvolutionChoices.Add(setup);
+        }
+    }
+
+    void BuildCampStatCardChoices(GobboUnitSaveData buddy)
+    {
+        currentStatCardChoices.Clear();
+        List<GobboCard> choices = BuddyProgression.GetStatCardChoices(buddy, 3);
+        foreach (GobboCard card in choices)
+        {
+            if (card != null) currentStatCardChoices.Add(card);
         }
     }
 
@@ -514,6 +573,27 @@ public class CampSceneController : MonoBehaviour
         RefreshSurvivorsScreen();
     }
 
+    void ChooseCampStatCard(int choiceIndex)
+    {
+        if (choiceIndex < 0 || choiceIndex >= currentStatCardChoices.Count) return;
+        GobboUnitSaveData buddy = GameState.Instance != null ? GameState.Instance.FindOwnedGobbo(currentlyEvolvingBuddyId) : null;
+        if (buddy == null)
+        {
+            Debug.LogWarning("Could not find currently growing buddy: " + currentlyEvolvingBuddyId);
+            CloseCampBuddyEvolutionPanel();
+            RefreshSurvivorsScreen();
+            return;
+        }
+
+        GobboCard choice = currentStatCardChoices[choiceIndex];
+        Debug.Log("Camp applying stat card " + choice.cardName + " to " + buddy.displayName);
+        if (BuddyProgression.ApplyStatCardChoice(buddy, choice))
+            SporeSaveManager.SaveCurrentSlotFromGameState();
+
+        CloseCampBuddyEvolutionPanel();
+        RefreshSurvivorsScreen();
+    }
+
     void ApplySetupDirectlyIfNeeded(GobboUnitSaveData buddy, BuddyTypeSetup setup, BuddyRoster roster)
     {
         if (buddy == null || setup == null || roster != null) return;
@@ -534,7 +614,9 @@ public class CampSceneController : MonoBehaviour
     {
         currentlyEvolvingBuddyId = "";
         currentEvolutionChoices.Clear();
+        currentStatCardChoices.Clear();
         CampBuddyGrowthChoicePresenter.Hide(campBuddyEvolutionPanel, campBuddyEvolutionButtons, campBuddyEvolutionTexts);
+        CampBuddyStatCardChoicePresenter.Hide(campBuddyEvolutionPanel, campBuddyEvolutionButtons, campBuddyEvolutionTexts);
         if (campBuddyEvolutionBackButton != null) campBuddyEvolutionBackButton.gameObject.SetActive(true);
         if (survivorsPanel != null) survivorsPanel.SetActive(true);
     }
