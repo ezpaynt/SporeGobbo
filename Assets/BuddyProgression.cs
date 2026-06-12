@@ -108,6 +108,82 @@ public static class BuddyProgression
         unit.runsWaitingForEvolution = 0;
     }
 
+    public static List<GobboCard> GetStatCardChoices(GobboUnitSaveData unit, int count, List<string> excludeIds = null)
+    {
+        List<GobboCard> choices = new List<GobboCard>();
+        if (unit == null || count <= 0) return choices;
+
+        unit.EnsureRuntimeDefaults();
+        if (GobboCardDatabase.Instance != null)
+            choices = GobboCardDatabase.Instance.GetChoicesForBuddy(unit, GobboCardContext.BuddyStatGrowth, count, excludeIds);
+
+        if (choices.Count > 0) return choices;
+        return GetFallbackStatCardChoices(unit, count, excludeIds);
+    }
+
+    public static bool ApplyStatCardChoice(GobboUnitSaveData unit, GobboCard card)
+    {
+        if (unit == null || card == null) return false;
+        unit.EnsureId();
+        unit.EnsureRuntimeDefaults();
+
+        if (card.isEvolutionCard || card.isTypeChoiceCard)
+        {
+            Debug.LogWarning("Tried to apply an evolution card as buddy stat growth: " + card.cardName);
+            return false;
+        }
+
+        card.ApplyToBuddy(unit);
+
+        unit.chosenCardIds ??= new List<string>();
+        if (!string.IsNullOrWhiteSpace(card.cardId) && !unit.chosenCardIds.Contains(card.cardId))
+            unit.chosenCardIds.Add(card.cardId);
+
+        if (unit.pendingGrowthChoiceType == BuddyGrowthChoiceType.StatCard)
+        {
+            unit.pendingGrowthChoiceType = BuddyGrowthChoiceType.None;
+            unit.pendingGrowthLevelWaiting = 0;
+        }
+
+        unit.EnsureRuntimeDefaults();
+        return true;
+    }
+
+    static List<GobboCard> GetFallbackStatCardChoices(GobboUnitSaveData unit, int count, List<string> excludeIds)
+    {
+        List<GobboCard> pool = new List<GobboCard>
+        {
+            new GobboCard { cardId = "buddy_growth_max_health", cardName = "Tougher Hide", description = "+8 Max Health.", playerAllowed = false, buddyAllowed = true, maxHealthBonus = 8 },
+            new GobboCard { cardId = "buddy_growth_attack", cardName = "Sharper Bite", description = "+2 Attack.", playerAllowed = false, buddyAllowed = true, attackBonus = 2 },
+            new GobboCard { cardId = "buddy_growth_defense", cardName = "Hard Knuckles", description = "+1 Defense.", playerAllowed = false, buddyAllowed = true, defenseBonus = 1 },
+            new GobboCard { cardId = "buddy_growth_speed", cardName = "Quicker Feet", description = "+0.35 Move Speed.", playerAllowed = false, buddyAllowed = true, moveSpeedBonus = 0.35f },
+            new GobboCard { cardId = "buddy_growth_attack_speed", cardName = "Snappier Swings", description = "Faster attacks.", playerAllowed = false, buddyAllowed = true, attackCooldownBonus = -0.08f }
+        };
+
+        for (int i = pool.Count - 1; i >= 0; i--)
+        {
+            GobboCard card = pool[i];
+            if (excludeIds != null && excludeIds.Contains(card.cardId))
+            {
+                pool.RemoveAt(i);
+                continue;
+            }
+
+            if (!card.CanAppearForBuddy(unit, GobboCardContext.BuddyStatGrowth))
+                pool.RemoveAt(i);
+        }
+
+        List<GobboCard> result = new List<GobboCard>();
+        while (result.Count < count && pool.Count > 0)
+        {
+            int index = Random.Range(0, pool.Count);
+            result.Add(pool[index]);
+            pool.RemoveAt(index);
+        }
+
+        return result;
+    }
+
     public static GobboAgeStage GetStageForEvolutionLevel(int level)
     {
         if (level <= 1) return GobboAgeStage.Baby;
