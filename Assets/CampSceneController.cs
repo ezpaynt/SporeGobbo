@@ -322,20 +322,7 @@ public class CampSceneController : MonoBehaviour
         if (runStatsText == null || GameState.Instance == null) return;
         RunSummaryData run = GameState.Instance.lastRun;
         GobboUnitSaveData leader = GameState.Instance.GetLeader();
-        runStatsText.text = "You made it back to camp!" +
-            "\n\nRun: " + run.runNumber +
-            "\nLevel: " + run.playerLevelStart + " → " + run.playerLevelEnd +
-            "\nXP gained: " + run.xpGained +
-            "\nHealth: " + leader.health + " / " + leader.maxHealth +
-            "\nAttack: " + leader.attack +
-            "\nDefense: " + leader.defense +
-            "\nDig Power: " + leader.digPower +
-            "\nDig Radius: " + leader.digRadius.ToString("0.00") +
-            "\n\nFood for the horde: " + run.foodValueGained +
-            "\nSpores gained: " + run.sporesGained + " Total: " + leader.spores +
-            "\nMushrooms gained: " + run.mushroomsGained + " Total: " + leader.mushrooms +
-            "\nShinies gained: " + run.shiniesGained + " Total: " + leader.shinies +
-            "\nEnemies killed: " + run.enemiesKilled;
+        runStatsText.text = CampReportTextBuilder.BuildRunStatsText(run, leader);
     }
 
     void FillSurvivorsText()
@@ -356,39 +343,8 @@ public class CampSceneController : MonoBehaviour
 
     string BuildMiddleSurvivorSummary(RunSummaryData run, List<GobboUnitSaveData> pending)
     {
-        string text = "Roll call";
-
-        text += "\n\nNew buddies: " + run.buddiesFound;
-        if (run.newBuddyNames != null && run.newBuddyNames.Count > 0)
-        {
-            foreach (string name in run.newBuddyNames)
-                text += "\n+ " + name;
-        }
-        else text += "\n- Nobody new joined.";
-
-        text += "\n\nBuddies lost: " + run.buddiesLost;
-        if (run.deadBuddyNames != null && run.deadBuddyNames.Count > 0)
-        {
-            foreach (string name in run.deadBuddyNames)
-                text += "\n- " + name;
-        }
-        else text += "\n- Nobody died.";
-
-        text += "\n\nLeveled up:";
-        if (run.leveledBuddyNames != null && run.leveledBuddyNames.Count > 0)
-        {
-            foreach (string name in run.leveledBuddyNames)
-                text += "\n↑ " + name;
-        }
-        else text += "\n- Nobody leveled this time.";
-
-        text += "\n\nReady to grow: " + pending.Count;
-        if (pending.Count > 0)
-            text += "\nPress the Grow Ready Buddy button before camp opens.";
-
         int total = GameState.Instance.ownedGobbos != null ? GameState.Instance.ownedGobbos.Count : 0;
-        text += "\n\nTotal little guys: " + total;
-        return text;
+        return CampReportTextBuilder.BuildMiddleSurvivorSummary(run, pending, total);
     }
 
     void FillRunBuddyList(RunSummaryData run)
@@ -449,49 +405,17 @@ public class CampSceneController : MonoBehaviour
 
     string FormatRunBuddyReport(BuddyRunReport report)
     {
-        if (report == null) return "Missing buddy report";
-
-        string line = report.displayName;
-        line += "\nLv " + report.levelStart + " → " + report.levelEnd;
-        line += " | XP +" + report.xpGained;
-        line += " | Kills +" + report.killsGained;
-        line += "\nNights +" + report.nightsGained + " | Happy " + report.happinessEnd;
-        if (!string.IsNullOrWhiteSpace(report.traitLabel) && report.traitLabel != "None")
-            line += " | " + report.traitLabel;
-        if (report.readyToGrow) line += "\nREADY TO GROW";
-        if (report.died) line += "\nDIED";
-        return line;
+        return CampReportTextBuilder.FormatRunBuddyReport(report);
     }
 
     string FormatCampBuddyReport(BuddyRunReport report)
     {
-        if (report == null) return "Missing buddy report";
-
-        string line = report.displayName;
-        line += "\nLv " + report.levelStart + " → " + report.levelEnd;
-        line += " | Camp XP +" + report.xpGained;
-        line += "\nNights " + report.nightsEnd + " | Happy " + report.happinessEnd;
-        if (!string.IsNullOrWhiteSpace(report.traitLabel) && report.traitLabel != "None")
-            line += " | " + report.traitLabel;
-        if (report.readyToGrow) line += "\nREADY TO GROW";
-        return line;
+        return CampReportTextBuilder.FormatCampBuddyReport(report);
     }
 
     string GetBuddyLine(GobboUnitSaveData buddy)
     {
-        if (buddy == null) return "Missing buddy";
-        buddy.EnsureRuntimeDefaults();
-        string trait = buddy.traitIds != null && buddy.traitIds.Count > 0 ? buddy.traitIds[0] : "None";
-        return buddy.displayName + " the " + buddy.gobboType + " " + buddy.ageStage +
-            " Lv " + buddy.level +
-            " XP " + buddy.xp + "/" + buddy.xpToNextLevel +
-            " HP " + buddy.health + "/" + buddy.maxHealth +
-            " Nights " + buddy.runsSurvived +
-            " Kills " + buddy.kills +
-            " Happy " + buddy.happiness +
-            (trait != "None" ? " Trait " + trait : "") +
-            (buddy.pendingEvolution ? " READY TO GROW" : "") +
-            (buddy.runsWaitingForEvolution >= 2 ? " ANGRY DOT" : "");
+        return CampReportTextBuilder.FormatBuddyLine(buddy);
     }
 
     void ClearListParent(Transform parent)
