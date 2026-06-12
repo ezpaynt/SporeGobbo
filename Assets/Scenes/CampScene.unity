@@ -10438,9 +10438,9 @@ MonoBehaviour:
     displayName: Mushrooms
     spriteRenderer: {fileID: 497551941}
     stageSprites:
+    - {fileID: 0}
     - {fileID: -4642900573032903848, guid: a617c756e8c81fd4b93a4e91f7e3236a, type: 3}
     - {fileID: -6515964057850748805, guid: 47cf6148ae2c12e478020b698b605c24, type: 3}
-    - {fileID: -8623136417795293766, guid: 70cc2a30edda23a4d9af86c6c691a843, type: 3}
     - {fileID: -8623136417795293766, guid: 70cc2a30edda23a4d9af86c6c691a843, type: 3}
     - {fileID: -8623136417795293766, guid: 70cc2a30edda23a4d9af86c6c691a843, type: 3}
     thresholds: 0000000002000000050000000f0000001e000000
@@ -10456,8 +10456,8 @@ MonoBehaviour:
     - {fileID: 0}
     thresholds: 0000000001000000050000000f0000001e000000
     hideRendererWhenNoSprite: 1
-  popupPanel: {fileID: 0}
-  popupText: {fileID: 0}
+  popupPanel: {fileID: 2007012688}
+  popupText: {fileID: 790527365}
   popupHeader: 
   useCampMessageFallback: 1
   popupRefreshSeconds: 0.35

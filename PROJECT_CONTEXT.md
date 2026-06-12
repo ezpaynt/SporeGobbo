@@ -291,3 +291,299 @@ Save system.
 The project should become easier to understand over time, not harder.
 
 Every refactor should reduce confusion.
+
+
+
+
+
+
+# Progression Vision
+
+## Core Philosophy
+
+XP is earned during runs.
+
+Growth decisions happen in camp.
+
+The run generates progress.
+
+The camp determines what that progress becomes.
+
+The goal is for camp to feel like the place where the player shapes the tribe.
+
+---
+
+## Player Progression
+
+The player gobbo is the leader.
+
+Player progression is primarily run-focused.
+
+Player XP is earned during the run.
+
+Level-ups happen immediately.
+
+Each level-up presents choices.
+
+Examples:
+
+* Stat cards
+* Ability cards
+* Class cards
+* Future special cards
+
+The player should feel like they are continuously growing during a run.
+
+---
+
+## Buddy Progression
+
+Buddy progression should be camp-focused.
+
+Buddies earn XP from:
+
+* Active squad participation
+* Passive camp XP
+* Future spore feeding
+* Future events
+
+Buddy growth decisions should not interrupt normal gameplay during runs.
+
+Instead, growth decisions accumulate and are handled in camp.
+
+---
+
+## Buddy Growth Levels
+
+Not every buddy level should be treated the same.
+
+Normal levels:
+
+* Generate stat card choices.
+
+Milestone levels:
+
+* Generate evolution or growth choices.
+
+Current milestone targets:
+
+* Level 2
+* Level 6
+* Level 12
+* Level 24
+* Level 48
+
+Milestones represent major life stages.
+
+Normal levels represent gradual development.
+
+---
+
+## Buddy Growth Queue
+
+A buddy can become ready for growth.
+
+Growth should remain pending until the player addresses it.
+
+Examples:
+
+* Pending stat card choice
+* Pending evolution choice
+* Future pending trait choice
+* Future pending mutation choice
+
+Camp systems should be able to ask:
+
+"Which buddies are ready to grow?"
+
+without needing to know the specific growth type.
+
+---
+
+## Ignoring Growth
+
+Ignoring growth is a valid player choice.
+
+Buddies should not require immediate attention.
+
+However, growth may be delayed for too long.
+
+Potential consequences:
+
+* Reduced happiness
+* Personality changes
+* Strange traits
+* Neglected elder outcomes
+
+The goal is to create stories, not punishments.
+
+Neglect should make buddies weird rather than simply weaker.
+
+---
+
+## Evolution Philosophy
+
+Evolution choices are special.
+
+The first major evolution determines a buddy's class.
+
+Examples:
+
+* Tank
+* Fast
+* Fungal
+* Scavenger
+* Strong
+* Explosive
+* Thrower
+* Fat
+
+Later milestones should eventually offer:
+
+* Class specialization
+* Mutations
+* Traits
+* Elder paths
+* Unique growth branches
+
+Evolutions should feel memorable.
+
+---
+
+## Buddy Stat Cards
+
+Normal buddy levels should eventually provide card choices.
+
+The player chooses one option from several random choices.
+
+Examples:
+
+* Max Health
+* Attack
+* Defense
+* Move Speed
+* Attack Speed
+* Crit Chance
+
+The initial implementation should use a small simple card pool.
+
+Complex class-specific cards can be added later.
+
+---
+
+## Rerolls
+
+Buddy growth choices may be rerolled.
+
+Rerolls should cost shinies.
+
+The same resource economy should support:
+
+* Buddy card rerolls
+* Future player rerolls
+* Future camp spending
+
+---
+
+## Spores
+
+Spores are more than a resource.
+
+Spores represent future tribe members.
+
+The player should have meaningful choices regarding spores.
+
+Potential actions:
+
+* Hatch
+* Store
+* Feed
+* Future special uses
+
+Spores should not become mandatory buddies.
+
+---
+
+## Spore Mound Vision
+
+The Spore Mound is the long-term home for stored spores.
+
+Possible future actions:
+
+* Hatch stored spores
+* Feed spores to buddies for XP
+* Track spore age
+* Trigger future events
+
+The Spore Mound should become a decision point rather than simple storage.
+
+---
+
+## Stored Spore Philosophy
+
+Stored spores are safe.
+
+Run-hatched spores are risky.
+
+Run-hatched spores gain XP immediately but can die.
+
+Stored spores remain flexible but gain no immediate benefit.
+
+Both choices should be valid.
+
+---
+
+## Spoiled Spores
+
+Spoiled spores should be strange rather than purely negative.
+
+Possible outcomes:
+
+* Unique traits
+* Mutations
+* Special evolution paths
+* Rare buddy variants
+
+The goal is curiosity rather than punishment.
+
+Players should occasionally choose to keep spores longer to see what happens.
+
+---
+
+## Camp Philosophy
+
+Camp should provide decisions.
+
+Camp should not exist only for storage.
+
+Examples:
+
+Runs generate:
+* XP
+* Resources
+* Buddies
+
+Camp determines:
+* Growth
+* Squad composition
+* Resource spending
+* Evolution paths
+* Future tribe development
+
+The player should look forward to returning home.
+
+---
+
+## Long-Term Goal
+
+The gameplay loop should feel like:
+
+Run
+→ Return Home
+→ Make Decisions
+→ Grow Tribe
+→ Begin Next Run
+
+The tribe should become more interesting over time.
+
+The camp should gradually transform from a small shelter into a living gobbo settlement filled with history, relationships, growth, weirdness, and player-driven choices.
