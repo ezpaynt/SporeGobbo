@@ -22,6 +22,15 @@ public enum GobboAgeStage
     NeglectedElder
 }
 
+public enum BuddyGrowthChoiceType
+{
+    None = 0,
+    Evolution = 1,
+    StatCard = 2,
+    Trait = 3,
+    Mutation = 4
+}
+
 public enum GobboCardContext
 {
     RunLevelUp,
