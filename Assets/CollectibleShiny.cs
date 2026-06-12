@@ -20,7 +20,7 @@ public class CollectibleShiny : MonoBehaviour
             return;
 
         if (GameState.Instance != null)
-            GameState.Instance.RegisterShiniesGained(amount);
+            CampResourceService.Add(GameState.Instance, CampResourceType.Shinies, amount, false);
 
         Debug.Log("Picked up shiny!");
         Destroy(gameObject);
