@@ -2396,6 +2396,7 @@ MonoBehaviour:
     campLevel: 1
     pendingGrowthChoiceType: 0
     pendingGrowthLevelWaiting: 0
+    pendingGrowthQueue: []
     pendingEvolution: 0
     evolutionLevelWaiting: 0
     runsWaitingForEvolution: 0
@@ -10574,10 +10575,10 @@ MonoBehaviour:
     spriteRenderer: {fileID: 748331816}
     stageSprites:
     - {fileID: 0}
-    - {fileID: 0}
-    - {fileID: 0}
-    - {fileID: 0}
-    - {fileID: 0}
+    - {fileID: 2372006320543707380, guid: b7f9d0e6031dcd747a0405269725401b, type: 3}
+    - {fileID: -7222300642968813293, guid: 9ddfa3c9b0289294b85836340e7716ce, type: 3}
+    - {fileID: 4667987332594209679, guid: 3cc9c0aaee2e2c848b12a27dc984100a, type: 3}
+    - {fileID: 4667987332594209679, guid: 3cc9c0aaee2e2c848b12a27dc984100a, type: 3}
     thresholds: 0000000001000000050000000f0000001e000000
     hideRendererWhenNoSprite: 1
   popupPanel: {fileID: 2007012688}
