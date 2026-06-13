@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 #if UNITY_EDITOR
@@ -41,7 +42,13 @@ public class MapDebugOverlay : MonoBehaviour
     private void Start()
     {
         if (Application.isPlaying && logReportOnStart)
-            LogDebugReport();
+            StartCoroutine(LogReportAfterGeneration());
+    }
+
+    private IEnumerator LogReportAfterGeneration()
+    {
+        yield return null;
+        LogDebugReport();
     }
 
     [ContextMenu("Log Map Debug Report")]
