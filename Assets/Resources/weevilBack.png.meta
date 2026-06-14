@@ -103,12 +103,12 @@ TextureImporter:
       name: weevilBack_0
       rect:
         serializedVersion: 2
-        x: 11
-        y: 0
-        width: 1502
-        height: 1024
-      alignment: 0
-      pivot: {x: 0, y: 0}
+        x: 474
+        y: 230
+        width: 589
+        height: 555
+      alignment: 9
+      pivot: {x: 0.34071624, y: 0.6473644}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -125,7 +125,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID: 67a26ba75edde4043911c940ca40c2df
     internalID: 0
     vertices: []
     indices: 

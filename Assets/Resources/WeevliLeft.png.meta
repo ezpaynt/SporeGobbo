@@ -103,12 +103,12 @@ TextureImporter:
       name: WeevliLeft_0
       rect:
         serializedVersion: 2
-        x: 31
-        y: 69
-        width: 993
-        height: 797
-      alignment: 0
-      pivot: {x: 0, y: 0}
+        x: 229
+        y: 422
+        width: 706
+        height: 440
+      alignment: 9
+      pivot: {x: 0.5068214, y: 0.513682}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -125,7 +125,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID: 5c170164a75c9d343bf57ded3bcb892f
     internalID: 0
     vertices: []
     indices: 
