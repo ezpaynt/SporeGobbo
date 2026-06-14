@@ -10,7 +10,7 @@ public static class TileMover
             return;
         }
 
-        float clearanceRadius = GetMapClearanceRadius(bodyRadius);
+        float clearanceRadius = GetMapClearanceRadius(rb, bodyRadius);
         Vector2 nextPos = rb.position + desiredVelocity * Time.fixedDeltaTime;
 
         if (MapGenerator.Instance.IsWorldPositionClearForBody(nextPos, clearanceRadius))
@@ -39,12 +39,13 @@ public static class TileMover
 
         rb.linearVelocity = Vector2.zero;
     }
+
     public static void KeepOutOfWalls(Rigidbody2D rb, float bodyRadius)
     {
         if (MapGenerator.Instance == null)
             return;
 
-        float clearanceRadius = GetMapClearanceRadius(bodyRadius);
+        float clearanceRadius = GetMapClearanceRadius(rb, bodyRadius);
 
         if (MapGenerator.Instance.IsWorldPositionClearForBody(rb.position, clearanceRadius))
             return;
@@ -77,12 +78,29 @@ public static class TileMover
         }
     }
 
-    private static float GetMapClearanceRadius(float bodyRadius)
+    public static float GetColliderBodyRadius(Rigidbody2D rb, float fallbackRadius)
     {
+        float radius = Mathf.Max(0f, fallbackRadius);
+
+        if (rb == null)
+            return radius;
+
+        Collider2D collider = rb.GetComponent<Collider2D>();
+        if (collider == null || !collider.enabled || collider.isTrigger)
+            return radius;
+
+        Vector2 extents = collider.bounds.extents;
+        return Mathf.Max(radius, extents.x, extents.y);
+    }
+
+    private static float GetMapClearanceRadius(Rigidbody2D rb, float bodyRadius)
+    {
+        float radius = GetColliderBodyRadius(rb, bodyRadius);
+
         if (MapGenerator.Instance == null || MapGenerator.Instance.Data == null)
-            return bodyRadius;
+            return radius;
 
         float cellCornerPadding = MapGenerator.Instance.Data.cellSize * 0.5f * Mathf.Sqrt(2f);
-        return bodyRadius + cellCornerPadding;
+        return radius + cellCornerPadding;
     }
 }
