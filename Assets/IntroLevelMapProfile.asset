@@ -22,21 +22,21 @@ MonoBehaviour:
   spawnRadius: 5
   darkDistance: 20
   darkerDistance: 35
-  fillerTunnelCount: 50
-  fillerPocketCount: 50
-  fillerLootPocketCount: 50
+  fillerTunnelCount: 5
+  fillerPocketCount: 6
+  fillerLootPocketCount: 4
   fillerMinDistanceFromMainPath: 2
   fillerMaxDistanceFromMainPath: 35
   branches:
   - branchName: North
     direction: {x: 0, y: 1}
-    length: 80
+    length: 70
     tunnelHalfWidth: 3
     wobble: 5
     forkCount: 1
     forkLengthMin: 20
     forkLengthMax: 30
-    smallRooms: 2
+    smallRooms: 1
     camps: 1
     bosses: 0
     minAttachmentDistanceFromSpawn: 5
@@ -44,13 +44,13 @@ MonoBehaviour:
     minGapBetweenAttachments: 8
   - branchName: East
     direction: {x: 1, y: 0}
-    length: 50
+    length: 60
     tunnelHalfWidth: 2
     wobble: 10
-    forkCount: 3
+    forkCount: 1
     forkLengthMin: 40
     forkLengthMax: 60
-    smallRooms: 5
+    smallRooms: 3
     camps: 1
     bosses: 0
     minAttachmentDistanceFromSpawn: 10
@@ -58,7 +58,7 @@ MonoBehaviour:
     minGapBetweenAttachments: 8
   - branchName: West
     direction: {x: -1, y: 0}
-    length: 29
+    length: 30
     tunnelHalfWidth: 2
     wobble: 2
     forkCount: 0
@@ -72,13 +72,13 @@ MonoBehaviour:
     minGapBetweenAttachments: 8
   - branchName: Boss
     direction: {x: 0, y: -1}
-    length: 120
+    length: 100
     tunnelHalfWidth: 2
     wobble: 10
-    forkCount: 4
+    forkCount: 2
     forkLengthMin: 20
     forkLengthMax: 40
-    smallRooms: 4
+    smallRooms: 2
     camps: 0
     bosses: 1
     minAttachmentDistanceFromSpawn: 15
