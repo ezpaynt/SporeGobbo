@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 5181395236899554114}
   - component: {fileID: 7639597062133642007}
   - component: {fileID: 4351642457425764767}
+  - component: {fileID: -1153364535593398492}
   m_Layer: 7
   m_Name: TunnelWeevil
   m_TagString: Enemy
@@ -163,19 +164,6 @@ Rigidbody2D:
   m_ExcludeLayers:
     serializedVersion: 2
     m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_ForceSendLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ForceReceiveLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ContactCaptureLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_CallbackLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
   m_Interpolate: 0
   m_SleepingMode: 1
   m_CollisionDetection: 1
@@ -242,8 +230,29 @@ MonoBehaviour:
   poisonDamagePerTick: 2
   poisonDuration: 3
   poisonTickRate: 1
+  useDirectionalSprites: 1
+  directionalSpriteController: {fileID: 0}
   flipSpriteToFaceTarget: 1
   spriteRenderer: {fileID: 3533764550774370490}
   hitColor: {r: 1, g: 0, b: 0, a: 1}
   flashTime: 0.08
   splatPrefab: {fileID: 7385056872454191158, guid: 8428b66b675f36249b4a3cc059b23e74, type: 3}
+--- !u!114 &-1153364535593398492
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7598521876761444214}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 04eb0c704218d2745ac6c9ecaa9f6936, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DirectionalSpriteController
+  front: {fileID: 4111689248024525725, guid: a17e50e2521e6f44a9391fc50a166b0f, type: 3}
+  frontLeft: {fileID: -6778428793142911021, guid: 1df818bd3add92f4284e0854269cc615, type: 3}
+  frontRight: {fileID: -4931749065763237800, guid: 17b0a58f41f7b5d4c9da8448c2e0f587, type: 3}
+  back: {fileID: -6173390691749209739, guid: 20166b474aa15ff4fb520febafcc608f, type: 3}
+  backLeft: {fileID: -4360010108147813870, guid: b72e0ef4e719bd349b1d2fd61b44f0e1, type: 3}
+  backRight: {fileID: -4931749065763237800, guid: 17b0a58f41f7b5d4c9da8448c2e0f587, type: 3}
+  spriteRenderer: {fileID: 0}
