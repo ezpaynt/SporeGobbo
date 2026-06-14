@@ -510,6 +510,7 @@ public class TunnelWeevilEnemy : MonoBehaviour
 
         Vector2 targetPos = currentTarget.position;
         Vector2 attackPoint = Vector2.Lerp(transform.position, targetPos, 0.65f);
+        Collider2D targetCollider = GetCurrentTargetColliderInBite(attackPoint);
 
         if (attackDebugPrefab != null)
         {
@@ -518,30 +519,38 @@ public class TunnelWeevilEnemy : MonoBehaviour
             Destroy(marker, 0.15f);
         }
 
-        Collider2D hit = targetLayers.value == 0
-            ? Physics2D.OverlapCircle(attackPoint, attackRadius)
-            : Physics2D.OverlapCircle(attackPoint, attackRadius, targetLayers);
-
-        if (hit == null || !hit.gameObject.activeInHierarchy)
+        if (targetCollider == null)
             return;
 
-        if (hit.transform != currentTarget && !IsCurrentTargetCollider(hit))
-            return;
-
-        hit.SendMessage("TakeDamage", attackDamage, SendMessageOptions.DontRequireReceiver);
+        targetCollider.SendMessage("TakeDamage", attackDamage, SendMessageOptions.DontRequireReceiver);
 
         if (applyPoison)
-            ApplyPoisonToTarget(hit.gameObject);
+            ApplyPoisonToTarget(targetCollider.gameObject);
 
         timeSinceSuccessfulAttack = 0f;
     }
 
-    bool IsCurrentTargetCollider(Collider2D hit)
+    Collider2D GetCurrentTargetColliderInBite(Vector2 attackPoint)
     {
-        if (hit == null || currentTarget == null)
-            return false;
+        if (currentTarget == null)
+            return null;
 
-        return hit.transform == currentTarget || hit.transform.IsChildOf(currentTarget) || currentTarget.IsChildOf(hit.transform);
+        Collider2D[] colliders = currentTarget.GetComponentsInChildren<Collider2D>();
+
+        foreach (Collider2D candidate in colliders)
+        {
+            if (candidate == null || !candidate.enabled || !candidate.gameObject.activeInHierarchy)
+                continue;
+
+            Vector2 closest = candidate.ClosestPoint(attackPoint);
+            if (Vector2.Distance(closest, attackPoint) <= attackRadius)
+                return candidate;
+        }
+
+        if (Vector2.Distance(currentTarget.position, attackPoint) <= attackRadius)
+            return currentTarget.GetComponent<Collider2D>();
+
+        return null;
     }
 
     void ApplyPoisonToTarget(GameObject target)
@@ -637,6 +646,36 @@ public class TunnelWeevilEnemy : MonoBehaviour
 
         if (health <= 0)
             Die();
+        else
+            ApplyKnockback(GetKnockbackDirectionFromNearestAttacker());
+    }
+
+    Vector2 GetKnockbackDirectionFromNearestAttacker()
+    {
+        Collider2D[] hits = targetLayers.value == 0
+            ? Physics2D.OverlapCircleAll(transform.position, 1.75f)
+            : Physics2D.OverlapCircleAll(transform.position, 1.75f, targetLayers);
+
+        Transform nearest = null;
+        float nearestDistance = Mathf.Infinity;
+
+        foreach (Collider2D hit in hits)
+        {
+            if (hit == null || !hit.gameObject.activeInHierarchy)
+                continue;
+
+            float distance = Vector2.Distance(transform.position, hit.transform.position);
+            if (distance < nearestDistance)
+            {
+                nearestDistance = distance;
+                nearest = hit.transform;
+            }
+        }
+
+        if (nearest != null)
+            return ((Vector2)transform.position - (Vector2)nearest.position).normalized;
+
+        return -aimDirection.normalized;
     }
 
     public void ApplyKnockback(Vector2 direction)
