@@ -10,13 +10,21 @@ public class TunnelWeevilEnemy : MonoBehaviour
         Scorpion
     }
 
+    private enum CombatState
+    {
+        Chasing,
+        AttackWindup,
+        AttackRecovery,
+        Knockback
+    }
+
     [Header("Enemy Identity")]
     public string enemyName = "Tunnel Weevil";
     public EnemyKind enemyKind = EnemyKind.Weevil;
 
     [Header("Health")]
-    public int maxHealth = 15;
-    public int health = 15;
+    public int maxHealth = 16;
+    public int health = 16;
 
     [Header("Run Scaling")]
     public bool scaleWithRunNumber = true;
@@ -31,8 +39,9 @@ public class TunnelWeevilEnemy : MonoBehaviour
     [Header("Targeting")]
     [Tooltip("Set this to Player + Buddy.")]
     public LayerMask targetLayers;
-    public float noticeRange = 10f;
+    public float noticeRange = 7f;
     public float loseTargetRangeBuffer = 3f;
+    public float giveUpRange = 12f;
     public float stopDistance = 0.8f;
     public bool requireLineOfSightToNotice = true;
     public bool requireReachableTarget = true;
@@ -41,9 +50,9 @@ public class TunnelWeevilEnemy : MonoBehaviour
     public float playerPreferenceBonus = 0.35f;
 
     [Header("Movement")]
-    public float moveSpeed = 1.5f;
-    public float chaseSpeed = 2.5f;
-    public float bodyRadius = 0.28f;
+    public float moveSpeed = 1.2f;
+    public float chaseSpeed = 1.8f;
+    public float bodyRadius = 0.38f;
 
     [Header("Idle Wander")]
     public float idlePointRadius = 3.5f;
@@ -62,11 +71,19 @@ public class TunnelWeevilEnemy : MonoBehaviour
     public float waypointReachDistance = 0.75f;
 
     [Header("Attack")]
-    public int attackDamage = 8;
-    public float attackRange = 0.9f;
-    public float attackRadius = 0.45f;
-    public float attackCooldown = 0.8f;
+    public int attackDamage = 23;
+    public float attackRange = 0.75f;
+    public float attackRadius = 0.4f;
+    public float attackCooldown = 1.3f;
+    public float attackWindup = 0.35f;
+    public float attackRecovery = 0.35f;
+    public float windupSpeedMultiplier = 0f;
     public GameObject attackDebugPrefab;
+
+    [Header("Hit Response")]
+    public float stunDuration = 0.12f;
+    public float hitKnockbackForce = 3f;
+    [Range(0f, 1f)] public float knockbackResistance = 0.25f;
 
     [Header("Scorpion Poison")]
     public bool applyPoison = false;
@@ -90,8 +107,12 @@ public class TunnelWeevilEnemy : MonoBehaviour
     private float attackCooldownTimer = 0f;
     private float timeSinceSuccessfulAttack = 0f;
     private float targetRefreshTimer = 0f;
+    private float stateTimer = 0f;
+    private bool didWindupDamage = false;
     private bool isDead = false;
     private Color originalColor;
+    private CombatState combatState = CombatState.Chasing;
+    private Vector2 knockbackVelocity;
 
     private readonly List<Vector2> currentPath = new List<Vector2>();
     private int pathIndex = 0;
@@ -139,8 +160,8 @@ public class TunnelWeevilEnemy : MonoBehaviour
         else
         {
             applyPoison = false;
-            maxHealth = Mathf.Max(maxHealth, 15);
-            attackDamage = Mathf.Max(attackDamage, 8);
+            maxHealth = Mathf.Max(maxHealth, 16);
+            attackDamage = Mathf.Max(attackDamage, 23);
         }
     }
 
@@ -163,6 +184,10 @@ public class TunnelWeevilEnemy : MonoBehaviour
 
         attackCooldownTimer -= Time.deltaTime;
         targetRefreshTimer -= Time.deltaTime;
+        stateTimer -= Time.deltaTime;
+
+        if (combatState == CombatState.Knockback)
+            return;
 
         if (currentTarget == null)
             FindBestTarget();
@@ -170,7 +195,7 @@ public class TunnelWeevilEnemy : MonoBehaviour
         {
             if (!IsTargetStillValid(currentTarget))
                 ClearTarget();
-            else if (targetRefreshTimer <= 0f)
+            else if (combatState == CombatState.Chasing && targetRefreshTimer <= 0f)
                 RefreshTargetChoice();
         }
 
@@ -187,28 +212,130 @@ public class TunnelWeevilEnemy : MonoBehaviour
         if (isDead)
             return;
 
+        if (combatState == CombatState.Knockback)
+        {
+            TickKnockback();
+            return;
+        }
+
         if (currentTarget == null)
         {
+            combatState = CombatState.Chasing;
             IdleWander();
             return;
         }
 
-        if (timeSinceSuccessfulAttack >= giveUpAfterNoAttackTime)
+        if (ShouldGiveUpTarget())
         {
             ClearTarget();
             return;
         }
 
+        switch (combatState)
+        {
+            case CombatState.AttackWindup:
+                TickAttackWindup();
+                break;
+            case CombatState.AttackRecovery:
+                TickAttackRecovery();
+                break;
+            default:
+                TickChase();
+                break;
+        }
+    }
+
+    bool ShouldGiveUpTarget()
+    {
+        if (currentTarget == null)
+            return true;
+
+        if (Vector2.Distance(transform.position, currentTarget.position) > giveUpRange)
+            return true;
+
+        return timeSinceSuccessfulAttack >= giveUpAfterNoAttackTime;
+    }
+
+    void TickChase()
+    {
         float distance = Vector2.Distance(transform.position, currentTarget.position);
 
         if (distance <= attackRange)
         {
-            rb.linearVelocity = Vector2.zero;
-            TryAttack();
+            BeginAttackWindup();
             return;
         }
 
-        MoveTowardTarget();
+        MoveTowardTarget(chaseSpeed);
+    }
+
+    void BeginAttackWindup()
+    {
+        if (attackCooldownTimer > 0f || currentTarget == null)
+            return;
+
+        if (!MapPathfinder.HasLineOfWalkableSight(transform.position, currentTarget.position))
+            return;
+
+        combatState = CombatState.AttackWindup;
+        stateTimer = Mathf.Max(0.01f, attackWindup);
+        didWindupDamage = false;
+        rb.linearVelocity = Vector2.zero;
+        ClearPath();
+        UpdateAimDirection(currentTarget.position);
+        FaceTarget();
+    }
+
+    void TickAttackWindup()
+    {
+        if (currentTarget == null)
+        {
+            BeginRecovery();
+            return;
+        }
+
+        UpdateAimDirection(currentTarget.position);
+        FaceTarget();
+
+        if (windupSpeedMultiplier > 0f)
+            MoveTowardTarget(chaseSpeed * windupSpeedMultiplier);
+        else
+            rb.linearVelocity = Vector2.zero;
+
+        if (stateTimer <= 0f && !didWindupDamage)
+        {
+            didWindupDamage = true;
+            DoAttackDamageMoment();
+            BeginRecovery();
+        }
+    }
+
+    void BeginRecovery()
+    {
+        combatState = CombatState.AttackRecovery;
+        stateTimer = Mathf.Max(0.01f, attackRecovery);
+        attackCooldownTimer = attackCooldown;
+        rb.linearVelocity = Vector2.zero;
+    }
+
+    void TickAttackRecovery()
+    {
+        rb.linearVelocity = Vector2.zero;
+
+        if (stateTimer <= 0f)
+            combatState = CombatState.Chasing;
+    }
+
+    void TickKnockback()
+    {
+        TileMover.Move(rb, knockbackVelocity, bodyRadius);
+        TileMover.KeepOutOfWalls(rb, bodyRadius);
+
+        if (stateTimer <= 0f)
+        {
+            combatState = CombatState.Chasing;
+            rb.linearVelocity = Vector2.zero;
+        }
     }
 
     void FindBestTarget()
@@ -250,6 +377,7 @@ public class TunnelWeevilEnemy : MonoBehaviour
         {
             currentTarget = best;
             timeSinceSuccessfulAttack = 0f;
+            combatState = CombatState.Chasing;
             ClearPath();
         }
     }
@@ -279,7 +407,7 @@ public class TunnelWeevilEnemy : MonoBehaviour
         if (target == null || !target.gameObject.activeInHierarchy)
             return false;
 
-        if (Vector2.Distance(transform.position, target.position) > noticeRange + loseTargetRangeBuffer)
+        if (Vector2.Distance(transform.position, target.position) > giveUpRange)
             return false;
 
         return CanNoticeTarget(target);
@@ -303,15 +431,13 @@ public class TunnelWeevilEnemy : MonoBehaviour
         return MapPathfinder.TryFindPath(transform.position, target.position, out testPath) && testPath.Count > 0;
     }
 
-    void MoveTowardTarget()
+    void MoveTowardTarget(float speed)
     {
         if (currentTarget == null)
             return;
 
         Vector2 targetPos = currentTarget.position;
         Vector2 direction = GetPathDirection(targetPos);
-
-        float speed = chaseSpeed;
 
         if (timeSinceSuccessfulAttack >= slowChaseAfterNoAttackTime)
             speed *= tiredChaseSpeedMultiplier;
@@ -374,18 +500,17 @@ public class TunnelWeevilEnemy : MonoBehaviour
         }
     }
 
-    void TryAttack()
+    void DoAttackDamageMoment()
     {
-        if (attackCooldownTimer > 0f || currentTarget == null)
+        if (currentTarget == null)
             return;
 
         if (!MapPathfinder.HasLineOfWalkableSight(transform.position, currentTarget.position))
             return;
 
-        attackCooldownTimer = attackCooldown;
-        timeSinceSuccessfulAttack = 0f;
-
-        Vector2 attackPoint = (Vector2)transform.position + aimDirection.normalized * attackRange;
+        Vector2 targetPos = currentTarget.position;
+        Vector2 attackPoint = Vector2.Lerp(transform.position, targetPos, 0.65f);
+        Collider2D targetCollider = GetCurrentTargetColliderInBite(attackPoint);
 
         if (attackDebugPrefab != null)
         {
@@ -394,23 +519,38 @@ public class TunnelWeevilEnemy : MonoBehaviour
             Destroy(marker, 0.15f);
         }
 
-        Collider2D[] hits = targetLayers.value == 0
-            ? Physics2D.OverlapCircleAll(attackPoint, attackRadius)
-            : Physics2D.OverlapCircleAll(attackPoint, attackRadius, targetLayers);
+        if (targetCollider == null)
+            return;
 
-        foreach (Collider2D hit in hits)
+        targetCollider.SendMessage("TakeDamage", attackDamage, SendMessageOptions.DontRequireReceiver);
+
+        if (applyPoison)
+            ApplyPoisonToTarget(targetCollider.gameObject);
+
+        timeSinceSuccessfulAttack = 0f;
+    }
+
+    Collider2D GetCurrentTargetColliderInBite(Vector2 attackPoint)
+    {
+        if (currentTarget == null)
+            return null;
+
+        Collider2D[] colliders = currentTarget.GetComponentsInChildren<Collider2D>();
+
+        foreach (Collider2D candidate in colliders)
         {
-            if (hit == null || !hit.gameObject.activeInHierarchy)
+            if (candidate == null || !candidate.enabled || !candidate.gameObject.activeInHierarchy)
                 continue;
 
-            if (!MapPathfinder.HasLineOfWalkableSight(transform.position, hit.transform.position))
-                continue;
-
-            hit.SendMessage("TakeDamage", attackDamage, SendMessageOptions.DontRequireReceiver);
-
-            if (applyPoison)
-                ApplyPoisonToTarget(hit.gameObject);
+            Vector2 closest = candidate.ClosestPoint(attackPoint);
+            if (Vector2.Distance(closest, attackPoint) <= attackRadius)
+                return candidate;
         }
+
+        if (Vector2.Distance(currentTarget.position, attackPoint) <= attackRadius)
+            return currentTarget.GetComponent<Collider2D>();
+
+        return null;
     }
 
     void ApplyPoisonToTarget(GameObject target)
@@ -506,6 +646,49 @@ public class TunnelWeevilEnemy : MonoBehaviour
 
         if (health <= 0)
             Die();
+        else
+            ApplyKnockback(GetKnockbackDirectionFromNearestAttacker());
+    }
+
+    Vector2 GetKnockbackDirectionFromNearestAttacker()
+    {
+        Collider2D[] hits = targetLayers.value == 0
+            ? Physics2D.OverlapCircleAll(transform.position, 1.75f)
+            : Physics2D.OverlapCircleAll(transform.position, 1.75f, targetLayers);
+
+        Transform nearest = null;
+        float nearestDistance = Mathf.Infinity;
+
+        foreach (Collider2D hit in hits)
+        {
+            if (hit == null || !hit.gameObject.activeInHierarchy)
+                continue;
+
+            float distance = Vector2.Distance(transform.position, hit.transform.position);
+            if (distance < nearestDistance)
+            {
+                nearestDistance = distance;
+                nearest = hit.transform;
+            }
+        }
+
+        if (nearest != null)
+            return ((Vector2)transform.position - (Vector2)nearest.position).normalized;
+
+        return -aimDirection.normalized;
+    }
+
+    public void ApplyKnockback(Vector2 direction)
+    {
+        if (isDead || direction.sqrMagnitude <= 0.001f)
+            return;
+
+        float resistedForce = hitKnockbackForce * Mathf.Clamp01(1f - knockbackResistance);
+        knockbackVelocity = direction.normalized * resistedForce;
+        stateTimer = Mathf.Max(0.01f, stunDuration);
+        combatState = CombatState.Knockback;
+        didWindupDamage = false;
+        ClearPath();
     }
 
     System.Collections.IEnumerator FlashRoutine()
@@ -559,7 +742,9 @@ public class TunnelWeevilEnemy : MonoBehaviour
     void ClearTarget()
     {
         currentTarget = null;
+        combatState = CombatState.Chasing;
         timeSinceSuccessfulAttack = 0f;
+        rb.linearVelocity = Vector2.zero;
         ClearPath();
         PickIdleGoal();
     }
@@ -575,9 +760,12 @@ public class TunnelWeevilEnemy : MonoBehaviour
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, noticeRange);
 
+        Gizmos.color = Color.gray;
+        Gizmos.DrawWireSphere(transform.position, giveUpRange);
+
         Gizmos.color = Color.red;
         Vector2 dir = aimDirection == Vector2.zero ? Vector2.left : aimDirection.normalized;
-        Vector2 attackPoint = (Vector2)transform.position + dir * attackRange;
+        Vector2 attackPoint = (Vector2)transform.position + dir * attackRange * 0.65f;
         Gizmos.DrawWireSphere(attackPoint, attackRadius);
     }
 }
