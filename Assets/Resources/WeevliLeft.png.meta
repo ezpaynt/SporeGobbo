@@ -103,10 +103,10 @@ TextureImporter:
       name: WeevliLeft_0
       rect:
         serializedVersion: 2
-        x: 229
-        y: 422
-        width: 706
-        height: 440
+        x: 23
+        y: 60
+        width: 1001
+        height: 802
       alignment: 9
       pivot: {x: 0.5068214, y: 0.513682}
       border: {x: 0, y: 0, z: 0, w: 0}

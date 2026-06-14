@@ -103,10 +103,10 @@ TextureImporter:
       name: Weevilbackleft_0
       rect:
         serializedVersion: 2
-        x: 535
-        y: 292
-        width: 681
-        height: 475
+        x: 332
+        y: 127
+        width: 985
+        height: 693
       alignment: 9
       pivot: {x: -0.3733059, y: 0.94653124}
       border: {x: 0, y: 0, z: 0, w: 0}
