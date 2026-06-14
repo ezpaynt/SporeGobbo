@@ -12,7 +12,7 @@ public class EnemyProjectile : MonoBehaviour
 
     private Rigidbody2D rb;
     private Vector2 direction = Vector2.right;
-    private bool launched = false;
+    private Transform ownerRoot;
 
     void Awake()
     {
@@ -54,10 +54,38 @@ public class EnemyProjectile : MonoBehaviour
         if (launchDirection.sqrMagnitude > 0.001f)
             direction = launchDirection.normalized;
 
-        launched = true;
-
         float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
         transform.rotation = Quaternion.Euler(0f, 0f, angle);
+    }
+
+    public void Launch(Vector2 launchDirection, Transform owner)
+    {
+        ownerRoot = owner != null ? owner.root : null;
+        IgnoreOwnerCollisions();
+        Launch(launchDirection);
+    }
+
+    void IgnoreOwnerCollisions()
+    {
+        if (ownerRoot == null)
+            return;
+
+        Collider2D[] projectileColliders = GetComponentsInChildren<Collider2D>();
+        Collider2D[] ownerColliders = ownerRoot.GetComponentsInChildren<Collider2D>();
+
+        foreach (Collider2D projectileCollider in projectileColliders)
+        {
+            if (projectileCollider == null)
+                continue;
+
+            foreach (Collider2D ownerCollider in ownerColliders)
+            {
+                if (ownerCollider == null)
+                    continue;
+
+                Physics2D.IgnoreCollision(projectileCollider, ownerCollider, true);
+            }
+        }
     }
 
     void OnTriggerEnter2D(Collider2D other)
@@ -75,6 +103,9 @@ public class EnemyProjectile : MonoBehaviour
         if (other == null)
             return;
 
+        if (IsOwnerCollider(other))
+            return;
+
         if (!IsInHitLayers(other.gameObject.layer))
             return;
 
@@ -82,6 +113,12 @@ public class EnemyProjectile : MonoBehaviour
 
         if (destroyOnHit)
             Destroy(gameObject);
+    }
+
+    bool IsOwnerCollider(Collider2D other)
+    {
+        return ownerRoot != null &&
+               (other.transform == ownerRoot || other.transform.IsChildOf(ownerRoot));
     }
 
     bool IsInHitLayers(int layer)
