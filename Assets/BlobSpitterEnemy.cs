@@ -215,7 +215,7 @@ public class BlobSpitterEnemy : MonoBehaviour
             direction = facingDirection.sqrMagnitude > 0.001f ? facingDirection : Vector2.down;
 
         EnemyProjectile projectile = Instantiate(projectilePrefab, spawnPosition, Quaternion.identity);
-        projectile.Launch(direction.normalized);
+        projectile.Launch(direction.normalized, transform);
     }
 
     void BeginRecovery()
