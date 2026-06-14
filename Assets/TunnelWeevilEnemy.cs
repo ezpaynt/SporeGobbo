@@ -73,6 +73,7 @@ public class TunnelWeevilEnemy : MonoBehaviour
     [Header("Attack")]
     public int attackDamage = 23;
     public float attackRange = 0.75f;
+    public float attackContactPadding = 0.05f;
     public float attackRadius = 0.4f;
     public float meleeHitRadius = 0.65f;
     public float meleeHitForwardOffset = 0.45f;
@@ -593,7 +594,7 @@ public class TunnelWeevilEnemy : MonoBehaviour
             return false;
 
         Vector2 closestTargetPoint = GetClosestPointOnCurrentTarget();
-        float biteReach = attackRange + Mathf.Max(0f, bodyRadius);
+        float biteReach = Mathf.Max(0f, attackRange) + Mathf.Max(0f, attackContactPadding);
         return Vector2.Distance(transform.position, closestTargetPoint) <= biteReach;
     }
 
@@ -876,7 +877,7 @@ public class TunnelWeevilEnemy : MonoBehaviour
         Vector2 attackPoint = (Vector2)transform.position + dir.normalized * meleeHitForwardOffset;
 
         Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(attackPoint, attackRange);
+        Gizmos.DrawWireSphere(attackPoint, attackRange + attackContactPadding);
 
         Gizmos.color = Color.magenta;
         Gizmos.DrawWireSphere(attackPoint, meleeHitRadius);
