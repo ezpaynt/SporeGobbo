@@ -74,6 +74,9 @@ public class TunnelWeevilEnemy : MonoBehaviour
     public int attackDamage = 23;
     public float attackRange = 0.75f;
     public float attackRadius = 0.4f;
+    public float meleeHitRadius = 0.65f;
+    public float meleeHitForwardOffset = 0.45f;
+    public bool logMissedMeleeHits = true;
     public float attackCooldown = 1.3f;
     public float attackWindup = 0.35f;
     public float attackRecovery = 0.35f;
@@ -116,6 +119,9 @@ public class TunnelWeevilEnemy : MonoBehaviour
     private Color originalColor;
     private CombatState combatState = CombatState.Chasing;
     private Vector2 knockbackVelocity;
+    private Vector2 lastMeleeHitCenter;
+    private bool hasLastMeleeHitCenter = false;
+    private bool lastMeleeHitConnected = false;
 
     private readonly List<Vector2> currentPath = new List<Vector2>();
     private int pathIndex = 0;
@@ -513,33 +519,72 @@ public class TunnelWeevilEnemy : MonoBehaviour
         if (currentTarget == null)
             return;
 
-        Vector2 biteTarget = GetClosestPointOnCurrentTarget();
+        Vector2 hitCenter = GetMeleeHitCenter();
+        lastMeleeHitCenter = hitCenter;
+        hasLastMeleeHitCenter = true;
+        lastMeleeHitConnected = false;
 
-        if (!MapPathfinder.HasLineOfWalkableSight(transform.position, biteTarget))
-            return;
-
-        Vector2 attackDirection = GetFacingDirection();
-        Vector2 targetOffset = biteTarget - (Vector2)transform.position;
-        float biteDistance = Mathf.Min(attackRange * 0.85f, Mathf.Max(attackRadius * 0.5f, targetOffset.magnitude * 0.65f));
-        Vector2 attackPoint = (Vector2)transform.position + attackDirection * biteDistance;
-        Collider2D targetCollider = GetCurrentTargetColliderInBite(attackPoint);
+        Collider2D targetCollider = FindMeleeHitTarget(hitCenter);
 
         if (attackDebugPrefab != null)
         {
-            GameObject marker = Instantiate(attackDebugPrefab, attackPoint, Quaternion.identity);
-            marker.transform.localScale = Vector3.one * attackRadius * 2f;
+            GameObject marker = Instantiate(attackDebugPrefab, hitCenter, Quaternion.identity);
+            marker.transform.localScale = Vector3.one * meleeHitRadius * 2f;
             Destroy(marker, 0.15f);
         }
 
         if (targetCollider == null)
-            return;
+        {
+            if (logMissedMeleeHits)
+                Debug.Log($"{enemyName} melee missed. Center={hitCenter}, radius={meleeHitRadius}, target={(currentTarget != null ? currentTarget.name : "none")}", this);
 
+            return;
+        }
+
+        lastMeleeHitConnected = true;
         targetCollider.SendMessage("TakeDamage", attackDamage, SendMessageOptions.DontRequireReceiver);
 
         if (applyPoison)
             ApplyPoisonToTarget(targetCollider.gameObject);
 
         timeSinceSuccessfulAttack = 0f;
+    }
+
+    Vector2 GetMeleeHitCenter()
+    {
+        Vector2 direction = GetFacingDirection();
+        float offset = Mathf.Max(0f, meleeHitForwardOffset);
+        return (Vector2)transform.position + direction * offset;
+    }
+
+    Collider2D FindMeleeHitTarget(Vector2 hitCenter)
+    {
+        Collider2D[] hits = targetLayers.value == 0
+            ? Physics2D.OverlapCircleAll(hitCenter, meleeHitRadius)
+            : Physics2D.OverlapCircleAll(hitCenter, meleeHitRadius, targetLayers);
+
+        Collider2D fallback = null;
+        float fallbackDistance = Mathf.Infinity;
+
+        foreach (Collider2D hit in hits)
+        {
+            if (hit == null || !hit.enabled || !hit.gameObject.activeInHierarchy)
+                continue;
+
+            if (currentTarget != null && (hit.transform == currentTarget || hit.transform.IsChildOf(currentTarget)))
+                return hit;
+
+            Vector2 closest = hit.ClosestPoint(hitCenter);
+            float distance = Vector2.Distance(hitCenter, closest);
+
+            if (distance < fallbackDistance)
+            {
+                fallbackDistance = distance;
+                fallback = hit;
+            }
+        }
+
+        return fallback;
     }
 
     bool IsCurrentTargetInBiteRange()
@@ -578,29 +623,6 @@ public class TunnelWeevilEnemy : MonoBehaviour
         }
 
         return bestPoint;
-    }
-
-    Collider2D GetCurrentTargetColliderInBite(Vector2 attackPoint)
-    {
-        if (currentTarget == null)
-            return null;
-
-        Collider2D[] colliders = currentTarget.GetComponentsInChildren<Collider2D>();
-
-        foreach (Collider2D candidate in colliders)
-        {
-            if (candidate == null || !candidate.enabled || !candidate.gameObject.activeInHierarchy)
-                continue;
-
-            Vector2 closest = candidate.ClosestPoint(attackPoint);
-            if (Vector2.Distance(closest, attackPoint) <= attackRadius)
-                return candidate;
-        }
-
-        if (Vector2.Distance(currentTarget.position, attackPoint) <= attackRadius)
-            return currentTarget.GetComponent<Collider2D>();
-
-        return null;
     }
 
     void ApplyPoisonToTarget(GameObject target)
@@ -843,9 +865,26 @@ public class TunnelWeevilEnemy : MonoBehaviour
         Gizmos.color = Color.gray;
         Gizmos.DrawWireSphere(transform.position, giveUpRange);
 
-        Gizmos.color = Color.red;
+        Gizmos.color = Color.white;
+        Collider2D bodyCollider = GetComponent<Collider2D>();
+        if (bodyCollider != null)
+            Gizmos.DrawWireCube(bodyCollider.bounds.center, bodyCollider.bounds.size);
+        else
+            Gizmos.DrawWireSphere(transform.position, bodyRadius);
+
         Vector2 dir = Application.isPlaying ? GetFacingDirection() : Vector2.left;
-        Vector2 attackPoint = (Vector2)transform.position + dir.normalized * attackRange * 0.85f;
-        Gizmos.DrawWireSphere(attackPoint, attackRadius);
+        Vector2 attackPoint = (Vector2)transform.position + dir.normalized * meleeHitForwardOffset;
+
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(attackPoint, attackRange);
+
+        Gizmos.color = Color.magenta;
+        Gizmos.DrawWireSphere(attackPoint, meleeHitRadius);
+
+        if (hasLastMeleeHitCenter)
+        {
+            Gizmos.color = lastMeleeHitConnected ? Color.green : Color.red;
+            Gizmos.DrawWireSphere(lastMeleeHitCenter, meleeHitRadius);
+        }
     }
 }
