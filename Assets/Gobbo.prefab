@@ -227,7 +227,7 @@ MonoBehaviour:
   health: 100
   attack: 5
   defense: 2
-  digPower: 1
+  digPower: 2
   attackRange: 0.85
   attackRadius: 0.45
   attackCooldown: 0.7
