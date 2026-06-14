@@ -44,7 +44,7 @@ SpriteRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
-  m_PrefAsset: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7125385173725763870}
   m_Enabled: 1
   m_CastShadows: 0
@@ -296,7 +296,7 @@ MonoBehaviour:
   knockbackForce: 6
   knockbackDuration: 0.12
   isPoisoned: 0
-  poisonColor: {r: 0.6, g: 1, b: 0.25, a: 1}
+  poisonColor: {r: 0.6, g: 1, b: 0.25}
 --- !u!114 &12771526620130999
 MonoBehaviour:
   m_ObjectHideFlags: 0
