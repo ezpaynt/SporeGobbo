@@ -92,6 +92,8 @@ public class TunnelWeevilEnemy : MonoBehaviour
     public float poisonTickRate = 1f;
 
     [Header("Visual")]
+    public bool useDirectionalSprites = true;
+    public DirectionalSpriteController directionalSpriteController;
     public bool flipSpriteToFaceTarget = true;
     public SpriteRenderer spriteRenderer;
     public Color hitColor = Color.red;
@@ -101,6 +103,7 @@ public class TunnelWeevilEnemy : MonoBehaviour
     private Rigidbody2D rb;
     private Transform currentTarget;
     private Vector2 aimDirection = Vector2.left;
+    private Vector2 facingDirection = Vector2.down;
     private Vector2 spawnPosition;
     private Vector2 idleGoal;
     private float idleWaitTimer = 0f;
@@ -128,6 +131,12 @@ public class TunnelWeevilEnemy : MonoBehaviour
         if (spriteRenderer == null)
             spriteRenderer = GetComponentInChildren<SpriteRenderer>();
 
+        if (directionalSpriteController == null)
+            directionalSpriteController = GetComponentInChildren<DirectionalSpriteController>();
+
+        if (directionalSpriteController != null && directionalSpriteController.spriteRenderer == null)
+            directionalSpriteController.spriteRenderer = spriteRenderer;
+
         if (spriteRenderer != null)
             originalColor = spriteRenderer.color;
 
@@ -140,6 +149,7 @@ public class TunnelWeevilEnemy : MonoBehaviour
         ApplyRunScaling();
         health = maxHealth;
         PickIdleGoal();
+        SetFacingDirection(facingDirection);
     }
 
     void ApplyKindDefaults()
@@ -199,12 +209,8 @@ public class TunnelWeevilEnemy : MonoBehaviour
                 RefreshTargetChoice();
         }
 
-        if (currentTarget != null)
-        {
-            timeSinceSuccessfulAttack += Time.deltaTime;
-            UpdateAimDirection(currentTarget.position);
-            FaceTarget();
-        }
+        if (currentTarget != null && combatState != CombatState.Chasing)
+            FaceTargetDirection(currentTarget.position);
     }
 
     void FixedUpdate()
@@ -282,8 +288,7 @@ public class TunnelWeevilEnemy : MonoBehaviour
         didWindupDamage = false;
         rb.linearVelocity = Vector2.zero;
         ClearPath();
-        UpdateAimDirection(currentTarget.position);
-        FaceTarget();
+        FaceTargetDirection(currentTarget.position);
     }
 
     void TickAttackWindup()
@@ -294,8 +299,7 @@ public class TunnelWeevilEnemy : MonoBehaviour
             return;
         }
 
-        UpdateAimDirection(currentTarget.position);
-        FaceTarget();
+        FaceTargetDirection(currentTarget.position);
 
         if (windupSpeedMultiplier > 0f)
             MoveTowardTarget(chaseSpeed * windupSpeedMultiplier);
@@ -439,6 +443,9 @@ public class TunnelWeevilEnemy : MonoBehaviour
         Vector2 targetPos = currentTarget.position;
         Vector2 direction = GetPathDirection(targetPos);
 
+        if (direction.sqrMagnitude > 0.001f)
+            SetFacingDirection(direction);
+
         if (timeSinceSuccessfulAttack >= slowChaseAfterNoAttackTime)
             speed *= tiredChaseSpeedMultiplier;
 
@@ -508,8 +515,10 @@ public class TunnelWeevilEnemy : MonoBehaviour
         if (!MapPathfinder.HasLineOfWalkableSight(transform.position, currentTarget.position))
             return;
 
-        Vector2 targetPos = currentTarget.position;
-        Vector2 attackPoint = Vector2.Lerp(transform.position, targetPos, 0.65f);
+        Vector2 attackDirection = GetFacingDirection();
+        Vector2 targetOffset = (Vector2)currentTarget.position - (Vector2)transform.position;
+        float biteDistance = Mathf.Min(attackRange * 0.85f, Mathf.Max(attackRadius * 0.5f, targetOffset.magnitude * 0.65f));
+        Vector2 attackPoint = (Vector2)transform.position + attackDirection * biteDistance;
         Collider2D targetCollider = GetCurrentTargetColliderInBite(attackPoint);
 
         if (attackDebugPrefab != null)
@@ -587,6 +596,9 @@ public class TunnelWeevilEnemy : MonoBehaviour
 
         Vector2 dir = (idleGoal - rb.position).normalized;
 
+        if (dir.sqrMagnitude > 0.001f)
+            SetFacingDirection(dir);
+
         TileMover.Move(rb, dir * moveSpeed, bodyRadius);
         TileMover.KeepOutOfWalls(rb, bodyRadius);
     }
@@ -615,20 +627,47 @@ public class TunnelWeevilEnemy : MonoBehaviour
                MapGenerator.Instance.IsWorldPositionClearForBody(point, bodyRadius);
     }
 
-    void UpdateAimDirection(Vector2 targetPosition)
+    void FaceTargetDirection(Vector2 targetPosition)
     {
         Vector2 direction = targetPosition - (Vector2)transform.position;
-
-        if (direction.sqrMagnitude > 0.001f)
-            aimDirection = direction.normalized;
+        SetFacingDirection(direction);
     }
 
-    void FaceTarget()
+    void SetFacingDirection(Vector2 direction)
+    {
+        if (direction.sqrMagnitude <= 0.001f)
+            return;
+
+        direction.Normalize();
+        aimDirection = direction;
+        facingDirection = direction;
+
+        if (useDirectionalSprites && directionalSpriteController != null)
+        {
+            directionalSpriteController.SetDirection(direction);
+            return;
+        }
+
+        ApplyFallbackFlip(direction);
+    }
+
+    Vector2 GetFacingDirection()
+    {
+        if (facingDirection.sqrMagnitude > 0.001f)
+            return facingDirection.normalized;
+
+        if (aimDirection.sqrMagnitude > 0.001f)
+            return aimDirection.normalized;
+
+        return Vector2.down;
+    }
+
+    void ApplyFallbackFlip(Vector2 direction)
     {
         if (!flipSpriteToFaceTarget || spriteRenderer == null)
             return;
 
-        spriteRenderer.flipX = aimDirection.x > 0f;
+        spriteRenderer.flipX = direction.x > 0f;
     }
 
     public void TakeDamage(int amount)
@@ -675,7 +714,7 @@ public class TunnelWeevilEnemy : MonoBehaviour
         if (nearest != null)
             return ((Vector2)transform.position - (Vector2)nearest.position).normalized;
 
-        return -aimDirection.normalized;
+        return -GetFacingDirection();
     }
 
     public void ApplyKnockback(Vector2 direction)
@@ -764,8 +803,8 @@ public class TunnelWeevilEnemy : MonoBehaviour
         Gizmos.DrawWireSphere(transform.position, giveUpRange);
 
         Gizmos.color = Color.red;
-        Vector2 dir = aimDirection == Vector2.zero ? Vector2.left : aimDirection.normalized;
-        Vector2 attackPoint = (Vector2)transform.position + dir * attackRange * 0.65f;
+        Vector2 dir = Application.isPlaying ? GetFacingDirection() : Vector2.left;
+        Vector2 attackPoint = (Vector2)transform.position + dir.normalized * attackRange * 0.85f;
         Gizmos.DrawWireSphere(attackPoint, attackRadius);
     }
 }
