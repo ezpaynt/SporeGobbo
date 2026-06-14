@@ -54,6 +54,9 @@ public class GobboController : MonoBehaviour
     [Header("Digging")]
     public float digRange = 0.8f;
     public float digRadius = 0.65f;
+    public float digComfortPadding = 0.35f;
+    public float digBonusRadius = 0f;
+    public int minimumClearedTileWidth = 3;
     public float digTickRate = 0.05f;
     public LayerMask diggableLayers;
 
@@ -383,13 +386,14 @@ public class GobboController : MonoBehaviour
             visualController.SetAnimationState(GobboAnimationState.Dig);
 
         Vector2 digPoint = (Vector2)transform.position + aimDirection.normalized * digRange;
+        float effectiveDigRadius = GetEffectiveDigRadius();
 
         if (MapGenerator.Instance != null)
-            MapGenerator.Instance.DigCircle(digPoint, digRadius);
+            MapGenerator.Instance.DigCircle(digPoint, effectiveDigRadius);
 
         Collider2D[] hits = diggableLayers.value == 0
-            ? Physics2D.OverlapCircleAll(digPoint, digRadius)
-            : Physics2D.OverlapCircleAll(digPoint, digRadius, diggableLayers);
+            ? Physics2D.OverlapCircleAll(digPoint, effectiveDigRadius)
+            : Physics2D.OverlapCircleAll(digPoint, effectiveDigRadius, diggableLayers);
 
         foreach (Collider2D hit in hits)
         {
@@ -398,6 +402,30 @@ public class GobboController : MonoBehaviour
             if (revealCover != null)
                 revealCover.Dig(digPower);
         }
+    }
+
+    float GetEffectiveDigRadius()
+    {
+        float bodyFitRadius = bodyRadius + Mathf.Max(0f, digComfortPadding) + Mathf.Max(0f, digBonusRadius);
+        float legacyInspectorRadius = Mathf.Max(0f, digRadius);
+        float minimumTileRadius = GetMinimumClearedTileRadius();
+
+        return Mathf.Max(bodyFitRadius, legacyInspectorRadius, minimumTileRadius);
+    }
+
+    float GetMinimumClearedTileRadius()
+    {
+        int tileWidth = Mathf.Max(1, minimumClearedTileWidth);
+
+        if (tileWidth % 2 == 0)
+            tileWidth += 1;
+
+        int rings = tileWidth / 2;
+        if (rings <= 0)
+            return 0f;
+
+        float cellSize = MapGenerator.Instance != null ? MapGenerator.Instance.map.cellSize : 1f;
+        return cellSize * rings * Mathf.Sqrt(2f);
     }
 
     void BasicAttack()
@@ -1076,7 +1104,7 @@ public class GobboController : MonoBehaviour
         GUI.Label(new Rect(20, 120, 250, 20), "Defense: " + defense);
         GUI.Label(new Rect(20, 140, 250, 20), "Crit: " + Mathf.RoundToInt(critChance * 100f) + "% x" + critDamageMultiplier);
         GUI.Label(new Rect(20, 160, 250, 20), "Dig Power: " + digPower);
-        GUI.Label(new Rect(20, 180, 250, 20), "Dig Radius: " + digRadius);
+        GUI.Label(new Rect(20, 180, 250, 20), "Dig Radius: " + GetEffectiveDigRadius());
         GUI.Label(new Rect(20, 200, 250, 20), "Attack Radius: " + attackRadius);
         GUI.Label(new Rect(20, 220, 250, 20), "Attack CD: " + attackCooldown);
         GUI.Label(new Rect(20, 240, 250, 20), "Move Speed: " + moveSpeed);
@@ -1102,7 +1130,7 @@ public class GobboController : MonoBehaviour
 
         Vector2 digPoint = (Vector2)transform.position + direction * digRange;
         Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(digPoint, digRadius);
+        Gizmos.DrawWireSphere(digPoint, GetEffectiveDigRadius());
 
         Gizmos.color = Color.green;
         Gizmos.DrawWireSphere(transform.position, interactRange);
