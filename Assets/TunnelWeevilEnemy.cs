@@ -210,7 +210,7 @@ public class TunnelWeevilEnemy : MonoBehaviour
         }
 
         if (currentTarget != null && combatState != CombatState.Chasing)
-            FaceTargetDirection(currentTarget.position);
+            FaceTargetDirection(GetClosestPointOnCurrentTarget());
     }
 
     void FixedUpdate()
@@ -264,10 +264,9 @@ public class TunnelWeevilEnemy : MonoBehaviour
 
     void TickChase()
     {
-        float distance = Vector2.Distance(transform.position, currentTarget.position);
-
-        if (distance <= attackRange)
+        if (IsCurrentTargetInBiteRange())
         {
+            FaceTargetDirection(GetClosestPointOnCurrentTarget());
             BeginAttackWindup();
             return;
         }
@@ -280,7 +279,9 @@ public class TunnelWeevilEnemy : MonoBehaviour
         if (attackCooldownTimer > 0f || currentTarget == null)
             return;
 
-        if (!MapPathfinder.HasLineOfWalkableSight(transform.position, currentTarget.position))
+        Vector2 closestTargetPoint = GetClosestPointOnCurrentTarget();
+
+        if (!MapPathfinder.HasLineOfWalkableSight(transform.position, closestTargetPoint))
             return;
 
         combatState = CombatState.AttackWindup;
@@ -288,7 +289,7 @@ public class TunnelWeevilEnemy : MonoBehaviour
         didWindupDamage = false;
         rb.linearVelocity = Vector2.zero;
         ClearPath();
-        FaceTargetDirection(currentTarget.position);
+        FaceTargetDirection(closestTargetPoint);
     }
 
     void TickAttackWindup()
@@ -299,7 +300,7 @@ public class TunnelWeevilEnemy : MonoBehaviour
             return;
         }
 
-        FaceTargetDirection(currentTarget.position);
+        FaceTargetDirection(GetClosestPointOnCurrentTarget());
 
         if (windupSpeedMultiplier > 0f)
             MoveTowardTarget(chaseSpeed * windupSpeedMultiplier);
@@ -512,11 +513,13 @@ public class TunnelWeevilEnemy : MonoBehaviour
         if (currentTarget == null)
             return;
 
-        if (!MapPathfinder.HasLineOfWalkableSight(transform.position, currentTarget.position))
+        Vector2 biteTarget = GetClosestPointOnCurrentTarget();
+
+        if (!MapPathfinder.HasLineOfWalkableSight(transform.position, biteTarget))
             return;
 
         Vector2 attackDirection = GetFacingDirection();
-        Vector2 targetOffset = (Vector2)currentTarget.position - (Vector2)transform.position;
+        Vector2 targetOffset = biteTarget - (Vector2)transform.position;
         float biteDistance = Mathf.Min(attackRange * 0.85f, Mathf.Max(attackRadius * 0.5f, targetOffset.magnitude * 0.65f));
         Vector2 attackPoint = (Vector2)transform.position + attackDirection * biteDistance;
         Collider2D targetCollider = GetCurrentTargetColliderInBite(attackPoint);
@@ -537,6 +540,44 @@ public class TunnelWeevilEnemy : MonoBehaviour
             ApplyPoisonToTarget(targetCollider.gameObject);
 
         timeSinceSuccessfulAttack = 0f;
+    }
+
+    bool IsCurrentTargetInBiteRange()
+    {
+        if (currentTarget == null)
+            return false;
+
+        Vector2 closestTargetPoint = GetClosestPointOnCurrentTarget();
+        float biteReach = attackRange + Mathf.Max(0f, bodyRadius);
+        return Vector2.Distance(transform.position, closestTargetPoint) <= biteReach;
+    }
+
+    Vector2 GetClosestPointOnCurrentTarget()
+    {
+        if (currentTarget == null)
+            return transform.position;
+
+        Vector2 origin = transform.position;
+        Collider2D[] colliders = currentTarget.GetComponentsInChildren<Collider2D>();
+        float bestDistance = Mathf.Infinity;
+        Vector2 bestPoint = currentTarget.position;
+
+        foreach (Collider2D candidate in colliders)
+        {
+            if (candidate == null || !candidate.enabled || !candidate.gameObject.activeInHierarchy)
+                continue;
+
+            Vector2 point = candidate.ClosestPoint(origin);
+            float distance = Vector2.Distance(origin, point);
+
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                bestPoint = point;
+            }
+        }
+
+        return bestPoint;
     }
 
     Collider2D GetCurrentTargetColliderInBite(Vector2 attackPoint)
