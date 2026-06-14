@@ -79,14 +79,17 @@ public class BlobSpitterEnemy : MonoBehaviour
 
         if (targetLayers.value == 0)
         {
+            int layers = 0;
             int playerLayer = LayerMask.NameToLayer("Player");
             int buddyLayer = LayerMask.NameToLayer("Buddy");
 
             if (playerLayer >= 0)
-                targetLayers |= 1 << playerLayer;
+                layers |= 1 << playerLayer;
 
             if (buddyLayer >= 0)
-                targetLayers |= 1 << buddyLayer;
+                layers |= 1 << buddyLayer;
+
+            targetLayers = layers;
         }
 
         gameObject.tag = "Enemy";
