@@ -10,9 +10,10 @@ public static class TileMover
             return;
         }
 
+        float clearanceRadius = GetMapClearanceRadius(bodyRadius);
         Vector2 nextPos = rb.position + desiredVelocity * Time.fixedDeltaTime;
 
-        if (MapGenerator.Instance.IsWorldPositionClearForBody(nextPos, bodyRadius))
+        if (MapGenerator.Instance.IsWorldPositionClearForBody(nextPos, clearanceRadius))
         {
             rb.linearVelocity = desiredVelocity;
             return;
@@ -21,7 +22,7 @@ public static class TileMover
         Vector2 xVel = new Vector2(desiredVelocity.x, 0f);
         Vector2 xPos = rb.position + xVel * Time.fixedDeltaTime;
 
-        if (MapGenerator.Instance.IsWorldPositionClearForBody(xPos, bodyRadius))
+        if (MapGenerator.Instance.IsWorldPositionClearForBody(xPos, clearanceRadius))
         {
             rb.linearVelocity = xVel;
             return;
@@ -30,7 +31,7 @@ public static class TileMover
         Vector2 yVel = new Vector2(0f, desiredVelocity.y);
         Vector2 yPos = rb.position + yVel * Time.fixedDeltaTime;
 
-        if (MapGenerator.Instance.IsWorldPositionClearForBody(yPos, bodyRadius))
+        if (MapGenerator.Instance.IsWorldPositionClearForBody(yPos, clearanceRadius))
         {
             rb.linearVelocity = yVel;
             return;
@@ -43,7 +44,9 @@ public static class TileMover
         if (MapGenerator.Instance == null)
             return;
 
-        if (MapGenerator.Instance.IsWorldPositionClearForBody(rb.position, bodyRadius))
+        float clearanceRadius = GetMapClearanceRadius(bodyRadius);
+
+        if (MapGenerator.Instance.IsWorldPositionClearForBody(rb.position, clearanceRadius))
             return;
 
         Vector2Int cell =
@@ -63,7 +66,7 @@ public static class TileMover
 
                     if (MapGenerator.Instance.IsWorldPositionClearForBody(
                         testWorld,
-                        bodyRadius))
+                        clearanceRadius))
                     {
                         rb.position = testWorld;
                         rb.linearVelocity = Vector2.zero;
@@ -72,5 +75,14 @@ public static class TileMover
                 }
             }
         }
+    }
+
+    private static float GetMapClearanceRadius(float bodyRadius)
+    {
+        if (MapGenerator.Instance == null || MapGenerator.Instance.Data == null)
+            return bodyRadius;
+
+        float cellCornerPadding = MapGenerator.Instance.Data.cellSize * 0.5f * Mathf.Sqrt(2f);
+        return bodyRadius + cellCornerPadding;
     }
 }
