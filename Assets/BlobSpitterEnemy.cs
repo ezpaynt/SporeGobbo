@@ -35,6 +35,10 @@ public class BlobSpitterEnemy : MonoBehaviour
     public float windupDuration = 0.6f;
     public float recoveryDuration = 0.8f;
 
+    [Header("Projectile")]
+    public EnemyProjectile projectilePrefab;
+    public Transform projectileSpawnPoint;
+
     [Header("Sprites")]
     public Sprite frontSprite;
     public Sprite backSprite;
@@ -192,7 +196,26 @@ public class BlobSpitterEnemy : MonoBehaviour
         stateTimer = 0.08f;
         rb.linearVelocity = Vector2.zero;
         SetSpriteOrFallback(attackFireSprite != null ? attackFireSprite : attackReadySprite);
-        Debug.Log("Blob Spitter placeholder fire moment. Projectile not implemented yet.", this);
+        FireProjectile();
+    }
+
+    void FireProjectile()
+    {
+        if (projectilePrefab == null || currentTarget == null)
+            return;
+
+        Vector2 spawnPosition = projectileSpawnPoint != null
+            ? projectileSpawnPoint.position
+            : transform.position;
+
+        Vector2 targetPosition = currentTarget.position;
+        Vector2 direction = targetPosition - spawnPosition;
+
+        if (direction.sqrMagnitude <= 0.001f)
+            direction = facingDirection.sqrMagnitude > 0.001f ? facingDirection : Vector2.down;
+
+        EnemyProjectile projectile = Instantiate(projectilePrefab, spawnPosition, Quaternion.identity);
+        projectile.Launch(direction.normalized);
     }
 
     void BeginRecovery()
