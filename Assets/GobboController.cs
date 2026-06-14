@@ -39,6 +39,7 @@ public class GobboController : MonoBehaviour
     public float dashDuration = 0.12f;
     public float dashCooldown = 0.7f;
     public float bodyRadius = 0.32f;
+    public float wallContactPadding = 0.08f;
 
     [Header("Directional Sprites")]
     public bool faceCursor = true;
@@ -202,7 +203,7 @@ public class GobboController : MonoBehaviour
             return;
 
         Move();
-        TileMover.KeepOutOfWalls(rb, bodyRadius);
+        TileMover.KeepOutOfWalls(rb, GetCollisionBodyRadius());
     }
 
     public void RefreshAfterSaveLoad()
@@ -320,7 +321,7 @@ public class GobboController : MonoBehaviour
     {
         if (isKnockedBack)
         {
-            TileMover.Move(rb, knockbackVelocity, bodyRadius);
+            TileMover.Move(rb, knockbackVelocity, GetCollisionBodyRadius());
             return;
         }
 
@@ -331,7 +332,7 @@ public class GobboController : MonoBehaviour
         if (visualController != null)
             visualController.SetAnimationState(isDashing ? GobboAnimationState.Dash : (moveInput.sqrMagnitude > 0.01f ? GobboAnimationState.Walk : GobboAnimationState.Idle));
 
-        TileMover.Move(rb, desiredVelocity, bodyRadius);
+        TileMover.Move(rb, desiredVelocity, GetCollisionBodyRadius());
     }
 
     void HandleActions()
@@ -424,11 +425,16 @@ public class GobboController : MonoBehaviour
 
     float GetEffectiveDigRadius()
     {
-        float bodyFitRadius = GetScaledBodyRadius() + Mathf.Max(0f, digComfortPadding) + Mathf.Max(0f, digBonusRadius);
+        float bodyFitRadius = GetCollisionBodyRadius() + Mathf.Max(0f, digComfortPadding) + Mathf.Max(0f, digBonusRadius);
         float legacyInspectorRadius = Mathf.Max(0f, digRadius);
         float minimumTileRadius = GetMinimumClearedTileRadius();
 
         return Mathf.Max(bodyFitRadius, legacyInspectorRadius, minimumTileRadius);
+    }
+
+    float GetCollisionBodyRadius()
+    {
+        return GetScaledBodyRadius() + Mathf.Max(0f, wallContactPadding);
     }
 
     float GetScaledBodyRadius()
@@ -544,7 +550,7 @@ public class GobboController : MonoBehaviour
         Vector2 toTarget = ((Vector2)target.position - (Vector2)transform.position).normalized;
         Vector2 desiredPosition = (Vector2)target.position - toTarget * dashBiteStopDistance;
 
-        if (MapGenerator.Instance == null || MapGenerator.Instance.IsWorldPositionClearForBody(desiredPosition, bodyRadius))
+        if (MapGenerator.Instance == null || MapGenerator.Instance.IsWorldPositionClearForBody(desiredPosition, GetCollisionBodyRadius()))
             rb.position = desiredPosition;
 
         aimDirection = toTarget;
