@@ -29,7 +29,7 @@ Transform:
   m_GameObject: {fileID: 744620505064585365}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.799973, y: 1.8164003, z: 0}
+  m_LocalPosition: {x: 0.69, y: 7.35, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -64,7 +64,7 @@ MonoBehaviour:
   windupDuration: 0.6
   recoveryDuration: 0.8
   projectilePrefab: {fileID: 4446645970047426709, guid: f5d19d3339fd6934fba48ed6faba835a, type: 3}
-  projectileSpawnPoint: {fileID: 0}
+  projectileSpawnPoint: {fileID: 849398230049502701}
   frontSprite: {fileID: 7788868788691793907, guid: 5987ee3b862bb4a4eb79428813a9dd11, type: 3}
   backSprite: {fileID: 1120752273816422825, guid: 774487f25381021498c1db569b98babd, type: 3}
   leftSprite: {fileID: 7387797781567672710, guid: 2b1b68be5dc2df540b798b12484e57b2, type: 3}
@@ -222,7 +222,7 @@ Transform:
   m_GameObject: {fileID: 3804675311108618490}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.026, y: 0.254, z: 0}
+  m_LocalPosition: {x: 0.04, y: 1.76, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
