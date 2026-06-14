@@ -100,7 +100,7 @@ public static class TileMover
         if (MapGenerator.Instance == null || MapGenerator.Instance.Data == null)
             return radius;
 
-        float cellCornerPadding = MapGenerator.Instance.Data.cellSize * 0.5f * Mathf.Sqrt(2f);
-        return radius + cellCornerPadding;
+        float cellFacePadding = MapGenerator.Instance.Data.cellSize * 0.5f;
+        return radius + cellFacePadding;
     }
 }
