@@ -23,10 +23,21 @@ public class RunContentSpawner : MonoBehaviour
     public float objectClearRadius = 0.35f;
     public int placementTriesPerObject = 40;
 
+    [Header("Camp Enemy Counts")]
+    public bool overrideCampWeevilCount = false;
+    public int weevilsPerCampMin = 3;
+    public int weevilsPerCampMax = 3;
+    public bool overrideBossCampWeevilCount = false;
+    public int weevilsPerBossCampMin = 2;
+    public int weevilsPerBossCampMax = 2;
+
     [Header("Blob Spitters")]
     public int blobSpittersPerCampMin = 0;
     public int blobSpittersPerCampMax = 1;
     [Range(0f, 1f)] public float blobSpitterSpawnChance = 0.35f;
+    public int blobSpittersPerBossCampMin = 0;
+    public int blobSpittersPerBossCampMax = 1;
+    [Range(0f, 1f)] public float blobSpitterBossSpawnChance = 0.5f;
     public float blobSpitterMinDistanceFromSpawn = 8f;
 
     private readonly HashSet<int> spawnedCampIds = new HashSet<int>();
@@ -122,9 +133,10 @@ public class RunContentSpawner : MonoBehaviour
         GameObject normalEnemy = enemyPrefab;
         GameObject bossEnemy = bossEnemyPrefab != null ? bossEnemyPrefab : enemyPrefab;
         int shinyCount = GetEffectiveShinyCount(camp);
+        int weevilCount = GetWeevilCount(camp);
         int blobSpitterCount = GetBlobSpitterCount(camp);
 
-        for (int i = 0; i < camp.enemyCount; i++)
+        for (int i = 0; i < weevilCount; i++)
             SpawnInCircle(normalEnemy, camp.center, camp.radius, enemyParent);
 
         for (int i = 0; i < camp.bossEnemyCount; i++)
@@ -146,9 +158,23 @@ public class RunContentSpawner : MonoBehaviour
             SpawnInCircle(exitPortalPrefab, camp.center, Mathf.Max(0.5f, camp.radius * 0.5f), exitParent);
 
         Debug.Log(
-            $"RunContentSpawner spawned camp content | Id:{camp.id} NormalEnemies:{camp.enemyCount} BossEnemies:{camp.bossEnemyCount} BlobSpitters:{blobSpitterCount} Mushrooms:{camp.mushroomCount} Spores:{camp.sporeCount} Shinies:{shinyCount} Exit:{camp.hasExitPortal}",
+            $"RunContentSpawner spawned camp content | Id:{camp.id} Weevils:{weevilCount} BossEnemies:{camp.bossEnemyCount} BlobSpitters:{blobSpitterCount} Mushrooms:{camp.mushroomCount} Spores:{camp.sporeCount} Shinies:{shinyCount} Exit:{camp.hasExitPortal}",
             this
         );
+    }
+
+    private int GetWeevilCount(CampData camp)
+    {
+        if (camp == null)
+            return 0;
+
+        if (camp.isBossCamp && overrideBossCampWeevilCount)
+            return Random.Range(Mathf.Max(0, weevilsPerBossCampMin), Mathf.Max(weevilsPerBossCampMin, weevilsPerBossCampMax) + 1);
+
+        if (!camp.isBossCamp && overrideCampWeevilCount)
+            return Random.Range(Mathf.Max(0, weevilsPerCampMin), Mathf.Max(weevilsPerCampMin, weevilsPerCampMax) + 1);
+
+        return camp.enemyCount;
     }
 
     private int GetBlobSpitterCount(CampData camp)
@@ -162,11 +188,16 @@ public class RunContentSpawner : MonoBehaviour
         if (IsTooCloseToSpawn(camp.center))
             return 0;
 
-        if (Random.value > blobSpitterSpawnChance)
+        bool isBossCamp = camp.isBossCamp || camp.bossEnemyCount > 0 || camp.hasExitPortal;
+        float chance = isBossCamp ? blobSpitterBossSpawnChance : blobSpitterSpawnChance;
+
+        if (Random.value > chance)
             return 0;
 
-        int min = Mathf.Max(0, blobSpittersPerCampMin);
-        int max = Mathf.Max(min, blobSpittersPerCampMax);
+        int min = isBossCamp ? blobSpittersPerBossCampMin : blobSpittersPerCampMin;
+        int max = isBossCamp ? blobSpittersPerBossCampMax : blobSpittersPerCampMax;
+        min = Mathf.Max(0, min);
+        max = Mathf.Max(min, max);
         return Random.Range(min, max + 1);
     }
 
