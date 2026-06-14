@@ -89,7 +89,7 @@ public class BlobSpitterEnemy : MonoBehaviour
             if (buddyLayer >= 0)
                 layers |= 1 << buddyLayer;
 
-            targetLayers = layers;
+            targetLayers.value = layers;
         }
 
         gameObject.tag = "Enemy";
