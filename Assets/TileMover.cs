@@ -93,7 +93,7 @@ public static class TileMover
         return Mathf.Max(radius, extents.x, extents.y);
     }
 
-    private static float GetMapClearanceRadius(Rigidbody2D rb, float bodyRadius)
+    public static float GetMapClearanceRadius(Rigidbody2D rb, float bodyRadius)
     {
         float radius = GetColliderBodyRadius(rb, bodyRadius);
 
