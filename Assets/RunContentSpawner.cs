@@ -7,6 +7,7 @@ public class RunContentSpawner : MonoBehaviour
     [Header("Prefabs")]
     public GameObject enemyPrefab;
     public GameObject bossEnemyPrefab;
+    public GameObject blobSpitterPrefab;
     public GameObject mushroomPrefab;
     public GameObject sporePrefab;
     public GameObject shinyPrefab;
@@ -21,6 +22,12 @@ public class RunContentSpawner : MonoBehaviour
     public bool spawnInitialRevealedContentOnStart = true;
     public float objectClearRadius = 0.35f;
     public int placementTriesPerObject = 40;
+
+    [Header("Blob Spitters")]
+    public int blobSpittersPerCampMin = 0;
+    public int blobSpittersPerCampMax = 1;
+    [Range(0f, 1f)] public float blobSpitterSpawnChance = 0.35f;
+    public float blobSpitterMinDistanceFromSpawn = 8f;
 
     private readonly HashSet<int> spawnedCampIds = new HashSet<int>();
     private readonly HashSet<int> spawnedTunnelIds = new HashSet<int>();
@@ -115,12 +122,16 @@ public class RunContentSpawner : MonoBehaviour
         GameObject normalEnemy = enemyPrefab;
         GameObject bossEnemy = bossEnemyPrefab != null ? bossEnemyPrefab : enemyPrefab;
         int shinyCount = GetEffectiveShinyCount(camp);
+        int blobSpitterCount = GetBlobSpitterCount(camp);
 
         for (int i = 0; i < camp.enemyCount; i++)
             SpawnInCircle(normalEnemy, camp.center, camp.radius, enemyParent);
 
         for (int i = 0; i < camp.bossEnemyCount; i++)
             SpawnInCircle(bossEnemy, camp.center, camp.radius, enemyParent);
+
+        for (int i = 0; i < blobSpitterCount; i++)
+            SpawnInCircle(blobSpitterPrefab, camp.center, camp.radius, enemyParent);
 
         for (int i = 0; i < camp.mushroomCount; i++)
             SpawnInCircle(mushroomPrefab, camp.center, camp.radius, itemParent);
@@ -135,9 +146,38 @@ public class RunContentSpawner : MonoBehaviour
             SpawnInCircle(exitPortalPrefab, camp.center, Mathf.Max(0.5f, camp.radius * 0.5f), exitParent);
 
         Debug.Log(
-            $"RunContentSpawner spawned camp content | Id:{camp.id} NormalEnemies:{camp.enemyCount} BossEnemies:{camp.bossEnemyCount} Mushrooms:{camp.mushroomCount} Spores:{camp.sporeCount} Shinies:{shinyCount} Exit:{camp.hasExitPortal}",
+            $"RunContentSpawner spawned camp content | Id:{camp.id} NormalEnemies:{camp.enemyCount} BossEnemies:{camp.bossEnemyCount} BlobSpitters:{blobSpitterCount} Mushrooms:{camp.mushroomCount} Spores:{camp.sporeCount} Shinies:{shinyCount} Exit:{camp.hasExitPortal}",
             this
         );
+    }
+
+    private int GetBlobSpitterCount(CampData camp)
+    {
+        if (camp == null || blobSpitterPrefab == null)
+            return 0;
+
+        if (camp.enemyCount <= 0 && camp.bossEnemyCount <= 0)
+            return 0;
+
+        if (IsTooCloseToSpawn(camp.center))
+            return 0;
+
+        if (Random.value > blobSpitterSpawnChance)
+            return 0;
+
+        int min = Mathf.Max(0, blobSpittersPerCampMin);
+        int max = Mathf.Max(min, blobSpittersPerCampMax);
+        return Random.Range(min, max + 1);
+    }
+
+    private bool IsTooCloseToSpawn(Vector2 position)
+    {
+        MapGenerator map = MapGenerator.Instance;
+        if (map == null || map.Data == null)
+            return false;
+
+        Vector2 spawnWorld = map.Data.CellToWorld(map.map.spawnCenter);
+        return Vector2.Distance(position, spawnWorld) < Mathf.Max(0f, blobSpitterMinDistanceFromSpawn);
     }
 
     private int GetEffectiveShinyCount(CampData camp)
