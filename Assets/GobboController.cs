@@ -385,11 +385,12 @@ public class GobboController : MonoBehaviour
         if (visualController != null)
             visualController.SetAnimationState(GobboAnimationState.Dig);
 
-        Vector2 digPoint = (Vector2)transform.position + aimDirection.normalized * digRange;
+        Vector2 digStart = transform.position;
+        Vector2 digPoint = digStart + aimDirection.normalized * digRange;
         float effectiveDigRadius = GetEffectiveDigRadius();
 
         if (MapGenerator.Instance != null)
-            MapGenerator.Instance.DigCircle(digPoint, effectiveDigRadius);
+            DigCapsule(digStart, digPoint, effectiveDigRadius);
 
         Collider2D[] hits = diggableLayers.value == 0
             ? Physics2D.OverlapCircleAll(digPoint, effectiveDigRadius)
@@ -404,13 +405,37 @@ public class GobboController : MonoBehaviour
         }
     }
 
+    void DigCapsule(Vector2 start, Vector2 end, float radius)
+    {
+        if (MapGenerator.Instance == null)
+            return;
+
+        float distance = Vector2.Distance(start, end);
+        float step = GetDigSweepStepDistance();
+        int steps = Mathf.Max(1, Mathf.CeilToInt(distance / step));
+
+        for (int i = 0; i <= steps; i++)
+        {
+            float t = i / (float)steps;
+            Vector2 point = Vector2.Lerp(start, end, t);
+            MapGenerator.Instance.DigCircle(point, radius);
+        }
+    }
+
     float GetEffectiveDigRadius()
     {
-        float bodyFitRadius = bodyRadius + Mathf.Max(0f, digComfortPadding) + Mathf.Max(0f, digBonusRadius);
+        float bodyFitRadius = GetScaledBodyRadius() + Mathf.Max(0f, digComfortPadding) + Mathf.Max(0f, digBonusRadius);
         float legacyInspectorRadius = Mathf.Max(0f, digRadius);
         float minimumTileRadius = GetMinimumClearedTileRadius();
 
         return Mathf.Max(bodyFitRadius, legacyInspectorRadius, minimumTileRadius);
+    }
+
+    float GetScaledBodyRadius()
+    {
+        Vector3 scale = transform.lossyScale;
+        float largestAxis = Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.y));
+        return bodyRadius * Mathf.Max(1f, largestAxis);
     }
 
     float GetMinimumClearedTileRadius()
@@ -426,6 +451,12 @@ public class GobboController : MonoBehaviour
 
         float cellSize = MapGenerator.Instance != null ? MapGenerator.Instance.map.cellSize : 1f;
         return cellSize * rings * Mathf.Sqrt(2f);
+    }
+
+    float GetDigSweepStepDistance()
+    {
+        float cellSize = MapGenerator.Instance != null ? MapGenerator.Instance.map.cellSize : 1f;
+        return Mathf.Max(0.1f, cellSize * 0.5f);
     }
 
     void BasicAttack()
