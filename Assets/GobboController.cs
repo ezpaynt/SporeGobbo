@@ -956,6 +956,11 @@ public class GobboController : MonoBehaviour
             Die();
     }
 
+    public void ApplyPoison(int damagePerTick, float duration, float tickRate)
+    {
+        TakePoison(damagePerTick, duration, tickRate);
+    }
+
     public void TakePoison(int damagePerTick, float duration, float tickRate)
     {
         if (!isActiveAndEnabled || isDead) return;
@@ -1018,7 +1023,7 @@ public class GobboController : MonoBehaviour
         isDead = true;
 
         if (visualController != null)
-            visualController.SetAnimationState(GobboAnimationState.Death);
+            visualController.SetAnimationState(GobAnimationState.Death);
 
         if (GameState.Instance != null)
         {
