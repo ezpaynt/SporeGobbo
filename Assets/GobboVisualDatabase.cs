@@ -19,6 +19,12 @@ public class GobboVisualDatabase : MonoBehaviour
         RefreshActiveVisualControllers();
     }
 
+    void Start()
+    {
+        Instance = this;
+        RefreshActiveVisualControllers();
+    }
+
     public GobboVisualSet GetVisualSet(string visualSetId, BuddyType type, GobboAgeStage ageStage)
     {
         string requestedId = NormalizeVisualId(visualSetId);
