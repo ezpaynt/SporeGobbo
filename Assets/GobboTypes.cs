@@ -43,15 +43,18 @@ public enum GobboCardContext
 
 public enum GobboAnimationState
 {
-    Idle,
-    Walk,
-    Attack,
-    Dig,
-    Dash,
-    Hurt,
-    Death,
-    Sleep,
-    Dance,
-    Hide,
-    Roar
+    Idle = 0,
+    Walk = 1,
+    Attack = 2,
+    Dig = 3,
+    Dash = 4,
+    Hurt = 5,
+    Death = 6,
+    Sleep = 7,
+    Dance = 8,
+    Hide = 9,
+    Roar = 10,
+    AttackReady = 11,
+    AttackSwing = 12,
+    Grab = 13
 }
