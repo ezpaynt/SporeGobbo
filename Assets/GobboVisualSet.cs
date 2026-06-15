@@ -1,5 +1,30 @@
 using UnityEngine;
 
+public enum GobboVisualDirectionSlot
+{
+    Front,
+    FrontRight,
+    Right,
+    BackRight,
+    Back,
+    BackLeft,
+    Left,
+    FrontLeft
+}
+
+public class GobboVisualPickResult
+{
+    public GobboAnimationState requestedState;
+    public GobboAnimationState resolvedState;
+    public GobboVisualDirectionSlot requestedDirectionSlot;
+    public GobboVisualDirectionSlot selectedDirectionSlot;
+    public Sprite selectedSprite;
+    public bool usedActionFallback;
+    public bool usedDirectionFallback;
+    public bool actionSetWasNull;
+    public bool actionSetWasEmpty;
+}
+
 [System.Serializable]
 public class DirectionalSpriteSet
 {
@@ -20,16 +45,41 @@ public class DirectionalSpriteSet
 
     public Sprite PickForDirection(Vector2 direction)
     {
+        return PickForDirectionDetailed(direction).selectedSprite;
+    }
+
+    public GobboVisualPickResult PickForDirectionDetailed(Vector2 direction)
+    {
         if (direction.sqrMagnitude < 0.01f)
             direction = Vector2.down;
 
         direction.Normalize();
 
         int sector = GetEightWaySector(direction);
+        GobboVisualDirectionSlot requestedSlot = SectorToSlot(sector);
         Sprite exact = PickExactSector(sector);
-        if (exact != null) return exact;
 
-        return PickFallbackForSector(sector);
+        if (exact != null)
+        {
+            return new GobboVisualPickResult
+            {
+                requestedDirectionSlot = requestedSlot,
+                selectedDirectionSlot = requestedSlot,
+                selectedSprite = exact,
+                usedDirectionFallback = false
+            };
+        }
+
+        GobboVisualDirectionSlot fallbackSlot;
+        Sprite fallback = PickFallbackForSector(sector, out fallbackSlot);
+
+        return new GobboVisualPickResult
+        {
+            requestedDirectionSlot = requestedSlot,
+            selectedDirectionSlot = fallbackSlot,
+            selectedSprite = fallback,
+            usedDirectionFallback = fallback != null
+        };
     }
 
     int GetEightWaySector(Vector2 direction)
@@ -37,6 +87,23 @@ public class DirectionalSpriteSet
         float angle = Mathf.Atan2(direction.x, -direction.y) * Mathf.Rad2Deg;
         if (angle < 0f) angle += 360f;
         return Mathf.RoundToInt(angle / 45f) % 8;
+    }
+
+    GobboVisualDirectionSlot SectorToSlot(int sector)
+    {
+        switch (sector)
+        {
+            case 0: return GobboVisualDirectionSlot.Front;
+            case 1: return GobboVisualDirectionSlot.FrontRight;
+            case 2: return GobboVisualDirectionSlot.Right;
+            case 3: return GobboVisualDirectionSlot.BackRight;
+            case 4: return GobboVisualDirectionSlot.Back;
+            case 5: return GobboVisualDirectionSlot.BackLeft;
+            case 6: return GobboVisualDirectionSlot.Left;
+            case 7: return GobboVisualDirectionSlot.FrontLeft;
+        }
+
+        return GobboVisualDirectionSlot.Front;
     }
 
     Sprite PickExactSector(int sector)
@@ -58,35 +125,131 @@ public class DirectionalSpriteSet
 
     Sprite PickFallbackForSector(int sector)
     {
+        GobboVisualDirectionSlot unusedSlot;
+        return PickFallbackForSector(sector, out unusedSlot);
+    }
+
+    Sprite PickFallbackForSector(int sector, out GobboVisualDirectionSlot selectedSlot)
+    {
         switch (sector)
         {
             case 0:
-                return FirstAvailable(front, frontLeft, frontRight, left, right, back, backLeft, backRight);
+                return FirstAvailable(out selectedSlot,
+                    SlotSprite(GobboVisualDirectionSlot.Front, front),
+                    SlotSprite(GobboVisualDirectionSlot.FrontLeft, frontLeft),
+                    SlotSprite(GobboVisualDirectionSlot.FrontRight, frontRight),
+                    SlotSprite(GobboVisualDirectionSlot.Left, left),
+                    SlotSprite(GobboVisualDirectionSlot.Right, right),
+                    SlotSprite(GobboVisualDirectionSlot.Back, back),
+                    SlotSprite(GobboVisualDirectionSlot.BackLeft, backLeft),
+                    SlotSprite(GobboVisualDirectionSlot.BackRight, backRight));
             case 1:
-                return FirstAvailable(frontRight, right, front, backRight, frontLeft, back, left, backLeft);
+                return FirstAvailable(out selectedSlot,
+                    SlotSprite(GobboVisualDirectionSlot.FrontRight, frontRight),
+                    SlotSprite(GobboVisualDirectionSlot.Right, right),
+                    SlotSprite(GobboVisualDirectionSlot.Front, front),
+                    SlotSprite(GobboVisualDirectionSlot.BackRight, backRight),
+                    SlotSprite(GobboVisualDirectionSlot.FrontLeft, frontLeft),
+                    SlotSprite(GobboVisualDirectionSlot.Back, back),
+                    SlotSprite(GobboVisualDirectionSlot.Left, left),
+                    SlotSprite(GobboVisualDirectionSlot.BackLeft, backLeft));
             case 2:
-                return FirstAvailable(right, frontRight, backRight, front, back, frontLeft, backLeft, left);
+                return FirstAvailable(out selectedSlot,
+                    SlotSprite(GobboVisualDirectionSlot.Right, right),
+                    SlotSprite(GobboVisualDirectionSlot.FrontRight, frontRight),
+                    SlotSprite(GobboVisualDirectionSlot.BackRight, backRight),
+                    SlotSprite(GobboVisualDirectionSlot.Front, front),
+                    SlotSprite(GobboVisualDirectionSlot.Back, back),
+                    SlotSprite(GobboVisualDirectionSlot.FrontLeft, frontLeft),
+                    SlotSprite(GobboVisualDirectionSlot.BackLeft, backLeft),
+                    SlotSprite(GobboVisualDirectionSlot.Left, left));
             case 3:
-                return FirstAvailable(backRight, right, back, frontRight, backLeft, front, left, frontLeft);
+                return FirstAvailable(out selectedSlot,
+                    SlotSprite(GobboVisualDirectionSlot.BackRight, backRight),
+                    SlotSprite(GobboVisualDirectionSlot.Right, right),
+                    SlotSprite(GobboVisualDirectionSlot.Back, back),
+                    SlotSprite(GobboVisualDirectionSlot.FrontRight, frontRight),
+                    SlotSprite(GobboVisualDirectionSlot.BackLeft, backLeft),
+                    SlotSprite(GobboVisualDirectionSlot.Front, front),
+                    SlotSprite(GobboVisualDirectionSlot.Left, left),
+                    SlotSprite(GobboVisualDirectionSlot.FrontLeft, frontLeft));
             case 4:
-                return FirstAvailable(back, backLeft, backRight, left, right, front, frontLeft, frontRight);
+                return FirstAvailable(out selectedSlot,
+                    SlotSprite(GobboVisualDirectionSlot.Back, back),
+                    SlotSprite(GobboVisualDirectionSlot.BackLeft, backLeft),
+                    SlotSprite(GobboVisualDirectionSlot.BackRight, backRight),
+                    SlotSprite(GobboVisualDirectionSlot.Left, left),
+                    SlotSprite(GobboVisualDirectionSlot.Right, right),
+                    SlotSprite(GobboVisualDirectionSlot.Front, front),
+                    SlotSprite(GobboVisualDirectionSlot.FrontLeft, frontLeft),
+                    SlotSprite(GobboVisualDirectionSlot.FrontRight, frontRight));
             case 5:
-                return FirstAvailable(backLeft, left, back, frontLeft, backRight, front, right, frontRight);
+                return FirstAvailable(out selectedSlot,
+                    SlotSprite(GobboVisualDirectionSlot.BackLeft, backLeft),
+                    SlotSprite(GobboVisualDirectionSlot.Left, left),
+                    SlotSprite(GobboVisualDirectionSlot.Back, back),
+                    SlotSprite(GobboVisualDirectionSlot.FrontLeft, frontLeft),
+                    SlotSprite(GobboVisualDirectionSlot.BackRight, backRight),
+                    SlotSprite(GobboVisualDirectionSlot.Front, front),
+                    SlotSprite(GobboVisualDirectionSlot.Right, right),
+                    SlotSprite(GobboVisualDirectionSlot.FrontRight, frontRight));
             case 6:
-                return FirstAvailable(left, frontLeft, backLeft, front, back, frontRight, backRight, right);
+                return FirstAvailable(out selectedSlot,
+                    SlotSprite(GobboVisualDirectionSlot.Left, left),
+                    SlotSprite(GobboVisualDirectionSlot.FrontLeft, frontLeft),
+                    SlotSprite(GobboVisualDirectionSlot.BackLeft, backLeft),
+                    SlotSprite(GobboVisualDirectionSlot.Front, front),
+                    SlotSprite(GobboVisualDirectionSlot.Back, back),
+                    SlotSprite(GobboVisualDirectionSlot.FrontRight, frontRight),
+                    SlotSprite(GobboVisualDirectionSlot.BackRight, backRight),
+                    SlotSprite(GobboVisualDirectionSlot.Right, right));
             case 7:
-                return FirstAvailable(frontLeft, left, front, backLeft, frontRight, back, right, backRight);
+                return FirstAvailable(out selectedSlot,
+                    SlotSprite(GobboVisualDirectionSlot.FrontLeft, frontLeft),
+                    SlotSprite(GobboVisualDirectionSlot.Left, left),
+                    SlotSprite(GobboVisualDirectionSlot.Front, front),
+                    SlotSprite(GobboVisualDirectionSlot.BackLeft, backLeft),
+                    SlotSprite(GobboVisualDirectionSlot.FrontRight, frontRight),
+                    SlotSprite(GobboVisualDirectionSlot.Back, back),
+                    SlotSprite(GobboVisualDirectionSlot.Right, right),
+                    SlotSprite(GobboVisualDirectionSlot.BackRight, backRight));
         }
 
-        return FirstAvailable(front, frontLeft, frontRight, left, right, back, backLeft, backRight);
+        return FirstAvailable(out selectedSlot,
+            SlotSprite(GobboVisualDirectionSlot.Front, front),
+            SlotSprite(GobboVisualDirectionSlot.FrontLeft, frontLeft),
+            SlotSprite(GobboVisualDirectionSlot.FrontRight, frontRight),
+            SlotSprite(GobboVisualDirectionSlot.Left, left),
+            SlotSprite(GobboVisualDirectionSlot.Right, right),
+            SlotSprite(GobboVisualDirectionSlot.Back, back),
+            SlotSprite(GobboVisualDirectionSlot.BackLeft, backLeft),
+            SlotSprite(GobboVisualDirectionSlot.BackRight, backRight));
     }
 
-    Sprite FirstAvailable(params Sprite[] sprites)
+    SlotSpriteEntry SlotSprite(GobboVisualDirectionSlot slot, Sprite sprite)
     {
-        foreach (Sprite sprite in sprites)
-            if (sprite != null) return sprite;
+        return new SlotSpriteEntry { slot = slot, sprite = sprite };
+    }
 
+    Sprite FirstAvailable(out GobboVisualDirectionSlot selectedSlot, params SlotSpriteEntry[] sprites)
+    {
+        foreach (SlotSpriteEntry entry in sprites)
+        {
+            if (entry.sprite != null)
+            {
+                selectedSlot = entry.slot;
+                return entry.sprite;
+            }
+        }
+
+        selectedSlot = GobboVisualDirectionSlot.Front;
         return null;
+    }
+
+    struct SlotSpriteEntry
+    {
+        public GobboVisualDirectionSlot slot;
+        public Sprite sprite;
     }
 }
 
@@ -117,56 +280,102 @@ public class GobboVisualSet
 
     public DirectionalSpriteSet GetSprites(GobboAnimationState state)
     {
+        GobboAnimationState resolvedState;
+        bool usedFallback;
+        bool wasNull;
+        bool wasEmpty;
+        return GetSpritesDetailed(state, out resolvedState, out usedFallback, out wasNull, out wasEmpty);
+    }
+
+    public GobboVisualPickResult PickSpriteDetailed(GobboAnimationState state, Vector2 direction)
+    {
+        GobboAnimationState resolvedState;
+        bool usedFallback;
+        bool wasNull;
+        bool wasEmpty;
+        DirectionalSpriteSet sprites = GetSpritesDetailed(state, out resolvedState, out usedFallback, out wasNull, out wasEmpty);
+
+        GobboVisualPickResult result = sprites != null
+            ? sprites.PickForDirectionDetailed(direction)
+            : new GobboVisualPickResult { selectedSprite = null };
+
+        result.requestedState = state;
+        result.resolvedState = resolvedState;
+        result.usedActionFallback = usedFallback;
+        result.actionSetWasNull = wasNull;
+        result.actionSetWasEmpty = wasEmpty;
+        return result;
+    }
+
+    DirectionalSpriteSet GetSpritesDetailed(GobboAnimationState state, out GobboAnimationState resolvedState, out bool usedFallback, out bool wasNull, out bool wasEmpty)
+    {
         DirectionalSpriteSet chosen = idle;
+        resolvedState = GobboAnimationState.Idle;
 
         switch (state)
         {
-            case GobboAnimationState.Walk: chosen = walk; break;
-            case GobboAnimationState.Attack: chosen = attack; break;
-            case GobboAnimationState.AttackReady: chosen = attackReady; break;
-            case GobboAnimationState.AttackSwing: chosen = attackSwing; break;
-            case GobboAnimationState.Dig: chosen = dig; break;
-            case GobboAnimationState.Dash: chosen = dash; break;
-            case GobboAnimationState.Hurt: chosen = hurt; break;
-            case GobboAnimationState.Grab: chosen = grab; break;
-            case GobboAnimationState.Death: chosen = death; break;
-            case GobboAnimationState.Sleep: chosen = sleep; break;
-            case GobboAnimationState.Dance: chosen = dance; break;
-            case GobboAnimationState.Hide: chosen = hide; break;
-            case GobboAnimationState.Roar: chosen = roar; break;
+            case GobboAnimationState.Walk: chosen = walk; resolvedState = GobboAnimationState.Walk; break;
+            case GobboAnimationState.Attack: chosen = attack; resolvedState = GobboAnimationState.Attack; break;
+            case GobboAnimationState.AttackReady: chosen = attackReady; resolvedState = GobboAnimationState.AttackReady; break;
+            case GobboAnimationState.AttackSwing: chosen = attackSwing; resolvedState = GobboAnimationState.AttackSwing; break;
+            case GobboAnimationState.Dig: chosen = dig; resolvedState = GobboAnimationState.Dig; break;
+            case GobboAnimationState.Dash: chosen = dash; resolvedState = GobboAnimationState.Dash; break;
+            case GobboAnimationState.Hurt: chosen = hurt; resolvedState = GobboAnimationState.Hurt; break;
+            case GobboAnimationState.Grab: chosen = grab; resolvedState = GobboAnimationState.Grab; break;
+            case GobboAnimationState.Death: chosen = death; resolvedState = GobboAnimationState.Death; break;
+            case GobboAnimationState.Sleep: chosen = sleep; resolvedState = GobboAnimationState.Sleep; break;
+            case GobboAnimationState.Dance: chosen = dance; resolvedState = GobboAnimationState.Dance; break;
+            case GobboAnimationState.Hide: chosen = hide; resolvedState = GobboAnimationState.Hide; break;
+            case GobboAnimationState.Roar: chosen = roar; resolvedState = GobboAnimationState.Roar; break;
         }
 
-        if (chosen != null && chosen.HasAnySprite())
-            return chosen;
+        wasNull = chosen == null;
+        wasEmpty = chosen != null && !chosen.HasAnySprite();
 
-        return GetFallbackSprites(state);
+        if (chosen != null && chosen.HasAnySprite())
+        {
+            usedFallback = false;
+            return chosen;
+        }
+
+        usedFallback = true;
+        return GetFallbackSprites(state, out resolvedState);
     }
 
     DirectionalSpriteSet GetFallbackSprites(GobboAnimationState state)
     {
+        GobboAnimationState unusedState;
+        return GetFallbackSprites(state, out unusedState);
+    }
+
+    DirectionalSpriteSet GetFallbackSprites(GobboAnimationState state, out GobboAnimationState resolvedState)
+    {
+        resolvedState = GobboAnimationState.Idle;
+
         switch (state)
         {
             case GobboAnimationState.AttackReady:
             case GobboAnimationState.AttackSwing:
-                if (attack != null && attack.HasAnySprite()) return attack;
+                if (attack != null && attack.HasAnySprite()) { resolvedState = GobboAnimationState.Attack; return attack; }
                 break;
             case GobboAnimationState.Grab:
-                if (walk != null && walk.HasAnySprite()) return walk;
+                if (walk != null && walk.HasAnySprite()) { resolvedState = GobboAnimationState.Walk; return walk; }
                 break;
             case GobboAnimationState.Walk:
             case GobboAnimationState.Dig:
             case GobboAnimationState.Dash:
-                if (walk != null && walk.HasAnySprite()) return walk;
+                if (walk != null && walk.HasAnySprite()) { resolvedState = GobboAnimationState.Walk; return walk; }
                 break;
             case GobboAnimationState.Hurt:
             case GobboAnimationState.Death:
-                if (idle != null && idle.HasAnySprite()) return idle;
+                if (idle != null && idle.HasAnySprite()) { resolvedState = GobboAnimationState.Idle; return idle; }
                 break;
         }
 
-        if (idle != null && idle.HasAnySprite()) return idle;
-        if (walk != null && walk.HasAnySprite()) return walk;
-        if (attack != null && attack.HasAnySprite()) return attack;
+        if (idle != null && idle.HasAnySprite()) { resolvedState = GobboAnimationState.Idle; return idle; }
+        if (walk != null && walk.HasAnySprite()) { resolvedState = GobboAnimationState.Walk; return walk; }
+        if (attack != null && attack.HasAnySprite()) { resolvedState = GobboAnimationState.Attack; return attack; }
+        resolvedState = GobboAnimationState.Idle;
         return idle;
     }
 }
