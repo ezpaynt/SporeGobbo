@@ -19,13 +19,17 @@ public class GobboVisualController : MonoBehaviour
             spriteRenderer = GetComponentInChildren<SpriteRenderer>();
     }
 
+    void Start()
+    {
+        RefreshVisual();
+    }
+
     public void ApplyIdentity(BuddyType type, GobboAgeStage stage, string setId)
     {
         gobboType = type;
         ageStage = stage;
         visualSetId = setId;
-        RefreshSet();
-        SetDirection(lastDirection);
+        RefreshVisual();
     }
 
     public void SetAnimationState(GobboAnimationState state)
@@ -55,10 +59,19 @@ public class GobboVisualController : MonoBehaviour
             spriteRenderer.sprite = chosen;
     }
 
+    public void RefreshVisual()
+    {
+        RefreshSet();
+        SetDirection(lastDirection);
+    }
+
     void RefreshSet()
     {
         if (GobboVisualDatabase.Instance == null)
+        {
+            currentSet = null;
             return;
+        }
 
         currentSet = GobboVisualDatabase.Instance.GetVisualSet(visualSetId, gobboType, ageStage);
     }
