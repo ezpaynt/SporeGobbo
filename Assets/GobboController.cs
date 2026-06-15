@@ -1039,7 +1039,7 @@ public class GobboController : MonoBehaviour
         gameObject.SetActive(false);
     }
 
-    void AddFollower(int amount)
+    public void AddFollower(int amount)
     {
         followerCount += amount;
         UpdateSize();
