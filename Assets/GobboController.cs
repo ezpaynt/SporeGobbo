@@ -1023,7 +1023,7 @@ public class GobboController : MonoBehaviour
         isDead = true;
 
         if (visualController != null)
-            visualController.SetAnimationState(GobAnimationState.Death);
+            visualController.SetAnimationState(GobboAnimationState.Death);
 
         if (GameState.Instance != null)
         {
