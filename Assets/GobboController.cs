@@ -253,9 +253,7 @@ public class GobboController : MonoBehaviour
         {
             visualController.ApplyIdentity(gobboType, ageStage, visualSetId);
             visualController.SetDirection(aimDirection);
-            // Do not return here. Some test prefabs use GobboController sprite slots
-            // even when a GobboVisualController exists, so we also run the direct
-            // sprite fallback below.
+            return;
         }
 
         if (spriteRenderer == null)
@@ -918,21 +916,18 @@ public class GobboController : MonoBehaviour
 
         Debug.Log("LEVEL UP: " + level);
 
-        levelUpScreen = Object.FindAnyObjectByType<LevelUpScreen>(
-            FindObjectsInactive.Include
-        );
+        if (levelUpScreen == null)
+            levelUpScreen = Object.FindAnyObjectByType<LevelUpScreen>();
 
         if (levelUpScreen != null)
-        {
-            Debug.Log("Calling LevelUpScreen.ShowChoices");
             levelUpScreen.ShowChoices(this);
-        }
         else
-        {
             Debug.LogWarning("No LevelUpScreen found in scene.");
-        }
+    }
 
-        UpdateSize();
+    public bool NeedsEvolutionChoice()
+    {
+        return pendingEvolution || (level == 2 && gobboType == BuddyType.Baby);
     }
 
     public void ClearPendingEvolutionIfCurrentLevelHandled()
@@ -941,50 +936,10 @@ public class GobboController : MonoBehaviour
         evolutionLevelWaiting = 0;
     }
 
-    public bool NeedsEvolutionChoice()
+    public void Heal(int amount)
     {
-        return pendingEvolution || (level == 2 && gobboType == BuddyType.Baby);
-    }
-
-    public void ApplyCard(GobboCard card)
-    {
-        if (card == null)
-            return;
-
-        card.ApplyToPlayer(this);
-    }
-
-    public void AddFollower(int amount = 1)
-    {
-        followerCount = Mathf.Min(followerCount + amount, maxFollowers);
-        UpdateSize();
-    }
-
-    public void RemoveFollower(int amount = 1)
-    {
-        followerCount = Mathf.Max(followerCount - amount, 0);
-        UpdateSize();
-    }
-
-    public int GetPowerLevel()
-    {
-        return level + followerCount;
-    }
-
-    public void UpdateSize()
-    {
-        float newSize = baseSize + followerCount * sizePerFollower;
-
-        if (healthControlsSize)
-        {
-            float healthBonus = maxHealth * healthSizeMultiplier;
-            healthBonus = Mathf.Clamp(healthBonus, 0f, maxHealthSizeBonus);
-            newSize += healthBonus;
-        }
-
-        newSize = Mathf.Min(newSize, maxSize + maxHealthSizeBonus);
-
-        transform.localScale = new Vector3(newSize, newSize, 1f);
+        health = Mathf.Min(maxHealth, health + amount);
+        Debug.Log("Healed: " + amount);
     }
 
     public void TakeDamage(int amount)
@@ -992,34 +947,19 @@ public class GobboController : MonoBehaviour
         if (isDead)
             return;
 
-        int finalDamage = Mathf.Max(amount - defense, 1);
-        health -= finalDamage;
-
-        Debug.Log("Gobbo took damage: " + finalDamage);
-
-        if (spriteRenderer != null)
-        {
-            StopAllCoroutines();
-            StartCoroutine(FlashColor(hurtColor, hurtFlashTime));
-        }
-
-        ApplyKnockbackFromNearestEnemy();
+        int damageTaken = Mathf.Max(1, amount - defense);
+        health -= damageTaken;
+        FlashHurtColor();
+        Debug.Log("Gobbo took damage: " + damageTaken);
 
         if (health <= 0)
             Die();
     }
 
-    public void ApplyPoison(int damagePerTick, float duration, float tickRate)
-    {
-        if (!gameObject.activeInHierarchy || isDead)
-            return;
-
-        StartCoroutine(PoisonRoutine(damagePerTick, duration, tickRate));
-    }
-
     public void TakePoison(int damagePerTick, float duration, float tickRate)
     {
-        ApplyPoison(damagePerTick, duration, tickRate);
+        if (!isActiveAndEnabled || isDead) return;
+        StartCoroutine(PoisonRoutine(damagePerTick, duration, tickRate));
     }
 
     IEnumerator PoisonRoutine(int damagePerTick, float duration, float tickRate)
@@ -1029,17 +969,8 @@ public class GobboController : MonoBehaviour
 
         while (timer < duration && !isDead)
         {
-            health -= Mathf.Max(1, damagePerTick);
-
-            if (spriteRenderer != null)
-                StartCoroutine(FlashColor(poisonColor, hurtFlashTime));
-
-            if (health <= 0)
-            {
-                Die();
-                break;
-            }
-
+            FlashHurtColor(poisonColor);
+            TakeDamage(damagePerTick);
             yield return new WaitForSeconds(tickRate);
             timer += tickRate;
         }
@@ -1047,63 +978,36 @@ public class GobboController : MonoBehaviour
         isPoisoned = false;
     }
 
-    void ApplyKnockbackFromNearestEnemy()
+    void FlashHurtColor()
     {
-        GameObject[] enemies = GameObject.FindGameObjectsWithTag("Enemy");
+        FlashHurtColor(hurtColor);
+    }
 
-        if (enemies.Length == 0)
+    void FlashHurtColor(Color color)
+    {
+        if (spriteRenderer == null)
             return;
 
-        GameObject nearestEnemy = null;
-        float nearestDistance = Mathf.Infinity;
+        if (visualController != null)
+            visualController.SetAnimationState(GobboAnimationState.Hurt);
 
-        foreach (GameObject enemy in enemies)
-        {
-            float distance = Vector2.Distance(transform.position, enemy.transform.position);
+        StopCoroutine(nameof(FlashRoutine));
+        StartCoroutine(FlashRoutine(color));
+    }
 
-            if (distance < nearestDistance)
-            {
-                nearestDistance = distance;
-                nearestEnemy = enemy;
-            }
-        }
-
-        if (nearestEnemy == null)
-            return;
-
-        Vector2 direction =
-            ((Vector2)transform.position - (Vector2)nearestEnemy.transform.position).normalized;
-
-        StartKnockback(direction, knockbackForce, knockbackDuration);
+    IEnumerator FlashRoutine(Color color)
+    {
+        spriteRenderer.color = color;
+        yield return new WaitForSeconds(hurtFlashTime);
+        if (spriteRenderer != null) spriteRenderer.color = originalColor;
+        if (visualController != null) visualController.SetAnimationState(GobboAnimationState.Idle);
     }
 
     void StartKnockback(Vector2 direction, float force, float duration)
     {
-        knockbackVelocity = direction.normalized * force;
         isKnockedBack = true;
         knockbackTimer = duration;
-    }
-
-    IEnumerator FlashColor(Color color, float time)
-    {
-        if (spriteRenderer == null)
-            yield break;
-
-        Color before = spriteRenderer.color;
-        spriteRenderer.color = color;
-
-        yield return new WaitForSeconds(time);
-
-        if (spriteRenderer != null)
-            spriteRenderer.color = originalColor == default ? before : originalColor;
-    }
-
-    public void Heal(int amount)
-    {
-        if (isDead)
-            return;
-
-        health = Mathf.Min(health + amount, maxHealth);
+        knockbackVelocity = direction.normalized * force;
     }
 
     void Die()
@@ -1113,7 +1017,16 @@ public class GobboController : MonoBehaviour
 
         isDead = true;
 
-        Debug.Log("Gobbo died.");
+        if (visualController != null)
+            visualController.SetAnimationState(GobboAnimationState.Death);
+
+        if (GameState.Instance != null)
+        {
+            GameState.Instance.SavePlayer(this);
+            GameState.Instance.leader.isDead = true;
+            if (string.IsNullOrWhiteSpace(GameState.Instance.leader.causeOfDeath))
+                GameState.Instance.leader.causeOfDeath = "The leader got chewed up in the dirt.";
+        }
 
         if (deathSplatPrefab != null)
             Instantiate(deathSplatPrefab, transform.position, Quaternion.identity);
@@ -1121,58 +1034,21 @@ public class GobboController : MonoBehaviour
         gameObject.SetActive(false);
     }
 
-    int GetShownSpores()
+    void AddFollower(int amount)
     {
-        if (sporeInventory != null)
-            return sporeInventory.spores;
-
-        return sporeCount;
+        followerCount += amount;
+        UpdateSize();
     }
 
-    void OnGUI()
+    void UpdateSize()
     {
-        GUI.Box(new Rect(10, 10, 270, 415), "Gobbo Dev Stats");
+        float size = baseSize + followerCount * sizePerFollower;
 
-        GUI.Label(new Rect(20, 40, 250, 20), "Type: " + gobboType + " / " + ageStage);
-        GUI.Label(new Rect(20, 60, 250, 20), "Level: " + level);
-        GUI.Label(new Rect(20, 60, 250, 20), "XP: " + xp + " / " + xpToNextLevel);
-        GUI.Label(new Rect(20, 80, 250, 20), "Health: " + health + " / " + maxHealth);
-        GUI.Label(new Rect(20, 100, 250, 20), "Attack: " + attack);
-        GUI.Label(new Rect(20, 120, 250, 20), "Defense: " + defense);
-        GUI.Label(new Rect(20, 140, 250, 20), "Crit: " + Mathf.RoundToInt(critChance * 100f) + "% x" + critDamageMultiplier);
-        GUI.Label(new Rect(20, 160, 250, 20), "Dig Power: " + digPower);
-        GUI.Label(new Rect(20, 180, 250, 20), "Dig Radius: " + GetEffectiveDigRadius());
-        GUI.Label(new Rect(20, 200, 250, 20), "Attack Radius: " + attackRadius);
-        GUI.Label(new Rect(20, 220, 250, 20), "Attack CD: " + attackCooldown);
-        GUI.Label(new Rect(20, 240, 250, 20), "Move Speed: " + moveSpeed);
-        GUI.Label(new Rect(20, 260, 250, 20), "Dash CD: " + dashCooldown);
-        GUI.Label(new Rect(20, 280, 250, 20), "Followers: " + followerCount);
-        GUI.Label(new Rect(20, 300, 250, 20), "Power Level: " + GetPowerLevel());
-        GUI.Label(new Rect(20, 320, 250, 20), "Spores: " + GetShownSpores());
-        GUI.Label(new Rect(20, 340, 250, 20), "Mend: " + hasSporeMend);
-        GUI.Label(new Rect(20, 360, 250, 20), "Dash Bite: " + hasDashBite);
-        GUI.Label(new Rect(20, 380, 250, 20), "Follower Mode: " + (followersFollowing ? "Follow" : "Stay"));
-        GUI.Label(new Rect(20, 400, 250, 20), "Combat Mode: " + (followersAggressive ? "Bite" : "Passive"));
-    }
+        if (healthControlsSize)
+            size += maxHealth * healthSizeMultiplier;
 
-    void OnDrawGizmos()
-    {
-        Vector2 direction = aimDirection == Vector2.zero
-            ? Vector2.down
-            : aimDirection.normalized;
-
-        Vector2 attackPoint = (Vector2)transform.position + direction * attackRange;
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(attackPoint, attackRadius);
-
-        Vector2 digPoint = (Vector2)transform.position + direction * digRange;
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(digPoint, GetEffectiveDigRadius());
-
-        Gizmos.color = Color.green;
-        Gizmos.DrawWireSphere(transform.position, interactRange);
-
-        Gizmos.color = Color.magenta;
-        Gizmos.DrawWireSphere(transform.position, dashBiteRange);
+        size += Mathf.Max(0f, maxHealth - 100) / 100f * maxHealthSizeBonus;
+        size = Mathf.Min(size, maxSize);
+        transform.localScale = Vector3.one * size;
     }
 }
