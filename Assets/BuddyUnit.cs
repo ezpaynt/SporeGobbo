@@ -69,7 +69,10 @@ public class BuddyUnit : MonoBehaviour
             originalColor = spriteRenderer.color;
         }
         if (visualController != null)
+        {
             visualController.ApplyIdentity(unitData.gobboType, unitData.ageStage, unitData.visualSetId);
+            visualController.RefreshVisual();
+        }
         transform.localScale = GetScaleForType(unitData.gobboType, unitData.ageStage);
     }
 
