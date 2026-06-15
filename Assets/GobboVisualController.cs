@@ -19,9 +19,20 @@ public class GobboVisualController : MonoBehaviour
             spriteRenderer = GetComponentInChildren<SpriteRenderer>();
     }
 
+    void OnEnable()
+    {
+        RefreshVisual();
+    }
+
     void Start()
     {
         RefreshVisual();
+    }
+
+    void LateUpdate()
+    {
+        if (currentSet == null && GobboVisualDatabase.Instance != null)
+            RefreshVisual();
     }
 
     public void ApplyIdentity(BuddyType type, GobboAgeStage stage, string setId)
