@@ -11,14 +11,23 @@ public class BuddyDirectionalSprite : MonoBehaviour
 
     public SpriteRenderer spriteRenderer;
 
+    private GobboVisualController visualController;
+
     void Awake()
     {
         if (spriteRenderer == null)
             spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+
+        visualController = GetComponent<GobboVisualController>();
+        if (visualController == null)
+            visualController = GetComponentInChildren<GobboVisualController>();
     }
 
     public void SetDirection(Vector2 direction)
     {
+        if (visualController != null)
+            return;
+
         if (spriteRenderer == null)
             return;
 
