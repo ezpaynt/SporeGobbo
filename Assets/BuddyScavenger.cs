@@ -24,6 +24,7 @@ public class BuddyScavenger : MonoBehaviour
 
     private Rigidbody2D rb;
     private BuddyUnit unit;
+    private GobboVisualController visualController;
     private BuddyDirectionalSprite directionalSprite;
     private Transform player;
     private Transform targetFood;
@@ -37,6 +38,9 @@ public class BuddyScavenger : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         rb.freezeRotation = true;
         unit = GetComponent<BuddyUnit>();
+        visualController = GetComponent<GobboVisualController>();
+        if (visualController == null)
+            visualController = GetComponentInChildren<GobboVisualController>();
         directionalSprite = GetComponent<BuddyDirectionalSprite>();
         FindPlayerIfMissing();
     }
@@ -83,9 +87,7 @@ public class BuddyScavenger : MonoBehaviour
         {
             Vector2 moveDir = GetPathDirection(targetFood.position);
             TileMover.Move(rb, moveDir * unit.unitData.moveSpeed, bodyRadius);
-
-            if (directionalSprite != null && moveDir.sqrMagnitude > 0.001f)
-                directionalSprite.SetDirection(moveDir);
+            FaceDirection(moveDir, GobboAnimationState.Walk);
         }
         else
         {
@@ -195,12 +197,30 @@ public class BuddyScavenger : MonoBehaviour
     {
         if (targetFood == null) return;
 
+        FaceDirection((Vector2)targetFood.position - rb.position, GobboAnimationState.Grab);
+
         FoodItem food = targetFood.GetComponent<FoodItem>();
         GobboController playerGobbo = Object.FindAnyObjectByType<GobboController>();
         if (food != null && playerGobbo != null)
             food.Eat(playerGobbo);
 
         DropFoodTarget();
+    }
+
+    void FaceDirection(Vector2 direction, GobboAnimationState state)
+    {
+        if (direction.sqrMagnitude <= 0.001f)
+            return;
+
+        if (visualController != null)
+        {
+            visualController.SetAnimationState(state);
+            visualController.SetDirection(direction);
+            return;
+        }
+
+        if (directionalSprite != null)
+            directionalSprite.SetDirection(direction);
     }
 
     void DropFoodTarget()
