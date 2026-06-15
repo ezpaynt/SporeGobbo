@@ -241,12 +241,12 @@ MonoBehaviour:
   wallContactPadding: 0.08
   faceCursor: 1
   faceMovementWhenNotFacingCursor: 1
-  front: {fileID: -1647743069318256835, guid: cf0fa01702b09f44cb29d096616bd7be, type: 3}
-  frontLeft: {fileID: 5815247894529160560, guid: a7edeeb76aaf7354d99e6d8bf88b36a6, type: 3}
-  frontRight: {fileID: -3239841170075284220, guid: 2cfcecef3851cfc4f8b294270adc7b6d, type: 3}
-  back: {fileID: 1931723117781632034, guid: d244fb54f3b4abd46ae9d28336c08f6b, type: 3}
-  backLeft: {fileID: -958872580517964384, guid: 10ce77c8f40b18d4b82d7d3f5cee303a, type: 3}
-  backRight: {fileID: -5897826424011949532, guid: cc5377d4cbd96074783ba0cb50a53e7e, type: 3}
+  front: {fileID: 0}
+  frontLeft: {fileID: 0}
+  frontRight: {fileID: 0}
+  back: {fileID: 0}
+  backLeft: {fileID: 0}
+  backRight: {fileID: 0}
   digRange: 0.85
   digRadius: 1
   digComfortPadding: 0

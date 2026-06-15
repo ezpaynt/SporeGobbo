@@ -15872,6 +15872,180 @@ RectTransform:
   m_AnchoredPosition: {x: -206, y: 0}
   m_SizeDelta: {x: 160, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &1861492602
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1861492604}
+  - component: {fileID: 1861492603}
+  m_Layer: 0
+  m_Name: GobboVisualDatabase
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1861492603
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1861492602}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1265d56e67d18df4397bae634c560215, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GobboVisualDatabase
+  visualSets:
+  - visualSetId: 
+    gobboType: 0
+    ageStage: 0
+    idle:
+      front: {fileID: 2815793643806474825, guid: b99604a7358afce499ac91867f553962, type: 3}
+      frontLeft: {fileID: 8332847612196399747, guid: e69e0fc83737c894ab14a0bf6c17868d, type: 3}
+      left: {fileID: -2604498962217829427, guid: ba896f6cd8e46224ea2db2cef2517858, type: 3}
+      frontRight: {fileID: 2744160687685650557, guid: 1f303bd45a4d20b43b80fdc379a62a1d, type: 3}
+      right: {fileID: -1448551043548582472, guid: ab64a0664303e344eb4e0a25f64157e7, type: 3}
+      back: {fileID: 4870731286584852820, guid: e460525a683457a46a923205ea62e765, type: 3}
+      backLeft: {fileID: -2638399329643809077, guid: c1875eb59e36a934688660dd8dd3ad67, type: 3}
+      backRight: {fileID: 3977052905777515703, guid: 5efb7fa86de7cfe47af12e6d0db5dff7, type: 3}
+    walk:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+    attack:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+    attackReady:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+    attackSwing:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+    dig:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+    dash:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+    hurt:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+    grab:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+    death:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+    sleep:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+    dance:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+    hide:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+    roar:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+--- !u!4 &1861492604
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1861492602}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -4.3393, y: 20.12, z: 0}
+  m_LocalScale: {x: 53.705532, y: 2.9307232, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1874020399
 GameObject:
   m_ObjectHideFlags: 0
@@ -18623,6 +18797,7 @@ SceneRoots:
   - {fileID: 227819280}
   - {fileID: 714760109}
   - {fileID: 1694928226}
+  - {fileID: 1861492604}
   - {fileID: 488311636}
   - {fileID: 1523657117}
   - {fileID: 1408705602}
