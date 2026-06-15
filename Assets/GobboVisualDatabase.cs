@@ -13,13 +13,21 @@ public class GobboVisualDatabase : MonoBehaviour
         Instance = this;
     }
 
+    void OnEnable()
+    {
+        Instance = this;
+        RefreshActiveVisualControllers();
+    }
+
     public GobboVisualSet GetVisualSet(string visualSetId, BuddyType type, GobboAgeStage ageStage)
     {
-        if (!string.IsNullOrWhiteSpace(visualSetId))
+        string requestedId = NormalizeVisualId(visualSetId);
+
+        if (!string.IsNullOrWhiteSpace(requestedId))
         {
             foreach (GobboVisualSet set in visualSets)
             {
-                if (set != null && set.visualSetId == visualSetId)
+                if (set != null && NormalizeVisualId(set.visualSetId) == requestedId)
                     return set;
             }
         }
@@ -43,5 +51,20 @@ public class GobboVisualDatabase : MonoBehaviour
     {
         GobboVisualSet set = GetVisualSet("", type, ageStage);
         return set != null ? set.visualSetId : (type.ToString().ToLowerInvariant() + "_" + ageStage.ToString().ToLowerInvariant());
+    }
+
+    public void RefreshActiveVisualControllers()
+    {
+        GobboVisualController[] controllers = Object.FindObjectsByType<GobboVisualController>(FindObjectsSortMode.None);
+        foreach (GobboVisualController controller in controllers)
+        {
+            if (controller == null) continue;
+            controller.RefreshVisual();
+        }
+    }
+
+    static string NormalizeVisualId(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "" : value.Trim().ToLowerInvariant();
     }
 }
