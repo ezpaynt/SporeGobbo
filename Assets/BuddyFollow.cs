@@ -43,6 +43,7 @@ public class BuddyFollow : MonoBehaviour
     public LayerMask buddyLayer;
 
     private Rigidbody2D rb;
+    private GobboVisualController visualController;
     private BuddyDirectionalSprite directionalSprite;
 
     private List<Vector2> currentPath = new List<Vector2>();
@@ -65,6 +66,10 @@ public class BuddyFollow : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         rb.freezeRotation = true;
 
+        visualController = GetComponent<GobboVisualController>();
+        if (visualController == null)
+            visualController = GetComponentInChildren<GobboVisualController>();
+
         directionalSprite = GetComponent<BuddyDirectionalSprite>();
         lastPosition = rb.position;
 
@@ -79,6 +84,7 @@ public class BuddyFollow : MonoBehaviour
         if (!brainAllowsMovement)
         {
             ClearPath();
+            SetVisualState(GobboAnimationState.Idle);
             return;
         }
 
@@ -92,6 +98,7 @@ public class BuddyFollow : MonoBehaviour
             transform.position = player.position + (Vector3)Random.insideUnitCircle;
             rb.linearVelocity = Vector2.zero;
             ClearPath();
+            SetVisualState(GobboAnimationState.Idle);
             return;
         }
 
@@ -101,6 +108,7 @@ public class BuddyFollow : MonoBehaviour
         {
             rb.linearVelocity = Vector2.zero;
             ClearPath();
+            SetVisualState(GobboAnimationState.Idle);
             return;
         }
 
@@ -110,9 +118,7 @@ public class BuddyFollow : MonoBehaviour
         moveDir = ApplyGobboDance(moveDir, targetPosition);
 
         TileMover.Move(rb, moveDir * followSpeed, physicalBodyRadius);
-
-        if (directionalSprite != null && moveDir.sqrMagnitude > 0.001f)
-            directionalSprite.SetDirection(moveDir);
+        FaceDirection(moveDir);
     }
 
     Vector2 GetFollowDirection(Vector2 targetPosition)
@@ -268,6 +274,31 @@ public class BuddyFollow : MonoBehaviour
         }
 
         return push * separationForce;
+    }
+
+    void FaceDirection(Vector2 direction)
+    {
+        if (direction.sqrMagnitude <= 0.001f)
+        {
+            SetVisualState(GobboAnimationState.Idle);
+            return;
+        }
+
+        if (visualController != null)
+        {
+            visualController.SetAnimationState(GobboAnimationState.Walk);
+            visualController.SetDirection(direction);
+            return;
+        }
+
+        if (directionalSprite != null)
+            directionalSprite.SetDirection(direction);
+    }
+
+    void SetVisualState(GobboAnimationState state)
+    {
+        if (visualController != null)
+            visualController.SetAnimationState(state);
     }
 
     void ResetRandomDanceTimer()
