@@ -43,6 +43,7 @@ public class BuddyCombat : MonoBehaviour
     private float bounceTimer = 0f;
     private Vector2 bounceVelocity;
     private BuddyUnit unit;
+    private GobboVisualController visualController;
     private BuddyDirectionalSprite directionalSprite;
 
     void Awake()
@@ -50,6 +51,9 @@ public class BuddyCombat : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         rb.freezeRotation = true;
         unit = GetComponent<BuddyUnit>();
+        visualController = GetComponent<GobboVisualController>();
+        if (visualController == null)
+            visualController = GetComponentInChildren<GobboVisualController>();
         directionalSprite = GetComponent<BuddyDirectionalSprite>();
         FindPlayerIfMissing();
     }
@@ -77,6 +81,7 @@ public class BuddyCombat : MonoBehaviour
         {
             bounceTimer -= Time.fixedDeltaTime;
             TileMover.Move(rb, bounceVelocity, bodyRadius);
+            FaceDirection(bounceVelocity, GobboAnimationState.Walk);
             return;
         }
 
@@ -168,9 +173,7 @@ public class BuddyCombat : MonoBehaviour
         Vector2 targetPos = currentTarget.position;
         Vector2 moveDir = GetPathDirection(targetPos);
         TileMover.Move(rb, moveDir * chaseSpeed, bodyRadius);
-
-        if (directionalSprite != null && moveDir.sqrMagnitude > 0.001f)
-            directionalSprite.SetDirection(moveDir);
+        FaceDirection(moveDir, GobboAnimationState.Walk);
     }
 
     Vector2 GetPathDirection(Vector2 targetPos)
@@ -227,7 +230,7 @@ public class BuddyCombat : MonoBehaviour
 
         attackTimer = attackCooldown;
         Vector2 directionToEnemy = ((Vector2)currentTarget.position - rb.position).normalized;
-        if (directionalSprite != null) directionalSprite.SetDirection(directionToEnemy);
+        FaceDirection(directionToEnemy, GobboAnimationState.Attack);
 
         DamageEnemy(currentTarget.gameObject);
         KnockEnemy(currentTarget.gameObject, directionToEnemy);
@@ -249,6 +252,22 @@ public class BuddyCombat : MonoBehaviour
     {
         bounceVelocity = direction.normalized * selfKnockbackForce;
         bounceTimer = selfBounceDuration;
+    }
+
+    void FaceDirection(Vector2 direction, GobboAnimationState state)
+    {
+        if (direction.sqrMagnitude <= 0.001f)
+            return;
+
+        if (visualController != null)
+        {
+            visualController.SetAnimationState(state);
+            visualController.SetDirection(direction);
+            return;
+        }
+
+        if (directionalSprite != null)
+            directionalSprite.SetDirection(direction);
     }
 
     void ClearTarget()
