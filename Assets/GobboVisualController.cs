@@ -11,13 +11,15 @@ public class GobboVisualController : MonoBehaviour
     public string visualSetId = "";
 
     [Header("Diagnostics")]
-    public bool logVisualDiagnostics = true;
-    public bool logEverySpriteSelection = false;
+    public bool warnWhenVisualMissing = true;
+    public bool warnWhenSpriteOverridden = false;
 
     private GobboVisualSet currentSet;
     private Vector2 lastDirection = Vector2.down;
     private Sprite lastAssignedSprite;
-    private bool hasLoggedInitialDiagnostic;
+    private bool warnedMissingRenderer;
+    private bool warnedMissingSet;
+    private bool warnedMissingSprite;
 
     void Awake()
     {
@@ -40,13 +42,12 @@ public class GobboVisualController : MonoBehaviour
         if (currentSet == null && GobboVisualDatabase.Instance != null)
             RefreshVisual();
 
-        if (logVisualDiagnostics && spriteRenderer != null && lastAssignedSprite != null && spriteRenderer.sprite != lastAssignedSprite)
+        if (warnWhenSpriteOverridden && spriteRenderer != null && lastAssignedSprite != null && spriteRenderer.sprite != lastAssignedSprite)
         {
             Debug.LogWarning(
                 "[GobboVisualController] Sprite changed after assignment on " + name +
                 " | expected=" + SpriteName(lastAssignedSprite) +
-                " | actual=" + SpriteName(spriteRenderer.sprite) +
-                " | possible override by another script or inspector state",
+                " | actual=" + SpriteName(spriteRenderer.sprite),
                 this);
             lastAssignedSprite = spriteRenderer.sprite;
         }
@@ -60,6 +61,13 @@ public class GobboVisualController : MonoBehaviour
         ageStage = stage;
         visualSetId = setId;
 
+        if (identityChanged)
+        {
+            currentSet = null;
+            warnedMissingSet = false;
+            warnedMissingSprite = false;
+        }
+
         if (identityChanged || currentSet == null)
             RefreshVisual();
     }
@@ -70,6 +78,7 @@ public class GobboVisualController : MonoBehaviour
             return;
 
         currentState = state;
+        warnedMissingSprite = false;
         SetDirection(lastDirection);
     }
 
@@ -78,54 +87,39 @@ public class GobboVisualController : MonoBehaviour
         if (direction.sqrMagnitude > 0.01f)
             lastDirection = direction.normalized;
 
-        Sprite before = spriteRenderer != null ? spriteRenderer.sprite : null;
-        bool databaseFound = GobboVisualDatabase.Instance != null;
-
         if (spriteRenderer == null)
         {
-            LogSelection(null, databaseFound, false, before, null, "No SpriteRenderer assigned/found.");
+            WarnMissingRendererOnce();
             return;
         }
 
         if (currentSet == null)
             RefreshSet();
 
-        bool setFound = currentSet != null;
-
         if (currentSet == null)
         {
-            LogSelection(null, databaseFound, false, before, spriteRenderer.sprite, "No matching GobboVisualSet found.");
+            WarnMissingSetOnce();
             return;
         }
 
         GobboVisualPickResult pick = currentSet.PickSpriteDetailed(currentState, lastDirection);
         Sprite chosen = pick != null ? pick.selectedSprite : null;
-        string note = "Assigned selected sprite.";
 
         if (chosen == null)
         {
             GobboAnimationState fallbackState;
             GobboVisualDirectionSlot fallbackDirection;
             chosen = currentSet.PickFirstAvailableSprite(out fallbackState, out fallbackDirection);
-
-            if (chosen != null)
-            {
-                note = "Selected sprite was NULL; assigned first available fallback sprite instead: action=" + fallbackState + " direction=" + fallbackDirection + ".";
-            }
-            else
-            {
-                note = "Selected sprite was NULL and no fallback sprites exist in this visual set; renderer was not changed.";
-            }
         }
 
-        if (chosen != null)
+        if (chosen == null)
         {
-            spriteRenderer.sprite = chosen;
-            lastAssignedSprite = chosen;
+            WarnMissingSpriteOnce(pick);
+            return;
         }
 
-        Sprite after = spriteRenderer.sprite;
-        LogSelection(pick, databaseFound, setFound, before, after, note);
+        spriteRenderer.sprite = chosen;
+        lastAssignedSprite = chosen;
     }
 
     public void RefreshVisual()
@@ -152,57 +146,58 @@ public class GobboVisualController : MonoBehaviour
         currentSet = GobboVisualDatabase.Instance.GetVisualSet(visualSetId, gobboType, ageStage);
     }
 
-    void LogSelection(GobboVisualPickResult pick, bool databaseFound, bool setFound, Sprite before, Sprite after, string note)
+    void WarnMissingRendererOnce()
     {
-        if (!logVisualDiagnostics)
+        if (!warnWhenVisualMissing || warnedMissingRenderer)
             return;
 
-        bool selectedSpriteWasNull = pick == null || pick.selectedSprite == null;
-        if (!logEverySpriteSelection && hasLoggedInitialDiagnostic && !selectedSpriteWasNull && pick.selectedSprite == lastAssignedSprite)
+        warnedMissingRenderer = true;
+        Debug.LogWarning("[GobboVisualController] No SpriteRenderer assigned/found on " + name + ".", this);
+    }
+
+    void WarnMissingSetOnce()
+    {
+        if (!warnWhenVisualMissing || warnedMissingSet)
             return;
 
-        hasLoggedInitialDiagnostic = true;
+        warnedMissingSet = true;
+        Debug.LogWarning(
+            "[GobboVisualController] No GobboVisualSet found" +
+            " | object=" + name +
+            " | visualSetId=" + visualSetId +
+            " | type=" + gobboType +
+            " | stage=" + ageStage +
+            " | databaseFound=" + (GobboVisualDatabase.Instance != null),
+            this);
+    }
 
-        string setId = currentSet != null ? currentSet.visualSetId : "NULL";
-        string resolvedType = currentSet != null ? currentSet.gobboType.ToString() : "NULL";
-        string resolvedStage = currentSet != null ? currentSet.ageStage.ToString() : "NULL";
+    void WarnMissingSpriteOnce(GobboVisualPickResult pick)
+    {
+        if (!warnWhenVisualMissing || warnedMissingSprite)
+            return;
+
+        warnedMissingSprite = true;
         string availableSprites = currentSet != null ? currentSet.GetAvailableSpriteSummary() : "no visual set";
-
         string pickDetails = pick == null
             ? "pick=NULL"
             : "requestedAction=" + pick.requestedState +
               " | resolvedAction=" + pick.resolvedState +
-              " | requestedDirectionSlot=" + pick.requestedDirectionSlot +
-              " | selectedDirectionSlot=" + pick.selectedDirectionSlot +
-              " | selectedSprite=" + SpriteName(pick.selectedSprite) +
-              " | actionFallback=" + pick.usedActionFallback +
-              " | directionFallback=" + pick.usedDirectionFallback +
-              " | actionSetNull=" + pick.actionSetWasNull +
-              " | actionSetEmpty=" + pick.actionSetWasEmpty;
+              " | requestedDirection=" + pick.requestedDirectionSlot +
+              " | selectedDirection=" + pick.selectedDirectionSlot;
 
-        string message =
-            "[GobboVisualController] " + note + "\n" +
-            "object=" + name +
-            " | spriteRenderer=" + (spriteRenderer != null ? spriteRenderer.name : "NULL") +
-            " | requestedVisualSetId=" + visualSetId +
-            " | requestedType=" + gobboType +
-            " | requestedStage=" + ageStage +
+        Debug.LogWarning(
+            "[GobboVisualController] No sprite available for visual request" +
+            " | object=" + name +
+            " | renderer=" + (spriteRenderer != null ? spriteRenderer.name : "NULL") +
+            " | visualSetId=" + visualSetId +
+            " | type=" + gobboType +
+            " | stage=" + ageStage +
             " | currentState=" + currentState +
             " | facing=" + lastDirection +
-            " | databaseFound=" + databaseFound +
-            " | setFound=" + setFound +
-            " | resolvedSetId=" + setId +
-            " | resolvedType=" + resolvedType +
-            " | resolvedStage=" + resolvedStage +
-            " | spriteBefore=" + SpriteName(before) +
-            " | spriteAfter=" + SpriteName(after) +
-            "\n" + pickDetails +
-            "\navailableSprites=" + availableSprites;
-
-        if (selectedSpriteWasNull)
-            Debug.LogWarning(message, this);
-        else
-            Debug.Log(message, this);
+            " | resolvedSet=" + (currentSet != null ? currentSet.visualSetId : "NULL") +
+            " | " + pickDetails +
+            " | availableSprites=" + availableSprites,
+            this);
     }
 
     string SpriteName(Sprite sprite)
