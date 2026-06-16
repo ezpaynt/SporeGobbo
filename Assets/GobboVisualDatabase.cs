@@ -38,35 +38,57 @@ public class GobboVisualDatabase : MonoBehaviour
 
         if (!string.IsNullOrWhiteSpace(requestedId))
         {
-            foreach (GobboVisualSet set in visualSets)
+            GobboVisualSet idMatch = FindById(requestedId, true);
+            if (idMatch != null)
             {
-                if (set != null && NormalizeVisualId(set.visualSetId) == requestedId)
-                {
-                    LogLookupResult("id", set);
-                    return set;
-                }
+                LogLookupResult("id populated", idMatch);
+                return idMatch;
+            }
+
+            idMatch = FindById(requestedId, false);
+            if (idMatch != null)
+            {
+                LogLookupResult("id empty", idMatch);
+                return idMatch;
             }
         }
 
-        foreach (GobboVisualSet set in visualSets)
+        GobboVisualSet typeMatch = FindByTypeAndStage(type, ageStage, true);
+        if (typeMatch != null)
         {
-            if (set != null && set.gobboType == type && set.ageStage == ageStage)
-            {
-                LogLookupResult("type+stage", set);
-                return set;
-            }
+            LogLookupResult("type+stage populated", typeMatch);
+            return typeMatch;
         }
 
-        foreach (GobboVisualSet set in visualSets)
+        typeMatch = FindByTypeAndStage(type, ageStage, false);
+        if (typeMatch != null)
         {
-            if (set != null && set.gobboType == BuddyType.Baby)
-            {
-                LogLookupResult("baby fallback", set);
-                return set;
-            }
+            LogLookupResult("type+stage empty", typeMatch);
+            return typeMatch;
         }
 
-        GobboVisualSet fallback = visualSets.Count > 0 ? visualSets[0] : null;
+        GobboVisualSet babyFallback = FindByType(BuddyType.Baby, true);
+        if (babyFallback != null)
+        {
+            LogLookupResult("baby populated fallback", babyFallback);
+            return babyFallback;
+        }
+
+        babyFallback = FindByType(BuddyType.Baby, false);
+        if (babyFallback != null)
+        {
+            LogLookupResult("baby empty fallback", babyFallback);
+            return babyFallback;
+        }
+
+        GobboVisualSet fallback = FirstPopulatedSet();
+        if (fallback != null)
+        {
+            LogLookupResult("first populated visual set fallback", fallback);
+            return fallback;
+        }
+
+        fallback = visualSets.Count > 0 ? visualSets[0] : null;
         LogLookupResult(fallback != null ? "first visual set fallback" : "no match", fallback);
         return fallback;
     }
@@ -91,6 +113,64 @@ public class GobboVisualDatabase : MonoBehaviour
     public void LogVisualDatabaseContents()
     {
         LogAvailableSets("ContextMenu");
+    }
+
+    GobboVisualSet FindById(string normalizedId, bool requireSprites)
+    {
+        foreach (GobboVisualSet set in visualSets)
+        {
+            if (set == null || NormalizeVisualId(set.visualSetId) != normalizedId)
+                continue;
+
+            if (!requireSprites || HasAnySprite(set))
+                return set;
+        }
+
+        return null;
+    }
+
+    GobboVisualSet FindByTypeAndStage(BuddyType type, GobboAgeStage ageStage, bool requireSprites)
+    {
+        foreach (GobboVisualSet set in visualSets)
+        {
+            if (set == null || set.gobboType != type || set.ageStage != ageStage)
+                continue;
+
+            if (!requireSprites || HasAnySprite(set))
+                return set;
+        }
+
+        return null;
+    }
+
+    GobboVisualSet FindByType(BuddyType type, bool requireSprites)
+    {
+        foreach (GobboVisualSet set in visualSets)
+        {
+            if (set == null || set.gobboType != type)
+                continue;
+
+            if (!requireSprites || HasAnySprite(set))
+                return set;
+        }
+
+        return null;
+    }
+
+    GobboVisualSet FirstPopulatedSet()
+    {
+        foreach (GobboVisualSet set in visualSets)
+        {
+            if (HasAnySprite(set))
+                return set;
+        }
+
+        return null;
+    }
+
+    bool HasAnySprite(GobboVisualSet set)
+    {
+        return set != null && set.GetAvailableSpriteSummary() != "none";
     }
 
     void LogLookupStart(string rawId, string normalizedId, BuddyType type, GobboAgeStage ageStage)
@@ -120,7 +200,8 @@ public class GobboVisualDatabase : MonoBehaviour
             " | matchMode=" + matchMode +
             " | resultId=" + (set != null ? set.visualSetId : "NULL") +
             " | resultType=" + (set != null ? set.gobboType.ToString() : "NULL") +
-            " | resultStage=" + (set != null ? set.ageStage.ToString() : "NULL"),
+            " | resultStage=" + (set != null ? set.ageStage.ToString() : "NULL") +
+            " | availableSprites=" + (set != null ? set.GetAvailableSpriteSummary() : "none"),
             this);
     }
 
@@ -146,7 +227,7 @@ public class GobboVisualDatabase : MonoBehaviour
                 idCounts[normalizedId] = 0;
             idCounts[normalizedId]++;
 
-            setSummaries.Add(i + ": id=" + set.visualSetId + " normalized=" + normalizedId + " type=" + set.gobboType + " stage=" + set.ageStage);
+            setSummaries.Add(i + ": id=" + set.visualSetId + " normalized=" + normalizedId + " type=" + set.gobboType + " stage=" + set.ageStage + " sprites=" + set.GetAvailableSpriteSummary());
         }
 
         List<string> duplicateIds = new List<string>();
