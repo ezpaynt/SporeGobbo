@@ -54,14 +54,21 @@ public class GobboVisualController : MonoBehaviour
 
     public void ApplyIdentity(BuddyType type, GobboAgeStage stage, string setId)
     {
+        bool identityChanged = gobboType != type || ageStage != stage || visualSetId != setId;
+
         gobboType = type;
         ageStage = stage;
         visualSetId = setId;
-        RefreshVisual();
+
+        if (identityChanged || currentSet == null)
+            RefreshVisual();
     }
 
     public void SetAnimationState(GobboAnimationState state)
     {
+        if (currentState == state)
+            return;
+
         currentState = state;
         SetDirection(lastDirection);
     }
@@ -93,15 +100,32 @@ public class GobboVisualController : MonoBehaviour
 
         GobboVisualPickResult pick = currentSet.PickSpriteDetailed(currentState, lastDirection);
         Sprite chosen = pick != null ? pick.selectedSprite : null;
+        string note = "Assigned selected sprite.";
+
+        if (chosen == null)
+        {
+            GobboAnimationState fallbackState;
+            GobboVisualDirectionSlot fallbackDirection;
+            chosen = currentSet.PickFirstAvailableSprite(out fallbackState, out fallbackDirection);
+
+            if (chosen != null)
+            {
+                note = "Selected sprite was NULL; assigned first available fallback sprite instead: action=" + fallbackState + " direction=" + fallbackDirection + ".";
+            }
+            else
+            {
+                note = "Selected sprite was NULL and no fallback sprites exist in this visual set; renderer was not changed.";
+            }
+        }
 
         if (chosen != null)
+        {
             spriteRenderer.sprite = chosen;
+            lastAssignedSprite = chosen;
+        }
 
         Sprite after = spriteRenderer.sprite;
-        if (chosen != null)
-            lastAssignedSprite = chosen;
-
-        LogSelection(pick, databaseFound, setFound, before, after, chosen == null ? "Selected sprite was NULL; renderer was not changed." : "Assigned selected sprite.");
+        LogSelection(pick, databaseFound, setFound, before, after, note);
     }
 
     public void RefreshVisual()
@@ -133,7 +157,8 @@ public class GobboVisualController : MonoBehaviour
         if (!logVisualDiagnostics)
             return;
 
-        if (!logEverySpriteSelection && hasLoggedInitialDiagnostic && pick != null && pick.selectedSprite == lastAssignedSprite)
+        bool selectedSpriteWasNull = pick == null || pick.selectedSprite == null;
+        if (!logEverySpriteSelection && hasLoggedInitialDiagnostic && !selectedSpriteWasNull && pick.selectedSprite == lastAssignedSprite)
             return;
 
         hasLoggedInitialDiagnostic = true;
@@ -141,6 +166,7 @@ public class GobboVisualController : MonoBehaviour
         string setId = currentSet != null ? currentSet.visualSetId : "NULL";
         string resolvedType = currentSet != null ? currentSet.gobboType.ToString() : "NULL";
         string resolvedStage = currentSet != null ? currentSet.ageStage.ToString() : "NULL";
+        string availableSprites = currentSet != null ? currentSet.GetAvailableSpriteSummary() : "no visual set";
 
         string pickDetails = pick == null
             ? "pick=NULL"
@@ -154,7 +180,7 @@ public class GobboVisualController : MonoBehaviour
               " | actionSetNull=" + pick.actionSetWasNull +
               " | actionSetEmpty=" + pick.actionSetWasEmpty;
 
-        Debug.Log(
+        string message =
             "[GobboVisualController] " + note + "\n" +
             "object=" + name +
             " | spriteRenderer=" + (spriteRenderer != null ? spriteRenderer.name : "NULL") +
@@ -170,8 +196,13 @@ public class GobboVisualController : MonoBehaviour
             " | resolvedStage=" + resolvedStage +
             " | spriteBefore=" + SpriteName(before) +
             " | spriteAfter=" + SpriteName(after) +
-            "\n" + pickDetails,
-            this);
+            "\n" + pickDetails +
+            "\navailableSprites=" + availableSprites;
+
+        if (selectedSpriteWasNull)
+            Debug.LogWarning(message, this);
+        else
+            Debug.Log(message, this);
     }
 
     string SpriteName(Sprite sprite)
