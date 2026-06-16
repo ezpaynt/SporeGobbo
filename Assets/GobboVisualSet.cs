@@ -1,3 +1,4 @@
+using System.Text;
 using UnityEngine;
 
 public enum GobboVisualDirectionSlot
@@ -80,6 +81,47 @@ public class DirectionalSpriteSet
             selectedSprite = fallback,
             usedDirectionFallback = fallback != null
         };
+    }
+
+    public Sprite PickFirstAvailable(out GobboVisualDirectionSlot selectedSlot)
+    {
+        return FirstAvailable(out selectedSlot,
+            SlotSprite(GobboVisualDirectionSlot.Front, front),
+            SlotSprite(GobboVisualDirectionSlot.FrontLeft, frontLeft),
+            SlotSprite(GobboVisualDirectionSlot.Left, left),
+            SlotSprite(GobboVisualDirectionSlot.FrontRight, frontRight),
+            SlotSprite(GobboVisualDirectionSlot.Right, right),
+            SlotSprite(GobboVisualDirectionSlot.Back, back),
+            SlotSprite(GobboVisualDirectionSlot.BackLeft, backLeft),
+            SlotSprite(GobboVisualDirectionSlot.BackRight, backRight));
+    }
+
+    public string GetAvailableSlotSummary()
+    {
+        if (!HasAnySprite())
+            return "none";
+
+        StringBuilder builder = new StringBuilder();
+        AppendSlot(builder, "Front", front);
+        AppendSlot(builder, "FrontLeft", frontLeft);
+        AppendSlot(builder, "Left", left);
+        AppendSlot(builder, "FrontRight", frontRight);
+        AppendSlot(builder, "Right", right);
+        AppendSlot(builder, "Back", back);
+        AppendSlot(builder, "BackLeft", backLeft);
+        AppendSlot(builder, "BackRight", backRight);
+        return builder.ToString();
+    }
+
+    static void AppendSlot(StringBuilder builder, string label, Sprite sprite)
+    {
+        if (sprite == null)
+            return;
+
+        if (builder.Length > 0)
+            builder.Append(", ");
+
+        builder.Append(label).Append("=").Append(sprite.name);
     }
 
     int GetEightWaySector(Vector2 direction)
@@ -215,15 +257,7 @@ public class DirectionalSpriteSet
                     SlotSprite(GobboVisualDirectionSlot.BackRight, backRight));
         }
 
-        return FirstAvailable(out selectedSlot,
-            SlotSprite(GobboVisualDirectionSlot.Front, front),
-            SlotSprite(GobboVisualDirectionSlot.FrontLeft, frontLeft),
-            SlotSprite(GobboVisualDirectionSlot.FrontRight, frontRight),
-            SlotSprite(GobboVisualDirectionSlot.Left, left),
-            SlotSprite(GobboVisualDirectionSlot.Right, right),
-            SlotSprite(GobboVisualDirectionSlot.Back, back),
-            SlotSprite(GobboVisualDirectionSlot.BackLeft, backLeft),
-            SlotSprite(GobboVisualDirectionSlot.BackRight, backRight));
+        return PickFirstAvailable(out selectedSlot);
     }
 
     SlotSpriteEntry SlotSprite(GobboVisualDirectionSlot slot, Sprite sprite)
@@ -307,6 +341,38 @@ public class GobboVisualSet
         return result;
     }
 
+    public Sprite PickFirstAvailableSprite(out GobboAnimationState resolvedState, out GobboVisualDirectionSlot resolvedDirection)
+    {
+        DirectionalSpriteSet sprites = FirstNonEmptySet(out resolvedState);
+        if (sprites == null)
+        {
+            resolvedDirection = GobboVisualDirectionSlot.Front;
+            return null;
+        }
+
+        return sprites.PickFirstAvailable(out resolvedDirection);
+    }
+
+    public string GetAvailableSpriteSummary()
+    {
+        StringBuilder builder = new StringBuilder();
+        AppendSpriteSetSummary(builder, "Idle", idle);
+        AppendSpriteSetSummary(builder, "Walk", walk);
+        AppendSpriteSetSummary(builder, "Attack", attack);
+        AppendSpriteSetSummary(builder, "AttackReady", attackReady);
+        AppendSpriteSetSummary(builder, "AttackSwing", attackSwing);
+        AppendSpriteSetSummary(builder, "Dig", dig);
+        AppendSpriteSetSummary(builder, "Dash", dash);
+        AppendSpriteSetSummary(builder, "Hurt", hurt);
+        AppendSpriteSetSummary(builder, "Grab", grab);
+        AppendSpriteSetSummary(builder, "Death", death);
+        AppendSpriteSetSummary(builder, "Sleep", sleep);
+        AppendSpriteSetSummary(builder, "Dance", dance);
+        AppendSpriteSetSummary(builder, "Hide", hide);
+        AppendSpriteSetSummary(builder, "Roar", roar);
+        return builder.Length > 0 ? builder.ToString() : "none";
+    }
+
     DirectionalSpriteSet GetSpritesDetailed(GobboAnimationState state, out GobboAnimationState resolvedState, out bool usedFallback, out bool wasNull, out bool wasEmpty)
     {
         DirectionalSpriteSet chosen = idle;
@@ -359,23 +425,54 @@ public class GobboVisualSet
                 if (attack != null && attack.HasAnySprite()) { resolvedState = GobboAnimationState.Attack; return attack; }
                 break;
             case GobboAnimationState.Grab:
-                if (walk != null && walk.HasAnySprite()) { resolvedState = GobboAnimationState.Walk; return walk; }
-                break;
             case GobboAnimationState.Walk:
             case GobboAnimationState.Dig:
             case GobboAnimationState.Dash:
                 if (walk != null && walk.HasAnySprite()) { resolvedState = GobboAnimationState.Walk; return walk; }
                 break;
+            case GobboAnimationState.Attack:
             case GobboAnimationState.Hurt:
             case GobboAnimationState.Death:
+            case GobboAnimationState.Sleep:
+            case GobboAnimationState.Dance:
+            case GobboAnimationState.Hide:
+            case GobboAnimationState.Roar:
                 if (idle != null && idle.HasAnySprite()) { resolvedState = GobboAnimationState.Idle; return idle; }
                 break;
         }
 
+        return FirstNonEmptySet(out resolvedState) ?? idle;
+    }
+
+    DirectionalSpriteSet FirstNonEmptySet(out GobboAnimationState resolvedState)
+    {
         if (idle != null && idle.HasAnySprite()) { resolvedState = GobboAnimationState.Idle; return idle; }
         if (walk != null && walk.HasAnySprite()) { resolvedState = GobboAnimationState.Walk; return walk; }
         if (attack != null && attack.HasAnySprite()) { resolvedState = GobboAnimationState.Attack; return attack; }
+        if (attackReady != null && attackReady.HasAnySprite()) { resolvedState = GobboAnimationState.AttackReady; return attackReady; }
+        if (attackSwing != null && attackSwing.HasAnySprite()) { resolvedState = GobboAnimationState.AttackSwing; return attackSwing; }
+        if (dig != null && dig.HasAnySprite()) { resolvedState = GobboAnimationState.Dig; return dig; }
+        if (dash != null && dash.HasAnySprite()) { resolvedState = GobboAnimationState.Dash; return dash; }
+        if (hurt != null && hurt.HasAnySprite()) { resolvedState = GobboAnimationState.Hurt; return hurt; }
+        if (grab != null && grab.HasAnySprite()) { resolvedState = GobboAnimationState.Grab; return grab; }
+        if (death != null && death.HasAnySprite()) { resolvedState = GobboAnimationState.Death; return death; }
+        if (sleep != null && sleep.HasAnySprite()) { resolvedState = GobboAnimationState.Sleep; return sleep; }
+        if (dance != null && dance.HasAnySprite()) { resolvedState = GobboAnimationState.Dance; return dance; }
+        if (hide != null && hide.HasAnySprite()) { resolvedState = GobboAnimationState.Hide; return hide; }
+        if (roar != null && roar.HasAnySprite()) { resolvedState = GobboAnimationState.Roar; return roar; }
+
         resolvedState = GobboAnimationState.Idle;
-        return idle;
+        return null;
+    }
+
+    static void AppendSpriteSetSummary(StringBuilder builder, string label, DirectionalSpriteSet sprites)
+    {
+        if (sprites == null || !sprites.HasAnySprite())
+            return;
+
+        if (builder.Length > 0)
+            builder.Append(" | ");
+
+        builder.Append(label).Append(": ").Append(sprites.GetAvailableSlotSummary());
     }
 }
