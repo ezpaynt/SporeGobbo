@@ -17,6 +17,10 @@ public class GobboVisualController : MonoBehaviour
     private GobboVisualSet currentSet;
     private Vector2 lastDirection = Vector2.down;
     private Sprite lastAssignedSprite;
+    private GobboVisualDirectionSlot lastDirectionSlot = GobboVisualDirectionSlot.Front;
+    private int currentFrameIndex;
+    private int currentFrameCount = 1;
+    private float frameTimer;
     private bool warnedMissingRenderer;
     private bool warnedMissingSet;
     private bool warnedMissingSprite;
@@ -35,6 +39,11 @@ public class GobboVisualController : MonoBehaviour
     void Start()
     {
         RefreshVisual();
+    }
+
+    void Update()
+    {
+        AdvanceFrameTimer(Time.deltaTime);
     }
 
     void LateUpdate()
@@ -66,6 +75,7 @@ public class GobboVisualController : MonoBehaviour
             currentSet = null;
             warnedMissingSet = false;
             warnedMissingSprite = false;
+            ResetFrameLoop();
         }
 
         if (identityChanged || currentSet == null)
@@ -79,6 +89,7 @@ public class GobboVisualController : MonoBehaviour
 
         currentState = state;
         warnedMissingSprite = false;
+        ResetFrameLoop();
         SetDirection(lastDirection);
     }
 
@@ -102,7 +113,15 @@ public class GobboVisualController : MonoBehaviour
             return;
         }
 
-        GobboVisualPickResult pick = currentSet.PickSpriteDetailed(currentState, lastDirection);
+        GobboVisualPickResult pick = currentSet.PickSpriteDetailed(currentState, lastDirection, currentFrameIndex);
+
+        if (pick != null && pick.requestedDirectionSlot != lastDirectionSlot)
+        {
+            lastDirectionSlot = pick.requestedDirectionSlot;
+            ResetFrameLoop();
+            pick = currentSet.PickSpriteDetailed(currentState, lastDirection, currentFrameIndex);
+        }
+
         Sprite chosen = pick != null ? pick.selectedSprite : null;
 
         if (chosen == null)
@@ -110,6 +129,11 @@ public class GobboVisualController : MonoBehaviour
             GobboAnimationState fallbackState;
             GobboVisualDirectionSlot fallbackDirection;
             chosen = currentSet.PickFirstAvailableSprite(out fallbackState, out fallbackDirection);
+            currentFrameCount = 1;
+        }
+        else
+        {
+            currentFrameCount = Mathf.Max(1, pick.selectedFrameCount);
         }
 
         if (chosen == null)
@@ -144,6 +168,29 @@ public class GobboVisualController : MonoBehaviour
         }
 
         currentSet = GobboVisualDatabase.Instance.GetVisualSet(visualSetId, gobboType, ageStage);
+    }
+
+    void AdvanceFrameTimer(float deltaTime)
+    {
+        if (currentSet == null || currentFrameCount <= 1)
+            return;
+
+        frameTimer += deltaTime;
+        float frameDuration = currentSet.GetFrameDuration(currentState);
+
+        if (frameTimer < frameDuration)
+            return;
+
+        frameTimer %= frameDuration;
+        currentFrameIndex = (currentFrameIndex + 1) % currentFrameCount;
+        SetDirection(lastDirection);
+    }
+
+    void ResetFrameLoop()
+    {
+        currentFrameIndex = 0;
+        currentFrameCount = 1;
+        frameTimer = 0f;
     }
 
     void WarnMissingRendererOnce()
@@ -183,7 +230,8 @@ public class GobboVisualController : MonoBehaviour
             : "requestedAction=" + pick.requestedState +
               " | resolvedAction=" + pick.resolvedState +
               " | requestedDirection=" + pick.requestedDirectionSlot +
-              " | selectedDirection=" + pick.selectedDirectionSlot;
+              " | selectedDirection=" + pick.selectedDirectionSlot +
+              " | frame=" + pick.selectedFrameIndex + "/" + pick.selectedFrameCount;
 
         Debug.LogWarning(
             "[GobboVisualController] No sprite available for visual request" +
