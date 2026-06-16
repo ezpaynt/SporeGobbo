@@ -9,7 +9,7 @@ public class GobboVisualDatabase : MonoBehaviour
     public List<GobboVisualSet> visualSets = new List<GobboVisualSet>();
 
     [Header("Diagnostics")]
-    public bool logVisualDatabaseDiagnostics = true;
+    public bool logVisualDatabaseDiagnostics = false;
 
     void Awake()
     {
@@ -112,7 +112,10 @@ public class GobboVisualDatabase : MonoBehaviour
     [ContextMenu("Log Visual Database Contents")]
     public void LogVisualDatabaseContents()
     {
+        bool previous = logVisualDatabaseDiagnostics;
+        logVisualDatabaseDiagnostics = true;
         LogAvailableSets("ContextMenu");
+        logVisualDatabaseDiagnostics = previous;
     }
 
     GobboVisualSet FindById(string normalizedId, bool requireSprites)
