@@ -147,18 +147,16 @@ public class FleeingMushroomCritter : MonoBehaviour
     [Header("Directional Idle")]
     [Tooltip("Use one or more idle/in-between frames per direction.")]
     public DirectionalSpriteLoop idleDirectionalFrames = new DirectionalSpriteLoop();
-    [Tooltip("Simple fallback if no directional idle frames are assigned.")]
-    public Sprite[] idleFrames;
     public float idleFrameDuration = 0.35f;
 
     [Header("Directional Run")]
     [Tooltip("Use your two run steps per direction here.")]
     public DirectionalSpriteLoop runDirectionalFrames = new DirectionalSpriteLoop();
-    [Tooltip("Simple fallback if no directional run frames are assigned.")]
-    public Sprite[] runFrames;
     public float runFrameDuration = 0.12f;
-    [Tooltip("Only used by the simple fallback run frames. Directional frames do not need flipping.")]
-    public bool flipFallbackSpriteTowardMovement = true;
+
+    [HideInInspector] public Sprite[] idleFrames;
+    [HideInInspector] public Sprite[] runFrames;
+    [HideInInspector] public bool flipFallbackSpriteTowardMovement = true;
 
     [Header("Debug")]
     public bool debugDrawRanges = false;
