@@ -13,8 +13,187 @@ public class FleeingMushroomCritter : MonoBehaviour
         Idle
     }
 
+    private enum DirectionSlot
+    {
+        Front,
+        FrontLeft,
+        Left,
+        BackLeft,
+        Back,
+        BackRight,
+        Right,
+        FrontRight
+    }
+
+    [System.Serializable]
+    public class DirectionalSpriteLoop
+    {
+        public Sprite[] front;
+        public Sprite[] frontLeft;
+        public Sprite[] left;
+        public Sprite[] backLeft;
+        public Sprite[] back;
+        public Sprite[] backRight;
+        public Sprite[] right;
+        public Sprite[] frontRight;
+
+        public Sprite[] GetFrames(DirectionSlot direction)
+        {
+            Sprite[] exact = GetExactFrames(direction);
+            if (HasAnySprite(exact))
+                return exact;
+
+            foreach (DirectionSlot fallback in GetFallbackOrder(direction))
+            {
+                Sprite[] frames = GetExactFrames(fallback);
+                if (HasAnySprite(frames))
+                    return frames;
+            }
+
+            return null;
+        }
+
+        public bool HasAnyFrame()
+        {
+            return HasAnySprite(front) ||
+                   HasAnySprite(frontLeft) ||
+                   HasAnySprite(left) ||
+                   HasAnySprite(backLeft) ||
+                   HasAnySprite(back) ||
+                   HasAnySprite(backRight) ||
+                   HasAnySprite(right) ||
+                   HasAnySprite(frontRight);
+        }
+
+        private Sprite[] GetExactFrames(DirectionSlot direction)
+        {
+            switch (direction)
+            {
+                case DirectionSlot.FrontLeft: return frontLeft;
+                case DirectionSlot.Left: return left;
+                case DirectionSlot.BackLeft: return backLeft;
+                case DirectionSlot.Back: return back;
+                case DirectionSlot.BackRight: return backRight;
+                case DirectionSlot.Right: return right;
+                case DirectionSlot.FrontRight: return frontRight;
+                default: return front;
+            }
+        }
+
+        private static bool HasAnySprite(Sprite[] frames)
+        {
+            if (frames == null)
+                return false;
+
+            for (int i = 0; i < frames.Length; i++)
+            {
+                if (frames[i] != null)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static DirectionSlot[] GetFallbackOrder(DirectionSlot direction)
+        {
+            switch (direction)
+            {
+                case DirectionSlot.FrontLeft:
+                    return new[] { DirectionSlot.Front, DirectionSlot.Left, DirectionSlot.FrontRight, DirectionSlot.BackLeft };
+                case DirectionSlot.Left:
+                    return new[] { DirectionSlot.FrontLeft, DirectionSlot.BackLeft, DirectionSlot.Front, DirectionSlot.Back };
+                case DirectionSlot.BackLeft:
+                    return new[] { DirectionSlot.Back, DirectionSlot.Left, DirectionSlot.BackRight, DirectionSlot.FrontLeft };
+                case DirectionSlot.Back:
+                    return new[] { DirectionSlot.BackLeft, DirectionSlot.BackRight, DirectionSlot.Front };
+                case DirectionSlot.BackRight:
+                    return new[] { DirectionSlot.Back, DirectionSlot.Right, DirectionSlot.BackLeft, DirectionSlot.FrontRight };
+                case DirectionSlot.Right:
+                    return new[] { DirectionSlot.FrontRight, DirectionSlot.BackRight, DirectionSlot.Front, DirectionSlot.Back };
+                case DirectionSlot.FrontRight:
+                    return new[] { DirectionSlot.Front, DirectionSlot.Right, DirectionSlot.FrontLeft, DirectionSlot.BackRight };
+                default:
+                    return new[] { DirectionSlot.FrontLeft, DirectionSlot.FrontRight, DirectionSlot.Left, DirectionSlot.Right, DirectionSlot.Back };
+            }
+        }
+    }
+
+    [System.Serializable]
+    public class DirectionalSpriteSet
+    {
+        public Sprite front;
+        public Sprite frontLeft;
+        public Sprite left;
+        public Sprite backLeft;
+        public Sprite back;
+        public Sprite backRight;
+        public Sprite right;
+        public Sprite frontRight;
+
+        public Sprite GetSprite(DirectionSlot direction)
+        {
+            Sprite exact = GetExactSprite(direction);
+            if (exact != null)
+                return exact;
+
+            foreach (DirectionSlot fallback in DirectionalSpriteLoopFallbacks(direction))
+            {
+                Sprite sprite = GetExactSprite(fallback);
+                if (sprite != null)
+                    return sprite;
+            }
+
+            return null;
+        }
+
+        public bool HasAnySprite()
+        {
+            return front != null || frontLeft != null || left != null || backLeft != null ||
+                   back != null || backRight != null || right != null || frontRight != null;
+        }
+
+        private Sprite GetExactSprite(DirectionSlot direction)
+        {
+            switch (direction)
+            {
+                case DirectionSlot.FrontLeft: return frontLeft;
+                case DirectionSlot.Left: return left;
+                case DirectionSlot.BackLeft: return backLeft;
+                case DirectionSlot.Back: return back;
+                case DirectionSlot.BackRight: return backRight;
+                case DirectionSlot.Right: return right;
+                case DirectionSlot.FrontRight: return frontRight;
+                default: return front;
+            }
+        }
+
+        private static DirectionSlot[] DirectionalSpriteLoopFallbacks(DirectionSlot direction)
+        {
+            switch (direction)
+            {
+                case DirectionSlot.FrontLeft:
+                    return new[] { DirectionSlot.Front, DirectionSlot.Left, DirectionSlot.FrontRight, DirectionSlot.BackLeft };
+                case DirectionSlot.Left:
+                    return new[] { DirectionSlot.FrontLeft, DirectionSlot.BackLeft, DirectionSlot.Front, DirectionSlot.Back };
+                case DirectionSlot.BackLeft:
+                    return new[] { DirectionSlot.Back, DirectionSlot.Left, DirectionSlot.BackRight, DirectionSlot.FrontLeft };
+                case DirectionSlot.Back:
+                    return new[] { DirectionSlot.BackLeft, DirectionSlot.BackRight, DirectionSlot.Front };
+                case DirectionSlot.BackRight:
+                    return new[] { DirectionSlot.Back, DirectionSlot.Right, DirectionSlot.BackLeft, DirectionSlot.FrontRight };
+                case DirectionSlot.Right:
+                    return new[] { DirectionSlot.FrontRight, DirectionSlot.BackRight, DirectionSlot.Front, DirectionSlot.Back };
+                case DirectionSlot.FrontRight:
+                    return new[] { DirectionSlot.Front, DirectionSlot.Right, DirectionSlot.FrontLeft, DirectionSlot.BackRight };
+                default:
+                    return new[] { DirectionSlot.FrontLeft, DirectionSlot.FrontRight, DirectionSlot.Left, DirectionSlot.Right, DirectionSlot.Back };
+            }
+        }
+    }
+
     [Header("References")]
     public SpriteRenderer spriteRenderer;
+    [Tooltip("Existing pickup reward component. The critter itself is collected; this does not spawn a separate food drop.")]
     public FoodItem foodItem;
     public Rigidbody2D rb;
     [Tooltip("Optional. If empty, the critter finds the current GobboController/player at runtime.")]
@@ -32,25 +211,40 @@ public class FleeingMushroomCritter : MonoBehaviour
     public float idleBeforeSleepDuration = 1.5f;
 
     [Header("Animation")]
+    [Tooltip("Non-directional sleep loop. Use this for your two sleeping frames.")]
     public Sprite[] sleepFrames;
     public float sleepFrameDuration = 0.45f;
+    [Tooltip("Simple fallback spooked frame if no directional spooked sprite is assigned.")]
     public Sprite spookedSprite;
-    public Sprite[] runFrames;
-    public float runFrameDuration = 0.12f;
+    public DirectionalSpriteSet spookedDirectionalSprites = new DirectionalSpriteSet();
+
+    [Header("Directional Idle")]
+    [Tooltip("Use one or more idle/in-between frames per direction.")]
+    public DirectionalSpriteLoop idleDirectionalFrames = new DirectionalSpriteLoop();
+    [Tooltip("Simple fallback if no directional idle frames are assigned.")]
     public Sprite[] idleFrames;
     public float idleFrameDuration = 0.35f;
-    public bool flipSpriteTowardMovement = true;
+
+    [Header("Directional Run")]
+    [Tooltip("Use your two run steps per direction here.")]
+    public DirectionalSpriteLoop runDirectionalFrames = new DirectionalSpriteLoop();
+    [Tooltip("Simple fallback if no directional run frames are assigned.")]
+    public Sprite[] runFrames;
+    public float runFrameDuration = 0.12f;
+    [Tooltip("Only used by the simple fallback run frames. Directional frames do not need flipping.")]
+    public bool flipFallbackSpriteTowardMovement = true;
 
     [Header("Debug")]
     public bool debugDrawRanges = false;
 
     private CritterState state = CritterState.Sleeping;
+    private DirectionSlot currentDirection = DirectionSlot.Front;
     private float stateTimer;
     private float frameTimer;
     private int frameIndex;
     private float turnTimer;
     private Vector2 fleeDirection = Vector2.right;
-    private Vector2 lastMoveDirection = Vector2.right;
+    private Vector2 lastMoveDirection = Vector2.down;
 
     private void Awake()
     {
@@ -91,22 +285,20 @@ public class FleeingMushroomCritter : MonoBehaviour
                 break;
 
             case CritterState.Spooked:
-                if (spookedSprite != null)
-                    SetSprite(spookedSprite);
-
+                PlaySpookedSprite();
                 stateTimer -= Time.deltaTime;
                 if (stateTimer <= 0f)
                     EnterFleeing();
                 break;
 
             case CritterState.Fleeing:
-                PlayLoop(runFrames, runFrameDuration);
+                PlayDirectionalLoop(runDirectionalFrames, runFrames, runFrameDuration);
                 if (distanceToPlayer >= calmRange)
                     EnterCalming();
                 break;
 
             case CritterState.Calming:
-                PlayLoop(idleFrames, idleFrameDuration);
+                PlayDirectionalLoop(idleDirectionalFrames, idleFrames, idleFrameDuration);
                 if (distanceToPlayer <= wakeRange)
                 {
                     EnterSpooked();
@@ -119,7 +311,7 @@ public class FleeingMushroomCritter : MonoBehaviour
                 break;
 
             case CritterState.Idle:
-                PlayLoop(idleFrames, idleFrameDuration);
+                PlayDirectionalLoop(idleDirectionalFrames, idleFrames, idleFrameDuration);
                 if (distanceToPlayer <= wakeRange)
                 {
                     EnterSpooked();
@@ -156,7 +348,10 @@ public class FleeingMushroomCritter : MonoBehaviour
         if (desiredVelocity.sqrMagnitude > 0.001f)
         {
             lastMoveDirection = desiredVelocity.normalized;
-            UpdateSpriteFlip(lastMoveDirection);
+            SetFacingDirection(lastMoveDirection);
+
+            if (!runDirectionalFrames.HasAnyFrame())
+                UpdateFallbackSpriteFlip(lastMoveDirection);
         }
 
         TileMover.Move(rb, desiredVelocity, bodyRadius);
@@ -177,8 +372,8 @@ public class FleeingMushroomCritter : MonoBehaviour
         stateTimer = Mathf.Max(0.01f, spookedDuration);
         ResetAnimation();
         StopMoving();
-        if (spookedSprite != null)
-            SetSprite(spookedSprite);
+        FaceAwayFromPlayer();
+        PlaySpookedSprite();
     }
 
     private void EnterFleeing()
@@ -187,6 +382,11 @@ public class FleeingMushroomCritter : MonoBehaviour
         ResetAnimation();
         turnTimer = 0f;
         fleeDirection = PickFleeDirection();
+        if (fleeDirection.sqrMagnitude > 0.001f)
+        {
+            lastMoveDirection = fleeDirection.normalized;
+            SetFacingDirection(lastMoveDirection);
+        }
     }
 
     private void EnterCalming()
@@ -227,6 +427,19 @@ public class FleeingMushroomCritter : MonoBehaviour
             return Mathf.Infinity;
 
         return Vector2.Distance(transform.position, playerTarget.position);
+    }
+
+    private void FaceAwayFromPlayer()
+    {
+        if (playerTarget == null)
+            return;
+
+        Vector2 away = (Vector2)transform.position - (Vector2)playerTarget.position;
+        if (away.sqrMagnitude > 0.001f)
+        {
+            lastMoveDirection = away.normalized;
+            SetFacingDirection(lastMoveDirection);
+        }
     }
 
     private Vector2 PickFleeDirection()
@@ -285,6 +498,60 @@ public class FleeingMushroomCritter : MonoBehaviour
         return new Vector2(value.x * cos - value.y * sin, value.x * sin + value.y * cos);
     }
 
+    private void SetFacingDirection(Vector2 direction)
+    {
+        if (direction.sqrMagnitude <= 0.001f)
+            return;
+
+        DirectionSlot newDirection = DirectionFromVector(direction.normalized);
+        if (newDirection == currentDirection)
+            return;
+
+        currentDirection = newDirection;
+        ResetAnimation();
+    }
+
+    private DirectionSlot DirectionFromVector(Vector2 direction)
+    {
+        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+        if (angle < 0f)
+            angle += 360f;
+
+        if (angle >= 337.5f || angle < 22.5f) return DirectionSlot.Right;
+        if (angle < 67.5f) return DirectionSlot.BackRight;
+        if (angle < 112.5f) return DirectionSlot.Back;
+        if (angle < 157.5f) return DirectionSlot.BackLeft;
+        if (angle < 202.5f) return DirectionSlot.Left;
+        if (angle < 247.5f) return DirectionSlot.FrontLeft;
+        if (angle < 292.5f) return DirectionSlot.Front;
+        return DirectionSlot.FrontRight;
+    }
+
+    private void PlaySpookedSprite()
+    {
+        Sprite directionalSprite = spookedDirectionalSprites.GetSprite(currentDirection);
+        if (directionalSprite != null)
+        {
+            SetSprite(directionalSprite);
+            return;
+        }
+
+        if (spookedSprite != null)
+            SetSprite(spookedSprite);
+    }
+
+    private void PlayDirectionalLoop(DirectionalSpriteLoop directionalFrames, Sprite[] fallbackFrames, float frameDuration)
+    {
+        Sprite[] frames = directionalFrames != null ? directionalFrames.GetFrames(currentDirection) : null;
+        if (frames != null && HasAnySprite(frames))
+        {
+            PlayLoop(frames, frameDuration);
+            return;
+        }
+
+        PlayLoop(fallbackFrames, frameDuration);
+    }
+
     private void PlayLoop(Sprite[] frames, float frameDuration, bool forceFirstFrame = false)
     {
         if (frames == null || frames.Length == 0)
@@ -325,6 +592,20 @@ public class FleeingMushroomCritter : MonoBehaviour
         return safeStart;
     }
 
+    private bool HasAnySprite(Sprite[] frames)
+    {
+        if (frames == null)
+            return false;
+
+        for (int i = 0; i < frames.Length; i++)
+        {
+            if (frames[i] != null)
+                return true;
+        }
+
+        return false;
+    }
+
     private void ResetAnimation()
     {
         frameTimer = 0f;
@@ -337,9 +618,9 @@ public class FleeingMushroomCritter : MonoBehaviour
             spriteRenderer.sprite = sprite;
     }
 
-    private void UpdateSpriteFlip(Vector2 direction)
+    private void UpdateFallbackSpriteFlip(Vector2 direction)
     {
-        if (!flipSpriteTowardMovement || spriteRenderer == null || Mathf.Abs(direction.x) <= 0.05f)
+        if (!flipFallbackSpriteTowardMovement || spriteRenderer == null || Mathf.Abs(direction.x) <= 0.05f)
             return;
 
         spriteRenderer.flipX = direction.x < 0f;
