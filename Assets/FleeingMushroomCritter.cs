@@ -13,7 +13,7 @@ public class FleeingMushroomCritter : MonoBehaviour
         Idle
     }
 
-    private enum DirectionSlot
+    public enum DirectionSlot
     {
         Front,
         FrontLeft,
