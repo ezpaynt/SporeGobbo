@@ -65,6 +65,7 @@ public class GobboController : MonoBehaviour
     public LayerMask enemyLayers;
     public GameObject attackDebugPrefab;
     public Transform currentAttackTarget;
+    public float attackSwingVisualDuration = 0.16f;
 
     [Header("Interaction")]
     public float interactRange = 1.2f;
@@ -140,6 +141,7 @@ public class GobboController : MonoBehaviour
     private bool isDashing = false;
     private bool isDead = false;
     private bool isKnockedBack = false;
+    private bool isAttackReadyHeld = false;
 
     private float dashTimer = 0f;
     private float dashCooldownTimer = 0f;
@@ -147,6 +149,7 @@ public class GobboController : MonoBehaviour
     private float roarCooldownTimer = 0f;
     private float knockbackTimer = 0f;
     private float attackCooldownTimer = 0f;
+    private float attackVisualLockTimer = 0f;
     private float sporeMendCooldownTimer = 0f;
     private float dashBiteCooldownTimer = 0f;
 
@@ -289,6 +292,9 @@ public class GobboController : MonoBehaviour
         if (attackCooldownTimer > 0f)
             attackCooldownTimer -= Time.deltaTime;
 
+        if (attackVisualLockTimer > 0f)
+            attackVisualLockTimer -= Time.deltaTime;
+
         if (roarCooldownTimer > 0f)
             roarCooldownTimer -= Time.deltaTime;
 
@@ -328,7 +334,12 @@ public class GobboController : MonoBehaviour
             : moveInput * moveSpeed;
 
         if (visualController != null)
-            visualController.SetAnimationState(isDashing ? GobboAnimationState.Dash : (moveInput.sqrMagnitude > 0.01f ? GobboAnimationState.Walk : GobboAnimationState.Idle));
+        {
+            if (isAttackReadyHeld)
+                visualController.SetAnimationState(GobboAnimationState.AttackReady);
+            else if (attackVisualLockTimer <= 0f)
+                visualController.SetAnimationState(isDashing ? GobboAnimationState.Dash : (moveInput.sqrMagnitude > 0.01f ? GobboAnimationState.Walk : GobboAnimationState.Idle));
+        }
 
         TileMover.Move(rb, desiredVelocity, GetCollisionBodyRadius());
     }
@@ -340,8 +351,7 @@ public class GobboController : MonoBehaviour
         else
             digTimer = 0f;
 
-        if (Input.GetMouseButtonDown(1))
-            BasicAttack();
+        HandleAttackInput();
 
         if (Input.GetMouseButtonDown(2))
             TryDashBite();
@@ -366,6 +376,25 @@ public class GobboController : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.R))
             SpecialAbility();
+    }
+
+    void HandleAttackInput()
+    {
+        if (Input.GetMouseButton(1) && attackCooldownTimer <= 0f)
+        {
+            isAttackReadyHeld = true;
+            if (visualController != null)
+                visualController.SetAnimationState(GobboAnimationState.AttackReady);
+        }
+
+        if (Input.GetMouseButtonUp(1))
+        {
+            bool shouldAttack = isAttackReadyHeld;
+            isAttackReadyHeld = false;
+
+            if (shouldAttack)
+                BasicAttack();
+        }
     }
 
     void TryDig()
@@ -471,7 +500,10 @@ public class GobboController : MonoBehaviour
         attackCooldownTimer = attackCooldown;
 
         if (visualController != null)
-            visualController.SetAnimationState(GobboAnimationState.Attack);
+        {
+            visualController.SetAnimationState(GobboAnimationState.AttackSwing);
+            attackVisualLockTimer = Mathf.Max(0.01f, attackSwingVisualDuration);
+        }
 
         Vector2 attackPoint = (Vector2)transform.position + aimDirection.normalized * attackRange;
 
@@ -1023,7 +1055,7 @@ public class GobboController : MonoBehaviour
         isDead = true;
 
         if (visualController != null)
-            visualController.SetAnimationState(GobboAnimationState.Death);
+            visualController.SetAnimationState(GobAnimationState.Death);
 
         if (GameState.Instance != null)
         {
