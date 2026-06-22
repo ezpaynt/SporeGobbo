@@ -23,6 +23,8 @@ public class CampDirectedWalk : MonoBehaviour
         rb.freezeRotation = true;
         directionalSprite = GetComponent<BuddyDirectionalSprite>();
         visualController = GetComponent<GobboVisualController>();
+        if (visualController == null)
+            visualController = GetComponentInChildren<GobboVisualController>();
         wander = GetComponent<CampWander>();
     }
 
@@ -48,8 +50,7 @@ public class CampDirectedWalk : MonoBehaviour
             rb.linearVelocity = Vector2.zero;
             activeWalk = false;
 
-            if (visualController != null)
-                visualController.SetAnimationState(GobboAnimationState.Idle);
+            SetVisualState(GobboAnimationState.Idle, Vector2.zero);
 
             if (wander != null)
                 wander.enabled = enableWanderWhenDone;
@@ -63,13 +64,20 @@ public class CampDirectedWalk : MonoBehaviour
         Vector2 moveDir = toTarget.normalized;
         TileMover.Move(rb, moveDir * moveSpeed, bodyRadius);
 
+        SetVisualState(GobboAnimationState.Walk, moveDir);
+    }
+
+    void SetVisualState(GobboAnimationState state, Vector2 direction)
+    {
         if (visualController != null)
         {
-            visualController.SetAnimationState(GobboAnimationState.Walk);
-            visualController.SetDirection(moveDir);
+            visualController.SetAnimationState(state);
+            if (direction.sqrMagnitude > 0.001f)
+                visualController.SetDirection(direction);
+            return;
         }
 
-        if (directionalSprite != null)
-            directionalSprite.SetDirection(moveDir);
+        if (directionalSprite != null && direction.sqrMagnitude > 0.001f)
+            directionalSprite.SetDirection(direction);
     }
 }
