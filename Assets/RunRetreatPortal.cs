@@ -67,6 +67,7 @@ public class RunRetreatPortal : MonoBehaviour, ICampInteractable
             campSceneName,
             saveRunBeforeLeaving,
             saveSlotAfterRunCommit,
+            RunReturnReason.Retreat,
             "spawn retreat portal");
     }
 
