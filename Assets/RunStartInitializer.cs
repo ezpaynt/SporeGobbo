@@ -23,6 +23,7 @@ public class RunStartInitializer : MonoBehaviour
 
     IEnumerator Start()
     {
+        RunReturnService.ResetForNewRun();
         GameState state = EnsureGameState();
 
         MapGenerator map = MapGenerator.Instance;
