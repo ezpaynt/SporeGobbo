@@ -65,6 +65,9 @@ public class CampPlayableSpawner : MonoBehaviour
 
         if (clearExistingBeforeSpawn) ClearSpawnedCampObjects();
 
+        if (GobboVisualDatabase.Instance == null)
+            Debug.LogWarning("CampPlayableSpawner found no active GobboVisualDatabase. Camp gobbos will keep their prefab fallback sprites until one is available.", this);
+
         spawnedPlayer = SpawnPlayer();
         SpawnActiveBuddies();
         SpawnReserveBuddies();
@@ -122,6 +125,7 @@ public class CampPlayableSpawner : MonoBehaviour
             if (disablePlayerCombatInCamp) controller.enemyLayers = 0;
             if (disablePlayerDiggingInCamp) controller.diggableLayers = 0;
             controller.enabled = true;
+            RefreshPlayerVisual(controller);
             GameState.Instance.SavePlayer(controller);
         }
         else
@@ -186,6 +190,7 @@ public class CampPlayableSpawner : MonoBehaviour
 
         BuddyUnit unit = buddyObject.GetComponent<BuddyUnit>();
         if (unit != null) unit.Initialize(unitData);
+        RefreshBuddyVisual(buddyObject, unitData);
 
         DisableRunBuddyBehavior(buddyObject);
 
@@ -198,6 +203,34 @@ public class CampPlayableSpawner : MonoBehaviour
         wander.SetAnchor(anchor, wanderRadius, Mathf.Max(0.2f, unitData.moveSpeed * speedMultiplier));
 
         ForceVisible(buddyObject, sortingOrder);
+    }
+
+    void RefreshPlayerVisual(GobboController controller)
+    {
+        if (controller == null) return;
+
+        GobboVisualController visuals = controller.visualController;
+        if (visuals == null) visuals = controller.GetComponent<GobboVisualController>();
+        if (visuals == null) visuals = controller.GetComponentInChildren<GobboVisualController>();
+        if (visuals == null) return;
+
+        controller.visualController = visuals;
+        visuals.ApplyIdentity(controller.gobboType, controller.ageStage, controller.visualSetId);
+        visuals.SetAnimationState(GobboAnimationState.Idle);
+        visuals.RefreshVisual();
+    }
+
+    void RefreshBuddyVisual(GameObject buddyObject, GobboUnitSaveData unitData)
+    {
+        if (buddyObject == null || unitData == null) return;
+
+        GobboVisualController visuals = buddyObject.GetComponent<GobboVisualController>();
+        if (visuals == null) visuals = buddyObject.GetComponentInChildren<GobboVisualController>();
+        if (visuals == null) return;
+
+        visuals.ApplyIdentity(unitData.gobboType, unitData.ageStage, unitData.visualSetId);
+        visuals.SetAnimationState(GobboAnimationState.Idle);
+        visuals.RefreshVisual();
     }
 
     void DisableRunBuddyBehavior(GameObject obj)
