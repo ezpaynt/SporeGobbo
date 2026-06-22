@@ -32,6 +32,8 @@ public class CampWander : MonoBehaviour
 
         directionalSprite = GetComponent<BuddyDirectionalSprite>();
         visualController = GetComponent<GobboVisualController>();
+        if (visualController == null)
+            visualController = GetComponentInChildren<GobboVisualController>();
 
         if (anchor == null)
         {
@@ -123,6 +125,7 @@ public class CampWander : MonoBehaviour
             visualController.SetAnimationState(state);
             if (direction.sqrMagnitude > 0.001f)
                 visualController.SetDirection(direction);
+            return;
         }
 
         if (directionalSprite != null && direction.sqrMagnitude > 0.001f)
