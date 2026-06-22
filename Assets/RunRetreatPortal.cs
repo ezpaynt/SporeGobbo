@@ -26,6 +26,12 @@ public class RunRetreatPortal : MonoBehaviour, ICampInteractable
         if (portalCollider != null)
             portalCollider.isTrigger = true;
 
+        if (promptObject == gameObject)
+        {
+            Debug.LogWarning("RunRetreatPortal Prompt Object must be a separate child, not the portal root. Ignoring the invalid assignment.", this);
+            promptObject = null;
+        }
+
         HidePrompt();
     }
 
