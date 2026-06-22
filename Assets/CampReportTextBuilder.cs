@@ -6,9 +6,34 @@ public static class CampReportTextBuilder
     {
         if (run == null || leader == null) return "";
 
-        return "You made it back to camp!" +
+        bool retreated = RunReturnService.LastReturnReason == RunReturnReason.Retreat;
+        int mushroomsLost = retreated ? RunReturnService.LastRetreatMushroomsLost : 0;
+        int shiniesLost = retreated ? RunReturnService.LastRetreatShiniesLost : 0;
+        int mushroomsKept = run.mushroomsGained - mushroomsLost;
+        int shiniesKept = run.shiniesGained - shiniesLost;
+        if (mushroomsKept < 0) mushroomsKept = 0;
+        if (shiniesKept < 0) shiniesKept = 0;
+
+        string returnMessage = retreated
+            ? "You retreated safely to camp."
+            : "You made it back to camp!";
+
+        string resourceReport = retreated
+            ? "\n\nRETREATED - kept 25% of mushrooms and shinies collected this run." +
+              "\nMushrooms collected: " + run.mushroomsGained +
+              " | Kept: " + mushroomsKept +
+              " | Lost: " + mushroomsLost +
+              " | Total: " + leader.mushrooms +
+              "\nShinies collected: " + run.shiniesGained +
+              " | Kept: " + shiniesKept +
+              " | Lost: " + shiniesLost +
+              " | Total: " + leader.shinies
+            : "\nMushrooms gained: " + run.mushroomsGained + " Total: " + leader.mushrooms +
+              "\nShinies gained: " + run.shiniesGained + " Total: " + leader.shinies;
+
+        return returnMessage +
             "\n\nRun: " + run.runNumber +
-            "\nLevel: " + run.playerLevelStart + " \u2192 " + run.playerLevelEnd +
+            "\nLevel: " + run.playerLevelStart + " → " + run.playerLevelEnd +
             "\nXP gained: " + run.xpGained +
             "\nHealth: " + leader.health + " / " + leader.maxHealth +
             "\nAttack: " + leader.attack +
@@ -17,8 +42,7 @@ public static class CampReportTextBuilder
             "\nDig Radius: " + leader.digRadius.ToString("0.00") +
             "\n\nFood for the horde: " + run.foodValueGained +
             "\nSpores gained: " + run.sporesGained + " Total: " + leader.spores +
-            "\nMushrooms gained: " + run.mushroomsGained + " Total: " + leader.mushrooms +
-            "\nShinies gained: " + run.shiniesGained + " Total: " + leader.shinies +
+            resourceReport +
             "\nEnemies killed: " + run.enemiesKilled;
     }
 
