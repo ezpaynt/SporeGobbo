@@ -18,6 +18,7 @@ public class ExitTrigger : MonoBehaviour
             sceneToLoad,
             saveRunBeforeLeaving,
             saveSlotAfterRunCommit,
+            RunReturnReason.NormalExit,
             "boss exit portal");
     }
 
