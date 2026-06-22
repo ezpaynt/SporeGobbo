@@ -12,6 +12,7 @@ public class RunContentSpawner : MonoBehaviour
     public GameObject sporePrefab;
     public GameObject shinyPrefab;
     public GameObject exitPortalPrefab;
+    public GameObject retreatPortalPrefab;
 
     [Header("Parents")]
     public Transform enemyParent;
@@ -22,6 +23,12 @@ public class RunContentSpawner : MonoBehaviour
     public bool spawnInitialRevealedContentOnStart = true;
     public float objectClearRadius = 0.35f;
     public int placementTriesPerObject = 40;
+
+    [Header("Retreat Portal")]
+    public bool spawnRetreatPortalNearSpawn = true;
+    public float retreatPortalMinDistanceFromSpawn = 1.5f;
+    public float retreatPortalMaxDistanceFromSpawn = 2.5f;
+    public float retreatPortalClearRadius = 0.4f;
 
     [Header("Camp Enemy Counts")]
     public bool overrideCampWeevilCount = false;
@@ -42,11 +49,13 @@ public class RunContentSpawner : MonoBehaviour
 
     private readonly HashSet<int> spawnedCampIds = new HashSet<int>();
     private readonly HashSet<int> spawnedTunnelIds = new HashSet<int>();
+    private bool spawnedRetreatPortal;
 
     public void ResetSpawnedContentTracking()
     {
         spawnedCampIds.Clear();
         spawnedTunnelIds.Clear();
+        spawnedRetreatPortal = false;
     }
 
     private IEnumerator Start()
@@ -73,6 +82,8 @@ public class RunContentSpawner : MonoBehaviour
             return;
         }
 
+        SpawnRetreatPortal(map);
+
         int revealedTunnels = 0;
         int revealedCamps = 0;
 
@@ -98,6 +109,43 @@ public class RunContentSpawner : MonoBehaviour
             $"RunContentSpawner initial content check | Tunnels:{map.Data.tunnels.Count} RevealedTunnels:{revealedTunnels} Camps:{map.Data.camps.Count} RevealedCamps:{revealedCamps}",
             this
         );
+    }
+
+    private void SpawnRetreatPortal(MapGenerator map)
+    {
+        if (spawnedRetreatPortal || !spawnRetreatPortalNearSpawn || retreatPortalPrefab == null)
+            return;
+
+        if (map == null || map.Data == null)
+            return;
+
+        Vector2 spawnCenter = map.CellToWorldCenter(map.map.spawnCenter);
+        float minDistance = Mathf.Max(0.75f, retreatPortalMinDistanceFromSpawn);
+        float maxDistance = Mathf.Max(minDistance, retreatPortalMaxDistanceFromSpawn);
+        float clearRadius = Mathf.Max(0.1f, retreatPortalClearRadius);
+
+        for (int i = 0; i < placementTriesPerObject; i++)
+        {
+            Vector2 direction = Random.insideUnitCircle;
+            if (direction.sqrMagnitude < 0.001f)
+                direction = Vector2.right;
+
+            float distance = Random.Range(minDistance, maxDistance);
+            Vector2 candidate = spawnCenter + direction.normalized * distance;
+
+            if (!map.IsWorldPositionClearForBody(candidate, clearRadius))
+                continue;
+
+            GameObject portal = Spawn(retreatPortalPrefab, candidate, exitParent);
+            if (portal == null)
+                return;
+
+            spawnedRetreatPortal = true;
+            Debug.Log("RunContentSpawner spawned retreat portal near run spawn at " + candidate + ".", this);
+            return;
+        }
+
+        Debug.LogWarning("RunContentSpawner could not find a clear point for the retreat portal near the run spawn.", this);
     }
 
     public void SpawnTunnel(TunnelData tunnel)
