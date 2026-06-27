@@ -16154,6 +16154,250 @@ MonoBehaviour:
       backFrames: []
       backLeftFrames: []
       backRightFrames: []
+  - visualSetId: tank
+    gobboType: 4
+    ageStage: 1
+    defaultFrameDuration: 0.2
+    idleFrameDuration: 0.45
+    walkFrameDuration: 0.18
+    idle:
+      front: {fileID: 21300000, guid: ba447673d860bfa4f80746698de6e0ac, type: 3}
+      frontLeft: {fileID: 21300000, guid: 49a01eb858b8a5a4caacc67c1ec24a61, type: 3}
+      left: {fileID: 21300000, guid: a79a689679e94ad4fb1db4a969418647, type: 3}
+      frontRight: {fileID: -2635671521959069839, guid: f83d224c4855d0045b13be4e3b2f6a3e, type: 3}
+      right: {fileID: 3916034950003269058, guid: 6e72e37a4b1a6fa44bf48bedca33224b, type: 3}
+      back: {fileID: 21300000, guid: 9f379ccd1445a5e4f9567e91d86a022f, type: 3}
+      backLeft: {fileID: 21300000, guid: 4fc337e78ca2669459278321edcb52e6, type: 3}
+      backRight: {fileID: -2108384866650161879, guid: 6a207ec7853efbe488b7f3e461cb20c6, type: 3}
+      frontFrames: []
+      frontLeftFrames: []
+      leftFrames: []
+      frontRightFrames: []
+      rightFrames: []
+      backFrames: []
+      backLeftFrames: []
+      backRightFrames: []
+    walk:
+      front: {fileID: 21300000, guid: d69bc7cc04b6b6b4bacaae57961b5d05, type: 3}
+      frontLeft: {fileID: 21300000, guid: 21e21b5fcac56f04a90244efe2c8203b, type: 3}
+      left: {fileID: 21300000, guid: ad86ccc42b3112e46b39a8aaefdc5f7f, type: 3}
+      frontRight: {fileID: 5900552805595409749, guid: 858e1e29f64e5aa4db07912b3062b377, type: 3}
+      right: {fileID: -1031975721633085477, guid: bef95da52df83aa459f9a7f0fbf31079, type: 3}
+      back: {fileID: 21300000, guid: 04a4c4914aa9df84a8f3d4bae703233d, type: 3}
+      backLeft: {fileID: 21300000, guid: 4fc337e78ca2669459278321edcb52e6, type: 3}
+      backRight: {fileID: -2108384866650161879, guid: 6a207ec7853efbe488b7f3e461cb20c6, type: 3}
+      frontFrames: []
+      frontLeftFrames: []
+      leftFrames: []
+      frontRightFrames: []
+      rightFrames: []
+      backFrames: []
+      backLeftFrames: []
+      backRightFrames: []
+    attack:
+      front: {fileID: 21300000, guid: 84cb9f56e85410c4a8cae11505ef2f1c, type: 3}
+      frontLeft: {fileID: 21300000, guid: 9b16be53e01b30f4dbf91e0db750a1df, type: 3}
+      left: {fileID: 21300000, guid: 6acb54edc3176ff438008444d6c3d24b, type: 3}
+      frontRight: {fileID: -4093899680622080790, guid: 35ea9f17bee51494cac1fe10b44c98df, type: 3}
+      right: {fileID: -1199634664124663385, guid: 4d2876f33cbbdb2489ad0c1ff8fa8da9, type: 3}
+      back: {fileID: 21300000, guid: 7b5c04e56e748104f8fbbf767e84d6e7, type: 3}
+      backLeft: {fileID: 21300000, guid: 4fc337e78ca2669459278321edcb52e6, type: 3}
+      backRight: {fileID: -2108384866650161879, guid: 6a207ec7853efbe488b7f3e461cb20c6, type: 3}
+      frontFrames: []
+      frontLeftFrames: []
+      leftFrames: []
+      frontRightFrames: []
+      rightFrames: []
+      backFrames: []
+      backLeftFrames: []
+      backRightFrames: []
+    attackReady:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+      frontFrames: []
+      frontLeftFrames: []
+      leftFrames: []
+      frontRightFrames: []
+      rightFrames: []
+      backFrames: []
+      backLeftFrames: []
+      backRightFrames: []
+    attackSwing:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+      frontFrames: []
+      frontLeftFrames: []
+      leftFrames: []
+      frontRightFrames: []
+      rightFrames: []
+      backFrames: []
+      backLeftFrames: []
+      backRightFrames: []
+    dig:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+      frontFrames: []
+      frontLeftFrames: []
+      leftFrames: []
+      frontRightFrames: []
+      rightFrames: []
+      backFrames: []
+      backLeftFrames: []
+      backRightFrames: []
+    dash:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+      frontFrames: []
+      frontLeftFrames: []
+      leftFrames: []
+      frontRightFrames: []
+      rightFrames: []
+      backFrames: []
+      backLeftFrames: []
+      backRightFrames: []
+    hurt:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+      frontFrames: []
+      frontLeftFrames: []
+      leftFrames: []
+      frontRightFrames: []
+      rightFrames: []
+      backFrames: []
+      backLeftFrames: []
+      backRightFrames: []
+    grab:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+      frontFrames: []
+      frontLeftFrames: []
+      leftFrames: []
+      frontRightFrames: []
+      rightFrames: []
+      backFrames: []
+      backLeftFrames: []
+      backRightFrames: []
+    death:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+      frontFrames: []
+      frontLeftFrames: []
+      leftFrames: []
+      frontRightFrames: []
+      rightFrames: []
+      backFrames: []
+      backLeftFrames: []
+      backRightFrames: []
+    sleep:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+      frontFrames: []
+      frontLeftFrames: []
+      leftFrames: []
+      frontRightFrames: []
+      rightFrames: []
+      backFrames: []
+      backLeftFrames: []
+      backRightFrames: []
+    dance:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+      frontFrames: []
+      frontLeftFrames: []
+      leftFrames: []
+      frontRightFrames: []
+      rightFrames: []
+      backFrames: []
+      backLeftFrames: []
+      backRightFrames: []
+    hide:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+      frontFrames: []
+      frontLeftFrames: []
+      leftFrames: []
+      frontRightFrames: []
+      rightFrames: []
+      backFrames: []
+      backLeftFrames: []
+      backRightFrames: []
+    roar:
+      front: {fileID: 0}
+      frontLeft: {fileID: 0}
+      left: {fileID: 0}
+      frontRight: {fileID: 0}
+      right: {fileID: 0}
+      back: {fileID: 0}
+      backLeft: {fileID: 0}
+      backRight: {fileID: 0}
+      frontFrames: []
+      frontLeftFrames: []
+      leftFrames: []
+      frontRightFrames: []
+      rightFrames: []
+      backFrames: []
+      backLeftFrames: []
+      backRightFrames: []
   logVisualDatabaseDiagnostics: 0
 --- !u!4 &1861492604
 Transform:
