@@ -5,15 +5,10 @@ public class CampLightOverlay : MonoBehaviour
     [Header("Renderer")]
     public SpriteRenderer spriteRenderer;
 
-    [Header("Darkness")]
+    [Header("Overlay Alpha")]
     [Range(0f, 1f)] public float baseAlpha = 0.35f;
-    [Range(0f, 2f)] public float darknessAmount = 1f;
-    public Color tintColor = Color.black;
-
-    [Header("Ambient Breathing")]
-    public bool enableBreathing = true;
-    public float breathSpeed = 0.08f;
-    [Range(0f, 0.1f)] public float breathAmplitude = 0.015f;
+    [Range(0f, 0.1f)] public float flickerAmount = 0.015f;
+    public float flickerSpeed = 0.08f;
 
     void Reset()
     {
@@ -43,12 +38,12 @@ public class CampLightOverlay : MonoBehaviour
         if (spriteRenderer == null)
             return;
 
-        float breath = 0f;
-        if (enableBreathing && Application.isPlaying)
-            breath = Mathf.Sin(Time.time * Mathf.Max(0f, breathSpeed)) * Mathf.Max(0f, breathAmplitude);
+        float flicker = 0f;
+        if (Application.isPlaying && flickerAmount > 0f && flickerSpeed > 0f)
+            flicker = Mathf.Sin(Time.time * flickerSpeed) * flickerAmount;
 
-        Color color = tintColor;
-        color.a = Mathf.Clamp01(baseAlpha * darknessAmount + breath);
+        Color color = spriteRenderer.color;
+        color.a = Mathf.Clamp01(baseAlpha + flicker);
         spriteRenderer.color = color;
     }
 }
