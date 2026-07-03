@@ -12,6 +12,7 @@ public class CampParallaxLayer : MonoBehaviour
 
     [Header("Rendering")]
     public int sortingOrder;
+    public bool applyTintAndAlpha;
     public Color tintColor = Color.white;
     [Range(0f, 1f)] public float alpha = 1f;
 
@@ -64,6 +65,10 @@ public class CampParallaxLayer : MonoBehaviour
             return;
 
         spriteRenderer.sortingOrder = sortingOrder;
+
+        if (!applyTintAndAlpha)
+            return;
+
         Color color = tintColor;
         color.a *= Mathf.Clamp01(alpha);
         spriteRenderer.color = color;

@@ -5532,7 +5532,7 @@ Camera:
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 1
-  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_BackGroundColor: {r: 1, g: 1, b: 1, a: 0}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
@@ -5603,7 +5603,7 @@ MonoBehaviour:
   target: {fileID: 0}
   smoothSpeed: 5
   offset: {x: 0, y: 1.4, z: -10}
-  allowScrollZoomForTesting: 0
+  allowScrollZoomForTesting: 1
   zoomSpeed: 5
   minZoom: 3
   maxZoom: 30
@@ -10341,8 +10341,9 @@ MonoBehaviour:
   parallaxStrengthY: 0.08
   positionOffset: {x: 0, y: 0}
   sortingOrder: -300
-  tintColor: {r: 0.22, g: 0.3, b: 0.42, a: 1}
-  alpha: 0.35
+  applyTintAndAlpha: 0
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  alpha: 1
 --- !u!1 &990000130
 GameObject:
   m_ObjectHideFlags: 0
@@ -10426,7 +10427,7 @@ SpriteRenderer:
   m_SortingOrder: -100
   m_MaskInteraction: 0
   m_Sprite: {fileID: 0}
-  m_Color: {r: 0.49411768, g: 0.49411768, b: 0.49411768, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -10452,8 +10453,9 @@ MonoBehaviour:
   parallaxStrengthY: 0.18
   positionOffset: {x: 0, y: 0}
   sortingOrder: -100
-  tintColor: {r: 0.16, g: 0.18, b: 0.2, a: 1}
-  alpha: 0.18
+  applyTintAndAlpha: 0
+  tintColor: {r: 1, g: 1, b: 1, a: 1}
+  alpha: 1
 --- !u!1 &990000140
 GameObject:
   m_ObjectHideFlags: 0
@@ -10481,8 +10483,8 @@ Transform:
   m_GameObject: {fileID: 990000140}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1.4704, y: 9.3281, z: 0}
-  m_LocalScale: {x: 3.6655827, y: 4.2986336, z: 1}
+  m_LocalPosition: {x: 7.2, y: 1.5, z: 0}
+  m_LocalScale: {x: 1.934, y: 2.127, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 990000101}
@@ -10559,10 +10561,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CampParallaxLayer
   spriteRenderer: {fileID: 990000142}
-  parallaxStrengthX: 0.55
-  parallaxStrengthY: 0.3
+  parallaxStrengthX: 1
+  parallaxStrengthY: 1
   positionOffset: {x: 0, y: 0}
   sortingOrder: 300
+  applyTintAndAlpha: 0
   tintColor: {r: 1, g: 1, b: 1, a: 1}
   alpha: 1
 --- !u!1 &990000150
@@ -10675,6 +10678,7 @@ MonoBehaviour:
   parallaxStrengthY: 0.1
   positionOffset: {x: 0, y: 0}
   sortingOrder: 400
+  applyTintAndAlpha: 0
   tintColor: {r: 0, g: 0, b: 0, a: 1}
   alpha: 0.35
 --- !u!114 &990000154
