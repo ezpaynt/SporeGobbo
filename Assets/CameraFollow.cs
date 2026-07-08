@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class CameraFollow : MonoBehaviour
 {
@@ -7,7 +8,8 @@ public class CameraFollow : MonoBehaviour
     public Vector3 offset = new Vector3(0, 0, -10);
 
     [Header("Zoom Testing")]
-    public bool allowScrollZoom = true;
+    [FormerlySerializedAs("allowScrollZoom")]
+    public bool allowScrollZoomForTesting = true;
     public float zoomSpeed = 5f;
     public float minZoom = 3f;
     public float maxZoom = 40f;
@@ -32,7 +34,7 @@ public class CameraFollow : MonoBehaviour
 
     void HandleZoom()
     {
-        if (!allowScrollZoom || cam == null || !cam.orthographic) return;
+        if (!allowScrollZoomForTesting || cam == null || !cam.orthographic) return;
 
         float scroll = Input.mouseScrollDelta.y;
         if (Mathf.Abs(scroll) < 0.01f) return;
