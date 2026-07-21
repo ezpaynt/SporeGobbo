@@ -249,6 +249,7 @@ public static class RunSummaryService
         state.lastRun.newBuddyNames ??= new List<string>();
         state.lastRun.deadBuddyNames ??= new List<string>();
         state.lastRun.upgradesChosen ??= new List<string>();
+        state.lastRun.snackSummaryEntries ??= new List<RunSnackSummaryEntry>();
         state.lastRun.activeBuddyReports ??= new List<BuddyRunReport>();
         state.lastRun.reserveBuddyReports ??= new List<BuddyRunReport>();
         state.lastRun.leveledBuddyNames ??= new List<string>();

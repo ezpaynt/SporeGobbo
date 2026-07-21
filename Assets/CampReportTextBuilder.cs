@@ -43,7 +43,35 @@ public static class CampReportTextBuilder
             "\n\nFood for the horde: " + run.foodValueGained +
             "\nSpores gained: " + run.sporesGained + " Total: " + leader.spores +
             resourceReport +
+            BuildSnackReport(run) +
             "\nEnemies killed: " + run.enemiesKilled;
+    }
+
+    static string BuildSnackReport(RunSummaryData run)
+    {
+        if (run == null || run.snackSummaryEntries == null || run.snackSummaryEntries.Count == 0)
+            return "";
+
+        string text = "\n\nSnacks:";
+        foreach (RunSnackSummaryEntry entry in run.snackSummaryEntries)
+        {
+            if (entry == null || entry.collectedQuantity <= 0) continue;
+            string name = GetSnackDisplayName(entry.itemId);
+            if (entry.lostQuantity > 0 && entry.retainedQuantity <= 0)
+                text += "\n" + name + ": found " + entry.collectedQuantity + ", lost all";
+            else if (entry.lostQuantity > 0)
+                text += "\n" + name + ": found " + entry.collectedQuantity + ", kept " + entry.retainedQuantity + ", lost " + entry.lostQuantity;
+            else
+                text += "\n" + name + ": found " + entry.collectedQuantity + ", kept " + entry.retainedQuantity;
+        }
+        return text;
+    }
+
+    static string GetSnackDisplayName(string itemId)
+    {
+        ItemDefinition item = ItemDatabase.Get(itemId);
+        if (item != null) return item.GetDisplayName();
+        return "Unknown item (" + itemId + ")";
     }
 
     public static string BuildMiddleSurvivorSummary(RunSummaryData run, List<GobboUnitSaveData> pending, int totalOwnedGobbos)

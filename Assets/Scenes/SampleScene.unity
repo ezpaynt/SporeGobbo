@@ -1664,7 +1664,7 @@ MonoBehaviour:
   target: {fileID: 0}
   smoothSpeed: 5
   offset: {x: 0, y: 0, z: -10}
-  allowScrollZoom: 1
+  allowScrollZoomForTesting: 1
   zoomSpeed: 5
   minZoom: 3
   maxZoom: 40
@@ -16963,7 +16963,7 @@ TilemapRenderer:
   m_SortingOrder: 1
   m_MaskInteraction: 0
   m_ChunkSize: {x: 32, y: 32, z: 32}
-  m_ChunkCullingBounds: {x: 0.038947344, y: 0.038947344, z: 0}
+  m_ChunkCullingBounds: {x: 0, y: 0.008750021, z: 0}
   m_MaxChunkCount: 16
   m_MaxFrameAge: 16
   m_SortOrder: 0
@@ -235270,13 +235270,21 @@ MonoBehaviour:
     mushrooms: 0
     money: 0
     shinies: 0
+    lastSnackCampCycle: -1
+    snackMaxHealthBonus: 0
+    snackAttackBonus: 0
+    snackDefenseBonus: 0
   maxActiveSquad: 10
   ownedGobbos: []
   activeSquadIds: []
   markedSuccessorId: 
+  campCycleNumber: 0
   campLevel: 1
   unlockedStations: []
   decorationsUnlocked: []
+  itemStacks: []
+  runSnackStacks: []
+  runSnackFinalizedThisRun: 1
   deathHistory: []
   lastRun:
     survived: 1
@@ -235308,6 +235316,7 @@ MonoBehaviour:
     newBuddyNames: []
     deadBuddyNames: []
     upgradesChosen: []
+    snackSummaryEntries: []
     activeBuddyReports: []
     reserveBuddyReports: []
     leveledBuddyNames: []
@@ -235695,6 +235704,16 @@ MonoBehaviour:
   shinyPrefab: {fileID: 3851985546638949781, guid: 6196460a0756f2846aed4c87c4f80476, type: 3}
   exitPortalPrefab: {fileID: 4025575695747825317, guid: b8cb622ac95a9fa4380d4c7a62d66614, type: 3}
   retreatPortalPrefab: {fileID: 7568801306619152230, guid: e51b7ef94e86a6b4a9648113dc2c411a, type: 3}
+  enableSnackSpawns: 1
+  snackPickupPrefab: {fileID: 11400000, guid: b6b95fd14dd34b7c9fb10e8d1c4dbb31, type: 3}
+  snackLootTable:
+  - item: {fileID: 11400000, guid: 9b6268e3a1089ac4a9b3ffa3bdef93e7, type: 2}
+    weight: 1
+    quantity: 1
+  lootPocketSnackChance: 1
+  combatCampSnackChance: 1
+  bossCampSnackChance: 1
+  forceSnackSpawn: 1
   enemyParent: {fileID: 0}
   itemParent: {fileID: 0}
   exitParent: {fileID: 0}
@@ -237636,6 +237655,54 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 816875e465371cc47981203fc8069e3b, type: 3}
+--- !u!1 &930002001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 930002002}
+  - component: {fileID: 930002003}
+  m_Layer: 0
+  m_Name: ItemDatabase
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &930002002
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 930002001}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &930002003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 930002001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eea476d91146f13488b7d71cfeb525eb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ItemDatabase
+  items:
+  - {fileID: 11400000, guid: 9b6268e3a1089ac4a9b3ffa3bdef93e7, type: 2}
+  - {fileID: 11400000, guid: 70d4a066b9e89a5408b7f54932dfadd0, type: 2}
+  - {fileID: 11400000, guid: e330b9be2d0a52940b2ee380174b8b40, type: 2}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -237654,3 +237721,4 @@ SceneRoots:
   - {fileID: 774846473}
   - {fileID: 585489522}
   - {fileID: 1833368936}
+  - {fileID: 930002002}

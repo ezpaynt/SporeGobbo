@@ -717,11 +717,8 @@ public class CampSceneController : MonoBehaviour
     void ApplySetupDirectlyIfNeeded(GobboUnitSaveData buddy, BuddyTypeSetup setup, BuddyRoster roster)
     {
         if (buddy == null || setup == null || roster != null) return;
-        buddy.maxHealth = setup.maxHealth;
-        buddy.health = Mathf.Min(Mathf.Max(1, buddy.health), buddy.maxHealth);
-        buddy.damage = setup.damage;
-        buddy.attack = setup.damage;
-        buddy.defense = setup.defense;
+        int healthBeforeSetup = buddy.health;
+        buddy.ApplySnackBonusesToBaseStats(setup.maxHealth, setup.damage, setup.damage, setup.defense, healthBeforeSetup);
         buddy.moveSpeed = setup.moveSpeed;
         buddy.attackCooldown = setup.attackCooldown;
         buddy.onlyFightsAfterHit = setup.onlyFightsAfterHit;

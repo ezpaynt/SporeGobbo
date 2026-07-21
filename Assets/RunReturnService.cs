@@ -10,6 +10,7 @@ public enum RunReturnReason
 public static class RunReturnService
 {
     private static bool returnInProgress;
+    public static float retreatSnackLossPercent = 0.75f;
 
     public static RunReturnReason LastReturnReason { get; private set; } = RunReturnReason.NormalExit;
     public static int LastRetreatMushroomsLost { get; private set; }
@@ -52,7 +53,14 @@ public static class RunReturnService
         GameState state = EnsureGameState();
 
         if (returnReason == RunReturnReason.Retreat)
+        {
+            RunSnackLootService.FinalizeRetreat(state, retreatSnackLossPercent);
             ApplyRetreatLootPenalty(state);
+        }
+        else
+        {
+            RunSnackLootService.FinalizeSuccess(state);
+        }
 
         if (saveRunBeforeLeaving)
             state.SaveFromRun();

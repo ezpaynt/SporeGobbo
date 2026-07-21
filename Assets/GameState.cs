@@ -41,6 +41,7 @@ public class RunSummaryData
     public List<string> newBuddyNames = new List<string>();
     public List<string> deadBuddyNames = new List<string>();
     public List<string> upgradesChosen = new List<string>();
+    public List<RunSnackSummaryEntry> snackSummaryEntries = new List<RunSnackSummaryEntry>();
 
     public List<BuddyRunReport> activeBuddyReports = new List<BuddyRunReport>();
     public List<BuddyRunReport> reserveBuddyReports = new List<BuddyRunReport>();
@@ -94,9 +95,17 @@ public class GameState : MonoBehaviour
     public string markedSuccessorId = "";
 
     [Header("Camp Save")]
+    public int campCycleNumber = 0;
     public int campLevel = 1;
     public List<string> unlockedStations = new List<string>();
     public List<string> decorationsUnlocked = new List<string>();
+
+    [Header("Item Inventory Save")]
+    public List<InventoryStackSaveData> itemStacks = new List<InventoryStackSaveData>();
+
+    [Header("Current Run Snack Loot")]
+    public List<InventoryStackSaveData> runSnackStacks = new List<InventoryStackSaveData>();
+    public bool runSnackFinalizedThisRun = true;
 
     [Header("Death History Save")]
     public List<DeadBuddyRecord> deathHistory = new List<DeadBuddyRecord>();
@@ -137,8 +146,12 @@ public class GameState : MonoBehaviour
         activeSquadIds ??= new List<string>();
         unlockedStations ??= new List<string>();
         decorationsUnlocked ??= new List<string>();
+        itemStacks = InventoryService.NormalizeStacks(itemStacks, true);
+        runSnackStacks = InventoryService.NormalizeStacks(runSnackStacks, false);
+        campCycleNumber = Mathf.Max(0, campCycleNumber);
         deathHistory ??= new List<DeadBuddyRecord>();
         if (lastRun == null) lastRun = new RunSummaryData();
+        lastRun.snackSummaryEntries ??= new List<RunSnackSummaryEntry>();
         RepairRosterState();
     }
 
@@ -204,6 +217,7 @@ public class GameState : MonoBehaviour
         lastRun.moneyStart = leader.money;
         lastRun.shiniesStart = leader.shinies;
         lastRun.buddiesStart = runStartBuddyIds.Count;
+        RunSnackLootService.BeginRun(this);
     }
 
     public void CaptureCurrentRunStartState()
@@ -502,6 +516,7 @@ public class GameState : MonoBehaviour
         lastRun.newBuddyNames ??= new List<string>();
         lastRun.deadBuddyNames ??= new List<string>();
         lastRun.upgradesChosen ??= new List<string>();
+        lastRun.snackSummaryEntries ??= new List<RunSnackSummaryEntry>();
         lastRun.activeBuddyReports ??= new List<BuddyRunReport>();
         lastRun.reserveBuddyReports ??= new List<BuddyRunReport>();
         lastRun.leveledBuddyNames ??= new List<string>();

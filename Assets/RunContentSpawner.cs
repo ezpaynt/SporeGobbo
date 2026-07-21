@@ -1,9 +1,18 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class RunContentSpawner : MonoBehaviour
 {
+    [System.Serializable]
+    public class WeightedSnackEntry
+    {
+        public ItemDefinition item;
+        public int weight = 1;
+        public int quantity = 1;
+    }
+
     [Header("Prefabs")]
     public GameObject enemyPrefab;
     public GameObject bossEnemyPrefab;
@@ -13,6 +22,18 @@ public class RunContentSpawner : MonoBehaviour
     public GameObject shinyPrefab;
     public GameObject exitPortalPrefab;
     public GameObject retreatPortalPrefab;
+
+    [Header("Optional Snack Pickups")]
+    public bool enableSnackSpawns = false;
+    public WorldItemPickup snackPickupPrefab;
+    public List<WeightedSnackEntry> snackLootTable = new List<WeightedSnackEntry>();
+    [FormerlySerializedAs("pocketSnackSpawnChance")]
+    [Range(0f, 1f)] public float lootPocketSnackChance = 0f;
+    [FormerlySerializedAs("campSnackSpawnChance")]
+    [Range(0f, 1f)] public float combatCampSnackChance = 0f;
+    [Range(0f, 1f)] public float bossCampSnackChance = 0f;
+    [FormerlySerializedAs("developmentForceSnackSpawn")]
+    public bool forceSnackSpawn = false;
 
     [Header("Parents")]
     public Transform enemyParent;
@@ -50,6 +71,17 @@ public class RunContentSpawner : MonoBehaviour
     private readonly HashSet<int> spawnedCampIds = new HashSet<int>();
     private readonly HashSet<int> spawnedTunnelIds = new HashSet<int>();
     private bool spawnedRetreatPortal;
+
+    private void OnValidate()
+    {
+        if (snackLootTable == null) return;
+        foreach (WeightedSnackEntry entry in snackLootTable)
+        {
+            if (entry == null) continue;
+            entry.weight = Mathf.Max(0, entry.weight);
+            entry.quantity = Mathf.Max(1, entry.quantity);
+        }
+    }
 
     public void ResetSpawnedContentTracking()
     {
@@ -202,6 +234,8 @@ public class RunContentSpawner : MonoBehaviour
         for (int i = 0; i < shinyCount; i++)
             SpawnShinyInCircle(camp.center, camp.radius, itemParent);
 
+        TrySpawnSnackInCamp(camp);
+
         if (camp.hasExitPortal)
             SpawnInCircle(exitPortalPrefab, camp.center, Mathf.Max(0.5f, camp.radius * 0.5f), exitParent);
 
@@ -209,6 +243,78 @@ public class RunContentSpawner : MonoBehaviour
             $"RunContentSpawner spawned camp content | Id:{camp.id} Weevils:{weevilCount} BossEnemies:{camp.bossEnemyCount} BlobSpitters:{blobSpitterCount} Mushrooms:{camp.mushroomCount} Spores:{camp.sporeCount} Shinies:{shinyCount} Exit:{camp.hasExitPortal}",
             this
         );
+    }
+
+    private void TrySpawnSnackInCamp(CampData camp)
+    {
+        if (camp == null || snackPickupPrefab == null) return;
+        if (!enableSnackSpawns && !forceSnackSpawn) return;
+
+        WeightedSnackEntry entry = ChooseSnackEntry();
+        if (entry == null || entry.item == null) return;
+
+        float chance = GetSnackSpawnChance(camp);
+        chance = Mathf.Clamp01(chance);
+        if (!forceSnackSpawn && Random.value > chance) return;
+
+        WorldItemPickup pickup = SpawnSnackPickup(camp.center, camp.radius, itemParent);
+        if (pickup == null) return;
+
+        pickup.itemDefinition = entry.item;
+        pickup.quantity = Mathf.Max(1, entry.quantity);
+        pickup.RefreshVisual();
+        Debug.Log("RunContentSpawner spawned snack pickup: " + entry.item.NormalizedId + " x" + pickup.quantity + " in camp " + camp.id, this);
+    }
+
+    private float GetSnackSpawnChance(CampData camp)
+    {
+        if (camp == null) return 0f;
+        if (IsLikelyLootPocket(camp)) return lootPocketSnackChance;
+        if (camp.isBossCamp || camp.bossEnemyCount > 0 || camp.hasExitPortal) return bossCampSnackChance;
+        return combatCampSnackChance;
+    }
+
+    private WorldItemPickup SpawnSnackPickup(Vector2 center, float radius, Transform parent)
+    {
+        if (!TryFindClearPoint(center, radius, out Vector2 point))
+            point = center;
+
+        WorldItemPickup pickup = Instantiate(snackPickupPrefab, new Vector3(point.x, point.y, 0f), Quaternion.identity, parent);
+        return pickup;
+    }
+
+    private WeightedSnackEntry ChooseSnackEntry()
+    {
+        if (snackLootTable == null || snackLootTable.Count == 0) return null;
+
+        int totalWeight = 0;
+        foreach (WeightedSnackEntry entry in snackLootTable)
+        {
+            if (entry == null || entry.item == null) continue;
+            totalWeight += Mathf.Max(0, entry.weight);
+        }
+        if (totalWeight <= 0) return null;
+
+        int roll = Random.Range(0, totalWeight);
+        foreach (WeightedSnackEntry entry in snackLootTable)
+        {
+            if (entry == null || entry.item == null) continue;
+            int weight = Mathf.Max(0, entry.weight);
+            if (roll < weight) return entry;
+            roll -= weight;
+        }
+
+        return null;
+    }
+
+    private bool IsLikelyLootPocket(CampData camp)
+    {
+        if (camp == null) return false;
+        return camp.enemyCount <= 0 &&
+               camp.bossEnemyCount <= 0 &&
+               !camp.isBossCamp &&
+               !camp.hasExitPortal &&
+               camp.mushroomCount > 0;
     }
 
     private int GetWeevilCount(CampData camp)

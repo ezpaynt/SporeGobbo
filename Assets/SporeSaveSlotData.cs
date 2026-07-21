@@ -5,7 +5,7 @@ using UnityEngine;
 [Serializable]
 public class SporeSaveSlotData
 {
-    public const int CurrentSaveVersion = 3;
+    public const int CurrentSaveVersion = 4;
 
     [Header("Slot Metadata")]
     public int saveVersion = CurrentSaveVersion;
@@ -28,10 +28,14 @@ public class SporeSaveSlotData
     [Header("Camp")]
     public int currentRunNumber = 1;
     public int runNumber = 1;
+    public int campCycleNumber = 0;
     public int maxActiveSquad = 5;
     public int campLevel = 1;
     public List<string> unlockedStations = new List<string>();
     public List<string> decorationsUnlocked = new List<string>();
+
+    [Header("Item Inventory")]
+    public List<InventoryStackSaveData> itemStacks = new List<InventoryStackSaveData>();
 
     [Header("History")]
     public RunSummaryData lastRun = new RunSummaryData();
@@ -66,10 +70,12 @@ public class SporeSaveSlotData
             markedSuccessorId = "",
             currentRunNumber = 1,
             runNumber = 1,
+            campCycleNumber = 0,
             maxActiveSquad = 5,
             campLevel = 1,
             unlockedStations = new List<string>(),
             decorationsUnlocked = new List<string>(),
+            itemStacks = new List<InventoryStackSaveData>(),
             lastRun = new RunSummaryData(),
             deathHistory = new List<DeadBuddyRecord>()
         };
@@ -98,8 +104,10 @@ public class SporeSaveSlotData
         activeSquadIds ??= new List<string>();
         unlockedStations ??= new List<string>();
         decorationsUnlocked ??= new List<string>();
+        itemStacks = InventoryService.NormalizeStacks(itemStacks, true);
         deathHistory ??= new List<DeadBuddyRecord>();
         if (lastRun == null) lastRun = new RunSummaryData();
+        lastRun.snackSummaryEntries ??= new List<RunSnackSummaryEntry>();
 
         ownedGobbos.RemoveAll(g => g == null);
         HashSet<string> ownedIds = new HashSet<string>();
@@ -126,6 +134,7 @@ public class SporeSaveSlotData
 
         currentRunNumber = Mathf.Max(1, currentRunNumber);
         runNumber = currentRunNumber;
+        campCycleNumber = Mathf.Max(0, campCycleNumber);
         maxActiveSquad = Mathf.Max(1, maxActiveSquad);
         campLevel = Mathf.Max(1, campLevel);
         RefreshDerivedFields();

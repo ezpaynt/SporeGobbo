@@ -93,6 +93,7 @@ public class PlayerDeathWatcher : MonoBehaviour
         if (GameState.Instance != null)
         {
             if (saveRunBeforeLeaving && player != null) GameState.Instance.SavePlayer(player);
+            RunSnackLootService.FinalizeDeath(GameState.Instance);
             if (GameState.Instance.lastRun != null)
             {
                 GameState.Instance.lastRun.survived = false;

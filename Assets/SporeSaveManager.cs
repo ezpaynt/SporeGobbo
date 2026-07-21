@@ -154,6 +154,7 @@ public static class SporeSaveManager
             gs.EnsureRuntimeDefaults();
             existing.currentRunNumber = Mathf.Max(1, gs.currentRunNumber);
             existing.runNumber = existing.currentRunNumber;
+            existing.campCycleNumber = Mathf.Max(0, gs.campCycleNumber);
             existing.maxActiveSquad = Mathf.Max(1, gs.maxActiveSquad);
             existing.campLevel = Mathf.Max(1, gs.campLevel);
             existing.leader = gs.GetLeader().CloneUnit();
@@ -161,6 +162,7 @@ public static class SporeSaveManager
             existing.activeSquadIds = gs.activeSquadIds != null ? new List<string>(gs.activeSquadIds) : new List<string>();
             existing.unlockedStations = gs.unlockedStations != null ? new List<string>(gs.unlockedStations) : new List<string>();
             existing.decorationsUnlocked = gs.decorationsUnlocked != null ? new List<string>(gs.decorationsUnlocked) : new List<string>();
+            existing.itemStacks = InventoryService.CloneStacks(gs.itemStacks);
             existing.lastRun = CloneRunSummary(gs.lastRun);
             existing.markedSuccessorId = gs.markedSuccessorId;
             existing.deathHistory = gs.GetDeathHistoryCopy();
@@ -202,6 +204,7 @@ public static class SporeSaveManager
         GameState gs = GameState.Instance;
         if (gs == null) return false;
         gs.currentRunNumber = Mathf.Max(1, data.currentRunNumber);
+        gs.campCycleNumber = Mathf.Max(0, data.campCycleNumber);
         gs.maxActiveSquad = Mathf.Max(1, data.maxActiveSquad);
         gs.campLevel = Mathf.Max(1, data.campLevel);
         gs.SetLeader(data.leader != null ? data.leader.CloneUnit() : new GobboUnitSaveData { isLeader = true, displayName = data.playerName });
@@ -209,6 +212,9 @@ public static class SporeSaveManager
         gs.activeSquadIds = data.activeSquadIds != null ? new List<string>(data.activeSquadIds) : new List<string>();
         gs.unlockedStations = data.unlockedStations != null ? new List<string>(data.unlockedStations) : new List<string>();
         gs.decorationsUnlocked = data.decorationsUnlocked != null ? new List<string>(data.decorationsUnlocked) : new List<string>();
+        gs.itemStacks = InventoryService.CloneStacks(data.itemStacks);
+        gs.runSnackStacks = new List<InventoryStackSaveData>();
+        gs.runSnackFinalizedThisRun = true;
         gs.lastRun = CloneRunSummary(data.lastRun);
         gs.markedSuccessorId = data.markedSuccessorId;
         gs.SetDeathHistory(data.deathHistory);
@@ -280,6 +286,7 @@ public static class SporeSaveManager
     {
         if (data == null) return;
         data.Normalize();
+        data.itemStacks = InventoryService.NormalizeStacks(data.itemStacks, true);
         if (data.ownedGobbos != null)
         {
             foreach (GobboUnitSaveData unit in data.ownedGobbos)

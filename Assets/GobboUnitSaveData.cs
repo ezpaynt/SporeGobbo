@@ -152,6 +152,12 @@ public class GobboUnitSaveData
     public int money = 0;
     public int shinies = 0;
 
+    [Header("Campfire Snacks")]
+    public int lastSnackCampCycle = -1;
+    public int snackMaxHealthBonus = 0;
+    public int snackAttackBonus = 0;
+    public int snackDefenseBonus = 0;
+
     public virtual void EnsureId()
     {
         if (string.IsNullOrWhiteSpace(uniqueId))
@@ -272,6 +278,23 @@ public class GobboUnitSaveData
         if (shinies == 0 && money > 0)
             shinies = money;
         money = shinies;
+        if (lastSnackCampCycle < -1) lastSnackCampCycle = -1;
+        snackMaxHealthBonus = Mathf.Max(0, snackMaxHealthBonus);
+        snackAttackBonus = Mathf.Max(0, snackAttackBonus);
+        snackDefenseBonus = Mathf.Max(0, snackDefenseBonus);
+    }
+
+    public void ApplySnackBonusesToBaseStats(int baseMaxHealth, int baseAttack, int baseDamage, int baseDefense, int healthBeforeRebuild)
+    {
+        snackMaxHealthBonus = Mathf.Max(0, snackMaxHealthBonus);
+        snackAttackBonus = Mathf.Max(0, snackAttackBonus);
+        snackDefenseBonus = Mathf.Max(0, snackDefenseBonus);
+
+        maxHealth = Mathf.Max(1, baseMaxHealth + snackMaxHealthBonus);
+        attack = Mathf.Max(0, baseAttack + snackAttackBonus);
+        damage = Mathf.Max(0, baseDamage + snackAttackBonus);
+        defense = Mathf.Max(0, baseDefense + snackDefenseBonus);
+        health = Mathf.Clamp(healthBeforeRebuild, 1, maxHealth);
     }
 
     private void EnsureLeaderStatDefaults()
@@ -397,6 +420,10 @@ public class GobboUnitSaveData
         copy.mushrooms = mushrooms;
         copy.money = money;
         copy.shinies = shinies;
+        copy.lastSnackCampCycle = lastSnackCampCycle;
+        copy.snackMaxHealthBonus = snackMaxHealthBonus;
+        copy.snackAttackBonus = snackAttackBonus;
+        copy.snackDefenseBonus = snackDefenseBonus;
         copy.EnsureRuntimeDefaults();
     }
 

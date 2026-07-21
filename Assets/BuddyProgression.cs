@@ -307,10 +307,7 @@ public static class BuddyProgression
         BuddyTypeSetup setup = roster != null ? roster.GetSetup(unit.gobboType) : null;
         if (setup != null)
         {
-            unit.maxHealth = setup.maxHealth;
-            unit.damage = setup.damage;
-            unit.attack = setup.damage;
-            unit.defense = setup.defense;
+            unit.ApplySnackBonusesToBaseStats(setup.maxHealth, setup.damage, setup.damage, setup.defense, healthBeforeEvolution);
             unit.moveSpeed = setup.moveSpeed;
             unit.attackCooldown = setup.attackCooldown;
             unit.bodyColor = setup.bodyColor;
@@ -325,7 +322,7 @@ public static class BuddyProgression
             unit.visualSetId = unit.gobboType.ToString().ToLowerInvariant() + "_" + unit.ageStage.ToString().ToLowerInvariant();
         }
 
-        unit.health = Mathf.Clamp(healthBeforeEvolution, 1, unit.maxHealth);
+        unit.health = Mathf.Clamp(unit.health, 1, unit.maxHealth);
         string cardId = "evolve_" + chosenType.ToString().ToLowerInvariant();
         unit.chosenCardIds ??= new List<string>();
         if (!unit.chosenCardIds.Contains(cardId)) unit.chosenCardIds.Add(cardId);
