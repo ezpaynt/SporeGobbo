@@ -16494,14 +16494,14 @@ MonoBehaviour:
     idleFrameDuration: 0.45
     walkFrameDuration: 0.18
     idle:
-      front: {fileID: 2815793643806474825, guid: b99604a7358afce499ac91867f553962, type: 3}
-      frontLeft: {fileID: 8332847612196399747, guid: e69e0fc83737c894ab14a0bf6c17868d, type: 3}
-      left: {fileID: -2604498962217829427, guid: ba896f6cd8e46224ea2db2cef2517858, type: 3}
-      frontRight: {fileID: 2744160687685650557, guid: 1f303bd45a4d20b43b80fdc379a62a1d, type: 3}
-      right: {fileID: -1448551043548582472, guid: ab64a0664303e344eb4e0a25f64157e7, type: 3}
-      back: {fileID: 4870731286584852820, guid: e460525a683457a46a923205ea62e765, type: 3}
-      backLeft: {fileID: -2638399329643809077, guid: c1875eb59e36a934688660dd8dd3ad67, type: 3}
-      backRight: {fileID: 3977052905777515703, guid: 5efb7fa86de7cfe47af12e6d0db5dff7, type: 3}
+      front: {fileID: 21300000, guid: b99604a7358afce499ac91867f553962, type: 3}
+      frontLeft: {fileID: 21300000, guid: e69e0fc83737c894ab14a0bf6c17868d, type: 3}
+      left: {fileID: 21300000, guid: ba896f6cd8e46224ea2db2cef2517858, type: 3}
+      frontRight: {fileID: 21300000, guid: 1f303bd45a4d20b43b80fdc379a62a1d, type: 3}
+      right: {fileID: 21300000, guid: ab64a0664303e344eb4e0a25f64157e7, type: 3}
+      back: {fileID: 21300000, guid: e460525a683457a46a923205ea62e765, type: 3}
+      backLeft: {fileID: 21300000, guid: c1875eb59e36a934688660dd8dd3ad67, type: 3}
+      backRight: {fileID: 21300000, guid: 5efb7fa86de7cfe47af12e6d0db5dff7, type: 3}
       frontFrames: []
       frontLeftFrames: []
       leftFrames: []
