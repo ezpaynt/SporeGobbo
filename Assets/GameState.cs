@@ -220,6 +220,11 @@ public class GameState : MonoBehaviour
         RunSnackLootService.BeginRun(this);
     }
 
+    public float GetCurrentRunElapsedTime()
+    {
+        return runStartTime > 0f ? Mathf.Max(0f, Time.time - runStartTime) : 0f;
+    }
+
     public void CaptureCurrentRunStartState()
     {
         GobboController player = Object.FindAnyObjectByType<GobboController>();

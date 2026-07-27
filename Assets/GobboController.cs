@@ -450,6 +450,11 @@ public class GobboController : MonoBehaviour
         }
     }
 
+    public float GetCurrentEffectiveDigRadius()
+    {
+        return GetEffectiveDigRadius();
+    }
+
     float GetEffectiveDigRadius()
     {
         float bodyFitRadius = GetCollisionBodyRadius() + Mathf.Max(0f, digComfortPadding) + Mathf.Max(0f, digBonusRadius);

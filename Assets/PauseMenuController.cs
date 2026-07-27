@@ -21,10 +21,14 @@ public class PauseMenuController : MonoBehaviour
     public KeyCode pauseKey = KeyCode.Escape;
 
     private bool paused;
+    private bool isRunMenu;
+    private PauseMenuRunView runView;
 
     void Start()
     {
+        isRunMenu = SceneManager.GetActiveScene().name != campSceneName;
         HookButtons();
+        BuildRunMenuIfNeeded();
         SetPaused(false);
     }
 
@@ -38,7 +42,10 @@ public class PauseMenuController : MonoBehaviour
             if (EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null)
                 EventSystem.current.SetSelectedGameObject(null);
 
-            SetPaused(!paused);
+            if (paused && runView != null && runView.IsSubPageOpen)
+                runView.ShowMainPage();
+            else
+                SetPaused(!paused);
         }
     }
 
@@ -53,13 +60,13 @@ public class PauseMenuController : MonoBehaviour
         if (quitToMenuButton != null)
         {
             quitToMenuButton.onClick.RemoveAllListeners();
-            quitToMenuButton.onClick.AddListener(QuitToMainMenu);
+            quitToMenuButton.onClick.AddListener(RequestQuitToMainMenu);
             SetButtonText(quitToMenuButton, "Quit To Menu");
         }
         if (quitToDesktopButton != null)
         {
             quitToDesktopButton.onClick.RemoveAllListeners();
-            quitToDesktopButton.onClick.AddListener(QuitToDesktop);
+            quitToDesktopButton.onClick.AddListener(RequestQuitToDesktop);
             SetButtonText(quitToDesktopButton, "Quit To Desktop");
         }
         if (titleText != null) titleText.text = "Paused";
@@ -84,7 +91,15 @@ public class PauseMenuController : MonoBehaviour
         if (pausePanel != null)
         {
             pausePanel.SetActive(paused);
-            if (paused) pausePanel.transform.SetAsLastSibling();
+            if (paused)
+            {
+                pausePanel.transform.SetAsLastSibling();
+                if (runView != null)
+                {
+                    runView.ShowMainPage();
+                    runView.Refresh(PauseMenuStatusSnapshotBuilder.Build());
+                }
+            }
         }
         Time.timeScale = paused ? 0f : 1f;
 
@@ -124,5 +139,34 @@ public class PauseMenuController : MonoBehaviour
         }
         SporeSaveManager.SaveCurrentSlotFromGameState();
         Debug.Log("[PauseMenuController] Saved camp before " + reason + ".");
+    }
+    void BuildRunMenuIfNeeded()
+    {
+        if (!isRunMenu || pausePanel == null) return;
+        runView = pausePanel.GetComponent<PauseMenuRunView>();
+        if (runView == null) runView = pausePanel.AddComponent<PauseMenuRunView>();
+        runView.Build(pausePanel, titleText, resumeButton, quitToMenuButton, quitToDesktopButton,
+            Resume, OpenOptions, RequestQuitToMainMenu, RequestQuitToDesktop);
+    }
+
+    public void OpenOptions()
+    {
+        if (runView != null) runView.ShowOptions();
+    }
+
+    public void RequestQuitToMainMenu()
+    {
+        if (runView != null)
+            runView.ShowConfirmation("Exit this run and return to the main menu? Mid-run progress will be lost.", "Exit To Menu", QuitToMainMenu);
+        else
+            QuitToMainMenu();
+    }
+
+    public void RequestQuitToDesktop()
+    {
+        if (runView != null)
+            runView.ShowConfirmation("Exit the game? Mid-run progress will be lost.", "Exit To Desktop", QuitToDesktop);
+        else
+            QuitToDesktop();
     }
 }
