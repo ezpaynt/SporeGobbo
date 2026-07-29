@@ -587,3 +587,18 @@ Run
 The tribe should become more interesting over time.
 
 The camp should gradually transform from a small shelter into a living gobbo settlement filled with history, relationships, growth, weirdness, and player-driven choices.
+
+# Procedural Cave Environment Roadmap
+
+The current environment work is a deterministic gameplay-and-placeholder framework, not final art.
+
+Future work may build on it with:
+
+* final watercolor stone and root artwork;
+* small diggable feeder roots, separate from the current undiggable major formations;
+* Root Hollows as a separately designed feature;
+* Mushroom Colony V1 and later colony defenders or diplomacy systems;
+* dirt impact particles through the existing digging path;
+* fossils, pools, wall creatures, cracked formations, and other environmental families only as separately approved systems.
+
+These ideas are not implemented by the current checkpoint. New terrain families should reuse formation ownership and traversal validation instead of bypassing them.

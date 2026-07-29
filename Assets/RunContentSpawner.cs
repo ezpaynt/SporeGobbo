@@ -68,6 +68,8 @@ public class RunContentSpawner : MonoBehaviour
     [Range(0f, 1f)] public float blobSpitterBossSpawnChance = 0.5f;
     public float blobSpitterMinDistanceFromSpawn = 8f;
 
+    [System.NonSerialized] public RunProfile.DevelopmentOverrides activeDevelopmentOverrides;
+
     private readonly HashSet<int> spawnedCampIds = new HashSet<int>();
     private readonly HashSet<int> spawnedTunnelIds = new HashSet<int>();
     private bool spawnedRetreatPortal;

@@ -1,0 +1,216 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8fb460bcfa2287f44bf0fcba8f815dcc, type: 3}
+  m_Name: Compact Full-Feature Test
+  m_EditorClassIdentifier: Assembly-CSharp::RunProfile
+  seed: 0
+  randomSeed: 1
+  width: 84
+  height: 84
+  cellSize: 0.6
+  autoCenterSpawn: 1
+  spawnCenter: {x: 42, y: 42}
+  spawnRadius: 6
+  darkDistance: 20
+  darkerDistance: 35
+  fillerTunnelCount: 4
+  fillerPocketCount: 3
+  fillerLootPocketCount: 2
+  fillerMinDistanceFromMainPath: 2
+  fillerMaxDistanceFromMainPath: 35
+  branches:
+  - branchName: Basic Combat Resources
+    direction: {x: 1, y: 0}
+    length: 31
+    tunnelHalfWidth: 2
+    wobble: 3
+    forkCount: 1
+    forkLengthMin: 8
+    forkLengthMax: 14
+    smallRooms: 1
+    camps: 1
+    bosses: 0
+    minAttachmentDistanceFromSpawn: 8
+    attachmentConnectorLength: 3
+    minGapBetweenAttachments: 8
+  - branchName: Ecology Environment
+    direction: {x: 0, y: 1}
+    length: 30
+    tunnelHalfWidth: 2
+    wobble: 3
+    forkCount: 1
+    forkLengthMin: 8
+    forkLengthMax: 14
+    smallRooms: 1
+    camps: 0
+    bosses: 0
+    minAttachmentDistanceFromSpawn: 8
+    attachmentConnectorLength: 3
+    minGapBetweenAttachments: 8
+  - branchName: Boss Exit
+    direction: {x: 0, y: -1}
+    length: 34
+    tunnelHalfWidth: 2
+    wobble: 3
+    forkCount: 1
+    forkLengthMin: 8
+    forkLengthMax: 14
+    smallRooms: 0
+    camps: 0
+    bosses: 1
+    minAttachmentDistanceFromSpawn: 8
+    attachmentConnectorLength: 3
+    minGapBetweenAttachments: 8
+  identity:
+    stableProfileId: compact-full-feature-test
+    displayName: Compact Full-Feature Test
+    description: Primary compact cave for inspecting every stable generated feature.
+    purpose: 2
+    developmentOnly: 1
+    notes: Development-only profile; never selected automatically for normal runs.
+  environment:
+    enableDirtInfluence: 1
+    dirtInfluenceTuning: 4
+    qualifyingAreaInfluenceChance: 0.68
+    neutralFalsePositiveChance: 0.12
+    neighboringCategoryChance: 0.08
+    minimumSourceStrength: 0.75
+    maximumSourceStrength: 1.25
+    minimumRadiusScale: 0.85
+    maximumRadiusScale: 1.35
+    sourceCenterOffset: 0.35
+    maximumCombinedInfluence: 0.06
+    influenceIrregularity: 0.3
+    fungalRegionTint: {r: 0.985, g: 0.995, b: 0.965, a: 1}
+    mineralRegionTint: {r: 0.995, g: 1.005, b: 1.02, a: 1}
+    disturbedRegionTint: {r: 0.97, g: 0.95, b: 0.945, a: 1}
+    lightMaterialDensity: 0.16
+    mediumMaterialDensity: 0.38
+    heavyMaterialDensity: 0.62
+    materialTransitionWidth: 0.12
+    internalHoleChance: 0.12
+    satellitePatchChance: 0.09
+    fingerVeinAmount: 0.42
+    materialCenterOffsetStrength: 0.35
+    fungalColorStrength: 0.82
+    mineralColorStrength: 0.78
+    disturbedColorStrength: 0.76
+    enableTerrainFormations: 1
+    formationCount: 3
+    minimumFormationSize: 3
+    maximumFormationSize: 14
+    formationEdgeIrregularity: 0.72
+    formationCornerErosion: 0.58
+    detachedChunkChance: 0.28
+    formationPlacementPadding: 1
+    formationPlacementAttempts: 350
+    stoneFormationTint: {r: 0.56, g: 0.58, b: 0.6, a: 1}
+    enableRootFormations: 1
+    minimumRootCount: 1
+    maximumRootCount: 2
+    rootCompanionChance: 0.35
+    smallRootWeight: 0.25
+    mediumRootWeight: 0.5
+    largeRootWeight: 0.25
+    minimumRootMainPathLength: 16
+    maximumRootMainPathLength: 75
+    rootDirectionalPersistence: 0.88
+    rootTurnChance: 0.1
+    rootKinkChance: 0.035
+    rootBranchChance: 0.12
+    rootBranchLengthRatio: 0.42
+    maximumRootBranchDepth: 2
+    minimumRootThickness: 1
+    maximumRootThickness: 3
+    rootKnotChance: 0.04
+    minimumRootKnotSize: 3
+    maximumRootKnotSize: 4
+    rootTaperStrength: 0.72
+    rootEdgeOriginPreference: 0.78
+    rootThroughStoneChance: 0.3
+    rootClusterChance: 0.3
+    rootDetachedFragmentChance: 0.04
+    rootToStoneMinimumSpacing: 2
+    rootToRootMinimumSpacing: 2
+    rootPlacementAttempts: 240
+    rootFormationTint: {r: 0.38, g: 0.235, b: 0.16, a: 1}
+    enableFormationClearanceValidation: 1
+    baseNavigationMargin: 0.12
+    minimumOptionalGapPolicy: 0
+    maximumErosionCellsPerFormation: 18
+    validateCriticalConnectivity: 1
+  content:
+    enemyPrefab: {fileID: 7598521876761444214, guid: 21e0bf3c8c30aad47b92b21867cd40f7, type: 3}
+    bossEnemyPrefab: {fileID: 7598521876761444214, guid: 21e0bf3c8c30aad47b92b21867cd40f7, type: 3}
+    blobSpitterPrefab: {fileID: 744620505064585365, guid: ceaf4d2f1ec516f4c8337564983ca069, type: 3}
+    mushroomPrefab: {fileID: 4950061718234420143, guid: d0900febf7660964196416d35b585d86, type: 3}
+    sporePrefab: {fileID: 793229160067691946, guid: cc7adcf56dbdc3f46b07a3b8f49433e7, type: 3}
+    shinyPrefab: {fileID: 3851985546638949781, guid: 6196460a0756f2846aed4c87c4f80476, type: 3}
+    exitPortalPrefab: {fileID: 4025575695747825317, guid: b8cb622ac95a9fa4380d4c7a62d66614, type: 3}
+    retreatPortalPrefab: {fileID: 7568801306619152230, guid: e51b7ef94e86a6b4a9648113dc2c411a, type: 3}
+    enableSnackSpawns: 1
+    snackPickupPrefab: {fileID: 11400000, guid: b6b95fd14dd34b7c9fb10e8d1c4dbb31, type: 3}
+    snackLootTable:
+    - item: {fileID: 11400000, guid: 9b6268e3a1089ac4a9b3ffa3bdef93e7, type: 2}
+      weight: 1
+      quantity: 1
+    lootPocketSnackChance: 1
+    combatCampSnackChance: 1
+    bossCampSnackChance: 1
+    forceSnackSpawn: 1
+    spawnInitialRevealedContentOnStart: 1
+    objectClearRadius: 0.35
+    placementTriesPerObject: 40
+    spawnRetreatPortalNearSpawn: 1
+    retreatPortalMinDistanceFromSpawn: 1.5
+    retreatPortalMaxDistanceFromSpawn: 2.5
+    retreatPortalClearRadius: 0.4
+    overrideCampWeevilCount: 0
+    weevilsPerCampMin: 3
+    weevilsPerCampMax: 3
+    overrideBossCampWeevilCount: 0
+    weevilsPerBossCampMin: 2
+    weevilsPerBossCampMax: 2
+    blobSpittersPerCampMin: 0
+    blobSpittersPerCampMax: 1
+    blobSpitterSpawnChance: 0.5
+    blobSpittersPerBossCampMin: 1
+    blobSpittersPerBossCampMax: 2
+    blobSpitterBossSpawnChance: 0.5
+    blobSpitterMinDistanceFromSpawn: 8
+  difficulty:
+    enabled: 0
+    enemyHealthMultiplier: 1
+    enemyDamageMultiplier: 1
+    playerDamageMultiplier: 1
+    resourceMultiplier: 1
+    xpMultiplier: 1
+  developmentOverrides:
+    enabled: 1
+    maximumFallbackAttempts: 160
+    minimumOrdinaryRooms: 1
+    minimumCamps: 1
+    minimumStoneFormations: 2
+    minimumRootFormations: 1
+    requireFungalInfluence: 1
+    requireMineralInfluence: 1
+    requireDisturbedInfluence: 1
+    minimumTunnelWeevils: 1
+    minimumBlobSpitters: 1
+    minimumMushroomCritters: 1
+    minimumMushrooms: 1
+    minimumSpores: 1
+    minimumShinies: 1
+    minimumSnacks: 1
+    requireRetreatPortal: 1
+    requireExitPortal: 1
+    unsupportedXpGuarantee: 0

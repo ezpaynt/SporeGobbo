@@ -16738,7 +16738,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MapGenerator
   useProfilesByRunNumber: 0
   runProfiles: []
-  selectedProfile: {fileID: 11400000, guid: 8b303e2f3769f87449c95a69715a50c6, type: 2}
+  selectedProfile: {fileID: 11400000, guid: 984885ec58c4489458bc52a0263cc396, type: 2}
   map:
     seed: 0
     randomSeed: 1
