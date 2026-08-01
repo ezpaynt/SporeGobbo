@@ -5710,7 +5710,7 @@ MonoBehaviour:
   confirmNameButton: {fileID: 1534672521}
   cancelNameButton: {fileID: 0}
   newGameButton: {fileID: 411045578}
-  autoHookButton: 1
+  autoHookButton: 0
   savesFullPanel: {fileID: 0}
   savesFullText: {fileID: 0}
   savesFullMessage: All 3 save slots are full. Delete a save before starting a new

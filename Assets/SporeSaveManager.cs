@@ -110,6 +110,7 @@ public static class SporeSaveManager
             return null;
         }
         SporeSaveSlotData data = SporeSaveSlotData.CreateNew(slotIndex, playerName, firstSceneName);
+        StoryEventService.Complete(data.storyProgress, StoryEventIds.ASporeHatchesNamed, data.currentRunNumber, data.campCycleNumber);
         ApplySlotToGameState(data);
         SaveSlot(data);
         return data;
@@ -166,6 +167,7 @@ public static class SporeSaveManager
             existing.lastRun = CloneRunSummary(gs.lastRun);
             existing.markedSuccessorId = gs.markedSuccessorId;
             existing.deathHistory = gs.GetDeathHistoryCopy();
+            existing.storyProgress = gs.storyProgress != null ? gs.storyProgress.Clone() : new StoryProgressData();
         }
 
         GameStateSaveBridge bridge = GameStateSaveBridge.GetOrCreate();
@@ -218,6 +220,7 @@ public static class SporeSaveManager
         gs.lastRun = CloneRunSummary(data.lastRun);
         gs.markedSuccessorId = data.markedSuccessorId;
         gs.SetDeathHistory(data.deathHistory);
+        gs.storyProgress = data.storyProgress != null ? data.storyProgress.Clone() : new StoryProgressData();
         gs.RepairRosterState();
 
         GameStateSaveBridge bridge = GameStateSaveBridge.GetOrCreate();

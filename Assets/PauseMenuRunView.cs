@@ -13,9 +13,10 @@ public sealed class PauseMenuRunView : MonoBehaviour
     static readonly Color Bone = new Color(0.93f, 0.9f, 0.78f, 1f);
     static readonly Color Muted = new Color(0.72f, 0.73f, 0.62f, 1f);
 
-    RectTransform mainPage, optionsPage, confirmationPage, squadContent;
+    RectTransform mainPage, journalPage, optionsPage, confirmationPage, squadContent;
     TMP_Text playerText, modifiersText, runText, confirmationText;
     Button confirmButton;
+    PauseMenuJournalView journalView;
     TMP_FontAsset font;
     Action pendingConfirmation;
     bool built;
@@ -34,26 +35,49 @@ public sealed class PauseMenuRunView : MonoBehaviour
         Image overlay = pausePanel.GetComponent<Image>(); if (overlay == null) overlay = pausePanel.AddComponent<Image>(); overlay.color = Overlay;
         if (title != null) title.gameObject.SetActive(false);
 
-        mainPage = Rect("RunPausePage", root, Vector2.zero, Vector2.one);
+        RectTransform tabs = Rect("PauseTabs", root, new Vector2(.02f, .925f), new Vector2(.42f, .985f));
+        HorizontalLayoutGroup tabLayout = tabs.gameObject.AddComponent<HorizontalLayoutGroup>();
+        tabLayout.spacing = 8f; tabLayout.childControlHeight = true; tabLayout.childControlWidth = true;
+        tabLayout.childForceExpandHeight = true; tabLayout.childForceExpandWidth = true;
+        NewButton("CurrentRunTab", tabs, "Current Run", ShowMainPage);
+        NewButton("JournalTab", tabs, "Journal", ShowJournal);
+
+        mainPage = Rect("RunPausePage", root, Vector2.zero, new Vector2(1f, .91f));
         playerText = PanelText(PanelRect("PlayerPanel", mainPage, new Vector2(.02f, .46f), new Vector2(.305f, .97f)), "PLAYER");
         modifiersText = PanelText(PanelRect("ModifiersPanel", mainPage, new Vector2(.315f, .46f), new Vector2(.60f, .97f)), "MODIFIERS");
         runText = PanelText(PanelRect("RunPanel", mainPage, new Vector2(.61f, .46f), new Vector2(.81f, .97f)), "RUN");
         BuildActions(PanelRect("ActionsPanel", mainPage, new Vector2(.82f, .46f), new Vector2(.98f, .97f)), resume, menu, desktop,
             resumeAction, optionsAction, menuAction, desktopAction);
         BuildSquad(PanelRect("ActiveSquadPanel", mainPage, new Vector2(.02f, .03f), new Vector2(.98f, .44f)));
+
+        journalPage = Rect("JournalPausePage", root, Vector2.zero, new Vector2(1f, .91f));
+        journalView = journalPage.gameObject.AddComponent<PauseMenuJournalView>();
+        journalView.Build(journalPage, font);
+
         BuildOptions(root); BuildConfirmation(root); ShowMainPage();
     }
 
-    public void Refresh(PauseMenuStatusSnapshot snapshot)
+    public void Refresh(PauseMenuStatusSnapshot snapshot, JournalSnapshot journal)
     {
         if (!built || snapshot == null) return;
         playerText.text = PlayerText(snapshot.player); modifiersText.text = ModifiersText(snapshot.player); runText.text = RunText(snapshot.run);
         RebuildSquad(snapshot.activeSquad);
+        if (journalView != null) journalView.Refresh(journal);
     }
 
     public void ShowMainPage()
     {
         if (mainPage != null) mainPage.gameObject.SetActive(true);
+        if (journalPage != null) journalPage.gameObject.SetActive(false);
+        if (optionsPage != null) optionsPage.gameObject.SetActive(false);
+        if (confirmationPage != null) confirmationPage.gameObject.SetActive(false);
+        pendingConfirmation = null;
+    }
+
+    public void ShowJournal()
+    {
+        if (mainPage != null) mainPage.gameObject.SetActive(false);
+        if (journalPage != null) journalPage.gameObject.SetActive(true);
         if (optionsPage != null) optionsPage.gameObject.SetActive(false);
         if (confirmationPage != null) confirmationPage.gameObject.SetActive(false);
         pendingConfirmation = null;
@@ -62,6 +86,7 @@ public sealed class PauseMenuRunView : MonoBehaviour
     public void ShowOptions()
     {
         if (mainPage != null) mainPage.gameObject.SetActive(false);
+        if (journalPage != null) journalPage.gameObject.SetActive(false);
         if (confirmationPage != null) confirmationPage.gameObject.SetActive(false);
         if (optionsPage != null) optionsPage.gameObject.SetActive(true);
     }
@@ -69,7 +94,7 @@ public sealed class PauseMenuRunView : MonoBehaviour
     public void ShowConfirmation(string message, string actionLabel, Action accepted)
     {
         pendingConfirmation = accepted; confirmationText.text = message; ButtonLabel(confirmButton, actionLabel);
-        mainPage.gameObject.SetActive(false); optionsPage.gameObject.SetActive(false); confirmationPage.gameObject.SetActive(true);
+        mainPage.gameObject.SetActive(false); journalPage.gameObject.SetActive(false); optionsPage.gameObject.SetActive(false); confirmationPage.gameObject.SetActive(true);
     }
 
     void BuildActions(RectTransform panel, Button resume, Button menu, Button desktop,

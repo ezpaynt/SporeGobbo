@@ -20,6 +20,7 @@ public class SaveSlotData
     public List<string> unlockedStations = new List<string>();
     public List<string> decorationsUnlocked = new List<string>();
     public RunSummaryData lastRun = new RunSummaryData();
+    public StoryProgressData storyProgress = new StoryProgressData();
 
     public void Normalize()
     {
@@ -32,6 +33,8 @@ public class SaveSlotData
         activeSquadIds ??= new List<string>();
         unlockedStations ??= new List<string>();
         decorationsUnlocked ??= new List<string>();
+        storyProgress ??= new StoryProgressData();
+        storyProgress.Normalize();
         if (lastRun == null) lastRun = new RunSummaryData();
         if (currentRunNumber <= 0) currentRunNumber = 1;
         if (maxActiveSquad <= 0) maxActiveSquad = 5;

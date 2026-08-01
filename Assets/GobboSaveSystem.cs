@@ -61,6 +61,7 @@ public static class GobboSaveSystem
             markedSuccessorId = save.markedSuccessorId,
             unlockedStations = save.unlockedStations != null ? new List<string>(save.unlockedStations) : new List<string>(),
             decorationsUnlocked = save.decorationsUnlocked != null ? new List<string>(save.decorationsUnlocked) : new List<string>(),
+            storyProgress = save.storyProgress != null ? save.storyProgress.Clone() : new StoryProgressData(),
             lastRun = save.lastRun
         };
         SporeSaveManager.SaveSlot(data);
@@ -148,6 +149,7 @@ public static class GobboSaveSystem
             markedSuccessorId = data.markedSuccessorId,
             unlockedStations = data.unlockedStations != null ? new List<string>(data.unlockedStations) : new List<string>(),
             decorationsUnlocked = data.decorationsUnlocked != null ? new List<string>(data.decorationsUnlocked) : new List<string>(),
+            storyProgress = data.storyProgress != null ? data.storyProgress.Clone() : new StoryProgressData(),
             lastRun = data.lastRun
         };
         save.Normalize();

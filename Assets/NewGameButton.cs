@@ -23,6 +23,10 @@ public class NewGameButton : MonoBehaviour
     public Button newGameButton;
     public bool autoHookButton = true;
 
+    int pendingSlotIndex;
+
+    public bool HasNamingPrompt => namePromptPanel != null && playerNameInput != null;
+
     [Header("Full Saves Popup")]
     public GameObject savesFullPanel;
     public TMP_Text savesFullText;
@@ -32,13 +36,10 @@ public class NewGameButton : MonoBehaviour
     {
         if (namePromptPanel != null) namePromptPanel.SetActive(false);
         if (savesFullPanel != null) savesFullPanel.SetActive(false);
-        if (autoHookButton) HookButtons();
+        HookButtons();
     }
 
-    void OnEnable()
-    {
-        if (autoHookButton) HookButtons();
-    }
+    void OnEnable() => HookButtons();
 
     void HookButtons()
     {
@@ -46,7 +47,7 @@ public class NewGameButton : MonoBehaviour
         if (newGameButton != null)
         {
             newGameButton.onClick.RemoveListener(OnNewGameClicked);
-            newGameButton.onClick.AddListener(OnNewGameClicked);
+            if (autoHookButton) newGameButton.onClick.AddListener(OnNewGameClicked);
             newGameButton.interactable = true;
         }
 
@@ -65,12 +66,18 @@ public class NewGameButton : MonoBehaviour
 
     public void OnNewGameClicked()
     {
+        BeginNamedNewGame(0);
+    }
+
+    public void BeginNamedNewGame(int slotIndex)
+    {
         if (!SporeSaveManager.CanCreateNewGame())
         {
             ShowSavesFull();
             return;
         }
 
+        pendingSlotIndex = slotIndex;
         if (namePromptPanel != null && playerNameInput != null)
         {
             playerNameInput.text = defaultPlayerName;
@@ -94,6 +101,7 @@ public class NewGameButton : MonoBehaviour
     public void CancelNamePrompt()
     {
         if (namePromptPanel != null) namePromptPanel.SetActive(false);
+        pendingSlotIndex = 0;
     }
 
     // Kept for existing button hookups.
@@ -114,7 +122,10 @@ public class NewGameButton : MonoBehaviour
     void StartNewGameWithName(string playerName)
     {
         if (string.IsNullOrWhiteSpace(playerName)) playerName = defaultPlayerName;
-        SporeSaveSlotData data = SporeSaveManager.CreateNewGame(playerName.Trim(), firstSceneName);
+        SporeSaveSlotData data = pendingSlotIndex > 0
+            ? SporeSaveManager.CreateNewGame(pendingSlotIndex, playerName.Trim(), firstSceneName, false)
+            : SporeSaveManager.CreateNewGame(playerName.Trim(), firstSceneName);
+        pendingSlotIndex = 0;
         if (data == null)
         {
             ShowSavesFull();

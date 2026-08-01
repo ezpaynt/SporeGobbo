@@ -17,6 +17,9 @@ public class PauseMenuController : MonoBehaviour
     public Button quitToMenuButton;
     public Button quitToDesktopButton;
 
+    [Header("Story")]
+    public JournalContentLibrary journalContentLibrary;
+
     [Header("Input")]
     public KeyCode pauseKey = KeyCode.Escape;
 
@@ -97,7 +100,9 @@ public class PauseMenuController : MonoBehaviour
                 if (runView != null)
                 {
                     runView.ShowMainPage();
-                    runView.Refresh(PauseMenuStatusSnapshotBuilder.Build());
+                    runView.Refresh(
+                        PauseMenuStatusSnapshotBuilder.Build(),
+                        JournalSnapshotBuilder.Build(journalContentLibrary, GameState.Instance));
                 }
             }
         }

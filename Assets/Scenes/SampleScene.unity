@@ -1343,6 +1343,7 @@ MonoBehaviour:
   resumeButton: {fileID: 290897517}
   quitToMenuButton: {fileID: 1637343442}
   quitToDesktopButton: {fileID: 1731531889}
+  journalContentLibrary: {fileID: 11400000, guid: 25906c87f15669646bd1b6b1016702bf, type: 2}
   pauseKey: 27
 --- !u!4 &323329102
 Transform:

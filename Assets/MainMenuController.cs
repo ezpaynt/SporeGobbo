@@ -235,6 +235,13 @@ public class MainMenuController : MonoBehaviour
             return;
         }
 
+        NewGameButton namingFlow = FindAnyObjectByType<NewGameButton>(FindObjectsInactive.Include);
+        if (namingFlow != null && namingFlow.HasNamingPrompt)
+        {
+            namingFlow.BeginNamedNewGame(slotIndex);
+            return;
+        }
+
         SporeSaveSlotData data = SporeSaveManager.CreateNewGame(slotIndex, defaultPlayerName, firstSceneName, false);
         if (data == null)
         {
