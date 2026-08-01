@@ -191,6 +191,7 @@ public class MapGenerator : MonoBehaviour
     [Header("Tilemaps")]
     public Grid grid;
     public Tilemap dirtTilemap;
+    public CaveSurfaceRenderer caveSurfaceRenderer;
 
     [Header("Tiles")]
     public TileBase dirtTile1;
@@ -481,6 +482,8 @@ public class MapGenerator : MonoBehaviour
         BuildRootFormations();
         ValidateAndCorrectFormationClearance();
         RefreshTerrainFormationTiles();
+        if (caveSurfaceRenderer != null)
+            caveSurfaceRenderer.Rebuild(Data, runtimeMapSeed);
 
         LogGenerationSummary();
     }
@@ -755,11 +758,15 @@ public class MapGenerator : MonoBehaviour
 
         if (dirtTilemap == null && maps.Length > 0)
             dirtTilemap = maps[0];
+
+        if (caveSurfaceRenderer == null)
+            caveSurfaceRenderer = GetComponent<CaveSurfaceRenderer>();
     }
 
     private void ClearTilemaps()
     {
         if (dirtTilemap != null) dirtTilemap.ClearAllTiles();
+        if (caveSurfaceRenderer != null) caveSurfaceRenderer.Clear();
     }
 
     private void ClearPlanData()
@@ -1319,6 +1326,8 @@ public class MapGenerator : MonoBehaviour
 
         Data.SetBlocked(cell, false);
         SetCellTilesFromData(cell);
+        if (caveSurfaceRenderer != null)
+            caveSurfaceRenderer.RefreshCell(Data, cell, runtimeMapSeed);
     }
 
     public void RevealCamp(int campId)
@@ -1363,11 +1372,13 @@ public class MapGenerator : MonoBehaviour
 
         PlannedArea area = plannedAreas.Find(a => a.id == areaId);
         if (area == null) return;
+        List<Vector2Int> openedCells = new List<Vector2Int>();
 
         foreach (Vector2Int cell in area.cells)
         {
             Data.SetBlocked(cell, false);
             SetCellTilesFromData(cell);
+            openedCells.Add(cell);
         }
 
         foreach (CampData camp in Data.camps)
@@ -1397,7 +1408,11 @@ public class MapGenerator : MonoBehaviour
             Data.SetBlocked(trigger, false);
             revealGroupByTriggerCell.Remove(trigger);
             SetCellTilesFromData(trigger);
+            openedCells.Add(trigger);
         }
+
+        if (caveSurfaceRenderer != null)
+            caveSurfaceRenderer.RefreshCells(Data, openedCells, runtimeMapSeed);
     }
 
     public bool IsWorldPositionClearForBody(Vector2 worldPos, float radius)
@@ -3394,6 +3409,8 @@ public class MapGenerator : MonoBehaviour
             for (int y = 0; y < Data.height; y++)
                 SetCellTilesFromData(new Vector2Int(x, y));
         }
+        if (caveSurfaceRenderer != null)
+            caveSurfaceRenderer.Rebuild(Data, runtimeMapSeed);
     }
 
     private float GetDirtDistanceFactor(Vector2Int cell)

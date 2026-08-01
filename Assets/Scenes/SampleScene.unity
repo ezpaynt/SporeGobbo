@@ -2050,7 +2050,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!212 &585489521
 SpriteRenderer:
   serializedVersion: 2
@@ -16717,6 +16717,7 @@ GameObject:
   - component: {fileID: 994167911}
   - component: {fileID: 994167910}
   - component: {fileID: 994167912}
+  - component: {fileID: 994167913}
   m_Layer: 0
   m_Name: MapGenerator
   m_TagString: Untagged
@@ -16772,6 +16773,7 @@ MonoBehaviour:
     minGapBetweenAttachments: 10
   grid: {fileID: 774846472}
   dirtTilemap: {fileID: 1153863777}
+  caveSurfaceRenderer: {fileID: 994167913}
   dirtTile1: {fileID: 11400000, guid: a47a570b4943a354e8a840182013b09b, type: 2}
   dirtTile2: {fileID: 11400000, guid: f6ba57d3c8a567544847e0f0e5d9c547, type: 2}
   dirtTile3: {fileID: 11400000, guid: b737d92cbb2bc3f4ba4219713050954a, type: 2}
@@ -16829,6 +16831,32 @@ MonoBehaviour:
   bossExitColor: {r: 1, g: 0.1, b: 0.05, a: 1}
   boundsColor: {r: 1, g: 1, b: 1, a: 0.9}
   logReportOnStart: 1
+--- !u!114 &994167913
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 994167909}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 07a0e808e54a54448858c8cd2f121833, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CaveSurfaceRenderer
+  grid: {fileID: 774846472}
+  dirtTilemap: {fileID: 1153863777}
+  floorTile: {fileID: 11400000, guid: ed6780e8ee413b04db6be84316ccf8eb, type: 2}
+  additionalFloorTiles:
+  - {fileID: 11400000, guid: d8c82ffc55715f643b38f88b927ecd74, type: 2}
+  - {fileID: 11400000, guid: 062124c5894807d42a93f4172a0ae65a, type: 2}
+  floorDetailTile: {fileID: 11400000, guid: d7e3fe8b68ab8d647a787ff0d7f74b45, type: 2}
+  rearSlopeTile: {fileID: 11400000, guid: 21818db9f24e3684ca44bed201d71b4e, type: 2}
+  showTestFloorDetails: 1
+  testFloorDetailChance: 0.035
+  maximumFloorOffset: 0.045
+  caveFloorSortingOrder: -8
+  floorDetailSortingOrder: -7
+  rearSlopeSortingOrder: -6
 --- !u!4 &1036323091
 Transform:
   m_ObjectHideFlags: 0
