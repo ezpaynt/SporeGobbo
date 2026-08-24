@@ -44,11 +44,6 @@ public class CampFireRecovery : MonoBehaviour, ICampInteractable
         CloseMenu();
     }
 
-    void Update()
-    {
-        if (menuOpen && Input.GetKeyDown(KeyCode.Escape)) CloseMenu();
-    }
-
     void HookButtons()
     {
         if (eatAndRestButton != null)
@@ -91,7 +86,8 @@ public class CampFireRecovery : MonoBehaviour, ICampInteractable
     public void OpenMenu()
     {
         menuOpen = true;
-        CampMenuModal.Open(currentPlayer, this, CloseMenu);
+        CampMenuModal.Open(currentPlayer, this, CloseMenu,
+            eatAndRestButton != null && eatAndRestButton.interactable ? eatAndRestButton : closeButton);
         if (fireMenuPanel != null)
         {
             fireMenuPanel.SetActive(true);

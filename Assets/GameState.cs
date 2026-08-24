@@ -110,6 +110,9 @@ public class GameState : MonoBehaviour
     [Header("Death History Save")]
     public List<DeadBuddyRecord> deathHistory = new List<DeadBuddyRecord>();
 
+    [Header("Camp Terrain Save")]
+    public CampTerrainState campTerrainState = new CampTerrainState();
+
     [Header("Story Progress")]
     public StoryProgressData storyProgress = new StoryProgressData();
 
@@ -153,6 +156,8 @@ public class GameState : MonoBehaviour
         runSnackStacks = InventoryService.NormalizeStacks(runSnackStacks, false);
         campCycleNumber = Mathf.Max(0, campCycleNumber);
         deathHistory ??= new List<DeadBuddyRecord>();
+        campTerrainState ??= new CampTerrainState();
+        campTerrainState.Normalize();
         storyProgress ??= new StoryProgressData();
         storyProgress.Normalize();
         if (lastRun == null) lastRun = new RunSummaryData();

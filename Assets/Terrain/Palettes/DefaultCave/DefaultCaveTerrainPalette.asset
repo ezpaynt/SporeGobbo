@@ -1,0 +1,133 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cd712902d2beb164289583acd3a675dd, type: 3}
+  m_Name: DefaultCaveTerrainPalette
+  m_EditorClassIdentifier: Assembly-CSharp::TerrainVisualPalette
+  floorVariants:
+  - {fileID: 11400000, guid: bef74622e5048784fadee257c181ed16, type: 2}
+  - {fileID: 11400000, guid: fd6519f0b7223e24aa4e5d97ca7b6eea, type: 2}
+  - {fileID: 11400000, guid: 26c7b0152e2fd4446aefe90efe8bf722, type: 2}
+  - {fileID: 11400000, guid: 5195ceae32265914fb88fc878eb77b41, type: 2}
+  - {fileID: 11400000, guid: eeafd175c77f6f346a277dde7b384b66, type: 2}
+  dirtMasks:
+  - exposureMask: 0
+    variants:
+    - {fileID: 11400000, guid: 7fce1f33c7613b64e9d6f6434baf8a5a, type: 2}
+    - {fileID: 11400000, guid: eaa20557f4903234f92cbe63621c2bea, type: 2}
+    - {fileID: 11400000, guid: 66f7dd1444b87794eb6e1fe3a0e9c37b, type: 2}
+    - {fileID: 11400000, guid: bab409a48653c5140bace02245e97874, type: 2}
+    - {fileID: 11400000, guid: fb68421815b40534c8b9d050fe4d7fd5, type: 2}
+  - exposureMask: 1
+    variants:
+    - {fileID: 11400000, guid: 8a5e57823a11cb4469f052059c756439, type: 2}
+    - {fileID: 11400000, guid: 4c6d9c2a64f73ba4bb9c7ee1c32942dd, type: 2}
+    - {fileID: 11400000, guid: 45597a4880d94ca4ea54719565421d65, type: 2}
+    - {fileID: 11400000, guid: bf1440600c0acd14893de1bad88fcfe7, type: 2}
+    - {fileID: 11400000, guid: 86790db1c66ae3e4985d307396c9d438, type: 2}
+  - exposureMask: 2
+    variants:
+    - {fileID: 11400000, guid: 0f34c576bb8e87d48b9e32ff0e364dda, type: 2}
+    - {fileID: 11400000, guid: 0fe4dea3509fc2f4dae653f0667be801, type: 2}
+    - {fileID: 11400000, guid: 52f395206e58e1343a2be003429f6db4, type: 2}
+    - {fileID: 11400000, guid: 230601fa3166a09409957acc9fe167c5, type: 2}
+    - {fileID: 11400000, guid: 93b98974ddda4db479bfc5b23f19ef79, type: 2}
+  - exposureMask: 3
+    variants:
+    - {fileID: 11400000, guid: 288ee803e6ef1334cac4dccc9d4dd9fc, type: 2}
+    - {fileID: 11400000, guid: ecaaf2acf6773f54981d99f1f808d4ae, type: 2}
+    - {fileID: 11400000, guid: 804bc3b75d220d846834b8c5e69e8e3e, type: 2}
+    - {fileID: 11400000, guid: 55a539fe38684ee4b8db33062e77072f, type: 2}
+    - {fileID: 11400000, guid: 4afe9fffaab7c164886705488ecad7a3, type: 2}
+  - exposureMask: 4
+    variants:
+    - {fileID: 11400000, guid: d0cdf8018bc384b47bed10efce42bf13, type: 2}
+    - {fileID: 11400000, guid: 19090339cd9d1a74c811d7a0c9b67b75, type: 2}
+    - {fileID: 11400000, guid: 9c9832afebee46a4b93ad8d5e54b1c04, type: 2}
+    - {fileID: 11400000, guid: b260564423f40494181ca238b1e2bcf2, type: 2}
+    - {fileID: 11400000, guid: b3905dab473b7dc4188a5631f444bc60, type: 2}
+  - exposureMask: 5
+    variants:
+    - {fileID: 11400000, guid: 806b594ee93e495408743a762f4fc87e, type: 2}
+    - {fileID: 11400000, guid: b2aaddd928c72ab4995900de68550dcd, type: 2}
+    - {fileID: 11400000, guid: 12c8d56c9030729478b4939077d32696, type: 2}
+    - {fileID: 11400000, guid: f100a45709c98e44fafaad2901d1d53f, type: 2}
+    - {fileID: 11400000, guid: c41905c4656b31b418660713f8f52ff3, type: 2}
+  - exposureMask: 6
+    variants:
+    - {fileID: 11400000, guid: e2404528b5e1c7f4dace9595849f41e2, type: 2}
+    - {fileID: 11400000, guid: 2ded0cf1084bc4c4dadeb21dd10fa298, type: 2}
+    - {fileID: 11400000, guid: c9c7eec0bcba8c943957e65f85bb6b4a, type: 2}
+    - {fileID: 11400000, guid: 2c68cf261fc970b42ad6c90c2c88c01f, type: 2}
+    - {fileID: 11400000, guid: 458b2e258c8febf47b5deb915629eac6, type: 2}
+  - exposureMask: 7
+    variants:
+    - {fileID: 11400000, guid: 1b79822cfddd93b46ad6778ebff89c22, type: 2}
+    - {fileID: 11400000, guid: b5f1aa451a09f4947a708ad1e140c7f2, type: 2}
+    - {fileID: 11400000, guid: fc0e9799ab2ecbf4ca481b3654643244, type: 2}
+    - {fileID: 11400000, guid: 757228ca4c1c3934ca07b4f7d25eb860, type: 2}
+    - {fileID: 11400000, guid: df7d15b812d468e4bb50161c4e04f8aa, type: 2}
+  - exposureMask: 8
+    variants:
+    - {fileID: 11400000, guid: 24f23115e0a157c41940f9d9c952aebe, type: 2}
+    - {fileID: 11400000, guid: d59780b5cc7610f429b56acf74da2de8, type: 2}
+    - {fileID: 11400000, guid: 4803d148d8d154b478a9488585da5e20, type: 2}
+    - {fileID: 11400000, guid: cc854b075a43c364d89ff8e4603c4f42, type: 2}
+    - {fileID: 11400000, guid: 999bb5dcfbcef40409b917341e94eec3, type: 2}
+  - exposureMask: 9
+    variants:
+    - {fileID: 11400000, guid: 9ea378a836078ce4aabf623c6858d66b, type: 2}
+    - {fileID: 11400000, guid: 5ef0106699ace7d469044e110f49d07a, type: 2}
+    - {fileID: 11400000, guid: ea0262dfdc6040648a09ffe8fa4c3db6, type: 2}
+    - {fileID: 11400000, guid: 82634567e491f7e498fc0a70212c6d83, type: 2}
+    - {fileID: 11400000, guid: d347231e07448ce4c9a966e75e4cfa13, type: 2}
+  - exposureMask: 10
+    variants:
+    - {fileID: 11400000, guid: 9e2c38afa4335fb489e1259876e75b9b, type: 2}
+    - {fileID: 11400000, guid: 83286493d7c1b1f419ce2d2c02310a74, type: 2}
+    - {fileID: 11400000, guid: 1ebe2f42d93a79b42a1d0e476ca59219, type: 2}
+    - {fileID: 11400000, guid: 8ed8da0878d2ab74a84f4761d68a57ad, type: 2}
+    - {fileID: 11400000, guid: fbecd5394d9d2c84b801a72ad4376a14, type: 2}
+  - exposureMask: 11
+    variants:
+    - {fileID: 11400000, guid: 7bf01f83f04f08b4eaa2c6c467889f28, type: 2}
+    - {fileID: 11400000, guid: 632fdc8425c25ea4ba4db754b969eef4, type: 2}
+    - {fileID: 11400000, guid: ce8de0361f774494090e4d7277b332a9, type: 2}
+    - {fileID: 11400000, guid: ebc34da1462740645a13b47e3dfecf3f, type: 2}
+    - {fileID: 11400000, guid: 1c91b8e4013e23444917b2ce1658f6c0, type: 2}
+  - exposureMask: 12
+    variants:
+    - {fileID: 11400000, guid: a3b7dc5c24d5acd479dac9c6929ff091, type: 2}
+    - {fileID: 11400000, guid: ab997dca4400ff540aa87d1ffb441889, type: 2}
+    - {fileID: 11400000, guid: 4ae59704ba3819c47ae31cd533274705, type: 2}
+    - {fileID: 11400000, guid: 567bfcf05e2d78b42b0e8dafa62240d4, type: 2}
+    - {fileID: 11400000, guid: 5b28641b0d12dd94c8dcbad2fc05e0f5, type: 2}
+  - exposureMask: 13
+    variants:
+    - {fileID: 11400000, guid: f093596f184a51e47b43236f983bbd63, type: 2}
+    - {fileID: 11400000, guid: 13f3b9ac355ad0a4daae9ebc842e9107, type: 2}
+    - {fileID: 11400000, guid: 9a028859a4443034497d415bd3c3c2b7, type: 2}
+    - {fileID: 11400000, guid: 2fd8fc3743e91f34981f64f7b2e1b527, type: 2}
+    - {fileID: 11400000, guid: 2a4cfa45f7bdc9d43a99e5e421a28aaa, type: 2}
+  - exposureMask: 14
+    variants:
+    - {fileID: 11400000, guid: a0919c7e8a3d3164d98238ff20af53d5, type: 2}
+    - {fileID: 11400000, guid: 30c2a0f13149e0440a8e709c2af13d72, type: 2}
+    - {fileID: 11400000, guid: 19532238f95eec14c95a569d767cebb6, type: 2}
+    - {fileID: 11400000, guid: 2491a350ed906a3418c856ebcbde8c77, type: 2}
+    - {fileID: 11400000, guid: 0041df9bb90a89e44a8deb823e2731b3, type: 2}
+  - exposureMask: 15
+    variants:
+    - {fileID: 11400000, guid: 0574f5ff94b9b1a468c16b639935bad6, type: 2}
+    - {fileID: 11400000, guid: b1cd7059c98291d428b1b1fbdab73d5c, type: 2}
+    - {fileID: 11400000, guid: 5145bfcfd46291f47b9ecfa21615e500, type: 2}
+    - {fileID: 11400000, guid: f8b082ce4231bba449e163d3d8c7685d, type: 2}
+    - {fileID: 11400000, guid: 8cdbd5298041f6a4e85d1b4bd2bd7845, type: 2}

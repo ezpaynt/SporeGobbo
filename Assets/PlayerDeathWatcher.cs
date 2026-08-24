@@ -124,7 +124,7 @@ public class PlayerDeathWatcher : MonoBehaviour
         PlayerDeathRunStore store = PlayerDeathRunStore.GetOrCreate();
         store.BeginPlayerDeath(leaderName, leaderType, leaderLevel, runNumber, deathCause, candidateIds, snapshots);
         Debug.Log("[PlayerDeathWatcher] handled death from " + source + ". Successor candidates: " + candidateIds.Count + ", locked/preferred: " + (string.IsNullOrWhiteSpace(store.lockedSuccessorId) ? "none" : store.lockedSuccessorId));
-        Time.timeScale = 1f;
+        SporePauseService.ResetAll();
         SuppressDeathHandlingForSceneChange();
         if (loadGameOverSceneIfNoSuccessors && candidateIds.Count == 0 && !string.IsNullOrWhiteSpace(gameOverSceneName)) SceneManager.LoadScene(gameOverSceneName);
         else SceneManager.LoadScene(campSceneName);

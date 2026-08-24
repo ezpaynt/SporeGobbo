@@ -72,7 +72,7 @@ public class GobboCardDatabase : MonoBehaviour
         cards.Add(new GobboCard { cardId = "long_arms", cardName = "Long Arms", description = "+0.25 Attack Range, +0.1 Attack Radius.", attackRangeBonus = 0.25f, attackRadiusBonus = 0.1f });
         cards.Add(new GobboCard { cardId = "mean_little_legs", cardName = "Mean Little Legs", description = "+0.5 Move Speed, faster attacks.", moveSpeedBonus = 0.5f, attackCooldownBonus = -0.1f });
         cards.Add(new GobboCard { cardId = "spore_mend", cardName = "Spore Mend", description = "Unlock R self-heal.\nFlat heal on cooldown.", unlockSporeMend = true, minLevel = 6, playerAllowed = true, buddyAllowed = false });
-        cards.Add(new GobboCard { cardId = "dash_bite", cardName = "Dash Bite", description = "Unlock middle-click lunge bite.", unlockDashBite = true, minLevel = 6, playerAllowed = true, buddyAllowed = false });
+        cards.Add(new GobboCard { cardId = "dash_bite", cardName = "Dash Bite", description = "Unlock a targeted lunge bite.", unlockDashBite = true, minLevel = 6, playerAllowed = true, buddyAllowed = false });
 
         AddClassCard(BuddyType.Fast, "skitter_legs", "Skitter Legs", "+0.6 Move Speed.", moveSpeedBonus: 0.6f);
         AddClassCard(BuddyType.Fast, "snap_bite", "Snap Bite", "Faster attacks.", attackCooldownBonus: -0.12f);

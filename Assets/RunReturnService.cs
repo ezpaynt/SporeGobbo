@@ -73,7 +73,8 @@ public static class RunReturnService
             deathStore.ClearPendingDeath();
 
         PlayerDeathWatcher.SuppressDeathHandlingForSceneChange();
-        Time.timeScale = 1f;
+        SporePauseService.ResetAll();
+        CampArrivalContext.SetPending(CampArrivalMode.ReturnedFromRun);
         SceneManager.LoadScene(sceneToLoad);
         return true;
     }

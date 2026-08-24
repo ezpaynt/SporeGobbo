@@ -1,0 +1,15 @@
+{
+  "name": "SporeGobbo.Input.EditModeTests",
+  "rootNamespace": "SporeGobbo.Input.Tests",
+  "references": [
+    "SporeGobbo.Input",
+    "Unity.InputSystem"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "autoReferenced": false
+}

@@ -2,7 +2,8 @@ using UnityEngine;
 
 public enum FoodKind { Food, Mushroom, Meat, HealingMeat }
 
-public class FoodItem : MonoBehaviour
+[RequireComponent(typeof(Collider2D))]
+public class FoodItem : MonoBehaviour, ICampInteractable, IWorldInteractionMetadata
 {
     [Header("Food / XP")]
     public int xpValue = 1;
@@ -18,6 +19,16 @@ public class FoodItem : MonoBehaviour
     public int mushroomValue = 1;
     public int moneyValue = 0;
     public int shinyValue = 0;
+
+    [Header("Interaction")]
+    public float pickupRange = 1.2f;
+
+    public int InteractionPriority => 0;
+    public float InteractionRange => pickupRange;
+    public bool CanInteract(GobboController player) => player != null && isActiveAndEnabled;
+    public Vector2 GetInteractionPoint() => transform.position;
+    public string GetInteractPrompt() => "Pick Up " + (string.IsNullOrWhiteSpace(foodName) ? "Food" : foodName);
+    public void Interact(GobboController player) => Eat(player);
 
     public void Eat(GobboController gobbo)
     {

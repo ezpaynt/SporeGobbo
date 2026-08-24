@@ -67,7 +67,7 @@ public class MainMenuController : MonoBehaviour
 
     void Start()
     {
-        Time.timeScale = 1f;
+        SporePauseService.ResetAll();
         ShowMainMenu();
         RefreshContinueButton();
     }
@@ -158,6 +158,7 @@ public class MainMenuController : MonoBehaviour
         SetPanel(placeholderPanel, false);
         SetPanel(deleteConfirmPanel, false);
         RefreshContinueButton();
+        UiFocusUtility.Select(UiFocusUtility.IsValid(continueButton) ? continueButton : newGameButton);
     }
 
     public void OpenNewGameSlots()
@@ -185,6 +186,7 @@ public class MainMenuController : MonoBehaviour
         SetPanel(placeholderPanel, false);
         SetPanel(deleteConfirmPanel, false);
         RefreshSlotButtons();
+        UiFocusUtility.Select(UiFocusUtility.FindFirst(saveSlotPanel, slotButton1));
     }
 
     void RefreshSlotButtons()
@@ -250,7 +252,9 @@ public class MainMenuController : MonoBehaviour
         }
 
         Debug.Log("[MainMenuController] New game in slot " + slotIndex + " for " + data.playerName + ". Loading " + firstSceneName);
-        Time.timeScale = 1f;
+        CampArrivalContext.Clear();
+        SampleSceneModeContext.SetPending(SampleSceneMode.Intro);
+        SporePauseService.ResetAll();
         SceneManager.LoadScene(firstSceneName);
     }
 
@@ -283,9 +287,18 @@ public class MainMenuController : MonoBehaviour
             ShowPlaceholder("Could not load that save.");
             return;
         }
-        Debug.Log("[MainMenuController] Loaded slot " + slotIndex + ". Loading camp.");
-        Time.timeScale = 1f;
-        SceneManager.LoadScene(campSceneName);
+        SporeSaveSlotData loaded = SporeSaveManager.LoadSlot(slotIndex);
+        bool loadIntro = SporeSaveManager.ShouldLoadIntro(loaded);
+        string destination = loadIntro ? firstSceneName : campSceneName;
+        if (loadIntro)
+        {
+            CampArrivalContext.Clear();
+            SampleSceneModeContext.SetPending(SampleSceneMode.Intro);
+        }
+        else CampArrivalContext.SetPending(CampArrivalMode.LoadedSave);
+        Debug.Log("[MainMenuController] Loaded slot " + slotIndex + ". Loading " + destination + ".");
+        SporePauseService.ResetAll();
+        SceneManager.LoadScene(destination);
     }
 
     public void AskDeleteSlot(int slotIndex)
@@ -299,6 +312,7 @@ public class MainMenuController : MonoBehaviour
         {
             deleteConfirmPanel.SetActive(true);
             deleteConfirmPanel.transform.SetAsLastSibling();
+            SporeUiCoordinator.Instance.PushModal(this, CancelDeleteSlot, false, cancelDeleteButton);
         }
         else
         {
@@ -312,6 +326,7 @@ public class MainMenuController : MonoBehaviour
         SporeSaveManager.DeleteSlot(pendingDeleteSlot);
         pendingDeleteSlot = 0;
         SetPanel(deleteConfirmPanel, false);
+        SporeUiCoordinator.Instance.PopModal(this);
         RefreshSlotButtons();
         RefreshContinueButton();
     }
@@ -320,6 +335,7 @@ public class MainMenuController : MonoBehaviour
     {
         pendingDeleteSlot = 0;
         SetPanel(deleteConfirmPanel, false);
+        SporeUiCoordinator.Instance.PopModal(this);
     }
 
     // Compatibility for old button hookups. Continue/Load never use saved nextSceneName now.
@@ -331,16 +347,18 @@ public class MainMenuController : MonoBehaviour
 
     public void ShowSettings()
     {
-        if (settingsPanel != null)
-        {
-            SetPanel(mainMenuPanel, false);
-            SetPanel(saveSlotPanel, false);
-            SetPanel(settingsPanel, true);
-            SetPanel(placeholderPanel, false);
-            SetPanel(deleteConfirmPanel, false);
-            return;
-        }
-        ShowPlaceholder("Settings coming soon.");
+        SetPanel(mainMenuPanel, false);
+        SetPanel(saveSlotPanel, false);
+        SetPanel(settingsPanel, false);
+        SetPanel(placeholderPanel, false);
+        SetPanel(deleteConfirmPanel, false);
+        SporeControlsScreen.Open(ReturnFromSettings);
+    }
+
+    void ReturnFromSettings()
+    {
+        ShowMainMenu();
+        UiFocusUtility.Select(settingsButton);
     }
 
     public void ShowPlaceholder(string message)

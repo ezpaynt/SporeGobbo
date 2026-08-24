@@ -143,4 +143,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CollectibleSpore
   amount: 1
   pickupRange: 1.1
-  pickupKey: 101
+  prompt: Pick Up Spore

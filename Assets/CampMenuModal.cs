@@ -1,15 +1,19 @@
 using System;
+using SporeGobbo.Input;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// Shared modal lock for camp UI.
 /// While a camp menu is open, the player is frozen and CampInteractionDetector stops opening new objects.
-/// Pressing E or Escape can close the current modal through CloseCurrent().
+/// Escape can close the current modal through CloseCurrent().
 /// </summary>
 public static class CampMenuModal
 {
-    public static bool IsOpen { get; private set; }
-    public static UnityEngine.Object CurrentOwner { get; private set; }
+    private static bool isOpen;
+    private static UnityEngine.Object currentOwner;
+    public static bool IsOpen { get { ValidateCurrentOwner(); return isOpen; } }
+    public static UnityEngine.Object CurrentOwner { get { ValidateCurrentOwner(); return currentOwner; } }
 
     private static Action currentCloseAction;
     private static GobboController lockedPlayer;
@@ -20,8 +24,8 @@ public static class CampMenuModal
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void ResetStaticsOnEnterPlayMode()
     {
-        IsOpen = false;
-        CurrentOwner = null;
+        isOpen = false;
+        currentOwner = null;
         currentCloseAction = null;
         lockedPlayer = null;
         lockedRb = null;
@@ -29,15 +33,16 @@ public static class CampMenuModal
         closingNow = false;
     }
 
-    public static void Open(GobboController player, UnityEngine.Object owner, Action closeAction = null)
+    public static void Open(GobboController player, UnityEngine.Object owner, Action closeAction = null, Selectable defaultSelectable = null)
     {
-        if (IsOpen && CurrentOwner == owner)
+        ValidateCurrentOwner();
+        if (isOpen && currentOwner == owner)
             return;
 
-        if (IsOpen)
+        if (isOpen)
             CloseCurrent();
 
-        CurrentOwner = owner;
+        currentOwner = owner;
         currentCloseAction = closeAction;
         lockedPlayer = player != null ? player : UnityEngine.Object.FindAnyObjectByType<GobboController>();
 
@@ -51,27 +56,31 @@ public static class CampMenuModal
                 lockedRb.linearVelocity = Vector2.zero;
         }
 
-        IsOpen = true;
+        isOpen = true;
+        SporeUiCoordinator.Instance.PushModal(owner, closeAction, false, defaultSelectable);
     }
 
     public static void Close(UnityEngine.Object owner)
     {
-        if (!IsOpen)
+        ValidateCurrentOwner();
+        if (!isOpen)
             return;
 
-        if (CurrentOwner != null && owner != null && CurrentOwner != owner)
+        if (currentOwner != null && owner != null && currentOwner != owner)
             return;
 
         UnlockPlayerOnly();
+        SporeUiCoordinator.Instance.PopModal(owner);
 
-        CurrentOwner = null;
+        currentOwner = null;
         currentCloseAction = null;
-        IsOpen = false;
+        isOpen = false;
     }
 
     public static void CloseCurrent()
     {
-        if (!IsOpen || closingNow)
+        ValidateCurrentOwner();
+        if (!isOpen || closingNow)
             return;
 
         closingNow = true;
@@ -80,24 +89,44 @@ public static class CampMenuModal
         if (close != null)
             close.Invoke();
         else
-            Close(CurrentOwner);
+            Close(currentOwner);
 
         closingNow = false;
     }
 
     public static bool IsOwnedBy(UnityEngine.Object owner)
     {
-        return IsOpen && CurrentOwner == owner;
+        ValidateCurrentOwner();
+        return isOpen && currentOwner == owner;
     }
 
     public static void ForceClear()
     {
         UnlockPlayerOnly();
 
-        CurrentOwner = null;
+        UnityEngine.Object owner = currentOwner;
+        if (owner != null)
+            SporeUiCoordinator.Instance.PopModal(owner, false);
+
+        currentOwner = null;
         currentCloseAction = null;
-        IsOpen = false;
+        isOpen = false;
         closingNow = false;
+    }
+
+    static void ValidateCurrentOwner()
+    {
+        bool ownerExists = currentOwner != null;
+        bool ownerActive = ownerExists && IsOwnerActive(currentOwner);
+        if (ModalLifecyclePolicy.ShouldForceClear(isOpen, ownerExists, ownerActive))
+            ForceClear();
+    }
+
+    static bool IsOwnerActive(UnityEngine.Object owner)
+    {
+        if (owner is Component component) return component.gameObject.activeInHierarchy;
+        if (owner is GameObject gameObject) return gameObject.activeInHierarchy;
+        return owner != null;
     }
 
     static void UnlockPlayerOnly()

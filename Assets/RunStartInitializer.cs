@@ -23,7 +23,8 @@ public class RunStartInitializer : MonoBehaviour
 
     IEnumerator Start()
     {
-        RunReturnService.ResetForNewRun();
+        bool introMode = SampleSceneModeController.IsIntroMode;
+        if (!introMode) RunReturnService.ResetForNewRun();
         GameState state = EnsureGameState();
 
         MapGenerator map = MapGenerator.Instance;
@@ -93,11 +94,18 @@ public class RunStartInitializer : MonoBehaviour
         // Always capture the actual run-start roster here. This keeps post-run
         // roll-call lists from confusing newly recruited buddies with the squad
         // that left camp, even if the camp portal forgot to take the snapshot.
-        state.BeginRunSnapshot();
+        if (!introMode) state.BeginRunSnapshot();
 
         CameraFollow cameraFollow = Object.FindAnyObjectByType<CameraFollow>();
         if (cameraFollow != null)
             cameraFollow.target = player.transform;
+
+        if (introMode)
+        {
+            PlayerDeathWatcher deathWatcher = player.GetComponent<PlayerDeathWatcher>();
+            if (deathWatcher != null) deathWatcher.enabled = false;
+            yield break;
+        }
 
         if (runSquadSpawner == null)
             runSquadSpawner = Object.FindAnyObjectByType<RunSquadSpawner>(FindObjectsInactive.Include);

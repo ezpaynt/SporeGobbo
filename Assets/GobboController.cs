@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using SporeGobbo.Input;
 
 [RequireComponent(typeof(Rigidbody2D))]
 public class GobboController : MonoBehaviour
@@ -30,6 +31,7 @@ public class GobboController : MonoBehaviour
     public float attackRange = 0.85f;
     public float attackRadius = 0.45f;
     public float attackCooldown = 0.7f;
+    [Min(0.01f)] public float attackSpeed = 1f;
     public float critChance = 0f;
     public float critDamageMultiplier = 1.5f;
 
@@ -110,11 +112,9 @@ public class GobboController : MonoBehaviour
     public float dashBiteStopDistance = 0.55f;
     public float dashBiteDamageMultiplier = 1.25f;
     public float dashBiteCooldown = 1.2f;
-
-    [Header("Roar")]
-    public string roarType = "tiny";
-    public float roarCooldown = 0.5f;
-    public AudioSource roarAudio;
+    [Range(0f, 180f)] public float dashBiteTargetConeAngle = 70f;
+    [Min(0f)] public float dashBiteAlignmentWeight = 0.8f;
+    [Min(0f)] public float dashBiteDistanceWeight = 0.2f;
 
     [Header("Player Damage Visuals")]
     public SpriteRenderer spriteRenderer;
@@ -133,20 +133,22 @@ public class GobboController : MonoBehaviour
 
     private Rigidbody2D rb;
     private SporeInventory sporeInventory;
+    private SporeInputReader inputReader;
+    private BuddyCommandWheelController commandWheel;
     private Color originalColor;
 
     private Vector2 moveInput;
     private Vector2 aimDirection = Vector2.down;
+    private Vector2 dashDirection = Vector2.down;
+    private bool hasExplicitAimDirection;
 
     private bool isDashing = false;
     private bool isDead = false;
     private bool isKnockedBack = false;
-    private bool isAttackReadyHeld = false;
 
     private float dashTimer = 0f;
     private float dashCooldownTimer = 0f;
     private float digTimer = 0f;
-    private float roarCooldownTimer = 0f;
     private float knockbackTimer = 0f;
     private float attackCooldownTimer = 0f;
     private float attackVisualLockTimer = 0f;
@@ -155,11 +157,15 @@ public class GobboController : MonoBehaviour
 
     private Vector2 knockbackVelocity;
 
+    public Vector2 CurrentAimDirection => aimDirection;
+    public bool IsDead => isDead;
+
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
         rb.freezeRotation = true;
         sporeInventory = GetComponent<SporeInventory>();
+        inputReader = SporeInputReader.Instance;
 
         if (buddyRoster == null)
             buddyRoster = Object.FindAnyObjectByType<BuddyRoster>();
@@ -169,6 +175,17 @@ public class GobboController : MonoBehaviour
 
     void Start()
     {
+        if (inputReader == null)
+            inputReader = SporeInputReader.Instance;
+
+        if (inputReader == null)
+            Debug.LogError("GobboController requires the persistent SporeInputReader.", this);
+
+        StartCoroutine(EnsureWorldInteractionAuthority());
+        commandWheel = GetComponent<BuddyCommandWheelController>();
+        if (commandWheel == null) commandWheel = gameObject.AddComponent<BuddyCommandWheelController>();
+        commandWheel.Configure(this);
+
         if (spriteRenderer == null)
             spriteRenderer = GetComponentInChildren<SpriteRenderer>();
 
@@ -200,6 +217,23 @@ public class GobboController : MonoBehaviour
         HandleActions();
     }
 
+    void OnDisable()
+    {
+        moveInput = Vector2.zero;
+        digTimer = 0f;
+        if (commandWheel != null) commandWheel.CancelWithoutCommand(!isDead);
+        if (inputReader != null)
+            inputReader.Buffer.Clear();
+    }
+
+    void OnEnable()
+    {
+        if (inputReader == null)
+            inputReader = SporeInputReader.Instance;
+        if (inputReader != null)
+            inputReader.Buffer.Clear();
+    }
+
     void FixedUpdate()
     {
         if (isDead)
@@ -218,32 +252,54 @@ public class GobboController : MonoBehaviour
 
     void ReadInput()
     {
-        moveInput = new Vector2(
-            Input.GetAxisRaw("Horizontal"),
-            Input.GetAxisRaw("Vertical")
-        ).normalized;
+        moveInput = inputReader != null &&
+                    (inputReader.Context == SporeInputContext.Gameplay || inputReader.Context == SporeInputContext.Wheel)
+            ? Vector2.ClampMagnitude(inputReader.Move, 1f)
+            : Vector2.zero;
     }
 
     void UpdateAimDirection()
     {
-        if (faceCursor)
+        if (inputReader == null || inputReader.Context != SporeInputContext.Gameplay)
+            return;
+
+        bool directionChanged = false;
+
+        if (inputReader.ActiveControlScheme == SporeControlScheme.Gamepad)
+        {
+            Vector2 stickAim = inputReader.AimStick;
+            if (stickAim.sqrMagnitude > 0.04f)
+            {
+                aimDirection = stickAim.normalized;
+                hasExplicitAimDirection = true;
+                directionChanged = true;
+            }
+        }
+        else if (faceCursor)
         {
             if (Camera.main == null)
                 return;
 
-            Vector3 mouseWorld = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            mouseWorld.z = 0f;
+            if (!inputReader.TryGetPointerWorldPosition(Camera.main, out Vector2 mouseWorld))
+                return;
 
-            Vector2 direction = mouseWorld - transform.position;
+            Vector2 direction = mouseWorld - (Vector2)transform.position;
 
             if (direction.sqrMagnitude > 0.001f)
+            {
                 aimDirection = direction.normalized;
+                hasExplicitAimDirection = true;
+                directionChanged = true;
+            }
+        }
 
+        if (directionChanged)
+        {
             UpdateDirectionalSprite();
             return;
         }
 
-        if (faceMovementWhenNotFacingCursor && moveInput.sqrMagnitude > 0.001f)
+        if (!hasExplicitAimDirection && faceMovementWhenNotFacingCursor && moveInput.sqrMagnitude > 0.001f)
         {
             aimDirection = moveInput.normalized;
             UpdateDirectionalSprite();
@@ -295,9 +351,6 @@ public class GobboController : MonoBehaviour
         if (attackVisualLockTimer > 0f)
             attackVisualLockTimer -= Time.deltaTime;
 
-        if (roarCooldownTimer > 0f)
-            roarCooldownTimer -= Time.deltaTime;
-
         if (sporeMendCooldownTimer > 0f)
             sporeMendCooldownTimer -= Time.deltaTime;
 
@@ -330,14 +383,12 @@ public class GobboController : MonoBehaviour
         }
 
         Vector2 desiredVelocity = isDashing
-            ? aimDirection * dashSpeed
+            ? dashDirection * dashSpeed
             : moveInput * moveSpeed;
 
         if (visualController != null)
         {
-            if (isAttackReadyHeld)
-                visualController.SetAnimationState(GobboAnimationState.AttackReady);
-            else if (attackVisualLockTimer <= 0f)
+            if (attackVisualLockTimer <= 0f)
                 visualController.SetAnimationState(isDashing ? GobboAnimationState.Dash : (moveInput.sqrMagnitude > 0.01f ? GobboAnimationState.Walk : GobboAnimationState.Idle));
         }
 
@@ -346,54 +397,51 @@ public class GobboController : MonoBehaviour
 
     void HandleActions()
     {
-        if (Input.GetMouseButton(0))
+        if (inputReader == null || inputReader.Context != SporeInputContext.Gameplay)
+        {
+            digTimer = 0f;
+            return;
+        }
+
+        SemanticButtonState digInput = inputReader.Dig;
+        if (digInput.StartedThisFrame || digInput.IsHeld)
             TryDig();
         else
             digTimer = 0f;
 
-        HandleAttackInput();
+        HandlePrimaryAttackInput(inputReader.PrimaryAttack);
 
-        if (Input.GetMouseButtonDown(2))
+        if (inputReader.SecondaryAbility.StartedThisFrame)
             TryDashBite();
 
-        if (Input.GetKeyDown(KeyCode.LeftShift))
-            TryDash();
+        HandleDashInput();
 
-        if (Input.GetKeyDown(KeyCode.E))
-            Interact();
-
-        if (Input.GetKeyDown(KeyCode.Q))
+        if (inputReader.PlantSpore.StartedThisFrame)
             PlaceSpore();
 
-        if (Input.GetKeyDown(KeyCode.F))
-            ToggleFollowersFollow();
-
-        if (Input.GetKeyDown(KeyCode.C))
-            ToggleFollowerCombat();
-
-        if (Input.GetKeyDown(KeyCode.Space))
-            Roar();
-
-        if (Input.GetKeyDown(KeyCode.R))
+        if (inputReader.Ultimate.StartedThisFrame)
             SpecialAbility();
     }
 
-    void HandleAttackInput()
+    void HandlePrimaryAttackInput(SemanticButtonState attackInput)
     {
-        if (Input.GetMouseButton(1) && attackCooldownTimer <= 0f)
+        double now = Time.unscaledTimeAsDouble;
+        bool buffered = inputReader.Buffer.IsBuffered(BufferedInputAction.PrimaryAttack, now);
+        if ((attackInput.IsHeld || buffered) && TryBasicAttack())
         {
-            isAttackReadyHeld = true;
-            if (visualController != null)
-                visualController.SetAnimationState(GobboAnimationState.AttackReady);
+            inputReader.Buffer.Consume(BufferedInputAction.PrimaryAttack, now);
         }
+    }
 
-        if (Input.GetMouseButtonUp(1))
+    void HandleDashInput()
+    {
+        double now = Time.unscaledTimeAsDouble;
+        if (!inputReader.Buffer.IsBuffered(BufferedInputAction.Dash, now))
+            return;
+
+        if (TryDash())
         {
-            bool shouldAttack = isAttackReadyHeld;
-            isAttackReadyHeld = false;
-
-            if (shouldAttack)
-                BasicAttack();
+            inputReader.Buffer.Consume(BufferedInputAction.Dash, now);
         }
     }
 
@@ -417,8 +465,9 @@ public class GobboController : MonoBehaviour
         Vector2 digPoint = digStart + aimDirection.normalized * digRange;
         float effectiveDigRadius = GetEffectiveDigRadius();
 
-        if (MapGenerator.Instance != null)
-            DigCapsule(digStart, digPoint, effectiveDigRadius);
+        IDiggableTerrain terrain = DiggableTerrainService.Active;
+        if (terrain != null)
+            DigCapsule(terrain, digStart, digPoint, effectiveDigRadius);
 
         Collider2D[] hits = diggableLayers.value == 0
             ? Physics2D.OverlapCircleAll(digPoint, effectiveDigRadius)
@@ -433,20 +482,20 @@ public class GobboController : MonoBehaviour
         }
     }
 
-    void DigCapsule(Vector2 start, Vector2 end, float radius)
+    void DigCapsule(IDiggableTerrain terrain, Vector2 start, Vector2 end, float radius)
     {
-        if (MapGenerator.Instance == null)
+        if (terrain == null)
             return;
 
         float distance = Vector2.Distance(start, end);
-        float step = GetDigSweepStepDistance();
+        float step = GetDigSweepStepDistance(terrain);
         int steps = Mathf.Max(1, Mathf.CeilToInt(distance / step));
 
         for (int i = 0; i <= steps; i++)
         {
             float t = i / (float)steps;
             Vector2 point = Vector2.Lerp(start, end, t);
-            MapGenerator.Instance.DigCircle(point, radius);
+            terrain.DigCircle(point, radius);
         }
     }
 
@@ -487,22 +536,23 @@ public class GobboController : MonoBehaviour
         if (rings <= 0)
             return 0f;
 
-        float cellSize = MapGenerator.Instance != null ? MapGenerator.Instance.map.cellSize : 1f;
+        IDiggableTerrain terrain = DiggableTerrainService.Active;
+        float cellSize = terrain != null ? terrain.CellSize : 1f;
         return cellSize * rings * Mathf.Sqrt(2f);
     }
 
-    float GetDigSweepStepDistance()
+    float GetDigSweepStepDistance(IDiggableTerrain terrain)
     {
-        float cellSize = MapGenerator.Instance != null ? MapGenerator.Instance.map.cellSize : 1f;
+        float cellSize = terrain != null ? terrain.CellSize : 1f;
         return Mathf.Max(0.1f, cellSize * 0.5f);
     }
 
-    void BasicAttack()
+    bool TryBasicAttack()
     {
         if (attackCooldownTimer > 0f)
-            return;
+            return false;
 
-        attackCooldownTimer = attackCooldown;
+        attackCooldownTimer = GetEffectiveAttackInterval();
 
         if (visualController != null)
         {
@@ -541,6 +591,12 @@ public class GobboController : MonoBehaviour
         }
 
         Debug.Log("Gobbo attack checked. Enemies hit: " + hitCount);
+        return true;
+    }
+
+    public float GetEffectiveAttackInterval()
+    {
+        return CorePlayerControlMath.GetEffectiveAttackInterval(attackCooldown, attackSpeed);
     }
 
     int CalculateAttackDamage(float multiplier)
@@ -566,21 +622,14 @@ public class GobboController : MonoBehaviour
         if (!hasDashBite || dashBiteCooldownTimer > 0f)
             return;
 
-        Transform target = GetEnemyUnderCursor();
+        AbilityTargetResult resolvedTarget = ResolveDashBiteTarget();
+        Transform target = resolvedTarget.Target;
 
         if (target == null)
             return;
 
-        float distance = Vector2.Distance(transform.position, target.position);
-
-        if (distance > dashBiteRange)
-            return;
-
-        if (!MapPathfinder.HasLineOfWalkableSight(transform.position, target.position))
-            return;
-
         dashBiteCooldownTimer = dashBiteCooldown;
-        attackCooldownTimer = attackCooldown;
+        attackCooldownTimer = GetEffectiveAttackInterval();
 
         Vector2 toTarget = ((Vector2)target.position - (Vector2)transform.position).normalized;
         Vector2 desiredPosition = (Vector2)target.position - toTarget * dashBiteStopDistance;
@@ -600,19 +649,39 @@ public class GobboController : MonoBehaviour
         StartKnockback(-toTarget, knockbackForce * 0.45f, knockbackDuration);
     }
 
-    Transform GetEnemyUnderCursor()
+    AbilityTargetResult ResolveDashBiteTarget()
     {
-        if (Camera.main == null)
-            return null;
+        AbilityTargetingMode mode = inputReader.ActiveControlScheme == SporeControlScheme.Gamepad
+            ? AbilityTargetingMode.DirectionalCone
+            : AbilityTargetingMode.PrecisePointer;
 
-        Vector3 mouseWorld = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        Vector2 point = new Vector2(mouseWorld.x, mouseWorld.y);
+        Vector2 pointerWorld = default;
+        if (mode == AbilityTargetingMode.PrecisePointer &&
+            !inputReader.TryGetPointerWorldPosition(Camera.main, out pointerWorld))
+            return default;
 
-        Collider2D hit = enemyLayers.value == 0
-            ? Physics2D.OverlapPoint(point)
-            : Physics2D.OverlapPoint(point, enemyLayers);
+        return AbilityTargetResolver.Resolve(new AbilityTargetRequest
+        {
+            Mode = mode,
+            Source = transform.position,
+            AimDirection = aimDirection,
+            PointerWorldPosition = pointerWorld,
+            MaxRange = dashBiteRange,
+            TargetLayers = enemyLayers,
+            FullConeAngle = dashBiteTargetConeAngle,
+            AlignmentWeight = dashBiteAlignmentWeight,
+            DistanceWeight = dashBiteDistanceWeight,
+            ResolveEligibleTarget = ResolveLivingEnemy,
+            HasLineOfSight = (from, to) => MapPathfinder.HasLineOfWalkableSight(from, to)
+        });
+    }
 
-        return hit != null ? hit.transform : null;
+    static Transform ResolveLivingEnemy(Collider2D hit)
+    {
+        EnemyHealth enemy = hit != null ? hit.GetComponentInParent<EnemyHealth>() : null;
+        return enemy != null && enemy.isActiveAndEnabled && enemy.health > 0
+            ? enemy.transform
+            : null;
     }
 
     void TellBuddiesToAttack(Transform target)
@@ -633,71 +702,25 @@ public class GobboController : MonoBehaviour
         }
     }
 
-    void TryDash()
+    bool TryDash()
     {
         if (dashCooldownTimer > 0f)
-            return;
+            return false;
 
+        dashDirection = CorePlayerControlMath.ResolveDashDirection(moveInput, aimDirection, Vector2.down);
         isDashing = true;
         dashTimer = dashDuration;
         dashCooldownTimer = dashCooldown;
+        return true;
     }
 
-    void Interact()
+    IEnumerator EnsureWorldInteractionAuthority()
     {
-        Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, interactRange);
-
-        ICampInteractable nearestCampInteractable = null;
-        float nearestCampDistance = Mathf.Infinity;
-
-        foreach (Collider2D hit in hits)
-        {
-            ICampInteractable campInteractable = hit.GetComponent<ICampInteractable>();
-
-            if (campInteractable == null)
-                continue;
-
-            float distance = Vector2.Distance(transform.position, hit.transform.position);
-
-            if (distance < nearestCampDistance)
-            {
-                nearestCampDistance = distance;
-                nearestCampInteractable = campInteractable;
-            }
-        }
-
-        if (nearestCampInteractable != null)
-        {
-            nearestCampInteractable.Interact(this);
-            return;
-        }
-
-        FoodItem nearestFood = null;
-        float nearestDistance = Mathf.Infinity;
-
-        foreach (Collider2D hit in hits)
-        {
-            FoodItem food = hit.GetComponent<FoodItem>();
-
-            if (food == null)
-                continue;
-
-            float distance = Vector2.Distance(transform.position, food.transform.position);
-
-            if (distance < nearestDistance)
-            {
-                nearestDistance = distance;
-                nearestFood = food;
-            }
-        }
-
-        if (nearestFood != null)
-        {
-            nearestFood.Eat(this);
-            return;
-        }
-
-        Debug.Log("Nothing interactable nearby.");
+        yield return null;
+        CampInteractionDetector authority = Object.FindAnyObjectByType<CampInteractionDetector>();
+        if (authority == null)
+            authority = gameObject.AddComponent<CampInteractionDetector>();
+        authority.SetPlayer(transform);
     }
 
     void PlaceSpore()
@@ -825,20 +848,19 @@ public class GobboController : MonoBehaviour
         return true;
     }
 
-    void ToggleFollowersFollow()
+    public void IssueBuddyCommand(BuddyCommand command)
     {
-        followersFollowing = !followersFollowing;
+        BuddyCommandState.Apply(command, ref followersFollowing, ref followersAggressive);
         ApplyBuddyModes();
-
-        Debug.Log(followersFollowing ? "Followers: FOLLOW" : "Followers: STAY");
+        Debug.Log("Followers: " + command.ToString().ToUpperInvariant());
     }
 
-    void ToggleFollowerCombat()
+    public bool IsBuddyCommandActive(BuddyCommand command)
     {
-        followersAggressive = !followersAggressive;
-        ApplyBuddyModes();
-
-        Debug.Log(followersAggressive ? "Followers: BITE" : "Followers: PASSIVE");
+        return command == BuddyCommand.Follow ? followersFollowing
+            : command == BuddyCommand.Stay ? !followersFollowing
+            : command == BuddyCommand.Aggressive ? followersAggressive
+            : !followersAggressive;
     }
 
     void ApplyBuddyModes()
@@ -862,19 +884,6 @@ public class GobboController : MonoBehaviour
             if (combat != null)
                 combat.enabled = followersAggressive;
         }
-    }
-
-    void Roar()
-    {
-        if (roarCooldownTimer > 0f)
-            return;
-
-        roarCooldownTimer = roarCooldown;
-
-        Debug.Log("Gobbo roar: " + roarType);
-
-        if (roarAudio != null)
-            roarAudio.Play();
     }
 
     void SpecialAbility()
@@ -1058,6 +1067,9 @@ public class GobboController : MonoBehaviour
             return;
 
         isDead = true;
+        if (commandWheel != null) commandWheel.CancelWithoutCommand(false);
+        if (inputReader != null)
+            inputReader.Buffer.Clear();
 
         if (visualController != null)
             visualController.SetAnimationState(GobboAnimationState.Death);

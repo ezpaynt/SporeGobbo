@@ -137,7 +137,9 @@ public class NewGameButton : MonoBehaviour
         state.SetLeaderName(playerName.Trim());
 
         Debug.Log("[NewGameButton] New game in slot " + data.slotIndex + " for " + playerName + ". Loading " + firstSceneName);
-        Time.timeScale = 1f;
+        CampArrivalContext.Clear();
+        SampleSceneModeContext.SetPending(SampleSceneMode.Intro);
+        SporePauseService.ResetAll();
         SceneManager.LoadScene(firstSceneName);
     }
 

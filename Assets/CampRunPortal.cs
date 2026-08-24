@@ -36,12 +36,6 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
         HookButtons();
     }
 
-    void Update()
-    {
-        if (promptOpen && Input.GetKeyDown(KeyCode.Escape))
-            HidePrompt();
-    }
-
     public string GetInteractPrompt()
     {
         return promptMessage;
@@ -85,7 +79,7 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
 
         if (promptPanel != null)
         {
-            CampMenuModal.Open(currentPlayer, this, HidePrompt);
+            CampMenuModal.Open(currentPlayer, this, HidePrompt, cancelButton);
             promptPanel.SetActive(true);
             promptPanel.transform.SetAsLastSibling();
         }
@@ -131,8 +125,9 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
         }
 
         HidePrompt();
-        Time.timeScale = 1f;
+        SporePauseService.ResetAll();
         PlayerDeathWatcher.SuppressDeathHandlingForSceneChange();
+        SampleSceneModeContext.SetPending(SampleSceneMode.NormalRun);
         SceneManager.LoadScene(runSceneName);
     }
 

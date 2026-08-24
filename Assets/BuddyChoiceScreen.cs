@@ -1,6 +1,7 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using SporeGobbo.Input;
 
 public class BuddyChoiceScreen : MonoBehaviour
 {
@@ -40,19 +41,24 @@ public class BuddyChoiceScreen : MonoBehaviour
             panel.transform.SetAsLastSibling();
         }
 
+        bool gamepad = SporeInputReader.Instance != null &&
+                       SporeInputReader.Instance.ActiveControlScheme == SporeGobbo.Input.SporeControlScheme.Gamepad;
         if (nameInput != null)
         {
             nameInput.gameObject.SetActive(true);
             nameInput.text = GetRandomBuddyName();
-            nameInput.Select();
-            nameInput.ActivateInputField();
+            if (!gamepad)
+            {
+                nameInput.Select();
+                nameInput.ActivateInputField();
+            }
         }
 
         if (continueButton != null)
             continueButton.interactable = true;
 
-        if (pauseGameWhileNaming)
-            Time.timeScale = 0f;
+        SporeUiCoordinator.Instance.PushModal(this, ConfirmName, pauseGameWhileNaming,
+            gamepad ? continueButton : nameInput);
     }
 
     void ConfirmName()
@@ -76,8 +82,7 @@ public class BuddyChoiceScreen : MonoBehaviour
         if (panel != null)
             panel.SetActive(false);
 
-        if (pauseGameWhileNaming)
-            Time.timeScale = 1f;
+        SporeUiCoordinator.Instance.PopModal(this);
     }
 
     string GetRandomBuddyName()

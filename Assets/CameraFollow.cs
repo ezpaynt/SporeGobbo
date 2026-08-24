@@ -1,3 +1,4 @@
+using SporeGobbo.Input;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -36,7 +37,8 @@ public class CameraFollow : MonoBehaviour
     {
         if (!allowScrollZoomForTesting || cam == null || !cam.orthographic) return;
 
-        float scroll = Input.mouseScrollDelta.y;
+        SporeInputReader reader = SporeInputReader.Instance;
+        float scroll = reader != null ? reader.DebugTestZoom.y : 0f;
         if (Mathf.Abs(scroll) < 0.01f) return;
 
         cam.orthographicSize -= scroll * zoomSpeed;

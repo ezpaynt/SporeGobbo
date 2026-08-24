@@ -264,6 +264,8 @@ public class CampSuccessionUI : MonoBehaviour
         if (letCampChooseButton != null) letCampChooseButton.gameObject.SetActive(true);
 
         HookButtons();
+        SporeUiCoordinator.Instance.PushModal(this, null, false,
+            letCampChooseButton != null ? letCampChooseButton : acceptMarkedSuccessorButton);
     }
 
     private void OpenGameOverPanel()
@@ -281,6 +283,7 @@ public class CampSuccessionUI : MonoBehaviour
         if (gameOverText != null) gameOverText.text = gameOverMessage;
 
         HookButtons();
+        SporeUiCoordinator.Instance.PushModal(this, null, false, returnToMainMenuButton);
     }
 
     private void HideBlockingPanelsExcept(GameObject panelToKeep)
@@ -414,7 +417,7 @@ public class CampSuccessionUI : MonoBehaviour
         Log("Promoted successor: " + successor.displayName + " / " + successor.uniqueId);
 
         HideAllPanels();
-        Time.timeScale = 1f;
+        SporePauseService.ResetAll();
 
         CampSceneController controller = Object.FindAnyObjectByType<CampSceneController>(FindObjectsInactive.Include);
         if (controller != null) controller.RevealCampVisuals();
@@ -423,7 +426,7 @@ public class CampSuccessionUI : MonoBehaviour
     public void ReturnToMainMenu()
     {
         Log("Return to main menu clicked. Scene: " + mainMenuSceneName);
-        Time.timeScale = 1f;
+        SporePauseService.ResetAll();
         if (!string.IsNullOrWhiteSpace(mainMenuSceneName))
             SceneManager.LoadScene(mainMenuSceneName);
     }
@@ -432,6 +435,7 @@ public class CampSuccessionUI : MonoBehaviour
     {
         if (successionPanel != null) successionPanel.SetActive(false);
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
+        if (SporeUiCoordinator.Instance != null) SporeUiCoordinator.Instance.PopModal(this);
     }
 
     private string GetPath(Transform t)

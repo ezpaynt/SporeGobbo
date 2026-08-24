@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Serialization;
 
-public class CampSceneController : MonoBehaviour
+public class CampSceneController : MonoBehaviour, ISporePauseScreen
 {
     [Header("Run Stats Screen")]
     [FormerlySerializedAs("summaryPanel")] public GameObject runStatsPanel;
@@ -37,6 +37,10 @@ public class CampSceneController : MonoBehaviour
     [Tooltip("Unused. Returning to camp should not heal; camp healing currently happens only through CampFireRecovery.")]
     public bool healAutomaticallyWhenCampOpens = false;
     public bool skipReportsAndOpenCampImmediatelyForTesting = false;
+    public Transform newGameIntroSpawn;
+    public Transform mainCampArrivalSpawn;
+
+    private CampArrivalMode arrivalMode = CampArrivalMode.LoadedSave;
 
     [Header("Optional Future UI")]
     public TMP_Text playerStatsText;
@@ -52,7 +56,6 @@ public class CampSceneController : MonoBehaviour
 
     [Header("Camp Pause")]
     public GameObject pauseMenu;
-    public KeyCode pauseKey = KeyCode.Escape;
 
     private readonly List<BuddyTypeSetup> currentEvolutionChoices = new List<BuddyTypeSetup>();
     private readonly List<GobboCard> currentStatCardChoices = new List<GobboCard>();
@@ -62,6 +65,7 @@ public class CampSceneController : MonoBehaviour
 
     private void Awake()
     {
+        arrivalMode = CampArrivalContext.ConsumeOrDefault();
         ValidateRequiredReferences();
     }
 
@@ -70,7 +74,19 @@ public class CampSceneController : MonoBehaviour
         EnsureGameState();
         HookButtons();
 
-        if (TryStartDeathSuccessionFlow()) return;
+        if (arrivalMode == CampArrivalMode.ReturnedFromRun && TryStartDeathSuccessionFlow()) return;
+
+        if (arrivalMode == CampArrivalMode.NewGameIntro)
+        {
+            OpenCampForArrival(newGameIntroSpawn, false, false, true);
+            return;
+        }
+
+        if (arrivalMode == CampArrivalMode.LoadedSave)
+        {
+            OpenCampForArrival(mainCampArrivalSpawn, true, false, false);
+            return;
+        }
 
         if (skipReportsAndOpenCampImmediatelyForTesting)
             RevealCampVisuals();
@@ -78,34 +94,29 @@ public class CampSceneController : MonoBehaviour
             ShowRunStatsScreen();
     }
 
-    private void Update()
+    public bool IsPauseOpen => pauseMenu != null && pauseMenu.activeSelf;
+    public bool HasPauseSubpage => false;
+    public Selectable PauseDefaultSelectable => UiFocusUtility.FindFirst(pauseMenu);
+    public void OpenPause()
     {
-        // Safety: if a Resume button hides PauseMenu but forgets to unpause time,
-        // immediately unfreeze the camp. This prevents the "resume once, then stuck" bug.
-        if (Time.timeScale == 0f && pauseMenu != null && !pauseMenu.activeSelf)
-            Time.timeScale = 1f;
-
-        if (!Input.GetKeyDown(pauseKey)) return;
-
-        // Do not steal Escape while report/evolution panels are open.
-        if ((runStatsPanel != null && runStatsPanel.activeSelf) ||
-            (survivorsPanel != null && survivorsPanel.activeSelf) ||
-            (campBuddyEvolutionPanel != null && campBuddyEvolutionPanel.activeSelf))
-            return;
-
         FindPauseMenuIfMissing();
-        if (pauseMenu == null) return;
-
-        bool open = !pauseMenu.activeSelf;
-        pauseMenu.SetActive(open);
-        Time.timeScale = open ? 0f : 1f;
+        if (pauseMenu != null && !pauseMenu.activeSelf)
+        {
+            pauseMenu.SetActive(true);
+            SporePauseService.Acquire(this);
+        }
     }
+    public void ClosePause() => ResumeCampFromPause();
+    public void BackPauseSubpage() => ResumeCampFromPause();
 
     public void ResumeCampFromPause()
     {
         FindPauseMenuIfMissing();
-        if (pauseMenu != null) pauseMenu.SetActive(false);
-        Time.timeScale = 1f;
+        if (pauseMenu != null && pauseMenu.activeSelf)
+        {
+            pauseMenu.SetActive(false);
+            SporePauseService.Release(this);
+        }
     }
 
     void FindPauseMenuIfMissing()
@@ -298,6 +309,7 @@ public class CampSceneController : MonoBehaviour
         if (campBuddyEvolutionPanel != null) campBuddyEvolutionPanel.SetActive(false);
         HideBuddyStatRerollUI();
         FillRunStatsText();
+        SporeUiCoordinator.Instance.PushModal(this, null, false, continueToSurvivorsButton);
     }
 
     public void ShowSurvivorsScreen()
@@ -308,6 +320,7 @@ public class CampSceneController : MonoBehaviour
         if (campBuddyEvolutionPanel != null) campBuddyEvolutionPanel.SetActive(false);
         HideBuddyStatRerollUI();
         RefreshSurvivorsScreen();
+        SporeUiCoordinator.Instance.PushModal(this, null, false, continueToCampButton);
     }
 
     public void RefreshSurvivorsScreen()
@@ -328,6 +341,7 @@ public class CampSceneController : MonoBehaviour
         if (campMenuPanel != null) campMenuPanel.SetActive(false);
         if (campBuddyEvolutionPanel != null) campBuddyEvolutionPanel.SetActive(false);
         HideBuddyStatRerollUI();
+        SporeUiCoordinator.Instance.PopModal(this);
 
         if (campPlayableSpawner != null)
         {
@@ -337,6 +351,37 @@ public class CampSceneController : MonoBehaviour
         }
 
         Debug.LogWarning("CampSceneController cannot open playable camp because CampPlayableSpawner is not assigned.");
+    }
+
+    void OpenCampForArrival(Transform spawnPoint, bool spawnBuddies, bool runCampRoutine, bool saveDiscovery)
+    {
+        if (runStatsPanel != null) runStatsPanel.SetActive(false);
+        if (survivorsPanel != null) survivorsPanel.SetActive(false);
+        if (campMenuPanel != null) campMenuPanel.SetActive(false);
+        if (campBuddyEvolutionPanel != null) campBuddyEvolutionPanel.SetActive(false);
+        HideBuddyStatRerollUI();
+        SporeUiCoordinator.Instance.PopModal(this);
+        if (campPlayableSpawner == null) return;
+        campPlayableSpawner.SpawnPlayableCamp(spawnPoint, spawnBuddies);
+        if (campPlayableSpawner.SpawnedPlayer == null)
+        {
+            Debug.LogError("Camp arrival did not spawn the player. Arrival progress was not saved.", this);
+            return;
+        }
+        if (runCampRoutine) BeginCampStartRoutineIfPresent();
+        if (saveDiscovery)
+        {
+            GameState state = GameState.Instance;
+            if (state == null)
+            {
+                Debug.LogError("Camp arrival spawned the player but GameState is missing. Discovery progress was not saved.", this);
+                return;
+            }
+            state.EnsureRuntimeDefaults();
+            state.campTerrainState.mainChamberRevealed = true;
+            StoryEventService.Complete(state, StoryEventIds.ASporeHatchesCampDiscovered);
+            SporeSaveManager.SaveCurrentSlotFromGameState();
+        }
     }
 
     void BeginCampStartRoutineIfPresent()
@@ -510,6 +555,7 @@ public class CampSceneController : MonoBehaviour
         }
 
         HideBuddyStatRerollUI();
+        SporeUiCoordinator.Instance.PopModal(this);
         BuildCampEvolutionChoices(buddy);
         if (survivorsPanel != null) survivorsPanel.SetActive(false);
         if (runStatsPanel != null) runStatsPanel.SetActive(false);
@@ -525,6 +571,9 @@ public class CampSceneController : MonoBehaviour
             ChooseCampEvolution);
 
         if (campBuddyEvolutionBackButton != null) campBuddyEvolutionBackButton.gameObject.SetActive(true);
+
+        SporeUiCoordinator.Instance.PushModal(this, CloseCampBuddyEvolutionPanel, false,
+            campBuddyEvolutionButtons != null && campBuddyEvolutionButtons.Length > 0 ? campBuddyEvolutionButtons[0] : campBuddyEvolutionBackButton);
 
         Debug.Log("Opened CampBuddyEvolutionPanel with " + currentEvolutionChoices.Count + " choices for " + buddy.displayName);
     }
@@ -562,6 +611,9 @@ public class CampSceneController : MonoBehaviour
 
         if (campBuddyEvolutionBackButton != null) campBuddyEvolutionBackButton.gameObject.SetActive(true);
         ShowBuddyStatRerollUI();
+
+        SporeUiCoordinator.Instance.PushModal(this, CloseCampBuddyEvolutionPanel, false,
+            campBuddyEvolutionButtons != null && campBuddyEvolutionButtons.Length > 0 ? campBuddyEvolutionButtons[0] : campBuddyEvolutionBackButton);
 
         Debug.Log("Opened buddy stat card panel with " + currentStatCardChoices.Count + " choices for " + buddy.displayName);
     }
@@ -738,6 +790,7 @@ public class CampSceneController : MonoBehaviour
         if (campBuddyEvolutionBackButton != null) campBuddyEvolutionBackButton.gameObject.SetActive(true);
         HideBuddyStatRerollUI();
         if (survivorsPanel != null) survivorsPanel.SetActive(true);
+        SporeUiCoordinator.Instance.PushModal(this, null, false, continueToCampButton);
     }
 
     List<BuddyTypeSetup> GetFallbackEvolutionChoices(int amount)

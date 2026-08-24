@@ -1,7 +1,7 @@
 using UnityEngine;
 
 [RequireComponent(typeof(Collider2D))]
-public class WorldItemPickup : MonoBehaviour, ICampInteractable
+public class WorldItemPickup : MonoBehaviour, ICampInteractable, IWorldInteractionMetadata
 {
     [Header("Item")]
     public ItemDefinition itemDefinition;
@@ -13,10 +13,7 @@ public class WorldItemPickup : MonoBehaviour, ICampInteractable
 
     [Header("Interaction")]
     public string prompt = "Pick up snack";
-    public bool allowDirectEInteractionFallback = true;
     public float pickupRange = 1.1f;
-    public KeyCode pickupKey = KeyCode.E;
-    public string playerTag = "Player";
 
     private bool collected;
 
@@ -34,17 +31,10 @@ public class WorldItemPickup : MonoBehaviour, ICampInteractable
         ApplySprite();
     }
 
-    void Update()
-    {
-        if (!allowDirectEInteractionFallback || collected || !Input.GetKeyDown(pickupKey))
-            return;
-
-        GameObject player = GameObject.FindGameObjectWithTag(playerTag);
-        if (player == null) return;
-        if (Vector2.Distance(transform.position, player.transform.position) > pickupRange) return;
-
-        Interact(player.GetComponent<GobboController>());
-    }
+    public int InteractionPriority => 0;
+    public float InteractionRange => pickupRange;
+    public bool CanInteract(GobboController player) => !collected && player != null;
+    public Vector2 GetInteractionPoint() => transform.position;
 
     public string GetInteractPrompt()
     {

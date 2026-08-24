@@ -58,9 +58,20 @@ public static class SporeSaveManager
             string json = File.ReadAllText(path);
             SporeSaveSlotData data = JsonUtility.FromJson<SporeSaveSlotData>(json);
             if (data == null) data = new SporeSaveSlotData { hasSave = false };
+            int loadedSaveVersion = data.saveVersion;
             data.slotIndex = slotIndex;
             data.saveId = "slot_" + slotIndex;
-            if (data.hasSave) Normalize(data);
+            if (data.hasSave)
+            {
+                Normalize(data);
+                if (loadedSaveVersion < 7)
+                {
+                    data.campTerrainState ??= new CampTerrainState();
+                    data.campTerrainState.mainChamberRevealed = true;
+                    StoryEventService.Complete(data.storyProgress, StoryEventIds.ASporeHatchesCampDiscovered,
+                        data.currentRunNumber, data.campCycleNumber);
+                }
+            }
             return data;
         }
         catch (Exception ex)
@@ -167,6 +178,7 @@ public static class SporeSaveManager
             existing.lastRun = CloneRunSummary(gs.lastRun);
             existing.markedSuccessorId = gs.markedSuccessorId;
             existing.deathHistory = gs.GetDeathHistoryCopy();
+            existing.campTerrainState = gs.campTerrainState != null ? gs.campTerrainState.Clone() : new CampTerrainState();
             existing.storyProgress = gs.storyProgress != null ? gs.storyProgress.Clone() : new StoryProgressData();
         }
 
@@ -220,6 +232,7 @@ public static class SporeSaveManager
         gs.lastRun = CloneRunSummary(data.lastRun);
         gs.markedSuccessorId = data.markedSuccessorId;
         gs.SetDeathHistory(data.deathHistory);
+        gs.campTerrainState = data.campTerrainState != null ? data.campTerrainState.Clone() : new CampTerrainState();
         gs.storyProgress = data.storyProgress != null ? data.storyProgress.Clone() : new StoryProgressData();
         gs.RepairRosterState();
 
@@ -251,7 +264,15 @@ public static class SporeSaveManager
     {
         SporeSaveSlotData data = LoadSlot(slotIndex);
         if (data == null || !data.hasSave) return false;
-        return ApplySlotToGameState(data);
+        if (!ApplySlotToGameState(data)) return false;
+        SaveSlot(data);
+        return true;
+    }
+
+    public static bool ShouldLoadIntro(SporeSaveSlotData data)
+    {
+        return data != null && data.hasSave &&
+               !StoryEventService.IsCompleted(data.storyProgress, StoryEventIds.ASporeHatchesCampDiscovered);
     }
 
     public static SporeSaveSlotData LoadMostRecentSlot()

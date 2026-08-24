@@ -20,3 +20,6 @@ MonoBehaviour:
     - entryId: entry.a_spore_hatches.named
       requiredStoryEventId: story.a_spore_hatches.named
       bodyText: I woke beneath the earth. What am I?
+    - entryId: entry.a_spore_hatches.camp_discovered
+      requiredStoryEventId: story.a_spore_hatches.camp_discovered
+      bodyText: I found an old camp. Someone lived here before me.

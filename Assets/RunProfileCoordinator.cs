@@ -28,14 +28,17 @@ public static class RunProfileCoordinator
             return Fail("Difficulty overrides are not implemented in this architecture batch.");
         if (complete.developmentOverrides != null && complete.developmentOverrides.enabled && complete.developmentOverrides.unsupportedXpGuarantee)
             return Fail("XP guarantees are not supported.");
-        if (content == null) return Fail("RunContentSpawner is missing.");
-        if (complete.content.enemyPrefab == null || complete.content.exitPortalPrefab == null ||
-            complete.content.retreatPortalPrefab == null)
-            return Fail("Required encounter or portal prefabs are missing.");
+        if (map.generateRunContent)
+        {
+            if (content == null) return Fail("RunContentSpawner is missing.");
+            if (complete.content.enemyPrefab == null || complete.content.exitPortalPrefab == null ||
+                complete.content.retreatPortalPrefab == null)
+                return Fail("Required encounter or portal prefabs are missing.");
+        }
 
         map.LoadProfileIntoInspector(complete);
         ApplyEnvironment(complete.environment, map);
-        ApplyContent(complete.content, content);
+        if (map.generateRunContent) ApplyContent(complete.content, content);
         ApplyDevelopmentOverrides(complete.developmentOverrides, map, content);
         ActiveProfileId = complete.identity.stableProfileId;
         ActiveDisplayName = string.IsNullOrWhiteSpace(complete.identity.displayName) ? complete.name : complete.identity.displayName;
@@ -83,7 +86,7 @@ public static class RunProfileCoordinator
     static void ApplyDevelopmentOverrides(RunProfile.DevelopmentOverrides d, MapGenerator m, RunContentSpawner s)
     {
         m.activeDevelopmentOverrides = d != null && d.enabled ? d : null;
-        s.activeDevelopmentOverrides = m.activeDevelopmentOverrides;
+        if (s != null) s.activeDevelopmentOverrides = m.activeDevelopmentOverrides;
         if (d == null || !d.enabled) return;
         m.formationCount = Mathf.Max(m.formationCount, d.minimumStoneFormations);
         m.minimumRootCount = Mathf.Max(m.minimumRootCount, d.minimumRootFormations);
@@ -94,14 +97,14 @@ public static class RunProfileCoordinator
             m.neutralFalsePositiveChance = Mathf.Max(m.neutralFalsePositiveChance, .35f);
             m.neighboringCategoryChance = 1f;
         }
-        if (d.minimumBlobSpitters > 0)
+        if (s != null && d.minimumBlobSpitters > 0)
         {
             s.blobSpitterSpawnChance = 1f;
             s.blobSpittersPerCampMin = Mathf.Max(s.blobSpittersPerCampMin, 1);
             s.blobSpittersPerCampMax = Mathf.Max(s.blobSpittersPerCampMax, s.blobSpittersPerCampMin);
         }
-        if (d.minimumSnacks > 0) { s.enableSnackSpawns = true; s.forceSnackSpawn = true; }
-        if (d.requireRetreatPortal) s.spawnRetreatPortalNearSpawn = true;
+        if (s != null && d.minimumSnacks > 0) { s.enableSnackSpawns = true; s.forceSnackSpawn = true; }
+        if (s != null && d.requireRetreatPortal) s.spawnRetreatPortalNearSpawn = true;
     }
     static void ApplyContent(RunProfile.Content p, RunContentSpawner s)
     {

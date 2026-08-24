@@ -17,8 +17,6 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
 
     [Header("Camp Interaction")]
     public string interactPrompt = "Read Old Bones";
-    [Tooltip("ON = CampInteractionDetector owns the E prompt. OFF = this script uses its old distance/E check.")]
-    public bool useSharedCampInteraction = true;
 
     [Header("UI")]
     public GameObject panel;
@@ -29,12 +27,7 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
     public string emptyBuddyText = "No fallen buddies are on the wall yet.";
     public string emptyLeaderText = "No fallen leaders yet.";
 
-    [Header("Legacy Input Fallback")]
-    public KeyCode interactKey = KeyCode.E;
-    public float interactRange = 1.75f;
     public Transform playerOverride;
-
-    bool playerNearby;
 
     void Awake()
     {
@@ -54,20 +47,7 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
         RefreshVisibility();
     }
 
-    void Update()
-    {
-        RefreshVisibility();
-
-        if (!useSharedCampInteraction)
-        {
-            Transform player = playerOverride != null ? playerOverride : FindPlayer();
-            playerNearby = player != null && Vector2.Distance(transform.position, player.position) <= interactRange;
-            if (playerNearby && Input.GetKeyDown(interactKey)) TogglePanel();
-        }
-
-        if (panel != null && panel.activeSelf && Input.GetKeyDown(KeyCode.Escape))
-            ClosePanel();
-    }
+    void Update() => RefreshVisibility();
 
     public string GetInteractPrompt()
     {
@@ -107,12 +87,14 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
         panel.SetActive(true);
         panel.transform.SetAsLastSibling();
         RefreshPanel();
+        CampMenuModal.Open(playerOverride != null ? playerOverride.GetComponent<GobboController>() : null,
+            this, ClosePanel, continueButton);
     }
 
     public void ClosePanel()
     {
         if (panel != null) panel.SetActive(false);
-        Time.timeScale = 1f;
+        CampMenuModal.Close(this);
     }
 
     bool IsVisible()

@@ -20,6 +20,7 @@ public sealed class PauseMenuJournalView : MonoBehaviour
     JournalSnapshot snapshot;
     string selectedThreadId = "";
     readonly List<Button> threadButtons = new List<Button>();
+    public Selectable DefaultSelectable => threadButtons.Count > 0 ? threadButtons[0] : null;
 
     public void Build(RectTransform root, TMP_FontAsset sharedFont)
     {

@@ -1,0 +1,195 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8fb460bcfa2287f44bf0fcba8f815dcc, type: 3}
+  m_Name: Intro Opening
+  m_EditorClassIdentifier: Assembly-CSharp::RunProfile
+  seed: 4102026
+  randomSeed: 0
+  width: 148
+  height: 84
+  cellSize: 0.6
+  autoCenterSpawn: 0
+  spawnCenter: {x: 18, y: 42}
+  spawnRadius: 5
+  darkDistance: 16
+  darkerDistance: 58
+  fillerTunnelCount: 0
+  fillerPocketCount: 0
+  fillerLootPocketCount: 0
+  fillerMinDistanceFromMainPath: 2
+  fillerMaxDistanceFromMainPath: 20
+  branches:
+  - branchName: Birth Tunnel
+    direction: {x: 1, y: 0}
+    length: 110
+    tunnelHalfWidth: 3
+    wobble: 10
+    forkCount: 0
+    forkLengthMin: 0
+    forkLengthMax: 0
+    smallRooms: 4
+    camps: 0
+    bosses: 0
+    minAttachmentDistanceFromSpawn: 12
+    attachmentConnectorLength: 2
+    minGapBetweenAttachments: 18
+  createTerminalPocketAtPrimaryBranchEnd: 1
+  terminalPocketRadius: 7
+  useOrganicAttachedPockets: 1
+  attachedPocketEdgeIrregularity: 0.42
+  attachedPocketOverlapCells: 2
+  identity:
+    stableProfileId: intro-opening
+    displayName: Intro Opening
+    description: Fixed, content-free opening cave used by SampleScene Intro mode.
+    purpose: 3
+    developmentOnly: 0
+    notes: One fixed primary route, organic side pockets, and a guaranteed terminal
+      Camp transition pocket.
+  environment:
+    enableDirtInfluence: 1
+    dirtInfluenceTuning: 1
+    qualifyingAreaInfluenceChance: 0.85
+    neutralFalsePositiveChance: 0.06
+    neighboringCategoryChance: 0.06
+    minimumSourceStrength: 0.85
+    maximumSourceStrength: 1.3
+    minimumRadiusScale: 0.95
+    maximumRadiusScale: 1.4
+    sourceCenterOffset: 0.35
+    maximumCombinedInfluence: 0.12
+    influenceIrregularity: 0.3
+    fungalRegionTint: {r: 0.9, g: 0.97, b: 0.82, a: 1}
+    mineralRegionTint: {r: 0.9, g: 0.95, b: 1.04, a: 1}
+    disturbedRegionTint: {r: 1.01, g: 0.86, b: 0.82, a: 1}
+    outerDirtTint: {r: 0.64, g: 0.7, b: 0.78, a: 1}
+    outerDirtStrength: 0.65
+    outerVariationRetention: 0.18
+    distanceTransitionNoise: 0.12
+    lightMaterialDensity: 0.16
+    mediumMaterialDensity: 0.38
+    heavyMaterialDensity: 0.62
+    materialTransitionWidth: 0.12
+    internalHoleChance: 0.12
+    satellitePatchChance: 0.09
+    fingerVeinAmount: 0.42
+    materialCenterOffsetStrength: 0.35
+    fungalColorStrength: 0.82
+    mineralColorStrength: 0.78
+    disturbedColorStrength: 0.76
+    enableTerrainFormations: 0
+    formationCount: 8
+    minimumFormationSize: 6
+    maximumFormationSize: 20
+    formationEdgeIrregularity: 0.72
+    formationCornerErosion: 0.58
+    detachedChunkChance: 0.28
+    formationPlacementPadding: 2
+    formationPlacementAttempts: 350
+    stoneFormationTint: {r: 0.56, g: 0.58, b: 0.6, a: 1}
+    enableRootFormations: 0
+    minimumRootCount: 5
+    maximumRootCount: 5
+    rootCompanionChance: 0.1
+    smallRootWeight: 0
+    mediumRootWeight: 0.4
+    largeRootWeight: 0.6
+    minimumRootMainPathLength: 28
+    maximumRootMainPathLength: 75
+    rootDirectionalPersistence: 0.95
+    rootTurnChance: 0.055
+    rootKinkChance: 0.012
+    rootBranchChance: 0.085
+    rootBranchLengthRatio: 0.5
+    maximumRootBranchDepth: 2
+    minimumRootThickness: 1
+    maximumRootThickness: 3
+    rootKnotChance: 0.035
+    minimumRootKnotSize: 3
+    maximumRootKnotSize: 4
+    rootTaperStrength: 0.68
+    rootEdgeOriginPreference: 0.85
+    rootThroughStoneChance: 0.4
+    rootClusterChance: 0.18
+    rootDetachedFragmentChance: 0.01
+    rootToStoneMinimumSpacing: 1
+    rootToRootMinimumSpacing: 2
+    rootPlacementAttempts: 240
+    rootFormationTint: {r: 0.38, g: 0.235, b: 0.16, a: 1}
+    enableFormationClearanceValidation: 1
+    baseNavigationMargin: 0.12
+    minimumOptionalGapPolicy: 0
+    maximumErosionCellsPerFormation: 18
+    validateCriticalConnectivity: 1
+  content:
+    enemyPrefab: {fileID: 0}
+    bossEnemyPrefab: {fileID: 0}
+    blobSpitterPrefab: {fileID: 0}
+    mushroomPrefab: {fileID: 0}
+    sporePrefab: {fileID: 0}
+    shinyPrefab: {fileID: 0}
+    exitPortalPrefab: {fileID: 0}
+    retreatPortalPrefab: {fileID: 0}
+    enableSnackSpawns: 0
+    snackPickupPrefab: {fileID: 0}
+    snackLootTable: []
+    lootPocketSnackChance: 0
+    combatCampSnackChance: 0
+    bossCampSnackChance: 0
+    forceSnackSpawn: 0
+    spawnInitialRevealedContentOnStart: 0
+    objectClearRadius: 0
+    placementTriesPerObject: 0
+    spawnRetreatPortalNearSpawn: 0
+    retreatPortalMinDistanceFromSpawn: 0
+    retreatPortalMaxDistanceFromSpawn: 0
+    retreatPortalClearRadius: 0
+    overrideCampWeevilCount: 0
+    weevilsPerCampMin: 0
+    weevilsPerCampMax: 0
+    overrideBossCampWeevilCount: 0
+    weevilsPerBossCampMin: 0
+    weevilsPerBossCampMax: 0
+    blobSpittersPerCampMin: 0
+    blobSpittersPerCampMax: 0
+    blobSpitterSpawnChance: 0
+    blobSpittersPerBossCampMin: 0
+    blobSpittersPerBossCampMax: 0
+    blobSpitterBossSpawnChance: 0
+    blobSpitterMinDistanceFromSpawn: 0
+  difficulty:
+    enabled: 0
+    enemyHealthMultiplier: 1
+    enemyDamageMultiplier: 1
+    playerDamageMultiplier: 1
+    resourceMultiplier: 1
+    xpMultiplier: 1
+  developmentOverrides:
+    enabled: 0
+    maximumFallbackAttempts: 160
+    minimumOrdinaryRooms: 0
+    minimumCamps: 0
+    minimumStoneFormations: 0
+    minimumRootFormations: 0
+    requireFungalInfluence: 0
+    requireMineralInfluence: 0
+    requireDisturbedInfluence: 0
+    minimumTunnelWeevils: 0
+    minimumBlobSpitters: 0
+    minimumMushroomCritters: 0
+    minimumMushrooms: 0
+    minimumSpores: 0
+    minimumShinies: 0
+    minimumSnacks: 0
+    requireRetreatPortal: 0
+    requireExitPortal: 0
+    unsupportedXpGuarantee: 0

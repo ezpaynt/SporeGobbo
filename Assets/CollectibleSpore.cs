@@ -1,25 +1,20 @@
 using UnityEngine;
 
-public class CollectibleSpore : MonoBehaviour
+public class CollectibleSpore : MonoBehaviour, ICampInteractable, IWorldInteractionMetadata
 {
     public int amount = 1;
     public float pickupRange = 1.1f;
-    public KeyCode pickupKey = KeyCode.E;
+    public string prompt = "Pick Up Spore";
 
-    void Update()
+    public int InteractionPriority => 0;
+    public float InteractionRange => pickupRange;
+    public bool CanInteract(GobboController player) => player != null;
+    public Vector2 GetInteractionPoint() => transform.position;
+    public string GetInteractPrompt() => prompt;
+
+    public void Interact(GobboController player)
     {
-        if (!Input.GetKeyDown(pickupKey))
-            return;
-
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
-
-        if (player == null)
-            return;
-
-        if (Vector2.Distance(transform.position, player.transform.position) > pickupRange)
-            return;
-
-        SporeInventory inventory = player.GetComponent<SporeInventory>();
+        SporeInventory inventory = player != null ? player.GetComponent<SporeInventory>() : null;
 
         if (inventory == null)
         {

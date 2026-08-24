@@ -139,7 +139,4 @@ MonoBehaviour:
   spriteRenderer: {fileID: 21200000}
   useItemIconAsSprite: 1
   prompt: Pick up snack
-  allowDirectEInteractionFallback: 1
   pickupRange: 1.1
-  pickupKey: 101
-  playerTag: Player

@@ -49,6 +49,8 @@ public class CampPlayableSpawner : MonoBehaviour
 
     private readonly List<GameObject> spawnedObjects = new List<GameObject>();
     private GobboController spawnedPlayer;
+    private Transform currentSpawnPoint;
+    public GobboController SpawnedPlayer => spawnedPlayer;
 
     void Start()
     {
@@ -56,6 +58,11 @@ public class CampPlayableSpawner : MonoBehaviour
     }
 
     public void SpawnPlayableCamp()
+    {
+        SpawnPlayableCamp(null, true);
+    }
+
+    public void SpawnPlayableCamp(Transform spawnOverride, bool spawnBuddies)
     {
         if (GameState.Instance == null)
         {
@@ -68,9 +75,13 @@ public class CampPlayableSpawner : MonoBehaviour
         if (GobboVisualDatabase.Instance == null)
             Debug.LogWarning("CampPlayableSpawner found no active GobboVisualDatabase. Camp gobbos will keep their prefab fallback sprites until one is available.", this);
 
+        currentSpawnPoint = spawnOverride != null ? spawnOverride : playerSpawnPoint;
         spawnedPlayer = SpawnPlayer();
-        SpawnActiveBuddies();
-        SpawnReserveBuddies();
+        if (spawnBuddies)
+        {
+            SpawnActiveBuddies();
+            SpawnReserveBuddies();
+        }
 
         Debug.Log("Playable camp spawned. Player: " + (spawnedPlayer != null) + ", active buddies: " + GameState.Instance.GetActiveSquadUnits().Count + ", reserve buddies: " + GameState.Instance.GetReserveGobboUnits().Count);
     }
@@ -93,7 +104,7 @@ public class CampPlayableSpawner : MonoBehaviour
             return null;
         }
 
-        Vector3 pos = playerSpawnPoint != null ? playerSpawnPoint.position : transform.position;
+        Vector3 pos = currentSpawnPoint != null ? currentSpawnPoint.position : transform.position;
         pos.z = 0f;
 
         GameObject playerObject = Instantiate(playerPrefab, pos, Quaternion.identity);
@@ -274,7 +285,7 @@ public class CampPlayableSpawner : MonoBehaviour
 
     Vector3 GetArrivalSpot(int index, int count, float radius)
     {
-        Vector3 center = playerSpawnPoint != null ? playerSpawnPoint.position : transform.position;
+        Vector3 center = currentSpawnPoint != null ? currentSpawnPoint.position : transform.position;
         int safeCount = Mathf.Max(1, count);
         float angle = (index / (float)safeCount) * Mathf.PI * 2f;
         Vector3 offset = new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f) * Mathf.Max(0.1f, radius);

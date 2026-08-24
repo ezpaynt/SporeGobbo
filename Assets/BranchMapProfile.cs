@@ -32,11 +32,23 @@ public class BranchMapProfile : ScriptableObject
     [Header("Branches")]
     public List<MapGenerator.BranchSettings> branches = new List<MapGenerator.BranchSettings>();
 
+    [Header("Optional Terminal Pocket")]
+    public bool createTerminalPocketAtPrimaryBranchEnd;
+    [Min(1)] public int terminalPocketRadius = 5;
+
+    [Header("Optional Attached Pocket Shaping")]
+    public bool useOrganicAttachedPockets;
+    [Range(0f, 0.75f)] public float attachedPocketEdgeIrregularity = 0.3f;
+    [Range(0, 5)] public int attachedPocketOverlapCells = 2;
+
     private void OnValidate()
     {
         if (width <= 0) width = 180;
         if (height <= 0) height = 120;
         if (cellSize <= 0f) cellSize = 0.75f;
+        if (terminalPocketRadius < 1) terminalPocketRadius = 1;
+        attachedPocketEdgeIrregularity = Mathf.Clamp(attachedPocketEdgeIrregularity, 0f, 0.75f);
+        attachedPocketOverlapCells = Mathf.Clamp(attachedPocketOverlapCells, 0, 5);
 
         if (autoCenterSpawn)
             spawnCenter = new Vector2Int(width / 2, height / 2);

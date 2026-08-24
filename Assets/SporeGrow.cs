@@ -44,7 +44,6 @@ public class SporeGrow : MonoBehaviour
     {
         if (hatchFinished) return;
         hatchFinished = true;
-        Time.timeScale = 1f;
 
         GameState state = GameState.Instance;
         if (state == null)

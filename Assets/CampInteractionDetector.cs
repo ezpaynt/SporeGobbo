@@ -1,220 +1,208 @@
+using System.Collections.Generic;
+using SporeGobbo.Input;
 using TMPro;
 using UnityEngine;
 
-/// <summary>
-/// Scene-level camp interaction system.
-/// Put this on a scene object like CampInteractionSystem.
-/// CampPlayableSpawner should call SetPlayer when it spawns the camp player.
-/// </summary>
+/// <summary>Single authority for world interaction selection, prompts, and execution.</summary>
 public class CampInteractionDetector : MonoBehaviour
 {
     [Header("Player")]
     public Transform playerTransform;
 
-    [Header("Input")]
-    public KeyCode interactKey = KeyCode.E;
-    public float interactRadius = 1.15f;
+    [Header("Discovery")]
+    public float interactRadius = 1.2f;
     public LayerMask interactableLayers = ~0;
-
-    [Header("Hold Interaction")]
-    public bool allowHoldInteractions = true;
-    public float holdSeconds = 0.65f;
+    [Range(0f, 0.5f)] public float facingTieDistance = 0.2f;
+    [Range(0f, 0.5f)] public float switchDistanceAdvantage = 0.1f;
 
     [Header("Prompt UI")]
     public GameObject promptPanel;
     public TMP_Text promptText;
-    public string pressPrefix = "E - ";
-    public string holdPrefix = "Hold E - ";
-
-    [Header("Input Safety")]
-    public float interactionCooldown = 0.15f;
 
     [Header("Debug")]
     public bool drawDebugRadius = true;
     public bool logInteractions = true;
-    public bool logMissingReferences = true;
 
-    private ICampInteractable currentInteractable;
-    private ICampHoldInteractable currentHoldInteractable;
-    private GameObject currentObject;
+    private readonly List<Candidate> candidates = new();
+    private readonly List<InteractionCandidateData> rankingData = new();
+    private readonly HashSet<int> seenOwners = new();
+    private Candidate current;
     private GobboController player;
+    private SporeInputReader inputReader;
+    private SporeUiCoordinator uiCoordinator;
+    private string fallbackPrompt;
 
-    private float holdTimer;
-    private bool holdTriggered;
-    private float cooldownTimer;
+    private sealed class Candidate
+    {
+        public MonoBehaviour Owner;
+        public ICampInteractable Interactable;
+        public IWorldInteractionMetadata Metadata;
+        public int Priority;
+        public float Distance;
+    }
 
     void Awake()
     {
-        if (promptPanel == null && logMissingReferences)
-            Debug.LogWarning("CampInteractionDetector missing Prompt Panel reference.");
-
-        if (promptText == null && logMissingReferences)
-            Debug.LogWarning("CampInteractionDetector missing Prompt Text reference.");
-
+        inputReader = SporeInputReader.Instance;
         HidePrompt();
     }
 
+    void OnEnable()
+    {
+        if (inputReader == null) inputReader = SporeInputReader.Instance;
+        uiCoordinator = SporeUiCoordinator.Instance;
+        uiCoordinator.PresentationChanged += HandlePresentationChanged;
+    }
+
+    void OnDisable()
+    {
+        if (uiCoordinator != null)
+            uiCoordinator.PresentationChanged -= HandlePresentationChanged;
+        uiCoordinator = null;
+    }
+
+    void HandlePresentationChanged() => UpdatePrompt();
+
     void Update()
     {
-        if (cooldownTimer > 0f)
-            cooldownTimer -= Time.deltaTime;
-
-        if (playerTransform != null && player == null)
-            player = playerTransform.GetComponent<GobboController>();
+        if (inputReader == null) inputReader = SporeInputReader.Instance;
+        if (playerTransform == null) FindPlayer();
+        else if (player == null) player = playerTransform.GetComponent<GobboController>();
 
         if (CampMenuModal.IsOpen)
         {
             ClearCurrent();
             HidePrompt();
-
-            if (Input.GetKeyDown(interactKey) || Input.GetKeyDown(KeyCode.Escape))
-                CampMenuModal.CloseCurrent();
-
             return;
         }
 
-        if (playerTransform == null)
+        if (playerTransform == null || player == null || inputReader == null || Time.timeScale <= 0f ||
+            inputReader.Context != SporeInputContext.Gameplay)
         {
             ClearCurrent();
             HidePrompt();
             return;
         }
 
-        FindBestInteractable();
+        SelectCurrent();
         UpdatePrompt();
-        HandleInput();
-    }
 
-    public void SetPlayer(Transform player)
-    {
-        playerTransform = player;
-        this.player = player != null ? player.GetComponent<GobboController>() : null;
-    }
-
-    void FindBestInteractable()
-    {
-        Collider2D[] hits = Physics2D.OverlapCircleAll(playerTransform.position, interactRadius, interactableLayers);
-
-        float bestDistance = float.MaxValue;
-        ICampInteractable bestInteractable = null;
-        ICampHoldInteractable bestHoldInteractable = null;
-        GameObject bestObject = null;
-
-        foreach (Collider2D hit in hits)
+        if (inputReader.Interact.StartedThisFrame && IsUsable(current))
         {
-            if (hit == null) continue;
+            Candidate target = current;
+            if (logInteractions) Debug.Log("[WorldInteraction] Interact with " + target.Owner.name, target.Owner);
+            target.Interactable.Interact(player);
+        }
+    }
 
-            ICampInteractable interactable = hit.GetComponentInParent<ICampInteractable>();
-            ICampHoldInteractable holdInteractable = hit.GetComponentInParent<ICampHoldInteractable>();
+    public void SetPlayer(Transform target)
+    {
+        playerTransform = target;
+        player = target != null ? target.GetComponent<GobboController>() : null;
+        ClearCurrent();
+    }
 
-            if (interactable == null && holdInteractable == null)
-                continue;
+    void FindPlayer()
+    {
+        GameObject found = GameObject.FindGameObjectWithTag("Player");
+        if (found != null) SetPlayer(found.transform);
+    }
 
-            string prompt = interactable != null ? interactable.GetInteractPrompt() : "";
-            string holdPrompt = holdInteractable != null ? holdInteractable.GetHoldPrompt() : "";
+    void SelectCurrent()
+    {
+        int currentId = IsUsable(current) ? current.Owner.GetInstanceID() : int.MinValue;
+        candidates.Clear();
+        rankingData.Clear();
+        seenOwners.Clear();
 
-            if (string.IsNullOrWhiteSpace(prompt) && string.IsNullOrWhiteSpace(holdPrompt))
-                continue;
+        Collider2D[] hits = Physics2D.OverlapCircleAll(playerTransform.position, interactRadius, interactableLayers);
+        foreach (Collider2D hit in hits) AddCandidate(hit);
 
-            float distance = Vector2.Distance(playerTransform.position, hit.transform.position);
-            if (distance < bestDistance)
+        int selectedIndex = InteractionSelectionMath.Select(
+            rankingData, currentId, facingTieDistance, switchDistanceAdvantage);
+        current = selectedIndex >= 0 ? candidates[selectedIndex] : null;
+    }
+
+    void AddCandidate(Collider2D hit)
+    {
+        if (hit == null) return;
+
+        MonoBehaviour owner = null;
+        ICampInteractable interactable = null;
+        foreach (MonoBehaviour behaviour in hit.GetComponentsInParent<MonoBehaviour>(true))
+        {
+            if (behaviour is ICampInteractable found)
             {
-                bestDistance = distance;
-                bestInteractable = interactable;
-                bestHoldInteractable = holdInteractable;
-                bestObject = hit.gameObject;
+                owner = behaviour;
+                interactable = found;
+                break;
             }
         }
 
-        currentInteractable = bestInteractable;
-        currentHoldInteractable = bestHoldInteractable;
-        currentObject = bestObject;
+        if (owner == null || !owner.isActiveAndEnabled || !seenOwners.Add(owner.GetInstanceID())) return;
+
+        IWorldInteractionMetadata metadata = owner as IWorldInteractionMetadata;
+        if (metadata != null && !metadata.CanInteract(player)) return;
+        if (string.IsNullOrWhiteSpace(interactable.GetInteractPrompt())) return;
+
+        Vector2 point = metadata != null ? metadata.GetInteractionPoint() : owner.transform.position;
+        float distance = Vector2.Distance(playerTransform.position, point);
+        float allowedRange = metadata != null ? metadata.InteractionRange : interactRadius;
+        if (distance > Mathf.Min(interactRadius, Mathf.Max(0.1f, allowedRange))) return;
+
+        Vector2 direction = point - (Vector2)playerTransform.position;
+        float alignment = direction.sqrMagnitude > 0.0001f
+            ? Vector2.Dot(player.CurrentAimDirection, direction.normalized)
+            : 1f;
+        var candidate = new Candidate
+        {
+            Owner = owner,
+            Interactable = interactable,
+            Metadata = metadata,
+            Priority = metadata?.InteractionPriority ?? 0,
+            Distance = distance
+        };
+        candidates.Add(candidate);
+        rankingData.Add(new InteractionCandidateData(owner.GetInstanceID(), candidate.Priority, distance, alignment));
+    }
+
+    bool IsUsable(Candidate candidate)
+    {
+        return candidate != null && candidate.Owner != null && candidate.Owner.isActiveAndEnabled &&
+               candidate.Interactable != null &&
+               (candidate.Metadata == null || candidate.Metadata.CanInteract(player)) &&
+               !string.IsNullOrWhiteSpace(candidate.Interactable.GetInteractPrompt());
     }
 
     void UpdatePrompt()
     {
-        string prompt = currentInteractable != null ? currentInteractable.GetInteractPrompt() : "";
-        string holdPrompt = currentHoldInteractable != null ? currentHoldInteractable.GetHoldPrompt() : "";
-
-        if (string.IsNullOrWhiteSpace(prompt) && string.IsNullOrWhiteSpace(holdPrompt))
+        if (!IsUsable(current))
         {
             HidePrompt();
             return;
         }
 
-        if (promptText != null)
-        {
-            if (!string.IsNullOrWhiteSpace(prompt) && !string.IsNullOrWhiteSpace(holdPrompt))
-                promptText.text = pressPrefix + prompt + "\n" + holdPrefix + holdPrompt;
-            else if (!string.IsNullOrWhiteSpace(prompt))
-                promptText.text = pressPrefix + prompt;
-            else
-                promptText.text = holdPrefix + holdPrompt;
-        }
-
-        if (promptPanel != null)
-            promptPanel.SetActive(true);
-    }
-
-    void HandleInput()
-    {
-        if (cooldownTimer > 0f)
-            return;
-
-        if (currentInteractable != null && Input.GetKeyDown(interactKey))
-        {
-            LogInteraction("Pressed", currentObject);
-            currentInteractable.Interact(player);
-            cooldownTimer = interactionCooldown;
-            holdTimer = 0f;
-            holdTriggered = false;
-            return;
-        }
-
-        if (!allowHoldInteractions || currentHoldInteractable == null)
-        {
-            holdTimer = 0f;
-            holdTriggered = false;
-            return;
-        }
-
-        if (Input.GetKey(interactKey))
-        {
-            holdTimer += Time.deltaTime;
-            if (!holdTriggered && holdTimer >= holdSeconds)
-            {
-                LogInteraction("Held", currentObject);
-                currentHoldInteractable.HoldInteract(player);
-                holdTriggered = true;
-                cooldownTimer = interactionCooldown;
-            }
-        }
-        else
-        {
-            holdTimer = 0f;
-            holdTriggered = false;
-        }
+        fallbackPrompt = inputReader.GetInteractBindingDisplay() + " - " + current.Interactable.GetInteractPrompt();
+        if (promptText != null) promptText.text = fallbackPrompt;
+        if (promptPanel != null) promptPanel.SetActive(true);
     }
 
     void ClearCurrent()
     {
-        currentInteractable = null;
-        currentHoldInteractable = null;
-        currentObject = null;
-        holdTimer = 0f;
-        holdTriggered = false;
+        current = null;
+        fallbackPrompt = null;
     }
 
     void HidePrompt()
     {
-        if (promptPanel != null)
-            promptPanel.SetActive(false);
+        fallbackPrompt = null;
+        if (promptPanel != null) promptPanel.SetActive(false);
     }
 
-    void LogInteraction(string action, GameObject target)
+    void OnGUI()
     {
-        if (!logInteractions) return;
-        Debug.Log("[CampInteractionDetector] " + action + " interaction with " + (target != null ? target.name : "unknown"));
+        if (promptText == null && !string.IsNullOrWhiteSpace(fallbackPrompt))
+            GUI.Label(new Rect(Screen.width * 0.5f - 140f, Screen.height - 80f, 280f, 30f), fallbackPrompt);
     }
 
     void OnDrawGizmosSelected()

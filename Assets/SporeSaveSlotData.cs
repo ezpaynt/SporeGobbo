@@ -5,7 +5,7 @@ using UnityEngine;
 [Serializable]
 public class SporeSaveSlotData
 {
-    public const int CurrentSaveVersion = 5;
+    public const int CurrentSaveVersion = 7;
 
     [Header("Slot Metadata")]
     public int saveVersion = CurrentSaveVersion;
@@ -40,6 +40,9 @@ public class SporeSaveSlotData
     [Header("History")]
     public RunSummaryData lastRun = new RunSummaryData();
     public List<DeadBuddyRecord> deathHistory = new List<DeadBuddyRecord>();
+
+    [Header("Camp Terrain")]
+    public CampTerrainState campTerrainState = new CampTerrainState();
 
     [Header("Story Progress")]
     public StoryProgressData storyProgress = new StoryProgressData();
@@ -81,6 +84,7 @@ public class SporeSaveSlotData
             itemStacks = new List<InventoryStackSaveData>(),
             lastRun = new RunSummaryData(),
             deathHistory = new List<DeadBuddyRecord>(),
+            campTerrainState = new CampTerrainState(),
             storyProgress = new StoryProgressData()
         };
         data.Normalize();
@@ -110,6 +114,8 @@ public class SporeSaveSlotData
         decorationsUnlocked ??= new List<string>();
         itemStacks = InventoryService.NormalizeStacks(itemStacks, true);
         deathHistory ??= new List<DeadBuddyRecord>();
+        campTerrainState ??= new CampTerrainState();
+        campTerrainState.Normalize();
         storyProgress ??= new StoryProgressData();
         storyProgress.Normalize();
         if (lastRun == null) lastRun = new RunSummaryData();

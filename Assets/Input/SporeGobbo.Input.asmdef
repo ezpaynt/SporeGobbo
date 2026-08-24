@@ -1,0 +1,8 @@
+{
+  "name": "SporeGobbo.Input",
+  "rootNamespace": "SporeGobbo.Input",
+  "references": [
+    "Unity.InputSystem"
+  ],
+  "autoReferenced": true
+}

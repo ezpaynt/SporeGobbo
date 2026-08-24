@@ -16,3 +16,6 @@ MonoBehaviour:
   - eventId: story.a_spore_hatches.named
     developerLabel: Gobbo Named
     developerDescription: Completed when a new game's Gobbo name is confirmed.
+  - eventId: story.a_spore_hatches.camp_discovered
+    developerLabel: Camp Discovered
+    developerDescription: Completed after the intro successfully arrives in Camp.

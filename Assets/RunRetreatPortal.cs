@@ -2,7 +2,7 @@ using TMPro;
 using UnityEngine;
 
 [RequireComponent(typeof(Collider2D))]
-public class RunRetreatPortal : MonoBehaviour, ICampInteractable
+public class RunRetreatPortal : MonoBehaviour, ICampInteractable, IWorldInteractionMetadata
 {
     [Header("Return")]
     public string campSceneName = "CampScene";
@@ -13,12 +13,14 @@ public class RunRetreatPortal : MonoBehaviour, ICampInteractable
     public float promptRange = 1.15f;
     public string interactPrompt = "Retreat to Camp";
 
-    [Header("Prompt")]
+    [Header("Legacy Prompt Visual (disabled; shared authority owns prompts)")]
     public GameObject promptObject;
     public TMP_Text promptText;
-    public string promptDisplayText = "E - Retreat to Camp";
 
-    private Transform player;
+    public int InteractionPriority => 0;
+    public float InteractionRange => promptRange;
+    public bool CanInteract(GobboController playerController) => playerController != null;
+    public Vector2 GetInteractionPoint() => transform.position;
 
     void Awake()
     {
@@ -33,19 +35,6 @@ public class RunRetreatPortal : MonoBehaviour, ICampInteractable
         }
 
         HidePrompt();
-    }
-
-    void Update()
-    {
-        FindPlayerIfMissing();
-
-        bool playerIsNear = player != null &&
-                            Vector2.Distance(transform.position, player.position) <= Mathf.Max(0.1f, promptRange);
-
-        if (playerIsNear)
-            ShowPrompt();
-        else
-            HidePrompt();
     }
 
     public string GetInteractPrompt()
@@ -69,27 +58,6 @@ public class RunRetreatPortal : MonoBehaviour, ICampInteractable
             saveSlotAfterRunCommit,
             RunReturnReason.Retreat,
             "spawn retreat portal");
-    }
-
-    void FindPlayerIfMissing()
-    {
-        if (player != null)
-            return;
-
-        GameObject playerObject = GameObject.FindGameObjectWithTag("Player");
-        if (playerObject != null)
-            player = playerObject.transform;
-    }
-
-    void ShowPrompt()
-    {
-        if (promptText != null)
-            promptText.text = promptDisplayText;
-
-        if (promptObject != null)
-            promptObject.SetActive(true);
-        else if (promptText != null)
-            promptText.gameObject.SetActive(true);
     }
 
     void HidePrompt()

@@ -9,7 +9,7 @@ using UnityEngine.Tilemaps;
 using UnityEditor;
 #endif
 
-public class MapGenerator : MonoBehaviour
+public class MapGenerator : MonoBehaviour, IDiggableTerrain
 {
     public static MapGenerator Instance { get; private set; }
 
@@ -23,7 +23,8 @@ public class MapGenerator : MonoBehaviour
         Boss,
         FillerTunnel,
         FillerPocket,
-        FillerPocketLoot
+        FillerPocketLoot,
+        TerminalPocket
     }
 
     public enum DirtInfluenceCategory
@@ -182,6 +183,18 @@ public class MapGenerator : MonoBehaviour
     public List<BranchMapProfile> runProfiles = new List<BranchMapProfile>();
     public BranchMapProfile selectedProfile;
 
+    [Header("Runtime Generation Scope")]
+    public bool generateRunContent = true;
+    public bool requireRunExit = true;
+    [HideInInspector] public bool createTerminalPocketAtPrimaryBranchEnd;
+    [HideInInspector] public int terminalPocketRadius = 5;
+    [HideInInspector] public bool useOrganicAttachedPockets;
+    [HideInInspector] public float attachedPocketEdgeIrregularity = 0.3f;
+    [HideInInspector] public int attachedPocketOverlapCells = 2;
+
+    public bool HasTerminalPocket { get; private set; }
+    public Vector3 TerminalPocketWorldPosition { get; private set; }
+
     [Header("Manual Inspector Settings")]
     public MapSettings map = new MapSettings();
 
@@ -191,7 +204,7 @@ public class MapGenerator : MonoBehaviour
     [Header("Tilemaps")]
     public Grid grid;
     public Tilemap dirtTilemap;
-    public CaveSurfaceRenderer caveSurfaceRenderer;
+    public TerrainPresentationRenderer terrainPresentationRenderer;
 
     [Header("Tiles")]
     public TileBase dirtTile1;
@@ -347,6 +360,7 @@ public class MapGenerator : MonoBehaviour
 
     private DirtInfluenceSample[,] dirtInfluenceField;
     private int runtimeMapSeed;
+    public int RuntimeMapSeed => runtimeMapSeed;
     private int tileColorUnlockAttempts;
     private int tileColorUnlockSuccesses;
 
@@ -386,10 +400,26 @@ public class MapGenerator : MonoBehaviour
             SetDefaultFirstLevelInspectorSettings();
     }
 
+    private void OnEnable()
+    {
+        DiggableTerrainService.Register(this);
+    }
+
     private void Start()
     {
         if (generateOnStart)
             Generate();
+    }
+
+    private void OnDisable()
+    {
+        DiggableTerrainService.Unregister(this);
+    }
+
+    private void OnDestroy()
+    {
+        DiggableTerrainService.Unregister(this);
+        if (Instance == this) Instance = null;
     }
 
     private RunContentSpawner GetContentSpawner()
@@ -462,15 +492,15 @@ public class MapGenerator : MonoBehaviour
         BuildBranches();
         BuildFiller();
         ApplyDevelopmentAreaMinimums();
-        EnsureExitPortalExists();
-        ApplyDevelopmentContentMinimums();
+        if (requireRunExit) EnsureExitPortalExists();
+        if (generateRunContent) ApplyDevelopmentContentMinimums();
         BuildDirtInfluenceField();
         PaintTilemaps();
 
         if (showDirtInfluenceSources || showDirtInfluenceCells || showInfluenceOnlyPreview)
             LogDirtInfluenceReport();
 
-        RunContentSpawner spawner = GetContentSpawner();
+        RunContentSpawner spawner = generateRunContent ? GetContentSpawner() : null;
         if (spawner != null)
         {
             spawner.ResetSpawnedContentTracking();
@@ -482,8 +512,8 @@ public class MapGenerator : MonoBehaviour
         BuildRootFormations();
         ValidateAndCorrectFormationClearance();
         RefreshTerrainFormationTiles();
-        if (caveSurfaceRenderer != null)
-            caveSurfaceRenderer.Rebuild(Data, runtimeMapSeed);
+        if (terrainPresentationRenderer != null)
+            terrainPresentationRenderer.RebuildAndEnable();
 
         LogGenerationSummary();
     }
@@ -663,6 +693,11 @@ public class MapGenerator : MonoBehaviour
         map.fillerLootPocketCount = profile.fillerLootPocketCount;
         map.fillerMinDistanceFromMainPath = profile.fillerMinDistanceFromMainPath;
         map.fillerMaxDistanceFromMainPath = profile.fillerMaxDistanceFromMainPath;
+        createTerminalPocketAtPrimaryBranchEnd = profile.createTerminalPocketAtPrimaryBranchEnd;
+        terminalPocketRadius = Mathf.Max(1, profile.terminalPocketRadius);
+        useOrganicAttachedPockets = profile.useOrganicAttachedPockets;
+        attachedPocketEdgeIrregularity = Mathf.Clamp(profile.attachedPocketEdgeIrregularity, 0f, 0.75f);
+        attachedPocketOverlapCells = Mathf.Clamp(profile.attachedPocketOverlapCells, 0, 5);
 
         branches = CopyBranches(profile.branches);
     }
@@ -691,6 +726,11 @@ public class MapGenerator : MonoBehaviour
         selectedProfile.fillerLootPocketCount = map.fillerLootPocketCount;
         selectedProfile.fillerMinDistanceFromMainPath = map.fillerMinDistanceFromMainPath;
         selectedProfile.fillerMaxDistanceFromMainPath = map.fillerMaxDistanceFromMainPath;
+        selectedProfile.createTerminalPocketAtPrimaryBranchEnd = createTerminalPocketAtPrimaryBranchEnd;
+        selectedProfile.terminalPocketRadius = Mathf.Max(1, terminalPocketRadius);
+        selectedProfile.useOrganicAttachedPockets = useOrganicAttachedPockets;
+        selectedProfile.attachedPocketEdgeIrregularity = Mathf.Clamp(attachedPocketEdgeIrregularity, 0f, 0.75f);
+        selectedProfile.attachedPocketOverlapCells = Mathf.Clamp(attachedPocketOverlapCells, 0, 5);
         selectedProfile.branches = CopyBranches(branches);
 
 #if UNITY_EDITOR
@@ -759,14 +799,14 @@ public class MapGenerator : MonoBehaviour
         if (dirtTilemap == null && maps.Length > 0)
             dirtTilemap = maps[0];
 
-        if (caveSurfaceRenderer == null)
-            caveSurfaceRenderer = GetComponent<CaveSurfaceRenderer>();
+        if (terrainPresentationRenderer == null)
+            terrainPresentationRenderer = GetComponent<TerrainPresentationRenderer>();
     }
 
     private void ClearTilemaps()
     {
         if (dirtTilemap != null) dirtTilemap.ClearAllTiles();
-        if (caveSurfaceRenderer != null) caveSurfaceRenderer.Clear();
+        if (terrainPresentationRenderer != null) terrainPresentationRenderer.ClearAndDisable();
     }
 
     private void ClearPlanData()
@@ -809,6 +849,8 @@ public class MapGenerator : MonoBehaviour
         requiredFailuresAfterCorrection = 0;
         minimumMeasuredPassageWidth = float.PositiveInfinity;
         dirtInfluenceField = null;
+        HasTerminalPocket = false;
+        TerminalPocketWorldPosition = default;
         nextTunnelId = 1;
         nextCampId = 1;
 
@@ -834,8 +876,9 @@ public class MapGenerator : MonoBehaviour
 
     private void BuildBranches()
     {
-        foreach (BranchSettings branch in branches)
+        for (int branchIndex = 0; branchIndex < branches.Count; branchIndex++)
         {
+            BranchSettings branch = branches[branchIndex];
             Vector2Int dir = NormalizeCardinal(branch.direction);
 
             if (dir == Vector2Int.zero)
@@ -852,7 +895,26 @@ public class MapGenerator : MonoBehaviour
 
             BuildBranchForks(branch, path);
             BuildAttachments(branch, path);
+
+            if (branchIndex == 0 && createTerminalPocketAtPrimaryBranchEnd)
+                BuildTerminalPocket(path);
         }
+    }
+
+    private void BuildTerminalPocket(List<Vector2Int> primaryPath)
+    {
+        if (Data == null || primaryPath == null || primaryPath.Count == 0) return;
+        int radius = Mathf.Max(1, terminalPocketRadius);
+        for (int i = primaryPath.Count - 1; i >= 0; i--)
+        {
+            Vector2Int center = primaryPath[i];
+            if (!CircleFitsInBounds(center, radius)) continue;
+            AddRevealArea(AreaType.TerminalPocket, center, radius);
+            HasTerminalPocket = true;
+            TerminalPocketWorldPosition = Data.CellToWorld(center);
+            return;
+        }
+        Debug.LogError("MapGenerator could not fit the requested terminal pocket at the primary branch end.", this);
     }
 
     private void BuildBranchForks(BranchSettings branch, List<Vector2Int> path)
@@ -904,13 +966,16 @@ public class MapGenerator : MonoBehaviour
             List<Vector2Int> connector = StraightPath(attachPoint, connectorEnd);
 
             int radiusCells = GetRadiusCellsForArea(type);
-            Vector2Int roomCenter = connectorEnd + sideDir * (radiusCells + 1);
+            bool organicPocket = useOrganicAttachedPockets && type == AreaType.SmallRoom;
+            Vector2Int roomCenter = organicPocket
+                ? attachPoint + sideDir * Mathf.Max(2, radiusCells - attachedPocketOverlapCells)
+                : connectorEnd + sideDir * (radiusCells + 1);
 
             if (!Data.InBounds(roomCenter)) continue;
             if (IsTooCloseToExistingArea(roomCenter, radiusCells + 3)) continue;
 
             AddTunnel(connector, 1, AreaType.MainTunnel, false);
-            AddRevealArea(type, roomCenter, radiusCells);
+            AddRevealArea(type, roomCenter, radiusCells, organicPocket ? attachPoint : (Vector2Int?)null);
         }
     }
 
@@ -1047,7 +1112,7 @@ public class MapGenerator : MonoBehaviour
         Data.tunnels.Add(tunnel);
     }
 
-    private void AddRevealArea(AreaType type, Vector2Int centerCell, int radiusCells)
+    private void AddRevealArea(AreaType type, Vector2Int centerCell, int radiusCells, Vector2Int? connectionCell = null)
     {
         PlannedArea area = new PlannedArea
         {
@@ -1060,6 +1125,8 @@ public class MapGenerator : MonoBehaviour
 
         foreach (Vector2Int cell in CellsInCircle(centerCell, radiusCells))
         {
+            if (connectionCell.HasValue && ShouldErodeOrganicPocketEdge(cell, centerCell, connectionCell.Value, radiusCells, area.id))
+                continue;
             hiddenRevealCells.Add(cell);
             generatedAreaCells.Add(cell);
             revealAreaByCell[cell] = area;
@@ -1076,12 +1143,23 @@ public class MapGenerator : MonoBehaviour
 
     }
 
+    private bool ShouldErodeOrganicPocketEdge(Vector2Int cell, Vector2Int center, Vector2Int connection, int radius, int areaId)
+    {
+        if (radius <= 1 || Vector2Int.Distance(cell, connection) <= 2f) return false;
+        float normalizedDistance = Vector2.Distance(cell, center) / Mathf.Max(1f, radius);
+        if (normalizedDistance < 0.68f) return false;
+        int hash = StableHash(runtimeMapSeed, areaId, center.x, center.y, cell.x, cell.y, 17041);
+        float sample = (hash & 0x00FFFFFF) / 16777216f;
+        float edgeFactor = Mathf.InverseLerp(0.68f, 1f, normalizedDistance);
+        return sample < attachedPocketEdgeIrregularity * edgeFactor;
+    }
+
     private bool ShouldCreateContentData(AreaType type)
     {
-        return type == AreaType.SmallRoom ||
+        return generateRunContent && (type == AreaType.SmallRoom ||
                type == AreaType.Camp ||
                type == AreaType.Boss ||
-               type == AreaType.FillerPocketLoot;
+               type == AreaType.FillerPocketLoot);
     }
 
     private CampData CreateContentDataForArea(AreaType type, PlannedArea area)
@@ -1280,6 +1358,8 @@ public class MapGenerator : MonoBehaviour
         }
     }
 
+    public float CellSize => Mathf.Max(0.0001f, map.cellSize);
+
     public void DigCircle(Vector3 worldPos, float radius)
     {
         if (Data == null) return;
@@ -1300,6 +1380,11 @@ public class MapGenerator : MonoBehaviour
             }
         }
     }
+
+    void IDiggableTerrain.DigCircle(Vector2 worldPosition, float radius) => DigCircle(worldPosition, radius);
+    bool IDiggableTerrain.IsBlocked(Vector2Int cell) => Data == null || !Data.InBounds(cell) || Data.IsBlocked(cell);
+    Vector2Int IDiggableTerrain.WorldToCell(Vector2 worldPosition) => Data != null ? Data.WorldToCell(worldPosition) : Vector2Int.RoundToInt(worldPosition);
+    Vector2 IDiggableTerrain.CellToWorld(Vector2Int cell) => Data != null ? Data.CellToWorld(cell) : cell;
 
     public void DigAtWorld(Vector3 worldPos)
     {
@@ -1326,8 +1411,7 @@ public class MapGenerator : MonoBehaviour
 
         Data.SetBlocked(cell, false);
         SetCellTilesFromData(cell);
-        if (caveSurfaceRenderer != null)
-            caveSurfaceRenderer.RefreshCell(Data, cell, runtimeMapSeed);
+        terrainPresentationRenderer?.MarkDirty(cell);
     }
 
     public void RevealCamp(int campId)
@@ -1411,8 +1495,11 @@ public class MapGenerator : MonoBehaviour
             openedCells.Add(trigger);
         }
 
-        if (caveSurfaceRenderer != null)
-            caveSurfaceRenderer.RefreshCells(Data, openedCells, runtimeMapSeed);
+        if (terrainPresentationRenderer != null)
+        {
+            terrainPresentationRenderer.MarkDirty(openedCells);
+            terrainPresentationRenderer.FlushImmediate();
+        }
     }
 
     public bool IsWorldPositionClearForBody(Vector2 worldPos, float radius)
@@ -3409,8 +3496,8 @@ public class MapGenerator : MonoBehaviour
             for (int y = 0; y < Data.height; y++)
                 SetCellTilesFromData(new Vector2Int(x, y));
         }
-        if (caveSurfaceRenderer != null)
-            caveSurfaceRenderer.Rebuild(Data, runtimeMapSeed);
+        if (terrainPresentationRenderer != null)
+            terrainPresentationRenderer.RebuildAndEnable();
     }
 
     private float GetDirtDistanceFactor(Vector2Int cell)
@@ -3447,6 +3534,33 @@ public class MapGenerator : MonoBehaviour
         if (dirtType == 1 && dirtTile2 != null) return dirtTile2;
         if (dirtType == 2 && dirtTile3 != null) return dirtTile3;
         return dirtTile1;
+    }
+
+    public TerrainVisualCellKind GetTerrainVisualKind(Vector2Int cell)
+    {
+        if (Data == null || !Data.InBounds(cell)) return TerrainVisualCellKind.OutOfBounds;
+        if (!Data.IsBlocked(cell)) return TerrainVisualCellKind.Open;
+        if (rootFormationCells.Contains(cell)) return TerrainVisualCellKind.Root;
+        if (stoneFormationCells.Contains(cell)) return TerrainVisualCellKind.Stone;
+        if (revealGroupByTriggerCell.ContainsKey(cell)) return TerrainVisualCellKind.RevealDirt;
+        return TerrainVisualCellKind.Dirt;
+    }
+
+    public Color GetTerrainPresentationTint(Vector2Int cell)
+    {
+        if (Data == null || !Data.InBounds(cell) || !Data.IsBlocked(cell)) return Color.white;
+        Color presentationTint = rootFormationCells.Contains(cell) ? rootFormationTint :
+            terrainFormationCells.Contains(cell) ? stoneFormationTint : GetDirtInfluenceTint(cell);
+        return MultiplyTint(presentationTint, GetDirtDistanceTint(cell));
+    }
+
+    public TileBase GetSpecialTerrainPresentationTile(Vector2Int cell)
+    {
+        TerrainVisualCellKind kind = GetTerrainVisualKind(cell);
+        if (kind == TerrainVisualCellKind.RevealDirt && revealDirtTile != null) return revealDirtTile;
+        if (kind == TerrainVisualCellKind.Stone || kind == TerrainVisualCellKind.Root || kind == TerrainVisualCellKind.RevealDirt)
+            return GetDirtTileByDistance(cell);
+        return null;
     }
 
     private IEnumerable<Vector2Int> CellsInCircle(Vector2Int center, int radiusCells)
@@ -3921,6 +4035,8 @@ public class MapGeneratorEditor : Editor
 
         if (GUILayout.Button("Generate Map Now"))
         {
+            SampleSceneModeController modeController = UnityEngine.Object.FindAnyObjectByType<SampleSceneModeController>(FindObjectsInactive.Include);
+            if (modeController != null) modeController.ConfigureForEditorPreview();
             generator.Generate();
             EditorUtility.SetDirty(generator);
         }

@@ -50,8 +50,13 @@ public class LevelUpScreen : MonoBehaviour
         rerollCost = startingRerollCost;
         seenThisSelection.Clear();
         levelUpPanel.SetActive(true);
-        Time.timeScale = 0f;
         BuildChoices();
+        Button defaultButton = null;
+        if (buttons != null)
+            foreach (UpgradeButton choice in buttons)
+                if (choice != null && choice.button != null && choice.button.gameObject.activeInHierarchy && choice.button.interactable)
+                { defaultButton = choice.button; break; }
+        SporeUiCoordinator.Instance.PushModal(this, null, true, defaultButton);
     }
 
     void BuildChoices()
@@ -116,7 +121,8 @@ public class LevelUpScreen : MonoBehaviour
 
     void Hide()
     {
-        Time.timeScale = 1f;
         if (levelUpPanel != null) levelUpPanel.SetActive(false);
+        if (SporeUiCoordinator.Instance != null)
+            SporeUiCoordinator.Instance.PopModal(this);
     }
 }

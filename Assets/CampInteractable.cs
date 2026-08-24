@@ -6,13 +6,19 @@ public interface ICampInteractable
     void Interact(GobboController player);
 }
 
-public interface ICampHoldInteractable
+/// <summary>
+/// Optional metadata for the shared world interaction authority. ICampInteractable is the
+/// historical name of the common contract used by both camp and run content.
+/// </summary>
+public interface IWorldInteractionMetadata
 {
-    string GetHoldPrompt();
-    void HoldInteract(GobboController player);
+    bool CanInteract(GobboController player);
+    Vector2 GetInteractionPoint();
+    int InteractionPriority { get; }
+    float InteractionRange { get; }
 }
 
-public class CampSimpleInteractable : MonoBehaviour, ICampInteractable, ICampHoldInteractable
+public class CampSimpleInteractable : MonoBehaviour, ICampInteractable
 {
     [Header("Camp Interaction")]
     public string prompt = "Talk";
@@ -24,22 +30,11 @@ public class CampSimpleInteractable : MonoBehaviour, ICampInteractable, ICampHol
     public AudioClip[] voiceLines;
     public bool matchVoiceIndexToLine = true;
 
-    [Header("Hold Interaction Placeholder")]
-    public bool allowHoldInteraction = false;
-    public string holdPrompt = "Hold: dance later";
-    [TextArea(2, 5)] public string holdMessage = "Dance placeholder. Add sprite/animation later.";
-    public AudioClip holdVoiceLine;
-
     private int nextLineIndex = 0;
 
     public string GetInteractPrompt()
     {
         return prompt;
-    }
-
-    public string GetHoldPrompt()
-    {
-        return allowHoldInteraction ? holdPrompt : "";
     }
 
     public void Interact(GobboController player)
@@ -53,17 +48,6 @@ public class CampSimpleInteractable : MonoBehaviour, ICampInteractable, ICampHol
         CampMessageUI.Show(line);
         PlayVoiceForIndex(index);
         Debug.Log("Camp interact: " + line);
-    }
-
-    public void HoldInteract(GobboController player)
-    {
-        if (!allowHoldInteraction)
-            return;
-
-        CampMessageUI.Show(holdMessage);
-
-        if (holdVoiceLine != null)
-            PlayClip(holdVoiceLine);
     }
 
     string GetLine(out int chosenIndex)

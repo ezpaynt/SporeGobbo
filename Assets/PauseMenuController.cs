@@ -1,10 +1,9 @@
 using TMPro;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-public class PauseMenuController : MonoBehaviour
+public class PauseMenuController : MonoBehaviour, ISporePauseScreen
 {
     [Header("Scenes")]
     public string mainMenuSceneName = "MainMenu";
@@ -20,37 +19,29 @@ public class PauseMenuController : MonoBehaviour
     [Header("Story")]
     public JournalContentLibrary journalContentLibrary;
 
-    [Header("Input")]
-    public KeyCode pauseKey = KeyCode.Escape;
-
     private bool paused;
     private bool isRunMenu;
+    private bool isIntroMenu;
     private PauseMenuRunView runView;
 
     void Start()
     {
+        isIntroMenu = SampleSceneModeController.IsIntroMode;
         isRunMenu = SceneManager.GetActiveScene().name != campSceneName;
         HookButtons();
         BuildRunMenuIfNeeded();
-        SetPaused(false);
+        paused = false;
+        if (pausePanel != null) pausePanel.SetActive(false);
     }
 
     void OnEnable() => HookButtons();
 
-    void Update()
-    {
-        if (Input.GetKeyDown(pauseKey))
-        {
-            // If a UI button stayed selected after clicking Resume, do not let that block future pause input.
-            if (EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null)
-                EventSystem.current.SetSelectedGameObject(null);
-
-            if (paused && runView != null && runView.IsSubPageOpen)
-                runView.ShowMainPage();
-            else
-                SetPaused(!paused);
-        }
-    }
+    public bool IsPauseOpen => paused;
+    public bool HasPauseSubpage => runView != null && runView.IsSubPageOpen;
+    public Selectable PauseDefaultSelectable => resumeButton;
+    public void OpenPause() => SetPaused(true);
+    public void ClosePause() => SetPaused(false);
+    public void BackPauseSubpage() { if (runView != null) runView.ShowMainPage(); }
 
     void HookButtons()
     {
@@ -84,12 +75,13 @@ public class PauseMenuController : MonoBehaviour
     public void Resume()
     {
         SetPaused(false);
-        if (EventSystem.current != null)
-            EventSystem.current.SetSelectedGameObject(null);
     }
 
     public void SetPaused(bool value)
     {
+        if (value == paused) return;
+        if (value) SporePauseService.Acquire(this);
+        else SporePauseService.Release(this);
         paused = value;
         if (pausePanel != null)
         {
@@ -106,23 +98,19 @@ public class PauseMenuController : MonoBehaviour
                 }
             }
         }
-        Time.timeScale = paused ? 0f : 1f;
-
-        if (!paused && EventSystem.current != null)
-            EventSystem.current.SetSelectedGameObject(null);
     }
 
     public void QuitToMainMenu()
     {
         SaveIfInCamp("quit to menu");
-        Time.timeScale = 1f;
+        SporePauseService.ResetAll();
         SceneManager.LoadScene(mainMenuSceneName);
     }
 
     public void QuitToDesktop()
     {
         SaveIfInCamp("quit to desktop");
-        Time.timeScale = 1f;
+        SporePauseService.ResetAll();
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #else
@@ -147,16 +135,19 @@ public class PauseMenuController : MonoBehaviour
     }
     void BuildRunMenuIfNeeded()
     {
-        if (!isRunMenu || pausePanel == null) return;
+        if (pausePanel == null) return;
         runView = pausePanel.GetComponent<PauseMenuRunView>();
         if (runView == null) runView = pausePanel.AddComponent<PauseMenuRunView>();
         runView.Build(pausePanel, titleText, resumeButton, quitToMenuButton, quitToDesktopButton,
-            Resume, OpenOptions, RequestQuitToMainMenu, RequestQuitToDesktop);
+            Resume, OpenOptions, RequestQuitToMainMenu, RequestQuitToDesktop, isIntroMenu || !isRunMenu);
     }
 
     public void OpenOptions()
     {
-        if (runView != null) runView.ShowOptions();
+        SporeControlsScreen.Open(() =>
+        {
+            if (runView != null) runView.ReturnFromControls();
+        });
     }
 
     public void RequestQuitToMainMenu()

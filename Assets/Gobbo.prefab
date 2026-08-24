@@ -289,9 +289,6 @@ MonoBehaviour:
   dashBiteStopDistance: 0.55
   dashBiteDamageMultiplier: 1.25
   dashBiteCooldown: 1.2
-  roarType: tiny
-  roarCooldown: 0.5
-  roarAudio: {fileID: 0}
   spriteRenderer: {fileID: 137536792100803441}
   visualController: {fileID: 6043718599403557944}
   hurtColor: {r: 1, g: 0, b: 0, a: 1}
