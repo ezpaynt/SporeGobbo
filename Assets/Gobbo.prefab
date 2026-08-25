@@ -261,7 +261,6 @@ MonoBehaviour:
     m_Bits: 128
   attackDebugPrefab: {fileID: 8827658244673422344, guid: dbbd08ef34b1a094aa88f5d62d34f168, type: 3}
   currentAttackTarget: {fileID: 0}
-  interactRange: 1.2
   followerCount: 0
   maxFollowers: 999
   followersFollowing: 1

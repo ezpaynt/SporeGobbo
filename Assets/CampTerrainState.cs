@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using SporeGobbo.CampLifecycle;
 
 [Serializable]
 public sealed class CampCellCoordinate
@@ -23,12 +24,19 @@ public sealed class CampTerrainState
 {
     public int layoutRevision = 0;
     public bool mainChamberRevealed = false;
+    public int residentialStage = 0;
+    public int residentialSlotsEstablished = 0;
+    public bool memorialEstablished = false;
     public List<CampCellCoordinate> clearedCellCoordinates = new List<CampCellCoordinate>();
     public List<string> unlockedExpansionRegionIds = new List<string>();
 
     public void Normalize()
     {
         layoutRevision = Math.Max(0, layoutRevision);
+        residentialStage = Math.Max(0, Math.Min(5, residentialStage));
+        residentialSlotsEstablished = Math.Max(0,
+            Math.Min(CampSpatialPolicy.StageOneSlotCapacity, residentialSlotsEstablished));
+        if (residentialSlotsEstablished > 0 && residentialStage < 1) residentialStage = 1;
         clearedCellCoordinates ??= new List<CampCellCoordinate>();
         unlockedExpansionRegionIds ??= new List<string>();
 
@@ -64,6 +72,9 @@ public sealed class CampTerrainState
         {
             layoutRevision = layoutRevision,
             mainChamberRevealed = mainChamberRevealed,
+            residentialStage = residentialStage,
+            residentialSlotsEstablished = residentialSlotsEstablished,
+            memorialEstablished = memorialEstablished,
             unlockedExpansionRegionIds = new List<string>(unlockedExpansionRegionIds)
         };
         foreach (CampCellCoordinate cell in clearedCellCoordinates) copy.clearedCellCoordinates.Add(cell.Clone());

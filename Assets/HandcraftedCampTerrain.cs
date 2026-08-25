@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Tilemaps;
+using SporeGobbo.CampLifecycle;
 
 /// <summary>
 /// Authored, persistent Camp terrain. The serialized cell lists are the immutable baseline;
@@ -50,6 +51,13 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
     public List<CampTerrainRegion> authoredPermanentRockRegions = new List<CampTerrainRegion>();
     public List<CampReservedFootprint> reservedStationFootprints = new List<CampReservedFootprint>();
 
+    [Header("Canonical Spatial Contract")]
+    public CampSpatialContract spatialContract;
+
+    [Header("Authoritative Exit Protection")]
+    public Transform authoritativeCampExit;
+    public string authoritativeExitFootprintId = "run-exit";
+
     [Header("Main Chamber Reveal")]
     public bool forceMainChamberRevealedForCurrentCamp = false;
     public bool hasMainChamberRevealTrigger = true;
@@ -62,6 +70,14 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
     public float CellSize => grid != null ? Mathf.Max(0.0001f, Mathf.Abs(grid.cellSize.x)) : 1f;
     public BoundsInt AuthoredBounds => authoredBounds;
     public int LayoutRevision => layoutRevision;
+    public CampSpatialContract SpatialContract
+    {
+        get
+        {
+            EnsureSpatialContract();
+            return spatialContract;
+        }
+    }
 
     readonly HashSet<Vector2Int> baselineOpen = new HashSet<Vector2Int>();
     readonly HashSet<Vector2Int> baselineDiggable = new HashSet<Vector2Int>();
@@ -70,6 +86,7 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
     bool baselineCached;
     bool started;
     bool rebuilding;
+    bool spatialContractValidated;
 
     void OnValidate()
     {
@@ -130,6 +147,72 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
         if (changed) RefreshTerrain();
     }
 
+    public TerrainDigResult DigCircle(Vector2 worldPosition, float radius, TerrainDigAuthority authority,
+        int residentialStage, IReadOnlyCollection<Vector2Int> authorizedCells)
+    {
+        EnsureReady();
+        HashSet<Vector2Int> authorized = authorizedCells != null
+            ? new HashSet<Vector2Int>(authorizedCells) : new HashSet<Vector2Int>();
+        CampTerrainState currentState = GetState(true);
+        int expectedSlot = currentState != null ? currentState.residentialSlotsEstablished + 1 : 0;
+        HashSet<Vector2Int> expectedFootprint = new HashSet<Vector2Int>(GetResidentialSlotFootprint(expectedSlot));
+        bool validResidentialRequest = authority != TerrainDigAuthority.ResidentialProgression ||
+            CampSpatialPolicy.CanAuthorizeResidentialProgression(residentialStage, 1,
+                expectedSlot >= 1 && expectedSlot <= CampSpatialPolicy.StageOneSlotCapacity &&
+                authorized.SetEquals(expectedFootprint));
+        Vector2Int center = WorldToCell(worldPosition);
+        int cellRadius = Mathf.CeilToInt(Mathf.Max(0f, radius) / CellSize) + 1;
+        int evaluated = 0, eligible = 0, removed = 0;
+        for (int x = center.x - cellRadius; x <= center.x + cellRadius; x++)
+        for (int y = center.y - cellRadius; y <= center.y + cellRadius; y++)
+        {
+            Vector2Int cell = new Vector2Int(x, y);
+            if (!Contains(authoredBounds, cell) || Vector2.Distance(CellToWorld(cell), worldPosition) > radius) continue;
+            evaluated++;
+            bool authorizedResidential = authority == TerrainDigAuthority.ResidentialProgression &&
+                validResidentialRequest && IsAuthorizedResidentialProgressionCell(cell, residentialStage, authorized);
+            if (!CampSpatialPolicy.CanDig(GetSpatialDigCategory(cell), authority, authorizedResidential)) continue;
+            eligible++;
+            bool changed = authorizedResidential ? RemoveResidentialCell(cell) : DigCell(cell, false);
+            if (changed) removed++;
+        }
+        if (removed > 0) RefreshTerrain();
+        TerrainDigFailureReason failure = removed > 0 ? TerrainDigFailureReason.None :
+            evaluated == 0 ? TerrainDigFailureReason.NoEvaluatedCells :
+            !validResidentialRequest || eligible == 0 ? TerrainDigFailureReason.AuthorizationRejected :
+            TerrainDigFailureReason.NoDirtRemoved;
+        return new TerrainDigResult(evaluated, eligible, removed, failure);
+    }
+
+    bool IsAuthorizedResidentialProgressionCell(Vector2Int cell, int requestedStage, HashSet<Vector2Int> requestedCells)
+    {
+        CampTerrainState state = GetState(true);
+        if (state == null || requestedStage != 1 || state.residentialSlotsEstablished >= CampSpatialPolicy.StageOneSlotCapacity)
+            return false;
+        int nextSlot = state.residentialSlotsEstablished + 1;
+        return requestedCells.Contains(cell) && GetResidentialSlotFootprint(nextSlot).Contains(cell) && IsResidentialTerrainCell(cell);
+    }
+
+    bool IsResidentialTerrainCell(Vector2Int cell)
+    {
+        return IsInSpatialZone(cell, CampZoneKind.ResidentialEntrance) ||
+               IsInSpatialZone(cell, CampZoneKind.ResidentialStage1) ||
+               IsInSpatialZone(cell, CampZoneKind.ResidentialStage2) ||
+               IsInSpatialZone(cell, CampZoneKind.ResidentialStage3) ||
+               IsInSpatialZone(cell, CampZoneKind.ResidentialStage4) ||
+               IsInSpatialZone(cell, CampZoneKind.ResidentialStage5);
+    }
+
+    bool RemoveResidentialCell(Vector2Int cell)
+    {
+        Vector3Int tileCell = ToTileCell(cell);
+        bool changed = diggableDirtTilemap != null && diggableDirtTilemap.HasTile(tileCell);
+        if (diggableDirtTilemap != null) diggableDirtTilemap.SetTile(tileCell, null);
+        if (permanentRockTilemap != null) permanentRockTilemap.SetTile(tileCell, null);
+        if (changed) terrainPresentationRenderer?.MarkDirty(cell);
+        return changed;
+    }
+
     public bool IsBlocked(Vector2Int cell)
     {
         if (!Contains(authoredBounds, cell)) return true;
@@ -139,8 +222,27 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
 
     public bool IsDiggable(Vector2Int cell)
     {
+        EnsureReady();
+        CampDigCategory category = GetSpatialDigCategory(cell);
+        if (category == CampDigCategory.NeverDiggable || category == CampDigCategory.ResidentialReserved)
+            return false;
         return baselineDiggable.Contains(cell) && !baselineRock.Contains(cell) &&
                diggableDirtTilemap != null && diggableDirtTilemap.HasTile(ToTileCell(cell));
+    }
+
+    public CampDigCategory GetSpatialDigCategory(Vector2Int cell)
+    {
+        EnsureSpatialContract();
+        return spatialContract != null ? spatialContract.Classify(cell) : CampDigCategory.NormalCampDiggable;
+    }
+
+    public bool IsInSpatialZone(Vector2Int cell, CampZoneKind kind)
+    {
+        EnsureSpatialContract();
+        if (spatialContract == null) return false;
+        foreach (CampSpatialZone zone in spatialContract.ZonesAt(cell))
+            if (zone.kind == kind) return true;
+        return false;
     }
 
     public Vector2Int WorldToCell(Vector2 worldPosition)
@@ -222,16 +324,27 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
                     state.mainChamberRevealed = true;
                 }
 
+            }
+
+            int completedResidentialStage = state != null ? state.residentialStage : 0;
+            int establishedResidentialSlots = state != null ? state.residentialSlotsEstablished : 0;
+            BuildCanonicalResidentialTerrain();
+
+            if (state != null)
+            {
                 foreach (CampCellCoordinate savedCell in state.clearedCellCoordinates)
                 {
                     Vector2Int cell = ToCell(savedCell);
-                    if (!baselineDiggable.Contains(cell) || baselineRock.Contains(cell))
+                    if (!baselineDiggable.Contains(cell) || baselineRock.Contains(cell) ||
+                        !CampSpatialPolicy.CanApplyOrdinaryOrSavedClear(GetSpatialDigCategory(cell)))
                     {
                         LastIgnoredSavedCellCount++;
                         continue;
                     }
                     diggableDirtTilemap.SetTile(ToTileCell(cell), null);
                 }
+
+                ApplyEstablishedResidentialSlots(completedResidentialStage, establishedResidentialSlots);
 
                 if (state.mainChamberRevealed) RevealMainChamberInternal(false);
             }
@@ -268,6 +381,108 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
         return true;
     }
 
+    public List<ResidentialSlotRecord> GetResidentialSlots(int stage)
+    {
+        if (stage != 1 || !TryGetStageOneRects(out CampCellRect entrance, out CampCellRect chamber))
+            return new List<ResidentialSlotRecord>();
+        return CampSpatialPolicy.BuildStageOneSlots(entrance, chamber);
+    }
+
+    public ResidentialSlotRecord GetResidentialSlot(int slotIndex)
+    {
+        return GetResidentialSlots(1).Find(slot => slot.SlotIndex == slotIndex);
+    }
+
+    public List<Vector2Int> GetResidentialConstructionRoute(int slotIndex)
+    {
+        List<Vector2Int> result = new List<Vector2Int>();
+        if (!TryGetStageOneRects(out CampCellRect entrance, out CampCellRect chamber)) return result;
+        foreach ((int x, int y) waypoint in CampSpatialPolicy.BuildStageOneConstructionRoute(
+                     slotIndex, entrance, chamber))
+            result.Add(new Vector2Int(waypoint.x, waypoint.y));
+        return result;
+    }
+
+    public List<Vector2Int> GetResidentialSlotFootprint(int slotIndex)
+    {
+        List<Vector2Int> result = new List<Vector2Int>();
+        if (!TryGetStageOneRects(out CampCellRect entrance, out CampCellRect chamber)) return result;
+        ResidentialSlotRecord slot = CampSpatialPolicy.BuildStageOneSlots(entrance, chamber)
+            .Find(record => record.SlotIndex == slotIndex);
+        if (slot.SlotIndex == 0) return result;
+        foreach ((int x, int y) cell in CampSpatialPolicy.BuildSlotFootprint(slot, entrance, chamber))
+            result.Add(new Vector2Int(cell.x, cell.y));
+        return result;
+    }
+
+    bool TryGetStageOneRects(out CampCellRect entranceRect, out CampCellRect chamberRect)
+    {
+        EnsureSpatialContract();
+        CampSpatialZone entrance = spatialContract?.zones.Find(z => z != null && z.kind == CampZoneKind.ResidentialEntrance);
+        CampSpatialZone chamber = spatialContract?.zones.Find(z => z != null && z.kind == CampZoneKind.ResidentialStage1);
+        entranceRect = entrance != null
+            ? new CampCellRect(entrance.bounds.x, entrance.bounds.y, entrance.bounds.size.x, entrance.bounds.size.y) : default;
+        chamberRect = chamber != null
+            ? new CampCellRect(chamber.bounds.x, chamber.bounds.y, chamber.bounds.size.x, chamber.bounds.size.y) : default;
+        return entrance != null && chamber != null;
+    }
+
+    public Vector2 GetResidentialConstructionApproachWorld(int stage)
+    {
+        EnsureSpatialContract();
+        CampSpatialZone entrance = spatialContract != null
+            ? spatialContract.zones.Find(z => z != null && z.kind == CampZoneKind.ResidentialEntrance)
+            : null;
+        if (stage != 1 || entrance == null) return Vector2.zero;
+        return CellToWorld(new Vector2Int(entrance.bounds.xMin - 1,
+            entrance.bounds.yMin + entrance.bounds.size.y / 2));
+    }
+
+    public List<Vector2Int> GetResidentialPresentationCells(int stage)
+    {
+        List<Vector2Int> result = new List<Vector2Int>();
+        foreach (ResidentialSlotRecord slot in GetResidentialSlots(stage))
+            result.Add(new Vector2Int(slot.Center.x, slot.Center.y));
+        return result;
+    }
+
+    public void CompleteResidentialSlotForProgression(int stage, int slotIndex)
+    {
+        CampTerrainState state = GetState(true);
+        if (state == null || stage != 1 || slotIndex != state.residentialSlotsEstablished + 1) return;
+        foreach (Vector2Int cell in GetResidentialSlotFootprint(slotIndex)) RemoveResidentialCell(cell);
+        state.residentialStage = Mathf.Max(state.residentialStage, stage);
+        state.residentialSlotsEstablished = slotIndex;
+        state.clearedCellCoordinates.RemoveAll(saved => saved != null &&
+            GetSpatialDigCategory(new Vector2Int(saved.x, saved.y)) == CampDigCategory.ResidentialReserved);
+        RefreshTerrain();
+    }
+
+    void ApplyEstablishedResidentialSlots(int completedStage, int establishedSlots)
+    {
+        if (completedStage < 1) return;
+        int count = Mathf.Clamp(establishedSlots, 0, CampSpatialPolicy.StageOneSlotCapacity);
+        for (int slot = 1; slot <= count; slot++)
+            foreach (Vector2Int cell in GetResidentialSlotFootprint(slot)) RemoveResidentialCell(cell);
+    }
+
+    void BuildCanonicalResidentialTerrain()
+    {
+        EnsureSpatialContract();
+        if (spatialContract == null || diggableDirtTilemap == null) return;
+        foreach (CampSpatialZone zone in spatialContract.zones)
+        {
+            if (zone == null || !CampSpatialPolicy.IsResidentialTerrainZone(zone.kind)) continue;
+            foreach (Vector3Int position in zone.bounds.allPositionsWithin)
+            {
+                Vector2Int cell = new Vector2Int(position.x, position.y);
+                if (!Contains(authoredBounds, cell)) continue;
+                permanentRockTilemap?.SetTile(ToTileCell(cell), null);
+                diggableDirtTilemap.SetTile(ToTileCell(cell), dirtTile);
+            }
+        }
+    }
+
     bool RevealMainChamberInternal(bool recordState)
     {
         CampTerrainState state = GetState(recordState);
@@ -275,6 +490,7 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
         bool changed = false;
         foreach (Vector2Int cell in revealCells)
         {
+            if (!CampSpatialPolicy.CanApplyOrdinaryOrSavedClear(GetSpatialDigCategory(cell))) continue;
             if (diggableDirtTilemap != null && diggableDirtTilemap.HasTile(ToTileCell(cell)))
             {
                 diggableDirtTilemap.SetTile(ToTileCell(cell), null);
@@ -345,6 +561,8 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
         RemoveRegions(mainChamberRevealExclusionRegions, revealCells);
 
         foreach (Vector2Int cell in revealCells) baselineDiggable.Add(cell);
+        ApplyPermanentSpatialZones();
+        AlignExitFootprintToAuthoritativeTransform();
         if (reservedStationFootprints != null)
         {
             foreach (CampReservedFootprint footprint in reservedStationFootprints)
@@ -361,6 +579,86 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
                 }
             }
         }
+        ValidateSpatialContractOnce();
+    }
+
+    void EnsureSpatialContract()
+    {
+        if (spatialContract == null)
+            spatialContract = Resources.Load<CampSpatialContract>("CampSpatialContract");
+    }
+
+    void ApplyPermanentSpatialZones()
+    {
+        EnsureSpatialContract();
+        if (spatialContract == null) return;
+        foreach (CampSpatialZone zone in spatialContract.zones)
+        {
+            if (zone == null || !CampSpatialPolicy.IsPermanent(zone.kind)) continue;
+            foreach (Vector3Int position in zone.bounds.allPositionsWithin)
+            {
+                Vector2Int cell = new Vector2Int(position.x, position.y);
+                if (!Contains(authoredBounds, cell)) continue;
+                baselineOpen.Add(cell);
+                baselineDiggable.Remove(cell);
+                baselineRock.Remove(cell);
+                revealCells.Remove(cell);
+            }
+        }
+    }
+
+    void ValidateSpatialContractOnce()
+    {
+        if (spatialContractValidated) return;
+        spatialContractValidated = true;
+        EnsureSpatialContract();
+        if (spatialContract == null)
+        {
+            Debug.LogWarning("Camp spatial contract resource is missing; canonical zone protection is unavailable.", this);
+            return;
+        }
+        foreach (string issue in spatialContract.ValidateContract())
+            Debug.LogWarning("Camp spatial contract: " + issue, this);
+        foreach (CampSpatialZone zone in spatialContract.zones)
+        {
+            if (zone == null) continue;
+            if (zone.bounds.xMin < authoredBounds.xMin || zone.bounds.xMax > authoredBounds.xMax ||
+                zone.bounds.yMin < authoredBounds.yMin || zone.bounds.yMax > authoredBounds.yMax)
+                Debug.LogWarning("Camp spatial zone '" + zone.zoneId + "' extends outside authored terrain bounds.", this);
+        }
+        CampSceneController controller = Object.FindAnyObjectByType<CampSceneController>();
+        ValidateAnchor(controller != null ? controller.newGameIntroSpawn : null, CampZoneKind.IntroArrivalClearance, "Intro spawn");
+        ValidateAnchor(controller != null ? controller.mainCampArrivalSpawn : null, CampZoneKind.NormalArrivalClearance, "normal arrival spawn");
+        CampRunPortal portal = Object.FindAnyObjectByType<CampRunPortal>();
+        ValidateAnchor(portal != null ? portal.transform : null, CampZoneKind.PermanentExit, "live Exit");
+        CampOldBonesWall bones = Object.FindAnyObjectByType<CampOldBonesWall>();
+        ValidateAnchor(bones != null ? bones.transform : null, CampZoneKind.PermanentMemorial, "Bones Wall");
+    }
+
+    void ValidateAnchor(Transform anchor, CampZoneKind requiredZone, string label)
+    {
+        if (anchor != null && !IsInSpatialZone(WorldToCell(anchor.position), requiredZone))
+            Debug.LogWarning(label + " is outside its canonical " + requiredZone + " zone.", anchor);
+    }
+
+    void AlignExitFootprintToAuthoritativeTransform()
+    {
+        if (authoritativeCampExit == null)
+        {
+            CampRunPortal portal = Object.FindAnyObjectByType<CampRunPortal>();
+            if (portal != null) authoritativeCampExit = portal.transform;
+        }
+        if (grid == null || authoritativeCampExit == null || reservedStationFootprints == null) return;
+        CampReservedFootprint exit = reservedStationFootprints.Find(footprint =>
+            footprint != null && footprint.footprintId == authoritativeExitFootprintId);
+        if (exit == null) return;
+
+        Vector3Int center = grid.WorldToCell(authoritativeCampExit.position);
+        int width = Mathf.Max(1, exit.bounds.size.x);
+        int height = Mathf.Max(1, exit.bounds.size.y);
+        exit.bounds = new BoundsInt(CampLifecyclePolicy.CenteredFootprintOrigin(center.x, width),
+            CampLifecyclePolicy.CenteredFootprintOrigin(center.y, height), exit.bounds.z,
+            width, height, Mathf.Max(1, exit.bounds.size.z));
     }
 
     void AddRegions(List<CampTerrainRegion> regions, HashSet<Vector2Int> destination, string category)

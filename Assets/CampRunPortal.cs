@@ -3,7 +3,8 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-public class CampRunPortal : MonoBehaviour, ICampInteractable
+[RequireComponent(typeof(Collider2D))]
+public class CampRunPortal : MonoBehaviour, ICampInteractable, IWorldInteractionMetadata
 {
     [Header("Run Scene")]
     public string runSceneName = "SampleScene";
@@ -16,6 +17,8 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
     public string promptMessage = "To the next cave?";
     public string goButtonText = "Go";
     public string cancelButtonText = "Not yet";
+    [Min(0.1f)] public float interactionRange = 1.2f;
+    public int interactionPriority = 10;
 
     [Header("Save")]
     public bool saveCampBeforeLeaving = true;
@@ -39,6 +42,15 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
     public string GetInteractPrompt()
     {
         return promptMessage;
+    }
+
+    public bool CanInteract(GobboController player) => player != null && !promptOpen;
+    public int InteractionPriority => interactionPriority;
+    public float InteractionRange => interactionRange;
+    public Vector2 GetInteractionPoint()
+    {
+        Collider2D col = GetComponent<Collider2D>();
+        return col != null ? new Vector2(col.bounds.center.x, col.bounds.min.y) : transform.position;
     }
 
     public void Interact(GobboController playerController)
@@ -79,9 +91,9 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable
 
         if (promptPanel != null)
         {
-            CampMenuModal.Open(currentPlayer, this, HidePrompt, cancelButton);
             promptPanel.SetActive(true);
             promptPanel.transform.SetAsLastSibling();
+            CampMenuModal.Open(currentPlayer, this, HidePrompt, cancelButton, promptPanel);
         }
         else
         {

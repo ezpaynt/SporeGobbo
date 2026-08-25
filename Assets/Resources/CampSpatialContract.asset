@@ -1,0 +1,104 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a2da17118b2b46df8ff3f77bb23b0eb3, type: 3}
+  m_Name: CampSpatialContract
+  m_EditorClassIdentifier: Assembly-CSharp::CampSpatialContract
+  contractRevision: 1
+  zones:
+  - zoneId: home-core
+    kind: 0
+    bounds: {m_Position: {x: 41, y: 28, z: 0}, m_Size: {x: 15, y: 13, z: 1}}
+    purpose: Permanent open social and Fire activity floor.
+  - zoneId: exit-structure
+    kind: 1
+    bounds: {m_Position: {x: 57, y: 51, z: 0}, m_Size: {x: 10, y: 8, z: 1}}
+    purpose: Permanent active portal structure and approach footing.
+  - zoneId: memorial-structure
+    kind: 2
+    bounds: {m_Position: {x: 25, y: 52, z: 0}, m_Size: {x: 14, y: 10, z: 1}}
+    purpose: Permanent Bones Wall structure, approach, and breathing room.
+  - zoneId: residential-stage-1
+    kind: 3
+    bounds: {m_Position: {x: 62, y: 32, z: 0}, m_Size: {x: 8, y: 9, z: 1}}
+    purpose: First meaningful sleeping pocket behind a short east-side entrance.
+  - zoneId: residential-stage-2
+    kind: 4
+    bounds: {m_Position: {x: 70, y: 30, z: 0}, m_Size: {x: 9, y: 12, z: 1}}
+    purpose: Deepens and widens the lower residential pocket eastward.
+  - zoneId: residential-stage-3
+    kind: 5
+    bounds: {m_Position: {x: 62, y: 40, z: 0}, m_Size: {x: 9, y: 11, z: 1}}
+    purpose: Opens the upper residential pocket from Stage 1 and Stage 2.
+  - zoneId: residential-stage-4
+    kind: 6
+    bounds: {m_Position: {x: 71, y: 40, z: 0}, m_Size: {x: 10, y: 12, z: 1}}
+    purpose: Expands the upper pocket toward the east wall.
+  - zoneId: residential-stage-5
+    kind: 7
+    bounds: {m_Position: {x: 79, y: 28, z: 0}, m_Size: {x: 6, y: 16, z: 1}}
+    purpose: Connects and deepens the far-east residential capacity.
+  - zoneId: residential-entrance
+    kind: 8
+    bounds: {m_Position: {x: 60, y: 35, z: 0}, m_Size: {x: 2, y: 3, z: 1}}
+    purpose: Future first-buddy dig start, two to three cells into east dirt.
+  - zoneId: collapse-west
+    kind: 9
+    bounds: {m_Position: {x: 18, y: 26, z: 0}, m_Size: {x: 13, y: 12, z: 1}}
+    purpose: Unstable Intro-side wall eligible for later refill and cave-ins.
+  - zoneId: collapse-east
+    kind: 9
+    bounds: {m_Position: {x: 25, y: 18, z: 0}, m_Size: {x: 6, y: 8, z: 1}}
+    purpose: Unstable Intro tunnel edge excluding the protected spawn pocket.
+  - zoneId: intro-arrival
+    kind: 10
+    bounds: {m_Position: {x: 20, y: 20, z: 0}, m_Size: {x: 5, y: 6, z: 1}}
+    purpose: Permanent clear first-arrival footing around NewGameIntroSpawn.
+  - zoneId: normal-arrival
+    kind: 11
+    bounds: {m_Position: {x: 44, y: 27, z: 0}, m_Size: {x: 10, y: 8, z: 1}}
+    purpose: Permanent leader and buddy arrival-ring clearance.
+  - zoneId: circulation-arrival-fire
+    kind: 12
+    bounds: {m_Position: {x: 43, y: 28, z: 0}, m_Size: {x: 11, y: 8, z: 1}}
+    purpose: Reliable normal arrival to Fire path.
+  - zoneId: circulation-fire-exit-a
+    kind: 12
+    bounds: {m_Position: {x: 50, y: 36, z: 0}, m_Size: {x: 8, y: 17, z: 1}}
+    purpose: Narrow northbound route from Home Core toward Exit.
+  - zoneId: circulation-fire-exit-b
+    kind: 12
+    bounds: {m_Position: {x: 55, y: 49, z: 0}, m_Size: {x: 7, y: 6, z: 1}}
+    purpose: Exit approach connection.
+  - zoneId: circulation-fire-residential
+    kind: 12
+    bounds: {m_Position: {x: 54, y: 32, z: 0}, m_Size: {x: 6, y: 6, z: 1}}
+    purpose: Home Core to future residential entrance.
+  - zoneId: circulation-fire-memorial-a
+    kind: 12
+    bounds: {m_Position: {x: 31, y: 38, z: 0}, m_Size: {x: 14, y: 6, z: 1}}
+    purpose: Westbound Home Core to memorial route.
+  - zoneId: circulation-fire-memorial-b
+    kind: 12
+    bounds: {m_Position: {x: 29, y: 43, z: 0}, m_Size: {x: 7, y: 13, z: 1}}
+    purpose: Northbound memorial approach.
+  - zoneId: general-south
+    kind: 13
+    bounds: {m_Position: {x: 31, y: 17, z: 0}, m_Size: {x: 23, y: 9, z: 1}}
+    purpose: Deliberately unreserved southern Camp space.
+  - zoneId: general-west
+    kind: 13
+    bounds: {m_Position: {x: 20, y: 38, z: 0}, m_Size: {x: 9, y: 13, z: 1}}
+    purpose: Deliberately unreserved west-side space between resources and memorial.
+  - zoneId: general-north
+    kind: 13
+    bounds: {m_Position: {x: 39, y: 58, z: 0}, m_Size: {x: 17, y: 5, z: 1}}
+    purpose: Deliberately unreserved northern wall/floor space.

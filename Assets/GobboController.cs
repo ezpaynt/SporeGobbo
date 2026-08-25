@@ -69,9 +69,6 @@ public class GobboController : MonoBehaviour
     public Transform currentAttackTarget;
     public float attackSwingVisualDuration = 0.16f;
 
-    [Header("Interaction")]
-    public float interactRange = 1.2f;
-
     [Header("Buddies")]
     public int followerCount = 0;
     public int maxFollowers = 999;

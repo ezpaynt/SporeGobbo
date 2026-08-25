@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using SporeGobbo.CampLifecycle;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -6,8 +7,6 @@ public class PlayerDeathWatcher : MonoBehaviour
 {
     [Header("Death Flow")]
     public string campSceneName = "CampScene";
-    public string gameOverSceneName = "GameOverScene";
-    public bool loadGameOverSceneIfNoSuccessors = false;
     public bool saveRunBeforeLeaving = true;
     public string deathCause = "The leader got chewed up in the dirt.";
 
@@ -90,6 +89,7 @@ public class PlayerDeathWatcher : MonoBehaviour
 
     private void HandlePlayerDeath(string source)
     {
+        GobboUnitSaveData deadLeader = null;
         if (GameState.Instance != null)
         {
             if (saveRunBeforeLeaving && player != null) GameState.Instance.SavePlayer(player);
@@ -99,6 +99,15 @@ public class PlayerDeathWatcher : MonoBehaviour
                 GameState.Instance.lastRun.survived = false;
                 GobboUnitSaveData leader = GameState.Instance.GetLeader();
                 GameState.Instance.lastRun.playerLevelEnd = leader != null ? Mathf.Max(1, leader.level) : 1;
+            }
+
+            deadLeader = GameState.Instance.GetLeader()?.CloneUnit();
+            GobboUnitSaveData liveLeader = GameState.Instance.GetLeader();
+            if (liveLeader != null)
+            {
+                liveLeader.health = 0;
+                liveLeader.isDead = true;
+                liveLeader.causeOfDeath = deathCause;
             }
         }
 
@@ -123,11 +132,28 @@ public class PlayerDeathWatcher : MonoBehaviour
 
         PlayerDeathRunStore store = PlayerDeathRunStore.GetOrCreate();
         store.BeginPlayerDeath(leaderName, leaderType, leaderLevel, runNumber, deathCause, candidateIds, snapshots);
+        if (GameState.Instance != null && deadLeader != null)
+            GameState.Instance.AddDeathHistoryRecord(GameState.Instance.BuildDeathRecord(deadLeader, runNumber, deathCause, true));
         Debug.Log("[PlayerDeathWatcher] handled death from " + source + ". Successor candidates: " + candidateIds.Count + ", locked/preferred: " + (string.IsNullOrWhiteSpace(store.lockedSuccessorId) ? "none" : store.lockedSuccessorId));
         SporePauseService.ResetAll();
+        CampArrivalContext.Clear();
+
+        if (CampLifecyclePolicy.DecideDeathDestination(candidateIds.Count) == DeathDestination.GameOver)
+        {
+            if (GameState.Instance != null)
+            {
+                GameState.Instance.lineageEnded = true;
+                SporeSaveManager.SaveCurrentSlotFromGameState();
+            }
+            store.ClearPendingDeath();
+            LineageGameOverScreen.Show();
+            return;
+        }
+
+        GameState.Instance.lineageEnded = false;
+        CampArrivalContext.SetPending(CampArrivalMode.PostDeathSuccession);
         SuppressDeathHandlingForSceneChange();
-        if (loadGameOverSceneIfNoSuccessors && candidateIds.Count == 0 && !string.IsNullOrWhiteSpace(gameOverSceneName)) SceneManager.LoadScene(gameOverSceneName);
-        else SceneManager.LoadScene(campSceneName);
+        SceneManager.LoadScene(campSceneName);
     }
 
     private List<GobboUnitSaveData> BuildSuccessorSnapshots(List<string> ids)
@@ -139,15 +165,6 @@ public class PlayerDeathWatcher : MonoBehaviour
                 AddCandidateSnapshot(gobbo, ids, snapshots);
         }
 
-        if (ids.Count == 0)
-        {
-            BuddyUnit[] units = Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None);
-            foreach (BuddyUnit unit in units)
-            {
-                if (unit == null || unit.unitData == null) continue;
-                AddCandidateSnapshot(unit.unitData, ids, snapshots);
-            }
-        }
         return snapshots;
     }
 
@@ -155,8 +172,7 @@ public class PlayerDeathWatcher : MonoBehaviour
     {
         if (gobbo == null) return;
         gobbo.EnsureRuntimeDefaults();
-        if (gobbo.health <= 0) return;
-        if (string.IsNullOrWhiteSpace(gobbo.uniqueId)) return;
+        if (!CampLifecyclePolicy.IsValidSurvivor(gobbo.uniqueId, gobbo.isDead, gobbo.health, gobbo.isLeader)) return;
         if (ids.Contains(gobbo.uniqueId)) return;
         ids.Add(gobbo.uniqueId);
         snapshots.Add(gobbo.CloneUnit());

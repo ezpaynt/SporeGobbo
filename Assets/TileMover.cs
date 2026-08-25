@@ -4,7 +4,8 @@ public static class TileMover
 {
     public static void Move(Rigidbody2D rb, Vector2 desiredVelocity, float bodyRadius)
     {
-        if (MapGenerator.Instance == null)
+        IDiggableTerrain terrain = DiggableTerrainService.Active;
+        if (terrain == null)
         {
             rb.linearVelocity = desiredVelocity;
             return;
@@ -13,7 +14,7 @@ public static class TileMover
         float clearanceRadius = GetMapClearanceRadius(rb, bodyRadius);
         Vector2 nextPos = rb.position + desiredVelocity * Time.fixedDeltaTime;
 
-        if (IsMapPositionClearForBody(nextPos, clearanceRadius))
+        if (IsTerrainPositionClearForBody(terrain, nextPos, clearanceRadius))
         {
             rb.linearVelocity = desiredVelocity;
             return;
@@ -22,7 +23,7 @@ public static class TileMover
         Vector2 xVel = new Vector2(desiredVelocity.x, 0f);
         Vector2 xPos = rb.position + xVel * Time.fixedDeltaTime;
 
-        if (IsMapPositionClearForBody(xPos, clearanceRadius))
+        if (IsTerrainPositionClearForBody(terrain, xPos, clearanceRadius))
         {
             rb.linearVelocity = xVel;
             return;
@@ -31,7 +32,7 @@ public static class TileMover
         Vector2 yVel = new Vector2(0f, desiredVelocity.y);
         Vector2 yPos = rb.position + yVel * Time.fixedDeltaTime;
 
-        if (IsMapPositionClearForBody(yPos, clearanceRadius))
+        if (IsTerrainPositionClearForBody(terrain, yPos, clearanceRadius))
         {
             rb.linearVelocity = yVel;
             return;
@@ -42,16 +43,17 @@ public static class TileMover
 
     public static void KeepOutOfWalls(Rigidbody2D rb, float bodyRadius)
     {
-        if (MapGenerator.Instance == null || MapGenerator.Instance.Data == null)
+        IDiggableTerrain terrain = DiggableTerrainService.Active;
+        if (terrain == null)
             return;
 
         float clearanceRadius = GetMapClearanceRadius(rb, bodyRadius);
 
-        if (IsMapPositionClearForBody(rb.position, clearanceRadius))
+        if (IsTerrainPositionClearForBody(terrain, rb.position, clearanceRadius))
             return;
 
         Vector2Int cell =
-            MapGenerator.Instance.Data.WorldToCell(rb.position);
+            terrain.WorldToCell(rb.position);
 
         for (int r = 1; r <= 6; r++)
         {
@@ -63,9 +65,9 @@ public static class TileMover
                         cell + new Vector2Int(x, y);
 
                     Vector2 testWorld =
-                        MapGenerator.Instance.Data.CellToWorld(testCell);
+                        terrain.CellToWorld(testCell);
 
-                    if (IsMapPositionClearForBody(testWorld, clearanceRadius))
+                    if (IsTerrainPositionClearForBody(terrain, testWorld, clearanceRadius))
                     {
                         rb.position = testWorld;
                         rb.linearVelocity = Vector2.zero;
@@ -96,25 +98,25 @@ public static class TileMover
         return GetColliderBodyRadius(rb, bodyRadius);
     }
 
-    private static bool IsMapPositionClearForBody(Vector2 worldPos, float radius)
+    public static bool CanOccupy(IDiggableTerrain terrain, Vector2 worldPosition, float bodyRadius)
     {
-        MapGenerator map = MapGenerator.Instance;
-        if (map == null || map.Data == null)
-            return true;
+        return terrain == null || IsTerrainPositionClearForBody(terrain, worldPosition, Mathf.Max(0f, bodyRadius));
+    }
 
-        MapData data = map.Data;
-        Vector2Int center = data.WorldToCell(worldPos);
-        int cellRadius = Mathf.CeilToInt((radius + data.cellSize * 0.5f) / data.cellSize) + 1;
+    private static bool IsTerrainPositionClearForBody(IDiggableTerrain terrain, Vector2 worldPos, float radius)
+    {
+        if (terrain == null)
+            return true;
+        float cellSize = terrain.CellSize;
+        Vector2Int center = terrain.WorldToCell(worldPos);
+        int cellRadius = Mathf.CeilToInt((radius + cellSize * 0.5f) / cellSize) + 1;
 
         for (int x = center.x - cellRadius; x <= center.x + cellRadius; x++)
         {
             for (int y = center.y - cellRadius; y <= center.y + cellRadius; y++)
             {
                 Vector2Int cell = new Vector2Int(x, y);
-                if (!data.InBounds(cell))
-                    return false;
-
-                if (data.IsBlocked(cell) && CircleOverlapsCell(worldPos, radius, cell, data))
+                if (terrain.IsBlocked(cell) && CircleOverlapsCell(worldPos, radius, cell, terrain))
                     return false;
             }
         }
@@ -122,10 +124,10 @@ public static class TileMover
         return true;
     }
 
-    private static bool CircleOverlapsCell(Vector2 worldPos, float radius, Vector2Int cell, MapData data)
+    private static bool CircleOverlapsCell(Vector2 worldPos, float radius, Vector2Int cell, IDiggableTerrain terrain)
     {
-        Vector2 cellCenter = data.CellToWorld(cell);
-        float halfSize = data.cellSize * 0.5f;
+        Vector2 cellCenter = terrain.CellToWorld(cell);
+        float halfSize = terrain.CellSize * 0.5f;
 
         float closestX = Mathf.Clamp(worldPos.x, cellCenter.x - halfSize, cellCenter.x + halfSize);
         float closestY = Mathf.Clamp(worldPos.y, cellCenter.y - halfSize, cellCenter.y + halfSize);

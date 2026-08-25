@@ -61,6 +61,7 @@ public class MainMenuController : MonoBehaviour
 
     void Awake()
     {
+        CampArrivalContext.Clear();
         if (autoFindReferences) AutoFindReferences();
         HookButtons();
     }
@@ -282,6 +283,13 @@ public class MainMenuController : MonoBehaviour
 
     void LoadSlotToCamp(int slotIndex)
     {
+        SporeSaveSlotData candidate = SporeSaveManager.LoadSlot(slotIndex);
+        if (candidate != null && candidate.hasSave && candidate.lineageEnded)
+        {
+            CampArrivalContext.Clear();
+            ShowPlaceholder("That lineage has ended. Start a New Game in an empty slot.");
+            return;
+        }
         if (!SporeSaveManager.LoadSlotIntoGameState(slotIndex))
         {
             ShowPlaceholder("Could not load that save.");

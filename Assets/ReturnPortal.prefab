@@ -387,5 +387,3 @@ MonoBehaviour:
   saveSlotAfterRunCommit: 1
   promptRange: 1.15
   interactPrompt: Retreat to Camp
-  promptObject: {fileID: 1598038012244402667}
-  promptText: {fileID: 3723836643023666357}

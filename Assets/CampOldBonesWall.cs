@@ -47,8 +47,6 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
         RefreshVisibility();
     }
 
-    void Update() => RefreshVisibility();
-
     public string GetInteractPrompt()
     {
         return IsVisible() ? interactPrompt : "";
@@ -73,13 +71,6 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
         }
     }
 
-    public void TogglePanel()
-    {
-        if (panel == null) return;
-        if (panel.activeSelf) ClosePanel();
-        else OpenPanel();
-    }
-
     public void OpenPanel()
     {
         if (panel == null) return;
@@ -88,7 +79,7 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
         panel.transform.SetAsLastSibling();
         RefreshPanel();
         CampMenuModal.Open(playerOverride != null ? playerOverride.GetComponent<GobboController>() : null,
-            this, ClosePanel, continueButton);
+            this, ClosePanel, continueButton, panel);
     }
 
     public void ClosePanel()
@@ -99,8 +90,9 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
 
     bool IsVisible()
     {
-        CampDeathHistoryStore store = CampDeathHistoryStore.Instance;
-        return !hideUntilFirstDeath || (store != null && store.HasAnyDeaths());
+        if (!hideUntilFirstDeath) return true;
+        return GameState.Instance != null && GameState.Instance.campTerrainState != null &&
+            GameState.Instance.campTerrainState.memorialEstablished;
     }
 
     public void RefreshVisibility()
@@ -110,9 +102,8 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
         if (wallVisualRoot != null)
             wallVisualRoot.SetActive(visible);
 
-        // Keep the interaction collider alive even while the wall is hidden.
-        // CampInteractionDetector needs this spot to stay detectable; GetInteractPrompt()
-        // and Interact() already prevent use before the wall is unlocked.
+        Collider2D col = GetComponent<Collider2D>();
+        if (col != null) col.enabled = visible;
 
         if (hideThisMarkerSpriteUntilVisible)
         {
@@ -166,9 +157,4 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
         return sb.ToString();
     }
 
-    Transform FindPlayer()
-    {
-        GobboController player = FindAnyObjectByType<GobboController>();
-        return player != null ? player.transform : null;
-    }
 }

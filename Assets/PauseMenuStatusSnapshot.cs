@@ -14,7 +14,7 @@ public sealed class PlayerPauseSnapshot
     public string name = "Gobbo", type = "Unknown", stage = "Unknown";
     public int level, xp, xpRequired, health, maxHealth, attack, defense, digPower, followers, sporeMendAmount;
     public float moveSpeed, attackCooldown, attackRange, attackRadius, dashSpeed, dashDuration, dashCooldown, critChance, critDamage, digRadius;
-    public float digRange, digTickRate, interactRange, sporeMendCooldown, dashBiteRange, dashBiteMultiplier, dashBiteCooldown;
+    public float digRange, digTickRate, sporeMendCooldown, dashBiteRange, dashBiteMultiplier, dashBiteCooldown;
     public bool poisoned, hasSporeMend, hasDashBite;
     public int snackHealth, snackAttack, snackDefense;
     public List<string> cards = new List<string>(), abilities = new List<string>(), traits = new List<string>();
@@ -60,7 +60,7 @@ public static class PauseMenuStatusSnapshotBuilder
             p.attackRange = live.attackRange; p.attackRadius = live.attackRadius; p.dashSpeed = live.dashSpeed;
             p.dashDuration = live.dashDuration; p.dashCooldown = live.dashCooldown; p.critChance = live.critChance;
             p.critDamage = live.critDamageMultiplier; p.digPower = live.digPower; p.digRadius = live.GetCurrentEffectiveDigRadius();
-            p.digRange = live.digRange; p.digTickRate = live.digTickRate; p.interactRange = live.interactRange; p.followers = live.followerCount;
+            p.digRange = live.digRange; p.digTickRate = live.digTickRate; p.followers = live.followerCount;
             p.hasSporeMend = live.hasSporeMend; p.sporeMendAmount = live.sporeMendAmount; p.sporeMendCooldown = live.sporeMendCooldown;
             p.hasDashBite = live.hasDashBite; p.dashBiteRange = live.dashBiteRange; p.dashBiteMultiplier = live.dashBiteDamageMultiplier; p.dashBiteCooldown = live.dashBiteCooldown;
             p.poisoned = live.isPoisoned;

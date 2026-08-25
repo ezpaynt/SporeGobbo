@@ -3,6 +3,7 @@
   "rootNamespace": "SporeGobbo.Input.Tests",
   "references": [
     "SporeGobbo.Input",
+    "SporeGobbo.CampLifecycle",
     "Unity.InputSystem"
   ],
   "includePlatforms": [

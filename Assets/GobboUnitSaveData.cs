@@ -114,6 +114,8 @@ public class GobboUnitSaveData
     [Header("Roster State")]
     public bool isInActiveSquad = false;
     public bool survivedLastRun = true;
+    [Tooltip("Canonical Camp residential slot ID. Zero means unassigned.")]
+    public int campResidentialSlotId = 0;
 
     [Header("Visual")]
     public Color bodyColor = Color.green;
@@ -262,6 +264,7 @@ public class GobboUnitSaveData
         loyalty = Mathf.Clamp(loyalty <= 0 ? 100 : loyalty, 0, 100);
 
         if (runsSurvived < 0) runsSurvived = 0;
+        if (campResidentialSlotId < 0) campResidentialSlotId = 0;
         if (nightsSurvived < 0) nightsSurvived = 0;
         if (nightsSurvived > runsSurvived) runsSurvived = nightsSurvived;
         else nightsSurvived = runsSurvived;
@@ -393,6 +396,7 @@ public class GobboUnitSaveData
         copy.hasBeenHit = hasBeenHit;
         copy.isInActiveSquad = isInActiveSquad;
         copy.survivedLastRun = survivedLastRun;
+        copy.campResidentialSlotId = campResidentialSlotId;
         copy.bodyColor = bodyColor;
         copy.visualSetId = visualSetId;
         copy.portraitId = portraitId;

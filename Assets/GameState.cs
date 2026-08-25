@@ -95,6 +95,7 @@ public class GameState : MonoBehaviour
     public string markedSuccessorId = "";
 
     [Header("Camp Save")]
+    public bool lineageEnded = false;
     public int campCycleNumber = 0;
     public int campLevel = 1;
     public List<string> unlockedStations = new List<string>();

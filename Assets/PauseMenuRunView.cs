@@ -192,7 +192,7 @@ public sealed class PauseMenuRunView : MonoBehaviour
         Line(s, "Attack Range", F(p.attackRange)); Line(s, "Attack Radius", F(p.attackRadius)); Line(s, "Dash Speed", F(p.dashSpeed));
         Line(s, "Dash Duration", Sec(p.dashDuration)); Line(s, "Dash Cooldown", Sec(p.dashCooldown)); Line(s, "Critical Chance", Percent(p.critChance));
         Line(s, "Critical Damage", F(p.critDamage) + "x"); Line(s, "Dig Power", p.digPower); Line(s, "Dig Radius", F(p.digRadius));
-        Line(s, "Dig Range", F(p.digRange)); Line(s, "Dig Tick", Sec(p.digTickRate)); Line(s, "Interact Range", F(p.interactRange)); Line(s, "Followers", p.followers);
+        Line(s, "Dig Range", F(p.digRange)); Line(s, "Dig Tick", Sec(p.digTickRate)); Line(s, "Followers", p.followers);
         if (p.hasSporeMend) { Line(s, "Spore Mend", "+" + p.sporeMendAmount + " HP"); Line(s, "Mend Cooldown", Sec(p.sporeMendCooldown)); }
         if (p.hasDashBite) { Line(s, "Dash Bite Range", F(p.dashBiteRange)); Line(s, "Bite Damage", F(p.dashBiteMultiplier) + "x"); Line(s, "Bite Cooldown", Sec(p.dashBiteCooldown)); }
         if (p.poisoned) Line(s, "Status", "Poisoned"); return s.ToString();

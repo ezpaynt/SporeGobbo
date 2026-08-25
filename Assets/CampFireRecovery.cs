@@ -86,8 +86,6 @@ public class CampFireRecovery : MonoBehaviour, ICampInteractable
     public void OpenMenu()
     {
         menuOpen = true;
-        CampMenuModal.Open(currentPlayer, this, CloseMenu,
-            eatAndRestButton != null && eatAndRestButton.interactable ? eatAndRestButton : closeButton);
         if (fireMenuPanel != null)
         {
             fireMenuPanel.SetActive(true);
@@ -96,6 +94,8 @@ public class CampFireRecovery : MonoBehaviour, ICampInteractable
 
         if (titleText != null) titleText.text = title;
         RefreshMenuText();
+        Button defaultButton = UiFocusUtility.IsValid(eatAndRestButton) ? eatAndRestButton : closeButton;
+        CampMenuModal.Open(currentPlayer, this, CloseMenu, defaultButton, fireMenuPanel);
     }
 
     public void CloseMenu()

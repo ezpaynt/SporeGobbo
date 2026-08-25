@@ -52,6 +52,22 @@ namespace SporeGobbo.Input
             isOpen && (!ownerExists || !ownerActive);
     }
 
+    public static class ModalFocusCandidatePolicy
+    {
+        public static bool IsValid(bool exists, bool activeInHierarchy, bool enabled,
+            bool interactable, bool belongsToVisibleModal) =>
+            exists && activeInHierarchy && enabled && interactable && belongsToVisibleModal;
+
+        public static int ChooseDefaultIndex(int preferredIndex, IReadOnlyList<bool> validCandidates)
+        {
+            if (validCandidates == null) return -1;
+            if (preferredIndex >= 0 && preferredIndex < validCandidates.Count && validCandidates[preferredIndex])
+                return preferredIndex;
+            for (int i = 0; i < validCandidates.Count; i++) if (validCandidates[i]) return i;
+            return -1;
+        }
+    }
+
     public static class SceneInputContextPolicy
     {
         public static SporeInputContext NormalizeAfterSingleSceneLoad(bool isMainMenu) =>

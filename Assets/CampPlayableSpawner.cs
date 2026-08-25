@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using SporeGobbo.CampLifecycle;
 
 public class CampPlayableSpawner : MonoBehaviour
 {
@@ -25,11 +26,8 @@ public class CampPlayableSpawner : MonoBehaviour
     [Header("Camp Wander")]
     public float activeWanderRadius = 1.4f;
     public float reserveWanderRadius = 1.8f;
-    public float activeWanderSpeedMultiplier = 0.45f;
-    public float reserveWanderSpeedMultiplier = 0.25f;
 
-    [Header("Reserve Look")]
-    public float reserveScaleMultiplier = 0.55f;
+    [Header("Camp Look")]
     public int activeSortingOrder = 8;
     public int reserveSortingOrder = 5;
     public int playerSortingOrder = 10;
@@ -162,12 +160,13 @@ public class CampPlayableSpawner : MonoBehaviour
         for (int i = 0; i < active.Count; i++)
         {
             Vector3 pos = spawnBuddiesNearPlayerFirst ? GetArrivalSpot(i, active.Count, activeArrivalRadius) : GetSpot(activeBuddySpots, i, activeCircleRadius, i, active.Count);
-            SpawnCampBuddy(activeBuddyPrefab, active[i], pos, true, activeSortingOrder, activeWanderRadius, activeWanderSpeedMultiplier, i);
+            SpawnCampBuddy(activeBuddyPrefab, active[i], pos, true, activeSortingOrder, activeWanderRadius, i);
         }
     }
 
     void SpawnReserveBuddies()
     {
+        CampStartRoutineManager.Instance?.EnsureActivityPoints();
         GameObject prefab = reserveBuddyPrefab != null ? reserveBuddyPrefab : activeBuddyPrefab;
         if (prefab == null) return;
 
@@ -175,12 +174,14 @@ public class CampPlayableSpawner : MonoBehaviour
         List<GobboUnitSaveData> reserve = GameState.Instance.GetReserveGobboUnits();
         for (int i = 0; i < reserve.Count; i++)
         {
-            Vector3 pos = spawnBuddiesNearPlayerFirst ? GetArrivalSpot(i + active.Count, reserve.Count + active.Count, reserveArrivalRadius) : GetSpot(reserveBuddySpots, i, reserveCircleRadius, i, reserve.Count);
-            SpawnCampBuddy(prefab, reserve[i], pos, false, reserveSortingOrder, reserveWanderRadius, reserveWanderSpeedMultiplier, i);
+            Transform snapshot = CampActivityPoint.ChooseSnapshotPoint(reserve[i], i);
+            Vector3 pos = snapshot != null ? snapshot.position :
+                GetSpot(reserveBuddySpots, i, reserveCircleRadius, i, reserve.Count);
+            SpawnCampBuddy(prefab, reserve[i], pos, false, reserveSortingOrder, reserveWanderRadius, i);
         }
     }
 
-    void SpawnCampBuddy(GameObject prefab, GobboUnitSaveData unitData, Vector3 position, bool activeSquad, int sortingOrder, float wanderRadius, float speedMultiplier, int spotIndex)
+    void SpawnCampBuddy(GameObject prefab, GobboUnitSaveData unitData, Vector3 position, bool activeSquad, int sortingOrder, float wanderRadius, int spotIndex)
     {
         if (prefab == null || unitData == null) return;
 
@@ -205,13 +206,13 @@ public class CampPlayableSpawner : MonoBehaviour
 
         DisableRunBuddyBehavior(buddyObject);
 
-        if (!activeSquad) buddyObject.transform.localScale *= reserveScaleMultiplier;
+        buddyObject.transform.localScale *= CampBuddyPhysicalPolicy.GetScaleMultiplier(activeSquad);
 
         CampWander wander = buddyObject.GetComponent<CampWander>();
         if (wander == null) wander = buddyObject.AddComponent<CampWander>();
 
         Transform anchor = activeSquad ? GetAnchorTransform(activeBuddySpots, spotIndex) : GetAnchorTransform(reserveBuddySpots, spotIndex);
-        wander.SetAnchor(anchor, wanderRadius, Mathf.Max(0.2f, unitData.moveSpeed * speedMultiplier));
+        wander.SetAnchor(anchor, wanderRadius, CampBuddyPhysicalPolicy.GetMovementSpeed(unitData.moveSpeed, activeSquad));
 
         ForceVisible(buddyObject, sortingOrder);
     }

@@ -59,12 +59,15 @@ public static class UiFocusUtility
 {
     public static bool IsValid(Selectable selectable)
     {
-        return selectable != null && selectable.gameObject.activeInHierarchy && selectable.IsInteractable();
+        return ModalFocusCandidatePolicy.IsValid(selectable != null,
+            selectable != null && selectable.gameObject.activeInHierarchy,
+            selectable != null && selectable.enabled,
+            selectable != null && selectable.IsInteractable(), true);
     }
 
     public static Selectable FindFirst(GameObject root, Selectable preferred = null)
     {
-        if (IsValid(preferred)) return preferred;
+        if (IsValid(preferred) && (root == null || preferred.transform.IsChildOf(root.transform))) return preferred;
         if (root == null) return null;
         foreach (Selectable selectable in root.GetComponentsInChildren<Selectable>(true))
             if (IsValid(selectable)) return selectable;
@@ -107,6 +110,7 @@ public sealed class SporeUiCoordinator : MonoBehaviour
         public bool Pauses;
         public Selectable DefaultSelectable;
         public Selectable PreviousSelectable;
+        public GameObject ModalRoot;
     }
 
     private static SporeUiCoordinator instance;
@@ -191,7 +195,8 @@ public sealed class SporeUiCoordinator : MonoBehaviour
             UiFocusUtility.EnsureVisible(EventSystem.current.currentSelectedGameObject);
     }
 
-    public void PushModal(UnityEngine.Object owner, Action cancel, bool pausesSimulation, Selectable defaultSelectable = null)
+    public void PushModal(UnityEngine.Object owner, Action cancel, bool pausesSimulation,
+        Selectable defaultSelectable = null, GameObject modalRoot = null)
     {
         if (owner == null) return;
         BuddyCommandWheelController.Active?.CancelWithoutCommand(false);
@@ -206,7 +211,8 @@ public sealed class SporeUiCoordinator : MonoBehaviour
             Cancel = cancel,
             Pauses = pausesSimulation,
             DefaultSelectable = defaultSelectable,
-            PreviousSelectable = previous
+            PreviousSelectable = previous,
+            ModalRoot = modalRoot
         });
         if (pausesSimulation) SporePauseService.Acquire(owner);
         RefreshContext();
@@ -310,7 +316,8 @@ public sealed class SporeUiCoordinator : MonoBehaviour
 
     private static void SelectModalDefault(ModalRegistration registration)
     {
-        GameObject root = registration.Owner is Component component ? component.gameObject : null;
+        GameObject root = registration.ModalRoot != null ? registration.ModalRoot :
+            registration.Owner is Component component ? component.gameObject : null;
         Selectable selected = UiFocusUtility.FindFirst(root, registration.DefaultSelectable);
         UiFocusUtility.Select(selected);
         if (selected == null && (Application.isEditor || Debug.isDebugBuild))

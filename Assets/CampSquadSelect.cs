@@ -37,6 +37,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
     public int panelSortingOrder = 500;
 
     private readonly List<GameObject> spawnedRows = new List<GameObject>();
+    bool homeAvailable;
 
     void Awake()
     {
@@ -47,6 +48,9 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
 
     void Start()
     {
+        ApplyHomeAvailability(GameState.Instance != null && GameState.Instance.campTerrainState != null &&
+            GameState.Instance.campTerrainState.residentialStage >= 1 &&
+            GameState.Instance.campTerrainState.residentialSlotsEstablished >= 1);
         if (buildReadableUiIfMissing && (panel == null || activeListParent == null || reserveListParent == null || closeButton == null))
             BuildReadableUi();
 
@@ -58,7 +62,16 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
 
     public void Interact(GobboController playerController)
     {
+        if (!homeAvailable) return;
         OpenMenu(playerController);
+    }
+
+    public void ApplyHomeAvailability(bool available)
+    {
+        homeAvailable = available;
+        Collider2D col = GetComponent<Collider2D>();
+        if (col != null) col.enabled = available;
+        foreach (Renderer renderer in GetComponentsInChildren<Renderer>(true)) renderer.enabled = available;
     }
 
     public void OpenMenu(GobboController playerController = null)
@@ -70,7 +83,6 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
             return;
         }
 
-        CampMenuModal.Open(playerController, this, CloseMenu);
         if (panel != null)
         {
             panel.SetActive(true);
@@ -86,6 +98,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         }
 
         RefreshMenu();
+        CampMenuModal.Open(playerController, this, CloseMenu, closeButton, panel);
     }
 
     public void CloseMenu()

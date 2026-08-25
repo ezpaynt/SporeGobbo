@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Tilemaps;
+using SporeGobbo.CampLifecycle;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -1382,6 +1383,31 @@ public class MapGenerator : MonoBehaviour, IDiggableTerrain
     }
 
     void IDiggableTerrain.DigCircle(Vector2 worldPosition, float radius) => DigCircle(worldPosition, radius);
+    TerrainDigResult IDiggableTerrain.DigCircle(Vector2 worldPosition, float radius, TerrainDigAuthority authority,
+        int residentialStage, IReadOnlyCollection<Vector2Int> authorizedCells)
+    {
+        if (Data == null) return new TerrainDigResult(0, 0, 0, TerrainDigFailureReason.MissingTerrainAuthority);
+        if (authority == TerrainDigAuthority.ResidentialProgression)
+            return new TerrainDigResult(0, 0, 0, TerrainDigFailureReason.AuthorizationRejected);
+        Vector2Int center = Data.WorldToCell(worldPosition);
+        int cellRadius = Mathf.CeilToInt(radius / map.cellSize) + 1;
+        int evaluated = 0, eligible = 0, removed = 0;
+        for (int x = center.x - cellRadius; x <= center.x + cellRadius; x++)
+        for (int y = center.y - cellRadius; y <= center.y + cellRadius; y++)
+        {
+            Vector2Int cell = new Vector2Int(x, y);
+            if (!Data.InBounds(cell) || Vector2.Distance(Data.CellToWorld(cell), worldPosition) > radius) continue;
+            evaluated++;
+            bool blocked = Data.IsBlocked(cell);
+            if (blocked) eligible++;
+            DigCell(cell);
+            if (blocked && !Data.IsBlocked(cell)) removed++;
+        }
+        TerrainDigFailureReason failure = removed > 0 ? TerrainDigFailureReason.None :
+            evaluated == 0 ? TerrainDigFailureReason.NoEvaluatedCells :
+            eligible == 0 ? TerrainDigFailureReason.NoDirtRemoved : TerrainDigFailureReason.AuthorizationRejected;
+        return new TerrainDigResult(evaluated, eligible, removed, failure);
+    }
     bool IDiggableTerrain.IsBlocked(Vector2Int cell) => Data == null || !Data.InBounds(cell) || Data.IsBlocked(cell);
     Vector2Int IDiggableTerrain.WorldToCell(Vector2 worldPosition) => Data != null ? Data.WorldToCell(worldPosition) : Vector2Int.RoundToInt(worldPosition);
     Vector2 IDiggableTerrain.CellToWorld(Vector2Int cell) => Data != null ? Data.CellToWorld(cell) : cell;

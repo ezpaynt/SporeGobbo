@@ -86,6 +86,30 @@ public class UiOwnershipModelTests
         Assert.That(ModalLifecyclePolicy.ShouldForceClear(true, true, true), Is.False);
     }
 
+    [TestCase(true, true, true, true, true, true)]
+    [TestCase(true, false, true, true, true, false)]
+    [TestCase(true, true, false, true, true, false)]
+    [TestCase(true, true, true, false, true, false)]
+    [TestCase(true, true, true, true, false, false)]
+    public void ModalDefaultRejectsHiddenDisabledNonInteractableOrForeignCandidates(
+        bool exists, bool active, bool enabled, bool interactable, bool belongs, bool expected)
+    {
+        Assert.That(ModalFocusCandidatePolicy.IsValid(exists, active, enabled, interactable, belongs),
+            Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void InvalidPreferredModalActionFallsBackDeterministically()
+    {
+        Assert.That(ModalFocusCandidatePolicy.ChooseDefaultIndex(0, new[] { true, true }), Is.EqualTo(0),
+            "Available Fire recovery should remain preferred.");
+        Assert.That(ModalFocusCandidatePolicy.ChooseDefaultIndex(0, new[] { false, true }), Is.EqualTo(1),
+            "Disabled Fire recovery should fall back to Close.");
+        Assert.That(ModalFocusCandidatePolicy.ChooseDefaultIndex(1, new[] { true, true }), Is.EqualTo(1),
+            "Portal should preserve its explicitly safe Cancel preference.");
+        Assert.That(ModalFocusCandidatePolicy.ChooseDefaultIndex(0, new[] { false, false }), Is.EqualTo(-1));
+    }
+
     [TestCase(false, SporeInputContext.Gameplay)]
     [TestCase(true, SporeInputContext.Modal)]
     public void SingleSceneLoadNormalizesAwayFromWheel(bool isMainMenu, SporeInputContext expected)

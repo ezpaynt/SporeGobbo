@@ -3,6 +3,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Serialization;
+using SporeGobbo.CampLifecycle;
 
 public class CampSceneController : MonoBehaviour, ISporePauseScreen
 {
@@ -65,8 +66,17 @@ public class CampSceneController : MonoBehaviour, ISporePauseScreen
 
     private void Awake()
     {
+        EnsureGameState();
         arrivalMode = CampArrivalContext.ConsumeOrDefault();
+        PrepareArrivalState();
         ValidateRequiredReferences();
+    }
+
+    void PrepareArrivalState()
+    {
+        if (!CampLifecyclePolicy.AppliesFirstArrivalTerrain(arrivalMode == CampArrivalMode.NewGameIntro) || GameState.Instance == null) return;
+        GameState.Instance.EnsureRuntimeDefaults();
+        GameState.Instance.campTerrainState.mainChamberRevealed = true;
     }
 
     private void Start()
@@ -74,7 +84,18 @@ public class CampSceneController : MonoBehaviour, ISporePauseScreen
         EnsureGameState();
         HookButtons();
 
-        if (arrivalMode == CampArrivalMode.ReturnedFromRun && TryStartDeathSuccessionFlow()) return;
+        if (arrivalMode == CampArrivalMode.PostDeathSuccession)
+        {
+            if (TryStartDeathSuccessionFlow()) return;
+            Debug.LogError("Post-death Camp arrival had no pending succession state. Refusing to open playable Camp.", this);
+            if (GameState.Instance != null)
+            {
+                GameState.Instance.lineageEnded = true;
+                SporeSaveManager.SaveCurrentSlotFromGameState();
+            }
+            LineageGameOverScreen.Show();
+            return;
+        }
 
         if (arrivalMode == CampArrivalMode.NewGameIntro)
         {
@@ -84,7 +105,7 @@ public class CampSceneController : MonoBehaviour, ISporePauseScreen
 
         if (arrivalMode == CampArrivalMode.LoadedSave)
         {
-            OpenCampForArrival(mainCampArrivalSpawn, true, false, false);
+            OpenCampForArrival(mainCampArrivalSpawn, true, true, false);
             return;
         }
 
@@ -378,7 +399,6 @@ public class CampSceneController : MonoBehaviour, ISporePauseScreen
                 return;
             }
             state.EnsureRuntimeDefaults();
-            state.campTerrainState.mainChamberRevealed = true;
             StoryEventService.Complete(state, StoryEventIds.ASporeHatchesCampDiscovered);
             SporeSaveManager.SaveCurrentSlotFromGameState();
         }

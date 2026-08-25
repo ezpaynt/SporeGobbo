@@ -3,4 +3,5 @@
   <Project Path="SporeGobbo.Input.csproj" />
   <Project Path="SporeGobbo.Input.EditModeTests.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
+  <Project Path="SporeGobbo.CampLifecycle.csproj" />
 </Solution>

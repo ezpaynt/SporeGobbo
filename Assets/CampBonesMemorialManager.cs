@@ -27,7 +27,6 @@ public class CampBonesMemorialManager : MonoBehaviour
     {
         if (popupPanel != null) popupPanel.SetActive(false);
         RefreshWallVisibility();
-        TryShowMemorialPopup();
     }
 
     void Update()
@@ -58,10 +57,18 @@ public class CampBonesMemorialManager : MonoBehaviour
 
     public void RefreshWallVisibility()
     {
-        CampDeathHistoryStore store = CampDeathHistoryStore.Instance;
-        bool visible = store != null && store.HasAnyDeaths();
+        bool visible = GameState.Instance != null && GameState.Instance.campTerrainState != null &&
+            GameState.Instance.campTerrainState.memorialEstablished;
         if (wallRoot != null) wallRoot.SetActive(visible);
         if (bonesWall != null) bonesWall.RefreshVisibility();
+    }
+
+    public void EstablishPresentation()
+    {
+        RefreshWallVisibility();
+        ShowPopup(firstRevealMessage);
+        CampDeathHistoryStore store = CampDeathHistoryStore.Instance;
+        if (store != null) store.MarkAllSeen();
     }
 
     public void ShowPopup(string message)

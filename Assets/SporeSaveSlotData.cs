@@ -26,6 +26,7 @@ public class SporeSaveSlotData
     public string markedSuccessorId = "";
 
     [Header("Camp")]
+    public bool lineageEnded = false;
     public int currentRunNumber = 1;
     public int runNumber = 1;
     public int campCycleNumber = 0;

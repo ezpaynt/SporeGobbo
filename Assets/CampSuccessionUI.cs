@@ -405,6 +405,7 @@ public class CampSuccessionUI : MonoBehaviour
         }
 
         GameState.Instance.markedSuccessorId = "";
+        GameState.Instance.lineageEnded = false;
 
         CampSuccessorPreferenceStore pref = CampSuccessorPreferenceStore.Instance;
         if (pref != null) pref.ClearSuccessor();
@@ -426,6 +427,8 @@ public class CampSuccessionUI : MonoBehaviour
     public void ReturnToMainMenu()
     {
         Log("Return to main menu clicked. Scene: " + mainMenuSceneName);
+        CampArrivalContext.Clear();
+        PlayerDeathRunStore.Instance?.ClearPendingDeath();
         SporePauseService.ResetAll();
         if (!string.IsNullOrWhiteSpace(mainMenuSceneName))
             SceneManager.LoadScene(mainMenuSceneName);

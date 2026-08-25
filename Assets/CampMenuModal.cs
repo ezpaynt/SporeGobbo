@@ -33,7 +33,8 @@ public static class CampMenuModal
         closingNow = false;
     }
 
-    public static void Open(GobboController player, UnityEngine.Object owner, Action closeAction = null, Selectable defaultSelectable = null)
+    public static void Open(GobboController player, UnityEngine.Object owner, Action closeAction = null,
+        Selectable defaultSelectable = null, GameObject modalRoot = null)
     {
         ValidateCurrentOwner();
         if (isOpen && currentOwner == owner)
@@ -57,7 +58,7 @@ public static class CampMenuModal
         }
 
         isOpen = true;
-        SporeUiCoordinator.Instance.PushModal(owner, closeAction, false, defaultSelectable);
+        SporeUiCoordinator.Instance.PushModal(owner, closeAction, false, defaultSelectable, modalRoot);
     }
 
     public static void Close(UnityEngine.Object owner)

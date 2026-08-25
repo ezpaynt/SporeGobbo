@@ -6,6 +6,8 @@ using UnityEngine;
 /// <summary>Single authority for world interaction selection, prompts, and execution.</summary>
 public class CampInteractionDetector : MonoBehaviour
 {
+    private const string RuntimePromptResourcePath = "UI/CampInteractionPrompt";
+
     [Header("Player")]
     public Transform playerTransform;
 
@@ -30,7 +32,8 @@ public class CampInteractionDetector : MonoBehaviour
     private GobboController player;
     private SporeInputReader inputReader;
     private SporeUiCoordinator uiCoordinator;
-    private string fallbackPrompt;
+    private string currentPrompt;
+    private bool promptResolutionAttempted;
 
     private sealed class Candidate
     {
@@ -44,6 +47,7 @@ public class CampInteractionDetector : MonoBehaviour
     void Awake()
     {
         inputReader = SporeInputReader.Instance;
+        EnsurePromptPresentation();
         HidePrompt();
     }
 
@@ -97,6 +101,7 @@ public class CampInteractionDetector : MonoBehaviour
 
     public void SetPlayer(Transform target)
     {
+        EnsurePromptPresentation();
         playerTransform = target;
         player = target != null ? target.GetComponent<GobboController>() : null;
         ClearCurrent();
@@ -182,27 +187,64 @@ public class CampInteractionDetector : MonoBehaviour
             return;
         }
 
-        fallbackPrompt = inputReader.GetInteractBindingDisplay() + " - " + current.Interactable.GetInteractPrompt();
-        if (promptText != null) promptText.text = fallbackPrompt;
+        currentPrompt = inputReader.GetInteractBindingDisplay() + " - " + current.Interactable.GetInteractPrompt();
+        if (promptText != null) promptText.text = currentPrompt;
         if (promptPanel != null) promptPanel.SetActive(true);
+    }
+
+    void EnsurePromptPresentation()
+    {
+        if (promptPanel != null && promptText != null) return;
+
+        if (promptPanel != null && promptText == null)
+            promptText = promptPanel.GetComponentInChildren<TMP_Text>(true);
+        if (promptPanel != null && promptText != null) return;
+        if (promptResolutionAttempted) return;
+
+        promptResolutionAttempted = true;
+        Canvas canvas = FindPromptCanvas();
+        GameObject prefab = Resources.Load<GameObject>(RuntimePromptResourcePath);
+        if (canvas == null || prefab == null)
+        {
+            Debug.LogError("CampInteractionDetector could not resolve the shared interaction prompt presentation.", this);
+            return;
+        }
+
+        promptPanel = Object.Instantiate(prefab, canvas.transform, false);
+        promptPanel.name = "WorldInteractionPrompt";
+        promptText = promptPanel.GetComponentInChildren<TMP_Text>(true);
+        if (promptText == null)
+        {
+            Debug.LogError("Shared interaction prompt prefab has no TMP_Text child.", promptPanel);
+            Object.Destroy(promptPanel);
+            promptPanel = null;
+        }
+    }
+
+    static Canvas FindPromptCanvas()
+    {
+        Canvas[] canvases = Object.FindObjectsByType<Canvas>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        Canvas best = null;
+        foreach (Canvas candidate in canvases)
+        {
+            if (candidate == null || !candidate.isActiveAndEnabled || candidate.renderMode == RenderMode.WorldSpace)
+                continue;
+            if (best == null || candidate.sortingOrder > best.sortingOrder)
+                best = candidate;
+        }
+        return best;
     }
 
     void ClearCurrent()
     {
         current = null;
-        fallbackPrompt = null;
+        currentPrompt = null;
     }
 
     void HidePrompt()
     {
-        fallbackPrompt = null;
+        currentPrompt = null;
         if (promptPanel != null) promptPanel.SetActive(false);
-    }
-
-    void OnGUI()
-    {
-        if (promptText == null && !string.IsNullOrWhiteSpace(fallbackPrompt))
-            GUI.Label(new Rect(Screen.width * 0.5f - 140f, Screen.height - 80f, 280f, 30f), fallbackPrompt);
     }
 
     void OnDrawGizmosSelected()

@@ -24,10 +24,13 @@ public class CampWander : MonoBehaviour
     private float idleTimer;
     private float stuckTimer;
     private Vector2 lastPosition;
+    private BuddyUnit buddy;
+    private bool semanticDestinations;
 
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
+        buddy = GetComponent<BuddyUnit>();
         rb.freezeRotation = true;
 
         directionalSprite = GetComponent<BuddyDirectionalSprite>();
@@ -47,10 +50,18 @@ public class CampWander : MonoBehaviour
 
     public void SetAnchor(Transform newAnchor, float radius, float speed)
     {
+        semanticDestinations = false;
         anchor = newAnchor;
         useTransformAnchor = anchor != null;
         anchorPosition = anchor != null ? (Vector2)anchor.position : (Vector2)transform.position;
         wanderRadius = Mathf.Max(0.1f, radius);
+        moveSpeed = Mathf.Max(0f, speed);
+        PickNewTarget();
+    }
+
+    public void SetSemanticDestinations(float speed)
+    {
+        semanticDestinations = true;
         moveSpeed = Mathf.Max(0f, speed);
         PickNewTarget();
     }
@@ -79,7 +90,7 @@ public class CampWander : MonoBehaviour
         }
 
         // Keep camp buddies from drifting too far even if something bumps them.
-        if (Vector2.Distance(rb.position, anchorPos) > wanderRadius * 1.75f)
+        if (!semanticDestinations && Vector2.Distance(rb.position, anchorPos) > wanderRadius * 1.75f)
             target = anchorPos;
 
         Vector2 moveDir = (target - rb.position).normalized;
@@ -114,6 +125,15 @@ public class CampWander : MonoBehaviour
 
     void PickNewTarget()
     {
+        if (semanticDestinations)
+        {
+            CampActivityPoint[] points = CampActivityPoint.GetValidFor(buddy != null ? buddy.unitData : null);
+            if (points.Length > 0)
+            {
+                target = points[Random.Range(0, points.Length)].transform.position;
+                return;
+            }
+        }
         Vector2 anchorPos = GetAnchorPosition();
         target = anchorPos + Random.insideUnitCircle * wanderRadius;
     }

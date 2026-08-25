@@ -2,6 +2,7 @@ public enum CampArrivalMode
 {
     NewGameIntro,
     ReturnedFromRun,
+    PostDeathSuccession,
     LoadedSave
 }
 

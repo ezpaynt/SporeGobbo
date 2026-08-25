@@ -169,6 +169,7 @@ public static class SporeSaveManager
             existing.campCycleNumber = Mathf.Max(0, gs.campCycleNumber);
             existing.maxActiveSquad = Mathf.Max(1, gs.maxActiveSquad);
             existing.campLevel = Mathf.Max(1, gs.campLevel);
+            existing.lineageEnded = gs.lineageEnded;
             existing.leader = gs.GetLeader().CloneUnit();
             existing.ownedGobbos = CloneUnits(gs.ownedGobbos);
             existing.activeSquadIds = gs.activeSquadIds != null ? new List<string>(gs.activeSquadIds) : new List<string>();
@@ -221,6 +222,7 @@ public static class SporeSaveManager
         gs.campCycleNumber = Mathf.Max(0, data.campCycleNumber);
         gs.maxActiveSquad = Mathf.Max(1, data.maxActiveSquad);
         gs.campLevel = Mathf.Max(1, data.campLevel);
+        gs.lineageEnded = data.lineageEnded;
         gs.SetLeader(data.leader != null ? data.leader.CloneUnit() : new GobboUnitSaveData { isLeader = true, displayName = data.playerName });
         gs.ownedGobbos = CloneUnits(data.ownedGobbos);
         gs.activeSquadIds = data.activeSquadIds != null ? new List<string>(data.activeSquadIds) : new List<string>();
