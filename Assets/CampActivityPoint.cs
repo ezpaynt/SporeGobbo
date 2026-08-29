@@ -12,7 +12,6 @@ public sealed class CampActivityPoint : MonoBehaviour
 {
     public CampActivityKind kind;
     public bool available;
-    public int residentialStage;
     public int residentialSlot;
 
     public static bool CanUse(CampActivityKind pointKind, bool pointAvailable,

@@ -33,7 +33,7 @@ public class CampSuccessionUI : MonoBehaviour
     public List<GameObject> panelsToHideWhenOpen = new List<GameObject>();
 
     [Header("Debug")]
-    public bool logDebugMessages = true;
+    public bool logDebugMessages = false;
 
     private GobboUnitSaveData markedSuccessor;
     private readonly List<GobboUnitSaveData> eligibleSuccessors = new List<GobboUnitSaveData>();

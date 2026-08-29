@@ -32,10 +32,21 @@ public sealed class CampTerrainState
 
     public void Normalize()
     {
+        NormalizeInternal(null);
+    }
+
+    public void Normalize(int residentialCapacity)
+    {
+        NormalizeInternal(Math.Max(0, residentialCapacity));
+    }
+
+    void NormalizeInternal(int? residentialCapacity)
+    {
         layoutRevision = Math.Max(0, layoutRevision);
         residentialStage = Math.Max(0, Math.Min(5, residentialStage));
-        residentialSlotsEstablished = Math.Max(0,
-            Math.Min(CampSpatialPolicy.StageOneSlotCapacity, residentialSlotsEstablished));
+        residentialSlotsEstablished = Math.Max(0, residentialSlotsEstablished);
+        if (residentialCapacity.HasValue)
+            residentialSlotsEstablished = Math.Min(residentialCapacity.Value, residentialSlotsEstablished);
         if (residentialSlotsEstablished > 0 && residentialStage < 1) residentialStage = 1;
         clearedCellCoordinates ??= new List<CampCellCoordinate>();
         unlockedExpansionRegionIds ??= new List<string>();
@@ -68,6 +79,17 @@ public sealed class CampTerrainState
     public CampTerrainState Clone()
     {
         Normalize();
+        return CloneNormalized();
+    }
+
+    public CampTerrainState Clone(int residentialCapacity)
+    {
+        Normalize(residentialCapacity);
+        return CloneNormalized();
+    }
+
+    CampTerrainState CloneNormalized()
+    {
         CampTerrainState copy = new CampTerrainState
         {
             layoutRevision = layoutRevision,

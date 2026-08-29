@@ -43,7 +43,7 @@ public class CampDeathHistoryStore : MonoBehaviour
     public List<DeadBuddyRecord> deadBuddyHistory = new List<DeadBuddyRecord>();
 
     [Header("Debug")]
-    public bool logDebugMessages = true;
+    public bool logDebugMessages = false;
 
     void Awake()
     {

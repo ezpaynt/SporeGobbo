@@ -42,6 +42,9 @@ public sealed class BuddyDigAbility : MonoBehaviour
         IReadOnlyCollection<Vector2Int> authorizedCells, Action<TerrainDigResult> completed = null)
     {
         TerrainDigResult result = Dig(target, authority, residentialStage, authorizedCells);
+        // Logical tile removal and collider consumption are separate phases. Never
+        // start the post-Dig Rigidbody walk before the next physics step.
+        if (result.Changed) yield return new WaitForFixedUpdate();
         if (digDuration > 0f) yield return new WaitForSeconds(digDuration);
         visualController?.SetAnimationState(GobboAnimationState.Idle);
         completed?.Invoke(result);

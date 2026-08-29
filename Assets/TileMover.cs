@@ -11,10 +11,10 @@ public static class TileMover
             return;
         }
 
-        float clearanceRadius = GetMapClearanceRadius(rb, bodyRadius);
+        Vector2 clearanceExtents = GetMapClearanceExtents(rb, bodyRadius);
         Vector2 nextPos = rb.position + desiredVelocity * Time.fixedDeltaTime;
 
-        if (IsTerrainPositionClearForBody(terrain, nextPos, clearanceRadius))
+        if (IsTerrainPositionClearForBox(terrain, nextPos, clearanceExtents))
         {
             rb.linearVelocity = desiredVelocity;
             return;
@@ -23,7 +23,7 @@ public static class TileMover
         Vector2 xVel = new Vector2(desiredVelocity.x, 0f);
         Vector2 xPos = rb.position + xVel * Time.fixedDeltaTime;
 
-        if (IsTerrainPositionClearForBody(terrain, xPos, clearanceRadius))
+        if (IsTerrainPositionClearForBox(terrain, xPos, clearanceExtents))
         {
             rb.linearVelocity = xVel;
             return;
@@ -32,7 +32,7 @@ public static class TileMover
         Vector2 yVel = new Vector2(0f, desiredVelocity.y);
         Vector2 yPos = rb.position + yVel * Time.fixedDeltaTime;
 
-        if (IsTerrainPositionClearForBody(terrain, yPos, clearanceRadius))
+        if (IsTerrainPositionClearForBox(terrain, yPos, clearanceExtents))
         {
             rb.linearVelocity = yVel;
             return;
@@ -47,9 +47,9 @@ public static class TileMover
         if (terrain == null)
             return;
 
-        float clearanceRadius = GetMapClearanceRadius(rb, bodyRadius);
+        Vector2 clearanceExtents = GetMapClearanceExtents(rb, bodyRadius);
 
-        if (IsTerrainPositionClearForBody(terrain, rb.position, clearanceRadius))
+        if (IsTerrainPositionClearForBox(terrain, rb.position, clearanceExtents))
             return;
 
         Vector2Int cell =
@@ -67,7 +67,7 @@ public static class TileMover
                     Vector2 testWorld =
                         terrain.CellToWorld(testCell);
 
-                    if (IsTerrainPositionClearForBody(terrain, testWorld, clearanceRadius))
+                    if (IsTerrainPositionClearForBox(terrain, testWorld, clearanceExtents))
                     {
                         rb.position = testWorld;
                         rb.linearVelocity = Vector2.zero;
@@ -93,6 +93,16 @@ public static class TileMover
         return Mathf.Max(radius, extents.x, extents.y);
     }
 
+    public static Vector2 GetMapClearanceExtents(Rigidbody2D rb, float fallbackRadius)
+    {
+        Vector2 fallback = Vector2.one * Mathf.Max(0f, fallbackRadius);
+        if (rb == null) return fallback;
+        Collider2D collider = rb.GetComponent<Collider2D>();
+        if (collider == null || !collider.enabled || collider.isTrigger) return fallback;
+        Vector2 extents = collider.bounds.extents;
+        return new Vector2(Mathf.Max(fallback.x, extents.x), Mathf.Max(fallback.y, extents.y));
+    }
+
     public static float GetMapClearanceRadius(Rigidbody2D rb, float bodyRadius)
     {
         return GetColliderBodyRadius(rb, bodyRadius);
@@ -101,6 +111,54 @@ public static class TileMover
     public static bool CanOccupy(IDiggableTerrain terrain, Vector2 worldPosition, float bodyRadius)
     {
         return terrain == null || IsTerrainPositionClearForBody(terrain, worldPosition, Mathf.Max(0f, bodyRadius));
+    }
+
+    public static bool CanTraverse(IDiggableTerrain terrain, Vector2 start, Vector2 end, float bodyRadius)
+    {
+        if (terrain == null) return true;
+        float distance = Vector2.Distance(start, end);
+        float spacing = Mathf.Max(0.01f, Mathf.Min(terrain.CellSize * 0.125f,
+            Mathf.Max(0.01f, bodyRadius) * 0.5f));
+        int steps = Mathf.Max(1, Mathf.CeilToInt(distance / spacing));
+        for (int step = 0; step <= steps; step++)
+            if (!CanOccupy(terrain, Vector2.Lerp(start, end, step / (float)steps), bodyRadius))
+                return false;
+        return true;
+    }
+
+    public static bool CanOccupyBox(IDiggableTerrain terrain, Vector2 worldPosition, Vector2 halfExtents) =>
+        terrain == null || IsTerrainPositionClearForBox(terrain, worldPosition,
+            new Vector2(Mathf.Max(0f, halfExtents.x), Mathf.Max(0f, halfExtents.y)));
+
+    public static bool CanTraverseBox(IDiggableTerrain terrain, Vector2 start, Vector2 end, Vector2 halfExtents)
+    {
+        if (terrain == null) return true;
+        float distance = Vector2.Distance(start, end);
+        float minExtent = Mathf.Max(0.01f, Mathf.Min(halfExtents.x, halfExtents.y));
+        float spacing = Mathf.Max(0.01f, Mathf.Min(terrain.CellSize * 0.125f, minExtent * 0.5f));
+        int steps = Mathf.Max(1, Mathf.CeilToInt(distance / spacing));
+        for (int step = 0; step <= steps; step++)
+            if (!CanOccupyBox(terrain, Vector2.Lerp(start, end, step / (float)steps), halfExtents)) return false;
+        return true;
+    }
+
+    static bool IsTerrainPositionClearForBox(IDiggableTerrain terrain, Vector2 worldPos, Vector2 halfExtents)
+    {
+        float cellSize = terrain.CellSize;
+        Vector2Int center = terrain.WorldToCell(worldPos);
+        int rangeX = Mathf.CeilToInt((halfExtents.x + cellSize * 0.5f) / cellSize) + 1;
+        int rangeY = Mathf.CeilToInt((halfExtents.y + cellSize * 0.5f) / cellSize) + 1;
+        for (int x = center.x - rangeX; x <= center.x + rangeX; x++)
+        for (int y = center.y - rangeY; y <= center.y + rangeY; y++)
+        {
+            Vector2Int cell = new Vector2Int(x, y);
+            if (!terrain.IsBlocked(cell)) continue;
+            Vector2 cellCenter = terrain.CellToWorld(cell);
+            float halfCell = cellSize * 0.5f;
+            if (Mathf.Abs(worldPos.x - cellCenter.x) <= halfExtents.x + halfCell &&
+                Mathf.Abs(worldPos.y - cellCenter.y) <= halfExtents.y + halfCell) return false;
+        }
+        return true;
     }
 
     private static bool IsTerrainPositionClearForBody(IDiggableTerrain terrain, Vector2 worldPos, float radius)

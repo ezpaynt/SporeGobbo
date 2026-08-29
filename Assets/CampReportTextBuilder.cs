@@ -79,7 +79,15 @@ public static class CampReportTextBuilder
         if (run == null) return "";
         pending ??= new List<GobboUnitSaveData>();
 
-        string text = "Roll call";
+        int participated = run.activeBuddyReports != null ? run.activeBuddyReports.Count : 0;
+        int died = run.activeBuddyReports != null
+            ? run.activeBuddyReports.FindAll(report => report != null && report.died).Count
+            : run.buddiesLost;
+        int returned = System.Math.Max(0, participated - died);
+
+        string text = "Roll call" +
+            "\n\nParticipated: " + participated +
+            "\nReturned: " + returned;
 
         text += "\n\nNew buddies: " + run.buddiesFound;
         if (run.newBuddyNames != null && run.newBuddyNames.Count > 0)

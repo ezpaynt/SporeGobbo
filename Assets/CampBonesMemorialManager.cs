@@ -19,7 +19,7 @@ public class CampBonesMemorialManager : MonoBehaviour
     public float autoHideAfterSeconds = 4f;
 
     [Header("Debug")]
-    public bool logDebugMessages = true;
+    public bool logDebugMessages = false;
 
     float hideAt = -1f;
 

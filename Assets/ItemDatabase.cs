@@ -20,6 +20,8 @@ public class ItemDatabase : MonoBehaviour
         }
 
         Instance = this;
+        if (transform.parent != null)
+            transform.SetParent(null, true);
         DontDestroyOnLoad(gameObject);
         RebuildLookup();
     }

@@ -49,7 +49,6 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
     void Start()
     {
         ApplyHomeAvailability(GameState.Instance != null && GameState.Instance.campTerrainState != null &&
-            GameState.Instance.campTerrainState.residentialStage >= 1 &&
             GameState.Instance.campTerrainState.residentialSlotsEstablished >= 1);
         if (buildReadableUiIfMissing && (panel == null || activeListParent == null || reserveListParent == null || closeButton == null))
             BuildReadableUi();

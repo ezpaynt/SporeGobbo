@@ -38,11 +38,6 @@ namespace SporeGobbo.CampLifecycle
             return !completed && validOwnedBuddyCount > 0;
         }
 
-        public static bool CanProgressionExcavateResidentialStage(int requestedStage, int completedStage)
-        {
-            return requestedStage >= 1 && requestedStage <= 5 && requestedStage == completedStage + 1;
-        }
-
         public static bool ShouldEstablishMemorial(bool hasPersistedDeath, bool lineageEnded,
             bool hasValidLivingLeader, bool memorialEstablished)
         {

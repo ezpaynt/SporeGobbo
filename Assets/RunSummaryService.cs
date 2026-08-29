@@ -114,7 +114,7 @@ public static class RunSummaryService
             foreach (string id in runStartActiveBuddyIds)
                 if (!string.IsNullOrWhiteSpace(id) && !activeRunIds.Contains(id)) activeRunIds.Add(id);
         }
-        if (state.activeSquadIds != null)
+        else if (state.activeSquadIds != null)
         {
             foreach (string id in state.activeSquadIds)
                 if (!string.IsNullOrWhiteSpace(id) && !activeRunIds.Contains(id)) activeRunIds.Add(id);

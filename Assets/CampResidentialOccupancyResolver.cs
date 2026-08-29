@@ -18,6 +18,11 @@ public static class CampResidentialOccupancyResolver
 {
     public static CampResidentialOccupancyRepair Repair(GameState gameState)
     {
+        return Repair(gameState, CampResidentialCatalog.CurrentRuntimeCapacity);
+    }
+
+    public static CampResidentialOccupancyRepair Repair(GameState gameState, int residentialCapacity)
+    {
         int established = gameState?.campTerrainState != null
             ? gameState.campTerrainState.residentialSlotsEstablished : 0;
         List<ResidentialOccupantRecord> records = new List<ResidentialOccupantRecord>();
@@ -28,7 +33,7 @@ public static class CampResidentialOccupancyResolver
                         IsLivingBuddy(gobbo)));
 
         ResidentialOccupancyResolution resolution = CampSpatialPolicy.ResolveResidentialOccupancy(
-            records, established, CampSpatialPolicy.StageOneSlotCapacity);
+            records, established, residentialCapacity);
         bool changed = false;
         if (gameState?.leader != null && gameState.leader.campResidentialSlotId != 0)
         {
@@ -52,13 +57,29 @@ public static class CampResidentialOccupancyResolver
 
     public static bool AssignEstablishedSlot(GameState gameState, string gobboId, int slotId)
     {
-        if (gameState?.campTerrainState == null || slotId < 1 ||
-            slotId > gameState.campTerrainState.residentialSlotsEstablished) return false;
+        if (gameState?.campTerrainState == null ||
+            !CanAssignSlot(gameState, gobboId, slotId,
+                gameState.campTerrainState.residentialSlotsEstablished)) return false;
         GobboUnitSaveData gobbo = gameState.ownedGobbos?.Find(unit => unit != null && unit.uniqueId == gobboId);
+        gobbo.campResidentialSlotId = slotId;
+        return true;
+    }
+
+    public static bool CanAssignNextSlot(GameState gameState, string gobboId, int slotId)
+    {
+        return gameState?.campTerrainState != null &&
+               slotId == gameState.campTerrainState.residentialSlotsEstablished + 1 &&
+               CanAssignSlot(gameState, gobboId, slotId, slotId);
+    }
+
+    static bool CanAssignSlot(GameState gameState, string gobboId, int slotId, int maximumSlot)
+    {
+        if (gameState?.ownedGobbos == null || slotId < 1 || slotId > maximumSlot) return false;
+        GobboUnitSaveData gobbo = gameState.ownedGobbos.Find(unit => unit != null && unit.uniqueId == gobboId);
         if (!IsLivingBuddy(gobbo)) return false;
         foreach (GobboUnitSaveData other in gameState.ownedGobbos)
-            if (other != null && other != gobbo && IsLivingBuddy(other) && other.campResidentialSlotId == slotId) return false;
-        gobbo.campResidentialSlotId = slotId;
+            if (other != null && other != gobbo && IsLivingBuddy(other) &&
+                other.campResidentialSlotId == slotId) return false;
         return true;
     }
 

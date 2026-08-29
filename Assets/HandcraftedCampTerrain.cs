@@ -87,10 +87,16 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
     bool started;
     bool rebuilding;
     bool spatialContractValidated;
+    CampResidentialCatalog residentialCatalog;
+    HashSet<(int x, int y)> residentialAuthorizationCells;
+    HashSet<(int x, int y)> optionalPlayerDigCells;
 
     void OnValidate()
     {
         baselineCached = false;
+        residentialCatalog = null;
+        residentialAuthorizationCells = null;
+        optionalPlayerDigCells = null;
         layoutRevision = Mathf.Max(1, layoutRevision);
     }
     void Awake()
@@ -155,10 +161,15 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
             ? new HashSet<Vector2Int>(authorizedCells) : new HashSet<Vector2Int>();
         CampTerrainState currentState = GetState(true);
         int expectedSlot = currentState != null ? currentState.residentialSlotsEstablished + 1 : 0;
+        CampResidentialCatalog catalog = GetResidentialCatalog();
+        CampResidentialRoomDefinition expectedRoom = null;
+        bool expectedSlotExists = catalog != null &&
+            catalog.TryGetRoomForSlot(expectedSlot, out expectedRoom);
         HashSet<Vector2Int> expectedFootprint = new HashSet<Vector2Int>(GetResidentialSlotFootprint(expectedSlot));
         bool validResidentialRequest = authority != TerrainDigAuthority.ResidentialProgression ||
-            CampSpatialPolicy.CanAuthorizeResidentialProgression(residentialStage, 1,
-                expectedSlot >= 1 && expectedSlot <= CampSpatialPolicy.StageOneSlotCapacity &&
+            CampSpatialPolicy.CanAuthorizeResidentialProgression(residentialStage,
+                expectedRoom != null ? expectedRoom.ProgressionIndex : 0,
+                expectedSlotExists &&
                 authorized.SetEquals(expectedFootprint));
         Vector2Int center = WorldToCell(worldPosition);
         int cellRadius = Mathf.CeilToInt(Mathf.Max(0f, radius) / CellSize) + 1;
@@ -187,20 +198,20 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
     bool IsAuthorizedResidentialProgressionCell(Vector2Int cell, int requestedStage, HashSet<Vector2Int> requestedCells)
     {
         CampTerrainState state = GetState(true);
-        if (state == null || requestedStage != 1 || state.residentialSlotsEstablished >= CampSpatialPolicy.StageOneSlotCapacity)
+        CampResidentialCatalog catalog = GetResidentialCatalog();
+        int nextSlot = state != null ? state.residentialSlotsEstablished + 1 : 0;
+        if (state == null || catalog == null ||
+            !catalog.TryGetRoomForSlot(nextSlot, out CampResidentialRoomDefinition room) ||
+            requestedStage != room.ProgressionIndex)
             return false;
-        int nextSlot = state.residentialSlotsEstablished + 1;
         return requestedCells.Contains(cell) && GetResidentialSlotFootprint(nextSlot).Contains(cell) && IsResidentialTerrainCell(cell);
     }
 
     bool IsResidentialTerrainCell(Vector2Int cell)
     {
-        return IsInSpatialZone(cell, CampZoneKind.ResidentialEntrance) ||
-               IsInSpatialZone(cell, CampZoneKind.ResidentialStage1) ||
-               IsInSpatialZone(cell, CampZoneKind.ResidentialStage2) ||
-               IsInSpatialZone(cell, CampZoneKind.ResidentialStage3) ||
-               IsInSpatialZone(cell, CampZoneKind.ResidentialStage4) ||
-               IsInSpatialZone(cell, CampZoneKind.ResidentialStage5);
+        GetResidentialCatalog();
+        return residentialAuthorizationCells != null &&
+               residentialAuthorizationCells.Contains((cell.x, cell.y));
     }
 
     bool RemoveResidentialCell(Vector2Int cell)
@@ -233,6 +244,15 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
     public CampDigCategory GetSpatialDigCategory(Vector2Int cell)
     {
         EnsureSpatialContract();
+        GetResidentialCatalog();
+        if (residentialAuthorizationCells != null)
+        {
+            var tuple = (cell.x, cell.y);
+            if (residentialAuthorizationCells.Contains(tuple))
+                return CampDigCategory.ResidentialReserved;
+            if (optionalPlayerDigCells != null && optionalPlayerDigCells.Contains(tuple))
+                return CampDigCategory.NormalCampDiggable;
+        }
         return spatialContract != null ? spatialContract.Classify(cell) : CampDigCategory.NormalCampDiggable;
     }
 
@@ -267,6 +287,11 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
 
     [ContextMenu("Rebuild Authored Camp Terrain")]
     public void RebuildFromBaseline()
+    {
+        RebuildFromBaseline(true);
+    }
+
+    public void RebuildFromBaseline(bool rebuildFullPresentation)
     {
         if (rebuilding) return;
         rebuilding = true;
@@ -304,7 +329,7 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
             LastIgnoredSavedCellCount = 0;
             if (state != null)
             {
-                state.Normalize();
+                state.Normalize(TotalResidentialCapacity);
                 if (state.layoutRevision <= 0)
                     state.layoutRevision = layoutRevision;
                 else if (state.layoutRevision == 1 && layoutRevision == 2)
@@ -316,7 +341,10 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
                         Debug.LogWarning("Discarded " + discardedTestCells + " provisional Phase 2 Camp terrain coordinates while migrating to authored layout revision 2.", this);
                 }
                 else if (state.layoutRevision != layoutRevision)
-                    Debug.LogWarning("Camp terrain save revision " + state.layoutRevision + " differs from authored revision " + layoutRevision + ". Applying only coordinates valid in the current baseline.", this);
+                {
+                    Debug.LogWarning("Camp terrain save revision " + state.layoutRevision + " differs from authored revision " + layoutRevision + ". Applying only coordinates valid in the current baseline and adopting the new authored revision.", this);
+                    state.layoutRevision = layoutRevision;
+                }
 
                 if (forceMainChamberRevealedForCurrentCamp)
                 {
@@ -326,7 +354,6 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
 
             }
 
-            int completedResidentialStage = state != null ? state.residentialStage : 0;
             int establishedResidentialSlots = state != null ? state.residentialSlotsEstablished : 0;
             BuildCanonicalResidentialTerrain();
 
@@ -344,7 +371,7 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
                     diggableDirtTilemap.SetTile(ToTileCell(cell), null);
                 }
 
-                ApplyEstablishedResidentialSlots(completedResidentialStage, establishedResidentialSlots);
+                ApplyEstablishedResidentialSlots(establishedResidentialSlots);
 
                 if (state.mainChamberRevealed) RevealMainChamberInternal(false);
             }
@@ -352,12 +379,23 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
             // collider update. Forcing thousands of cells synchronously here stalls
             // scene startup; individual digs still request an immediate refresh.
             RefreshTerrain(false);
-            terrainPresentationRenderer?.RebuildAndEnable();
+            if (rebuildFullPresentation) terrainPresentationRenderer?.RebuildAndEnable();
+            else RefreshResidentialPresentation();
         }
         finally
         {
             rebuilding = false;
         }
+    }
+
+    void RefreshResidentialPresentation()
+    {
+        if (terrainPresentationRenderer == null) return;
+        HashSet<Vector2Int> residentialCells = new HashSet<Vector2Int>();
+        foreach ((int x, int y) cell in GetResidentialCatalog().GetResidentialAuthorizationCells())
+            residentialCells.Add(new Vector2Int(cell.x, cell.y));
+        terrainPresentationRenderer.MarkDirty(residentialCells);
+        terrainPresentationRenderer.FlushImmediate();
     }
 
     bool DigCell(Vector2Int cell, bool refresh)
@@ -383,22 +421,45 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
 
     public List<ResidentialSlotRecord> GetResidentialSlots(int stage)
     {
-        if (stage != 1 || !TryGetStageOneRects(out CampCellRect entrance, out CampCellRect chamber))
-            return new List<ResidentialSlotRecord>();
-        return CampSpatialPolicy.BuildStageOneSlots(entrance, chamber);
+        CampResidentialCatalog catalog = GetResidentialCatalog();
+        List<ResidentialSlotRecord> result = new List<ResidentialSlotRecord>();
+        if (catalog == null) return result;
+        foreach (CampResidentialRoomDefinition room in catalog.Rooms)
+            if (room.ProgressionIndex == stage)
+                foreach (CampResidentialSlotDefinition slot in room.Slots) result.Add(slot.ToRecord());
+        return result;
+    }
+
+    public int TotalResidentialCapacity => GetResidentialCatalog()?.TotalCapacity ?? 0;
+
+    public CampResidentialCatalog GetResidentialCatalog()
+    {
+        if (residentialCatalog != null) return residentialCatalog;
+        residentialCatalog = CampResidentialCatalog.CreateCurrent();
+        residentialAuthorizationCells = residentialCatalog.GetResidentialAuthorizationCells();
+        optionalPlayerDigCells = CampResidentialCatalog.GetOptionalPlayerDigCells();
+        return residentialCatalog;
     }
 
     public ResidentialSlotRecord GetResidentialSlot(int slotIndex)
     {
-        return GetResidentialSlots(1).Find(slot => slot.SlotIndex == slotIndex);
+        CampResidentialSlotDefinition slot = GetResidentialCatalog()?.GetSlot(slotIndex);
+        return slot != null ? slot.ToRecord() : default;
+    }
+
+    public int GetResidentialProgressionIndexForSlot(int slotIndex)
+    {
+        CampResidentialCatalog catalog = GetResidentialCatalog();
+        return catalog != null && catalog.TryGetRoomForSlot(slotIndex, out CampResidentialRoomDefinition room)
+            ? room.ProgressionIndex : 0;
     }
 
     public List<Vector2Int> GetResidentialConstructionRoute(int slotIndex)
     {
         List<Vector2Int> result = new List<Vector2Int>();
-        if (!TryGetStageOneRects(out CampCellRect entrance, out CampCellRect chamber)) return result;
-        foreach ((int x, int y) waypoint in CampSpatialPolicy.BuildStageOneConstructionRoute(
-                     slotIndex, entrance, chamber))
+        CampResidentialSlotDefinition slot = GetResidentialCatalog()?.GetSlot(slotIndex);
+        if (slot == null) return result;
+        foreach ((int x, int y) waypoint in slot.ConstructionRoute)
             result.Add(new Vector2Int(waypoint.x, waypoint.y));
         return result;
     }
@@ -406,80 +467,80 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
     public List<Vector2Int> GetResidentialSlotFootprint(int slotIndex)
     {
         List<Vector2Int> result = new List<Vector2Int>();
-        if (!TryGetStageOneRects(out CampCellRect entrance, out CampCellRect chamber)) return result;
-        ResidentialSlotRecord slot = CampSpatialPolicy.BuildStageOneSlots(entrance, chamber)
-            .Find(record => record.SlotIndex == slotIndex);
-        if (slot.SlotIndex == 0) return result;
-        foreach ((int x, int y) cell in CampSpatialPolicy.BuildSlotFootprint(slot, entrance, chamber))
+        CampResidentialSlotDefinition slot = GetResidentialCatalog()?.GetSlot(slotIndex);
+        if (slot == null) return result;
+        foreach ((int x, int y) cell in slot.GetRequiredOpenCells(
+                     CampResidentialClearanceProfile.CurrentBaby))
             result.Add(new Vector2Int(cell.x, cell.y));
         return result;
     }
 
-    bool TryGetStageOneRects(out CampCellRect entranceRect, out CampCellRect chamberRect)
-    {
-        EnsureSpatialContract();
-        CampSpatialZone entrance = spatialContract?.zones.Find(z => z != null && z.kind == CampZoneKind.ResidentialEntrance);
-        CampSpatialZone chamber = spatialContract?.zones.Find(z => z != null && z.kind == CampZoneKind.ResidentialStage1);
-        entranceRect = entrance != null
-            ? new CampCellRect(entrance.bounds.x, entrance.bounds.y, entrance.bounds.size.x, entrance.bounds.size.y) : default;
-        chamberRect = chamber != null
-            ? new CampCellRect(chamber.bounds.x, chamber.bounds.y, chamber.bounds.size.x, chamber.bounds.size.y) : default;
-        return entrance != null && chamber != null;
-    }
-
     public Vector2 GetResidentialConstructionApproachWorld(int stage)
     {
-        EnsureSpatialContract();
-        CampSpatialZone entrance = spatialContract != null
-            ? spatialContract.zones.Find(z => z != null && z.kind == CampZoneKind.ResidentialEntrance)
-            : null;
-        if (stage != 1 || entrance == null) return Vector2.zero;
-        return CellToWorld(new Vector2Int(entrance.bounds.xMin - 1,
-            entrance.bounds.yMin + entrance.bounds.size.y / 2));
+        CampResidentialCatalog catalog = GetResidentialCatalog();
+        if (catalog == null) return Vector2.zero;
+        foreach (CampResidentialRoomDefinition room in catalog.Rooms)
+            if (room.ProgressionIndex == stage && room.Slots.Count > 0)
+                return CellToWorld(new Vector2Int(room.Slots[0].Approach.x, room.Slots[0].Approach.y));
+        return Vector2.zero;
     }
 
     public List<Vector2Int> GetResidentialPresentationCells(int stage)
     {
         List<Vector2Int> result = new List<Vector2Int>();
-        foreach (ResidentialSlotRecord slot in GetResidentialSlots(stage))
-            result.Add(new Vector2Int(slot.Center.x, slot.Center.y));
+        CampResidentialCatalog catalog = GetResidentialCatalog();
+        if (catalog == null) return result;
+        foreach (CampResidentialRoomDefinition room in catalog.Rooms)
+            if (room.ProgressionIndex == stage)
+                foreach (CampResidentialSlotDefinition slot in room.Slots)
+                    result.Add(new Vector2Int(slot.RestCell.x, slot.RestCell.y));
         return result;
     }
 
-    public void CompleteResidentialSlotForProgression(int stage, int slotIndex)
+    public bool CompleteResidentialSlotForProgression(int stage, int slotIndex)
     {
         CampTerrainState state = GetState(true);
-        if (state == null || stage != 1 || slotIndex != state.residentialSlotsEstablished + 1) return;
-        foreach (Vector2Int cell in GetResidentialSlotFootprint(slotIndex)) RemoveResidentialCell(cell);
+        CampResidentialCatalog catalog = GetResidentialCatalog();
+        if (state == null || catalog == null || slotIndex != state.residentialSlotsEstablished + 1 ||
+            !catalog.TryGetRoomForSlot(slotIndex, out CampResidentialRoomDefinition room) ||
+            stage != room.ProgressionIndex) return false;
+        foreach (Vector2Int cell in GetResidentialSlotFootprint(slotIndex))
+            if (IsBlocked(cell))
+            {
+                Debug.LogError("[CampResidential Implementation] Refusing to commit Slot " + slotIndex +
+                    ": required cell " + cell + " is still blocked. Live construction state is preserved.", this);
+                return false;
+            }
         state.residentialStage = Mathf.Max(state.residentialStage, stage);
         state.residentialSlotsEstablished = slotIndex;
         state.clearedCellCoordinates.RemoveAll(saved => saved != null &&
             GetSpatialDigCategory(new Vector2Int(saved.x, saved.y)) == CampDigCategory.ResidentialReserved);
-        RefreshTerrain();
+        return true;
     }
 
-    void ApplyEstablishedResidentialSlots(int completedStage, int establishedSlots)
+    void ApplyEstablishedResidentialSlots(int establishedSlots)
     {
-        if (completedStage < 1) return;
-        int count = Mathf.Clamp(establishedSlots, 0, CampSpatialPolicy.StageOneSlotCapacity);
-        for (int slot = 1; slot <= count; slot++)
-            foreach (Vector2Int cell in GetResidentialSlotFootprint(slot)) RemoveResidentialCell(cell);
+        CampResidentialCatalog catalog = GetResidentialCatalog();
+        if (catalog == null) return;
+        foreach (CampResidentialSlotDefinition definition in catalog.GetEstablishedSlots(establishedSlots))
+            foreach ((int x, int y) cell in definition.GetRequiredOpenCells(
+                         CampResidentialClearanceProfile.CurrentBaby))
+                RemoveResidentialCell(new Vector2Int(cell.x, cell.y));
     }
 
     void BuildCanonicalResidentialTerrain()
     {
-        EnsureSpatialContract();
-        if (spatialContract == null || diggableDirtTilemap == null) return;
-        foreach (CampSpatialZone zone in spatialContract.zones)
+        if (diggableDirtTilemap == null) return;
+        CampResidentialCatalog catalog = GetResidentialCatalog();
+        if (catalog == null) return;
+        HashSet<(int x, int y)> canonicalCells = catalog.GetResidentialAuthorizationCells();
+        canonicalCells.UnionWith(CampResidentialCatalog.GetOptionalPlayerDigCells());
+        foreach ((int x, int y) coordinate in canonicalCells)
         {
-            if (zone == null || !CampSpatialPolicy.IsResidentialTerrainZone(zone.kind)) continue;
-            foreach (Vector3Int position in zone.bounds.allPositionsWithin)
-            {
-                Vector2Int cell = new Vector2Int(position.x, position.y);
-                if (!Contains(authoredBounds, cell)) continue;
-                permanentRockTilemap?.SetTile(ToTileCell(cell), null);
-                diggableDirtTilemap.SetTile(ToTileCell(cell), dirtTile);
-            }
+            Vector2Int cell = new Vector2Int(coordinate.x, coordinate.y);
+            if (!Contains(authoredBounds, cell)) continue;
+            permanentRockTilemap?.SetTile(ToTileCell(cell), null);
+            diggableDirtTilemap.SetTile(ToTileCell(cell), dirtTile);
         }
     }
 

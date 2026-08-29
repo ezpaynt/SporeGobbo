@@ -389,172 +389,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 17495635}
   m_CullTransparentMesh: 1
---- !u!1 &102821398
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 102821400}
-  - component: {fileID: 102821399}
-  - component: {fileID: 102821402}
-  - component: {fileID: 102821401}
-  m_Layer: 0
-  m_Name: CampWallRight
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!212 &102821399
-SpriteRenderer:
-  serializedVersion: 2
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 102821398}
-  m_Enabled: 0
-  m_CastShadows: 0
-  m_ReceiveShadows: 0
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 0
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_ForceMeshLod: -1
-  m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 0
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 0
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: 1
-  m_MaskInteraction: 0
-  m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-  m_Color: {r: 0, g: 0, b: 0, a: 1}
-  m_FlipX: 0
-  m_FlipY: 0
-  m_DrawMode: 0
-  m_Size: {x: 1, y: 1}
-  m_AdaptiveModeThreshold: 0.5
-  m_SpriteTileMode: 0
-  m_WasSpriteAssigned: 1
-  m_SpriteSortPoint: 0
---- !u!4 &102821400
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 102821398}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 23.24, y: 2.1999, z: 0}
-  m_LocalScale: {x: 3.6241486, y: 39.130722, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 990100011}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!61 &102821401
-BoxCollider2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 102821398}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Density: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_ForceSendLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ForceReceiveLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ContactCaptureLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_CallbackLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_IsTrigger: 0
-  m_UsedByEffector: 0
-  m_CompositeOperation: 0
-  m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0}
-  m_SpriteTilingProperty:
-    border: {x: 0, y: 0, z: 0, w: 0}
-    pivot: {x: 0.5, y: 0.5}
-    oldSize: {x: 1, y: 1}
-    newSize: {x: 1, y: 1}
-    adaptiveTilingThreshold: 0.5
-    drawMode: 0
-    adaptiveTiling: 0
-  m_AutoTiling: 0
-  m_Size: {x: 1, y: 1}
-  m_EdgeRadius: 0
---- !u!50 &102821402
-Rigidbody2D:
-  serializedVersion: 5
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 102821398}
-  m_BodyType: 2
-  m_Simulated: 1
-  m_UseFullKinematicContacts: 0
-  m_UseAutoMass: 0
-  m_Mass: 1
-  m_LinearDamping: 0
-  m_AngularDamping: 0.05
-  m_GravityScale: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_Interpolate: 0
-  m_SleepingMode: 1
-  m_CollisionDetection: 0
-  m_Constraints: 0
 --- !u!1 &147673868
 GameObject:
   m_ObjectHideFlags: 0
@@ -1067,9 +901,6 @@ MonoBehaviour:
   reserveArrivalRadius: 1.25
   activeWanderRadius: 1.4
   reserveWanderRadius: 1.8
-  activeWanderSpeedMultiplier: 0.45
-  reserveWanderSpeedMultiplier: 0.25
-  reserveScaleMultiplier: 0.55
   activeSortingOrder: 8
   reserveSortingOrder: 5
   playerSortingOrder: 10
@@ -1117,8 +948,6 @@ MonoBehaviour:
   campMenuPanel: {fileID: 0}
   campPlayableSpawner: {fileID: 227819281}
   campStartRoutineManager: {fileID: 1554174811}
-  healAutomaticallyWhenCampOpens: 0
-  skipReportsAndOpenCampImmediatelyForTesting: 0
   newGameIntroSpawn: {fileID: 1745105185}
   mainCampArrivalSpawn: {fileID: 2012880316}
   playerStatsText: {fileID: 1847691587}
@@ -1580,10 +1409,10 @@ MonoBehaviour:
   terrainPresentationRenderer: {fileID: 272650231}
   dirtTile: {fileID: 11400000, guid: a47a570b4943a354e8a840182013b09b, type: 2}
   permanentRockTile: {fileID: 11400000, guid: a47a570b4943a354e8a840182013b09b, type: 2}
-  layoutRevision: 3
+  layoutRevision: 7
   authoredBounds:
     m_Position: {x: 0, y: 0, z: 0}
-    m_Size: {x: 90, y: 68, z: 1}
+    m_Size: {x: 128, y: 80, z: 1}
   fillUnassignedCellsWithPermanentRock: 1
   authoredOpenCells: []
   authoredOpenRegions:
@@ -1592,51 +1421,7 @@ MonoBehaviour:
       m_Position: {x: 18, y: 18, z: 0}
       m_Size: {x: 8, y: 8, z: 1}
   authoredDiggableCells: []
-  authoredDiggableRegions:
-  - regionId: southwest-edge
-    bounds:
-      m_Position: {x: 21, y: 18, z: 0}
-      m_Size: {x: 10, y: 2, z: 1}
-  - regionId: south-edge
-    bounds:
-      m_Position: {x: 31, y: 15, z: 0}
-      m_Size: {x: 33, y: 2, z: 1}
-  - regionId: southeast-edge
-    bounds:
-      m_Position: {x: 64, y: 18, z: 0}
-      m_Size: {x: 17, y: 2, z: 1}
-  - regionId: west-edge
-    bounds:
-      m_Position: {x: 18, y: 25, z: 0}
-      m_Size: {x: 2, y: 29, z: 1}
-  - regionId: north-edge
-    bounds:
-      m_Position: {x: 38, y: 63, z: 0}
-      m_Size: {x: 30, y: 2, z: 1}
-  - regionId: east-edge
-    bounds:
-      m_Position: {x: 83, y: 25, z: 0}
-      m_Size: {x: 2, y: 29, z: 1}
-  - regionId: resource-pocket
-    bounds:
-      m_Position: {x: 20, y: 34, z: 0}
-      m_Size: {x: 4, y: 7, z: 1}
-  - regionId: east-expansion-seam
-    bounds:
-      m_Position: {x: 85, y: 23, z: 0}
-      m_Size: {x: 2, y: 22, z: 1}
-  - regionId: bed-area-1-soil
-    bounds:
-      m_Position: {x: 62, y: 40, z: 0}
-      m_Size: {x: 19, y: 12, z: 1}
-  - regionId: bed-area-2-soil
-    bounds:
-      m_Position: {x: 62, y: 29, z: 0}
-      m_Size: {x: 19, y: 11, z: 1}
-  - regionId: worm-mush-back-pocket
-    bounds:
-      m_Position: {x: 78, y: 18, z: 0}
-      m_Size: {x: 6, y: 10, z: 1}
+  authoredDiggableRegions: []
   authoredDiggablePaths: []
   authoredPermanentRockCells: []
   authoredPermanentRockRegions:
@@ -1651,11 +1436,11 @@ MonoBehaviour:
       m_Size: {x: 8, y: 9, z: 1}
   - footprintId: arrival
     bounds:
-      m_Position: {x: 44, y: 27, z: 0}
-      m_Size: {x: 10, y: 6, z: 1}
+      m_Position: {x: 35, y: 23, z: 0}
+      m_Size: {x: 12, y: 10, z: 1}
   - footprintId: run-exit
     bounds:
-      m_Position: {x: 71, y: 54, z: 0}
+      m_Position: {x: 57, y: 52, z: 0}
       m_Size: {x: 8, y: 4, z: 1}
   - footprintId: resource-display
     bounds:
@@ -1669,22 +1454,6 @@ MonoBehaviour:
     bounds:
       m_Position: {x: 37, y: 39, z: 0}
       m_Size: {x: 10, y: 10, z: 1}
-  - footprintId: beds-1-current
-    bounds:
-      m_Position: {x: 66, y: 43, z: 0}
-      m_Size: {x: 13, y: 7, z: 1}
-  - footprintId: beds-2-current
-    bounds:
-      m_Position: {x: 66, y: 31, z: 0}
-      m_Size: {x: 13, y: 7, z: 1}
-  - footprintId: worm-mush-future
-    bounds:
-      m_Position: {x: 67, y: 18, z: 0}
-      m_Size: {x: 11, y: 10, z: 1}
-  - footprintId: central-circulation
-    bounds:
-      m_Position: {x: 35, y: 25, z: 0}
-      m_Size: {x: 27, y: 22, z: 1}
   spatialContract: {fileID: 0}
   authoritativeCampExit: {fileID: 0}
   authoritativeExitFootprintId: run-exit
@@ -1695,27 +1464,63 @@ MonoBehaviour:
     y: 20
   mainChamberRevealCells: []
   mainChamberRevealRegions:
-  - regionId: main-central
+  - regionId: organic-arrival-pocket
     bounds:
-      m_Position: {x: 24, y: 20, z: 0}
-      m_Size: {x: 56, y: 38, z: 1}
-  - regionId: main-north-center
+      m_Position: {x: 32, y: 21, z: 0}
+      m_Size: {x: 22, y: 12, z: 1}
+  - regionId: organic-central-lower
     bounds:
-      m_Position: {x: 38, y: 58, z: 0}
-      m_Size: {x: 30, y: 5, z: 1}
-  - regionId: main-west
+      m_Position: {x: 29, y: 28, z: 0}
+      m_Size: {x: 31, y: 12, z: 1}
+  - regionId: organic-fire-cave
     bounds:
-      m_Position: {x: 20, y: 28, z: 0}
-      m_Size: {x: 4, y: 23, z: 1}
-  - regionId: main-east
+      m_Position: {x: 35, y: 34, z: 0}
+      m_Size: {x: 28, y: 13, z: 1}
+  - regionId: organic-west-resource-lobe
     bounds:
-      m_Position: {x: 80, y: 28, z: 0}
-      m_Size: {x: 3, y: 23, z: 1}
-  - regionId: main-south
+      m_Position: {x: 20, y: 34, z: 0}
+      m_Size: {x: 20, y: 15, z: 1}
+  - regionId: organic-squad-shelf
     bounds:
-      m_Position: {x: 31, y: 17, z: 0}
-      m_Size: {x: 33, y: 3, z: 1}
-  mainChamberRevealExclusionRegions: []
+      m_Position: {x: 30, y: 42, z: 0}
+      m_Size: {x: 24, y: 10, z: 1}
+  - regionId: organic-memorial-approach
+    bounds:
+      m_Position: {x: 25, y: 48, z: 0}
+      m_Size: {x: 18, y: 11, z: 1}
+  - regionId: organic-back-wall-center
+    bounds:
+      m_Position: {x: 40, y: 46, z: 0}
+      m_Size: {x: 20, y: 10, z: 1}
+  - regionId: organic-exit-approach
+    bounds:
+      m_Position: {x: 52, y: 48, z: 0}
+      m_Size: {x: 16, y: 11, z: 1}
+  - regionId: organic-east-lower-lobe
+    bounds:
+      m_Position: {x: 53, y: 28, z: 0}
+      m_Size: {x: 30, y: 19, z: 1}
+  - regionId: organic-intro-neck
+    bounds:
+      m_Position: {x: 20, y: 24, z: 0}
+      m_Size: {x: 16, y: 14, z: 1}
+  mainChamberRevealExclusionRegions:
+  - regionId: south-central-dirt-intrusion
+    bounds:
+      m_Position: {x: 28, y: 21, z: 0}
+      m_Size: {x: 5, y: 6, z: 1}
+  - regionId: west-upper-dirt-intrusion
+    bounds:
+      m_Position: {x: 20, y: 47, z: 0}
+      m_Size: {x: 7, y: 5, z: 1}
+  - regionId: central-upper-dirt-intrusion
+    bounds:
+      m_Position: {x: 43, y: 54, z: 0}
+      m_Size: {x: 8, y: 5, z: 1}
+  - regionId: future-primary-lower-burrows
+    bounds:
+      m_Position: {x: 2, y: 38, z: 0}
+      m_Size: {x: 22, y: 12, z: 1}
 --- !u!156049354 &272650230
 Grid:
   m_ObjectHideFlags: 0
@@ -2805,6 +2610,7 @@ MonoBehaviour:
     hasBeenHit: 0
     isInActiveSquad: 0
     survivedLastRun: 1
+    campResidentialSlotId: 0
     bodyColor: {r: 0, g: 1, b: 0, a: 1}
     visualSetId: baby
     portraitId: 
@@ -2853,6 +2659,7 @@ MonoBehaviour:
     layoutRevision: 0
     mainChamberRevealed: 0
     residentialStage: 0
+    residentialSlotsEstablished: 0
     memorialEstablished: 0
     clearedCellCoordinates: []
     unlockedExpansionRegionIds: []
@@ -3972,172 +3779,6 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
---- !u!1 &657673222
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 657673224}
-  - component: {fileID: 657673223}
-  - component: {fileID: 657673226}
-  - component: {fileID: 657673225}
-  m_Layer: 0
-  m_Name: CampWallFront
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!212 &657673223
-SpriteRenderer:
-  serializedVersion: 2
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 657673222}
-  m_Enabled: 0
-  m_CastShadows: 0
-  m_ReceiveShadows: 0
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 0
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_ForceMeshLod: -1
-  m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 0
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 0
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: 1
-  m_MaskInteraction: 0
-  m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-  m_Color: {r: 0, g: 0, b: 0, a: 1}
-  m_FlipX: 0
-  m_FlipY: 0
-  m_DrawMode: 0
-  m_Size: {x: 1, y: 1}
-  m_AdaptiveModeThreshold: 0.5
-  m_SpriteTileMode: 0
-  m_WasSpriteAssigned: 1
-  m_SpriteSortPoint: 0
---- !u!4 &657673224
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 657673222}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -3.1538, y: -16.08, z: 0}
-  m_LocalScale: {x: 50.07631, y: 2.9307232, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 990100011}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!61 &657673225
-BoxCollider2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 657673222}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Density: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_ForceSendLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ForceReceiveLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ContactCaptureLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_CallbackLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_IsTrigger: 0
-  m_UsedByEffector: 0
-  m_CompositeOperation: 0
-  m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0}
-  m_SpriteTilingProperty:
-    border: {x: 0, y: 0, z: 0, w: 0}
-    pivot: {x: 0.5, y: 0.5}
-    oldSize: {x: 1, y: 1}
-    newSize: {x: 1, y: 1}
-    adaptiveTilingThreshold: 0.5
-    drawMode: 0
-    adaptiveTiling: 0
-  m_AutoTiling: 0
-  m_Size: {x: 1, y: 1}
-  m_EdgeRadius: 0
---- !u!50 &657673226
-Rigidbody2D:
-  serializedVersion: 5
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 657673222}
-  m_BodyType: 2
-  m_Simulated: 1
-  m_UseFullKinematicContacts: 0
-  m_UseAutoMass: 0
-  m_Mass: 1
-  m_LinearDamping: 0
-  m_AngularDamping: 0.05
-  m_GravityScale: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_Interpolate: 0
-  m_SleepingMode: 1
-  m_CollisionDetection: 0
-  m_Constraints: 0
 --- !u!1 &695350333
 GameObject:
   m_ObjectHideFlags: 0
@@ -4342,7 +3983,7 @@ MonoBehaviour:
   attachDirectClickRelays: 0
   hideOtherCampPanelsWhenOpen: 1
   panelsToHideWhenOpen: []
-  logDebugMessages: 1
+  logDebugMessages: 0
 --- !u!114 &714760111
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4356,7 +3997,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CampDeathHistoryStore
   deadBuddyHistory: []
-  logDebugMessages: 1
+  logDebugMessages: 0
 --- !u!114 &714760112
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4396,7 +4037,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CampSuccessorPreferenceStore
   markedSuccessorId: 
-  logDebugMessages: 1
+  logDebugMessages: 0
 --- !u!114 &714760114
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4419,7 +4060,7 @@ MonoBehaviour:
     Wall can now be read.'
   newMemorialMessage: New names have been scratched onto the Old Bones Wall.
   autoHideAfterSeconds: 4
-  logDebugMessages: 1
+  logDebugMessages: 0
 --- !u!1 &736936374
 GameObject:
   m_ObjectHideFlags: 0
@@ -5070,172 +4711,6 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 0
   m_SpriteSortPoint: 0
---- !u!1 &757200321
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 757200323}
-  - component: {fileID: 757200322}
-  - component: {fileID: 757200325}
-  - component: {fileID: 757200324}
-  m_Layer: 0
-  m_Name: CampWallBack
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!212 &757200322
-SpriteRenderer:
-  serializedVersion: 2
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 757200321}
-  m_Enabled: 0
-  m_CastShadows: 0
-  m_ReceiveShadows: 0
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 0
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_ForceMeshLod: -1
-  m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 0
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 0
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: 0
-  m_MaskInteraction: 0
-  m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-  m_Color: {r: 0, g: 0, b: 0, a: 1}
-  m_FlipX: 0
-  m_FlipY: 0
-  m_DrawMode: 0
-  m_Size: {x: 1, y: 1}
-  m_AdaptiveModeThreshold: 0.5
-  m_SpriteTileMode: 0
-  m_WasSpriteAssigned: 1
-  m_SpriteSortPoint: 0
---- !u!4 &757200323
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 757200321}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -29.47, y: 0.8853, z: 0}
-  m_LocalScale: {x: 3.6241486, y: 36.681225, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 990100011}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!61 &757200324
-BoxCollider2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 757200321}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Density: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_ForceSendLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ForceReceiveLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ContactCaptureLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_CallbackLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_IsTrigger: 0
-  m_UsedByEffector: 0
-  m_CompositeOperation: 0
-  m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0}
-  m_SpriteTilingProperty:
-    border: {x: 0, y: 0, z: 0, w: 0}
-    pivot: {x: 0.5, y: 0.5}
-    oldSize: {x: 1, y: 1}
-    newSize: {x: 1, y: 1}
-    adaptiveTilingThreshold: 0.5
-    drawMode: 0
-    adaptiveTiling: 0
-  m_AutoTiling: 0
-  m_Size: {x: 1, y: 1}
-  m_EdgeRadius: 0
---- !u!50 &757200325
-Rigidbody2D:
-  serializedVersion: 5
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 757200321}
-  m_BodyType: 2
-  m_Simulated: 1
-  m_UseFullKinematicContacts: 0
-  m_UseAutoMass: 0
-  m_Mass: 1
-  m_LinearDamping: 0
-  m_AngularDamping: 0.05
-  m_GravityScale: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_Interpolate: 0
-  m_SleepingMode: 1
-  m_CollisionDetection: 0
-  m_Constraints: 0
 --- !u!1 &790527364
 GameObject:
   m_ObjectHideFlags: 0
@@ -7181,40 +6656,6 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 9b6268e3a1089ac4a9b3ffa3bdef93e7, type: 2}
   - {fileID: 11400000, guid: 70d4a066b9e89a5408b7f54932dfadd0, type: 2}
   - {fileID: 11400000, guid: e330b9be2d0a52940b2ee380174b8b40, type: 2}
---- !u!1 &930001011
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 931001012}
-  - component: {fileID: 930001013}
-  m_Layer: 0
-  m_Name: snackDebugTools
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &930001013
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 930001011}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e4b4758e62bb7ec4b9410e01909ded72, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::SnackDebugTools
-  healSnackId: test_snack_heal_01
-  maxHpSnackId: test_snack_max_hp_01
-  attackSnackId: test_snack_attack_01
-  buddyTargetId: 
-  retreatLossPercent: 0.75
 --- !u!1 &930003000
 GameObject:
   m_ObjectHideFlags: 0
@@ -7534,21 +6975,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 990100001}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!4 &931001012
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 930001011}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 990100061}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &931897594 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 4924481721338773083, guid: 06a8e8becb1b7cd4b83802b132cee8c0, type: 3}
@@ -7589,37 +7015,6 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 990100001}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &990000010
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 990000011}
-  m_Layer: 0
-  m_Name: CampBounds
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &990000011
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 990000010}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 990100011}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &990000020
 GameObject:
@@ -8088,11 +7483,6 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 990000011}
-  - {fileID: 757200323}
-  - {fileID: 657673224}
-  - {fileID: 2017304392}
-  - {fileID: 102821400}
   - {fileID: 272650228}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -8250,38 +7640,6 @@ Transform:
   - {fileID: 227296239}
   - {fileID: 2007012689}
   - {fileID: 1679887849}
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &990100060
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 990100061}
-  m_Layer: 0
-  m_Name: Debug
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &990100061
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 990100060}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 931001012}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1028991875
@@ -11869,7 +11227,8 @@ MonoBehaviour:
   residentialPresentation: {fileID: 1277549312}
   normalReturnPopup: The camp is quiet enough. Go sit by the fire when you're ready.
   afterRecoveryPopup: Bellies full. Everyone starts wandering again.
-  residentialDigCellSeconds: 0.055
+  buddyDigDuration: 0.18
+  fireArrivalStagingSeconds: 0.8
   firstHomeMessage: Your first buddy has made a home here. Use Squad Select to choose
     which gobbos come on runs and which stay at Camp.
   startRoutineDelay: 0.25
@@ -16128,178 +15487,12 @@ Transform:
   m_GameObject: {fileID: 2012880315}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.9, y: 0.9, z: 0}
+  m_LocalPosition: {x: -5.7, y: -0.9, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 990100021}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &2017304390
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2017304392}
-  - component: {fileID: 2017304391}
-  - component: {fileID: 2017304394}
-  - component: {fileID: 2017304393}
-  m_Layer: 0
-  m_Name: CampWallLeft
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!212 &2017304391
-SpriteRenderer:
-  serializedVersion: 2
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2017304390}
-  m_Enabled: 0
-  m_CastShadows: 0
-  m_ReceiveShadows: 0
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 0
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_ForceMeshLod: -1
-  m_MeshLodSelectionBias: 0
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 0
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 0
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: 0
-  m_MaskInteraction: 0
-  m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-  m_Color: {r: 0, g: 0, b: 0, a: 1}
-  m_FlipX: 0
-  m_FlipY: 0
-  m_DrawMode: 0
-  m_Size: {x: 1, y: 1}
-  m_AdaptiveModeThreshold: 0.5
-  m_SpriteTileMode: 0
-  m_WasSpriteAssigned: 1
-  m_SpriteSortPoint: 0
---- !u!4 &2017304392
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2017304390}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -4.3393, y: 20.12, z: 0}
-  m_LocalScale: {x: 53.705532, y: 2.9307232, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 990100011}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!61 &2017304393
-BoxCollider2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2017304390}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Density: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_ForceSendLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ForceReceiveLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ContactCaptureLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_CallbackLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_IsTrigger: 0
-  m_UsedByEffector: 0
-  m_CompositeOperation: 0
-  m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0}
-  m_SpriteTilingProperty:
-    border: {x: 0, y: 0, z: 0, w: 0}
-    pivot: {x: 0.5, y: 0.5}
-    oldSize: {x: 1, y: 1}
-    newSize: {x: 1, y: 1}
-    adaptiveTilingThreshold: 0.5
-    drawMode: 0
-    adaptiveTiling: 0
-  m_AutoTiling: 0
-  m_Size: {x: 1, y: 1}
-  m_EdgeRadius: 0
---- !u!50 &2017304394
-Rigidbody2D:
-  serializedVersion: 5
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2017304390}
-  m_BodyType: 2
-  m_Simulated: 1
-  m_UseFullKinematicContacts: 0
-  m_UseAutoMass: 0
-  m_Mass: 1
-  m_LinearDamping: 0
-  m_AngularDamping: 0.05
-  m_GravityScale: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_Interpolate: 0
-  m_SleepingMode: 1
-  m_CollisionDetection: 0
-  m_Constraints: 0
 --- !u!1 &2041525530
 GameObject:
   m_ObjectHideFlags: 0
@@ -16570,7 +15763,7 @@ Transform:
   m_GameObject: {fileID: 2113313628}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 14.7, y: 16.5, z: 0}
+  m_LocalPosition: {x: 7.16, y: 14.92, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -17741,6 +16934,5 @@ SceneRoots:
   - {fileID: 990100031}
   - {fileID: 990100041}
   - {fileID: 990100051}
-  - {fileID: 990100061}
   - {fileID: 1181144142}
   - {fileID: 1277549313}

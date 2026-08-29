@@ -23,16 +23,63 @@ namespace SporeGobbo.CampLifecycle
                 Math.Max(0f, distance) / Math.Max(MinimumMovementSpeed, actualMovementSpeed) + DirectedWalkTimeoutMargin);
         }
 
-        public static float GetConstructionEdgeArrivalDistance(float bodyRadius, float cellSize,
-            float normalArrivalDistance = 0.18f)
+        public static bool RequiresFullWaypointClearance(int waypointIndex, int waypointCount) =>
+            waypointIndex >= 0 && waypointIndex < Math.Max(0, waypointCount);
+    }
+
+    public readonly struct CampResidentialArrivalEvaluation
+    {
+        public readonly int LivingBuddyCount;
+        public readonly int EstablishedCapacity;
+        public readonly int VacantEstablishedSlots;
+        public readonly int VacancyClaims;
+        public readonly int UnassignedBuddies;
+        public readonly int PendingConstructionCount;
+        public readonly int FirstSlot;
+        public readonly bool ArrivalPhase;
+
+        public CampResidentialArrivalEvaluation(int livingBuddyCount, int establishedCapacity,
+            int vacantEstablishedSlots, int vacancyClaims, int unassignedBuddies,
+            int pendingConstructionCount, int firstSlot, bool arrivalPhase)
         {
-            float halfCell = Math.Max(0f, cellSize) * 0.5f;
-            return Math.Max(normalArrivalDistance, Math.Min(Math.Max(0f, bodyRadius), halfCell));
+            LivingBuddyCount = livingBuddyCount;
+            EstablishedCapacity = establishedCapacity;
+            VacantEstablishedSlots = vacantEstablishedSlots;
+            VacancyClaims = vacancyClaims;
+            UnassignedBuddies = unassignedBuddies;
+            PendingConstructionCount = pendingConstructionCount;
+            FirstSlot = firstSlot;
+            ArrivalPhase = arrivalPhase;
         }
     }
 
     public static class CampArrivalPolicy
     {
+        public const float FirstHomeMovementMultiplier = 2f;
+
+        public static float GetFirstHomeMovementSpeed(float normalCampSpeed) =>
+            Math.Max(CampBuddyPhysicalPolicy.MinimumMovementSpeed, normalCampSpeed) *
+            FirstHomeMovementMultiplier;
+
+        public static float GetCampMovementSpeed(float normalCampSpeed, bool firstHomeArrival) =>
+            firstHomeArrival
+                ? GetFirstHomeMovementSpeed(normalCampSpeed)
+                : Math.Max(CampBuddyPhysicalPolicy.MinimumMovementSpeed, normalCampSpeed);
+
+        public static bool IsFirstHomeClaim(bool previouslyHomeless, int assignedSlotId) =>
+            previouslyHomeless && assignedSlotId > 0;
+
+        public static List<int> ReserveContiguousConstructionSlots(int firstSlot, int count)
+        {
+            List<int> result = new List<int>();
+            for (int i = 0; i < Math.Max(0, count); i++) result.Add(Math.Max(1, firstSlot) + i);
+            return result;
+        }
+
+        public static bool CanBeginReservedConstruction(int slotId, int dependencySlotId,
+            int establishedSlots) =>
+            slotId == establishedSlots + 1 && dependencySlotId <= establishedSlots;
+
         public static bool ShouldBegin(int vacancyClaims, int pendingConstructions) =>
             vacancyClaims > 0 || pendingConstructions > 0;
 
@@ -44,24 +91,32 @@ namespace SporeGobbo.CampLifecycle
         public static bool CanUseActivityPoint(bool residentialRest, bool available,
             int pointResidentialSlot, int gobboResidentialSlot) =>
             available && (!residentialRest || pointResidentialSlot > 0 && pointResidentialSlot == gobboResidentialSlot);
+
+        public static CampResidentialArrivalEvaluation EvaluateResidentialWork(
+            ResidentialOccupancyResolution occupancy, int livingBuddyCount, int vacancyClaims,
+            int establishedSlots, int capacity)
+        {
+            int established = Math.Min(Math.Max(0, establishedSlots), Math.Max(0, capacity));
+            int unassigned = occupancy?.UnassignedLivingBuddyIds.Count ?? 0;
+            int pending = Math.Min(Math.Max(0, capacity - established), unassigned);
+            int vacant = occupancy?.VacantEstablishedSlots.Count ?? 0;
+            int claims = Math.Max(0, vacancyClaims);
+            return new CampResidentialArrivalEvaluation(
+                Math.Max(0, livingBuddyCount), established, vacant, claims, unassigned,
+                pending, established + 1, ShouldBegin(claims, pending));
+        }
     }
 
     public enum CampZoneKind
     {
-        HomeCore,
-        PermanentExit,
-        PermanentMemorial,
-        ResidentialStage1,
-        ResidentialStage2,
-        ResidentialStage3,
-        ResidentialStage4,
-        ResidentialStage5,
-        ResidentialEntrance,
-        UnstableCollapse,
-        IntroArrivalClearance,
-        NormalArrivalClearance,
-        CirculationClearance,
-        GeneralUnreserved
+        HomeCore = 0,
+        PermanentExit = 1,
+        PermanentMemorial = 2,
+        UnstableCollapse = 9,
+        IntroArrivalClearance = 10,
+        NormalArrivalClearance = 11,
+        CirculationClearance = 12,
+        GeneralUnreserved = 13
     }
 
     public enum CampDigCategory
@@ -164,18 +219,15 @@ namespace SporeGobbo.CampLifecycle
     {
         public static CampDigCategory Classify(IEnumerable<CampZoneKind> zones)
         {
-            bool residential = false;
             bool collapse = false;
             if (zones != null)
             {
                 foreach (CampZoneKind zone in zones)
                 {
                     if (IsPermanent(zone)) return CampDigCategory.NeverDiggable;
-                    if (IsResidential(zone)) residential = true;
                     if (zone == CampZoneKind.UnstableCollapse) collapse = true;
                 }
             }
-            if (residential) return CampDigCategory.ResidentialReserved;
             if (collapse) return CampDigCategory.CollapseEligible;
             return CampDigCategory.NormalCampDiggable;
         }
@@ -185,75 +237,10 @@ namespace SporeGobbo.CampLifecycle
             return category == CampDigCategory.NormalCampDiggable || category == CampDigCategory.CollapseEligible;
         }
 
-        public static bool IsResidentialTerrainZone(CampZoneKind zone)
-        {
-            return IsResidential(zone) || zone == CampZoneKind.ResidentialEntrance;
-        }
-
-        public const int StageOneSlotCapacity = 10;
         public const double BuddyDigRadiusInCells = 1.2;
         public const double ResidentialPocketRadiusInCells = 1.5;
-        // 0.4 world units on the current 0.6 grid: clears the observed 0.375 body with modest form headroom.
-        public const double ResidentialClearanceRadiusInCells = 2d / 3d;
-
-        public static List<ResidentialSlotRecord> BuildStageOneSlots(CampCellRect entrance, CampCellRect chamber)
-        {
-            int midY = entrance.Y + entrance.Height / 2;
-            (int x, int y) s1 = (chamber.X + 2, chamber.Y + 4);
-            return new List<ResidentialSlotRecord>
-            {
-                new ResidentialSlotRecord(1, 0, s1, (entrance.X - 1, midY),
-                    (entrance.X, midY), (entrance.X + 1, midY),
-                    (chamber.X, midY), (chamber.X + 1, midY), s1),
-                BuildConnectedSlot(2, 1, (chamber.X + 3, chamber.Y + 2), s1),
-                BuildConnectedSlot(3, 1, (chamber.X + 3, chamber.Y + 6), s1),
-                BuildConnectedSlot(4, 1, (chamber.X + 5, chamber.Y + 4), s1),
-                BuildConnectedSlot(5, 2, (chamber.X + 5, chamber.Y + 1), (chamber.X + 3, chamber.Y + 2)),
-                BuildConnectedSlot(6, 3, (chamber.X + 5, chamber.Y + 6), (chamber.X + 3, chamber.Y + 6)),
-                BuildConnectedSlot(7, 4, (chamber.X + 6, chamber.Y + 3), (chamber.X + 5, chamber.Y + 4)),
-                BuildConnectedSlot(8, 4, (chamber.X + 6, chamber.Y + 6), (chamber.X + 5, chamber.Y + 4)),
-                BuildConnectedSlot(9, 2, (chamber.X + 1, chamber.Y + 1), (chamber.X + 3, chamber.Y + 2)),
-                BuildConnectedSlot(10, 3, (chamber.X + 1, chamber.Y + 6), (chamber.X + 3, chamber.Y + 6))
-            };
-        }
-
-        static ResidentialSlotRecord BuildConnectedSlot(int slotIndex, int dependencySlotIndex,
-            (int x, int y) center, (int x, int y) approach)
-        {
-            List<(int x, int y)> targets = new List<(int x, int y)>();
-            (int x, int y) current = approach;
-            while (current.y != center.y)
-            {
-                current = (current.x, current.y + Math.Sign(center.y - current.y));
-                targets.Add(current);
-            }
-            while (current.x != center.x)
-            {
-                current = (current.x + Math.Sign(center.x - current.x), current.y);
-                targets.Add(current);
-            }
-            return new ResidentialSlotRecord(slotIndex, dependencySlotIndex, center, approach, targets.ToArray());
-        }
-
-        public static List<(int x, int y)> BuildStageOneConstructionRoute(int slotIndex,
-            CampCellRect entrance, CampCellRect chamber)
-        {
-            List<ResidentialSlotRecord> slots = BuildStageOneSlots(entrance, chamber);
-            ResidentialSlotRecord target = slots.Find(slot => slot.SlotIndex == slotIndex);
-            if (target.SlotIndex == 0) return new List<(int x, int y)>();
-
-            (int x, int y) exteriorApproach = slots[0].Approach;
-            if (slotIndex == 1) return new List<(int x, int y)> { exteriorApproach };
-
-            HashSet<(int x, int y)> open = BuildEstablishedSlotFootprint(
-                slots, slotIndex - 1, entrance, chamber);
-            open.Add(exteriorApproach);
-            open.Add(target.Approach);
-            List<(int x, int y)> route = BuildOpenCellRoute(exteriorApproach, target.Approach, open);
-            if (route.Count == 0) return route;
-            route.Insert(0, exteriorApproach);
-            return route;
-        }
+        // Half-width/height of the runtime 0.75 x 0.75 Baby box on the 0.6 Camp grid.
+        public const double ResidentialClearanceRadiusInCells = 0.625d;
 
         public static List<(int x, int y)> BuildOpenCellRoute((int x, int y) start,
             (int x, int y) goal, ISet<(int x, int y)> openCells)
@@ -318,35 +305,18 @@ namespace SporeGobbo.CampLifecycle
             return true;
         }
 
-        public static List<(int x, int y)> BuildSlotFootprint(ResidentialSlotRecord slot,
-            CampCellRect entrance, CampCellRect chamber)
+        public static bool CanOccupyCellCenterBox((int x, int y) center,
+            ISet<(int x, int y)> openCells, double halfWidth, double halfHeight)
         {
-            HashSet<(int x, int y)> cells = new HashSet<(int x, int y)>();
-            double radiusSquared = ResidentialPocketRadiusInCells * ResidentialPocketRadiusInCells;
-            foreach ((int x, int y) target in slot.DigTargets)
-            for (int x = target.x - 2; x <= target.x + 2; x++)
-            for (int y = target.y - 2; y <= target.y + 2; y++)
-                if ((entrance.Contains(x, y) || chamber.Contains(x, y)) &&
-                    Math.Pow(x - target.x, 2) + Math.Pow(y - target.y, 2) <= radiusSquared)
-                    cells.Add((x, y));
-            return new List<(int x, int y)>(cells);
-        }
-
-        public static int ResidentialStageForEstablishedSlots(int currentStage, int establishedSlots) =>
-            establishedSlots > 0 ? Math.Max(1, currentStage) : Math.Max(0, currentStage);
-
-        public static bool ShouldExposeResidentialSlot(int slotIndex, int residentialStage, int establishedSlots) =>
-            residentialStage >= 1 && slotIndex >= 1 && slotIndex <= establishedSlots;
-
-        public static HashSet<(int x, int y)> BuildEstablishedSlotFootprint(IReadOnlyList<ResidentialSlotRecord> slots,
-            int establishedSlots, CampCellRect entrance, CampCellRect chamber)
-        {
-            HashSet<(int x, int y)> result = new HashSet<(int x, int y)>();
-            if (slots == null) return result;
-            foreach (ResidentialSlotRecord slot in slots)
-                if (slot.SlotIndex <= establishedSlots)
-                    foreach ((int x, int y) cell in BuildSlotFootprint(slot, entrance, chamber)) result.Add(cell);
-            return result;
+            if (openCells == null || !openCells.Contains(center)) return false;
+            int rangeX = (int)Math.Ceiling(Math.Max(0d, halfWidth) + 0.5d);
+            int rangeY = (int)Math.Ceiling(Math.Max(0d, halfHeight) + 0.5d);
+            for (int x = center.x - rangeX; x <= center.x + rangeX; x++)
+            for (int y = center.y - rangeY; y <= center.y + rangeY; y++)
+                if (!openCells.Contains((x, y)) &&
+                    Math.Abs(x - center.x) <= halfWidth + 0.5d &&
+                    Math.Abs(y - center.y) <= halfHeight + 0.5d) return false;
+            return true;
         }
 
         public static bool IsFireSocialDestinationValid(bool inBounds, bool blocked) => inBounds && !blocked;
@@ -400,7 +370,7 @@ namespace SporeGobbo.CampLifecycle
         public static bool CanAuthorizeResidentialProgression(int requestedStage, int expectedStage,
             bool exactExpectedFootprint)
         {
-            return requestedStage == expectedStage && requestedStage == 1 && exactExpectedFootprint;
+            return requestedStage > 0 && requestedStage == expectedStage && exactExpectedFootprint;
         }
 
         public static bool CanCommitResidentialConstruction(int requiredDigActions, int successfulDigActions,
@@ -419,14 +389,9 @@ namespace SporeGobbo.CampLifecycle
         public static bool IsPermanent(CampZoneKind zone)
         {
             return zone == CampZoneKind.HomeCore || zone == CampZoneKind.PermanentExit ||
-                   zone == CampZoneKind.PermanentMemorial || zone == CampZoneKind.ResidentialEntrance ||
+                   zone == CampZoneKind.PermanentMemorial ||
                    zone == CampZoneKind.IntroArrivalClearance || zone == CampZoneKind.NormalArrivalClearance ||
                    zone == CampZoneKind.CirculationClearance;
-        }
-
-        public static bool IsResidential(CampZoneKind zone)
-        {
-            return zone >= CampZoneKind.ResidentialStage1 && zone <= CampZoneKind.ResidentialStage5;
         }
 
         public static List<string> Validate(IReadOnlyList<CampZoneRecord> zones)
@@ -439,29 +404,11 @@ namespace SporeGobbo.CampLifecycle
                 CampZoneRecord a = zones[i];
                 CampZoneRecord b = zones[j];
                 if (!a.Bounds.Overlaps(b.Bounds)) continue;
-                if (IsResidential(a.Kind) && IsForbiddenResidentialOverlap(b.Kind) ||
-                    IsResidential(b.Kind) && IsForbiddenResidentialOverlap(a.Kind))
-                    issues.Add($"Residential zone overlaps forbidden {a.Kind}/{b.Kind} space.");
                 if ((a.Kind == CampZoneKind.UnstableCollapse && IsStructuralPermanent(b.Kind)) ||
                     (b.Kind == CampZoneKind.UnstableCollapse && IsStructuralPermanent(a.Kind)))
                     issues.Add($"Collapse zone overlaps permanent {a.Kind}/{b.Kind} structure.");
             }
             return issues;
-        }
-
-        public static bool IsOrderedAndConnected(IReadOnlyList<CampCellRect> stages)
-        {
-            if (stages == null || stages.Count != 5) return false;
-            for (int i = 1; i < stages.Count; i++)
-                if (!stages[i - 1].Touches(stages[i])) return false;
-            return true;
-        }
-
-        static bool IsForbiddenResidentialOverlap(CampZoneKind zone)
-        {
-            return IsStructuralPermanent(zone) || zone == CampZoneKind.UnstableCollapse ||
-                   zone == CampZoneKind.IntroArrivalClearance || zone == CampZoneKind.NormalArrivalClearance ||
-                   zone == CampZoneKind.CirculationClearance || zone == CampZoneKind.HomeCore;
         }
 
         static bool IsStructuralPermanent(CampZoneKind zone)

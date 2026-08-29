@@ -35,9 +35,6 @@ public class CampSceneController : MonoBehaviour, ISporePauseScreen
     [Header("Playable Camp Spawn")]
     public CampPlayableSpawner campPlayableSpawner;
     public CampStartRoutineManager campStartRoutineManager;
-    [Tooltip("Unused. Returning to camp should not heal; camp healing currently happens only through CampFireRecovery.")]
-    public bool healAutomaticallyWhenCampOpens = false;
-    public bool skipReportsAndOpenCampImmediatelyForTesting = false;
     public Transform newGameIntroSpawn;
     public Transform mainCampArrivalSpawn;
 
@@ -109,10 +106,7 @@ public class CampSceneController : MonoBehaviour, ISporePauseScreen
             return;
         }
 
-        if (skipReportsAndOpenCampImmediatelyForTesting)
-            RevealCampVisuals();
-        else
-            ShowRunStatsScreen();
+        ShowRunStatsScreen();
     }
 
     public bool IsPauseOpen => pauseMenu != null && pauseMenu.activeSelf;
@@ -330,7 +324,7 @@ public class CampSceneController : MonoBehaviour, ISporePauseScreen
         if (campBuddyEvolutionPanel != null) campBuddyEvolutionPanel.SetActive(false);
         HideBuddyStatRerollUI();
         FillRunStatsText();
-        SporeUiCoordinator.Instance.PushModal(this, null, false, continueToSurvivorsButton);
+        SporeUiCoordinator.Instance.PushModal(this, null, false, continueToSurvivorsButton, runStatsPanel);
     }
 
     public void ShowSurvivorsScreen()
@@ -341,7 +335,7 @@ public class CampSceneController : MonoBehaviour, ISporePauseScreen
         if (campBuddyEvolutionPanel != null) campBuddyEvolutionPanel.SetActive(false);
         HideBuddyStatRerollUI();
         RefreshSurvivorsScreen();
-        SporeUiCoordinator.Instance.PushModal(this, null, false, continueToCampButton);
+        SporeUiCoordinator.Instance.PushModal(this, null, false, continueToCampButton, survivorsPanel);
     }
 
     public void RefreshSurvivorsScreen()
@@ -810,7 +804,7 @@ public class CampSceneController : MonoBehaviour, ISporePauseScreen
         if (campBuddyEvolutionBackButton != null) campBuddyEvolutionBackButton.gameObject.SetActive(true);
         HideBuddyStatRerollUI();
         if (survivorsPanel != null) survivorsPanel.SetActive(true);
-        SporeUiCoordinator.Instance.PushModal(this, null, false, continueToCampButton);
+        SporeUiCoordinator.Instance.PushModal(this, null, false, continueToCampButton, survivorsPanel);
     }
 
     List<BuddyTypeSetup> GetFallbackEvolutionChoices(int amount)

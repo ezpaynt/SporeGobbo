@@ -1,78 +1,82 @@
 using System.Collections.Generic;
 using UnityEngine;
+using SporeGobbo.CampLifecycle;
 
 public sealed class CampResidentialPresentation : MonoBehaviour
 {
-    Transform[] stageOneAnchors;
-    GameObject[] stageOneMarkers;
+    readonly Dictionary<int, Transform> anchorsByGlobalSlot = new Dictionary<int, Transform>();
+    readonly Dictionary<int, GameObject> markersByGlobalSlot = new Dictionary<int, GameObject>();
+    readonly List<int> orderedGlobalSlots = new List<int>();
+    bool initialized;
 
     public void Initialize(HandcraftedCampTerrain terrain)
     {
-        if (terrain == null || stageOneAnchors != null) return;
-        List<Vector2Int> cells = terrain.GetResidentialPresentationCells(1);
-        stageOneAnchors = new Transform[cells.Count];
-        stageOneMarkers = new GameObject[cells.Count];
-        for (int i = 0; i < cells.Count; i++)
+        if (terrain == null || initialized) return;
+        CampResidentialCatalog catalog = terrain.GetResidentialCatalog();
+        if (catalog == null) return;
+        initialized = true;
+        foreach (CampResidentialRoomDefinition room in catalog.Rooms)
+        foreach (CampResidentialSlotDefinition slot in room.Slots)
         {
-            GameObject anchor = new GameObject("ResidentialStage1Slot_" + (i + 1));
+            int slotId = slot.GlobalSlotId;
+            GameObject anchor = new GameObject("ResidentialRoom_" + room.RoomId + "_Slot_" + slotId);
             anchor.transform.SetParent(transform, false);
-            anchor.transform.position = terrain.CellToWorld(cells[i]);
+            anchor.transform.position = terrain.CellToWorld(new Vector2Int(slot.RestCell.x, slot.RestCell.y));
             CampActivityPoint activity = anchor.AddComponent<CampActivityPoint>();
             activity.kind = CampActivityKind.ResidentialRest;
             activity.available = false;
-            activity.residentialStage = 1;
-            activity.residentialSlot = i + 1;
-            stageOneAnchors[i] = anchor.transform;
+            activity.residentialSlot = slotId;
+            anchorsByGlobalSlot[slotId] = anchor.transform;
+            orderedGlobalSlots.Add(slotId);
 
-            GameObject marker = new GameObject("ResidentialStage1Marker_" + (i + 1));
+            GameObject marker = new GameObject("ResidentialRoom_" + room.RoomId + "_Marker_" + slotId);
             marker.transform.SetParent(anchor.transform, false);
             marker.transform.localScale = new Vector3(0.16f, 0.16f, 1f);
-            Texture2D texture = new Texture2D(1, 1) { name = "ResidentialSlotDebugTexture_" + (i + 1) };
+            Texture2D texture = new Texture2D(1, 1) { name = "ResidentialSlotDebugTexture_" + slotId };
             texture.SetPixel(0, 0, new Color(0.2f, 0.9f, 1f, 0.9f));
             texture.Apply();
             SpriteRenderer renderer = marker.AddComponent<SpriteRenderer>();
             renderer.sprite = Sprite.Create(texture, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f), 1f);
             renderer.sortingOrder = 28;
-            stageOneMarkers[i] = marker;
+            markersByGlobalSlot[slotId] = marker;
         }
+        orderedGlobalSlots.Sort();
     }
 
-    public void ApplyProgress(int residentialStage, int establishedSlots, ISet<int> occupiedSlots = null)
+    public void ApplyProgress(int establishedSlots, ISet<int> occupiedSlots = null)
     {
-        if (stageOneMarkers == null) return;
-        for (int i = 0; i < stageOneMarkers.Length; i++)
+        if (!initialized) return;
+        foreach (int slotId in orderedGlobalSlots)
         {
-            bool available = SporeGobbo.CampLifecycle.CampSpatialPolicy
-                .ShouldExposeResidentialSlot(i + 1, residentialStage, establishedSlots);
-            if (stageOneMarkers[i] != null)
+            bool available = slotId >= 1 && slotId <= establishedSlots;
+            markersByGlobalSlot.TryGetValue(slotId, out GameObject marker);
+            if (marker != null)
             {
-                stageOneMarkers[i].SetActive(SporeGobbo.CampLifecycle.CampSpatialPolicy
-                    .ShouldExposeResidentialSlot(i + 1, residentialStage, establishedSlots));
-                SpriteRenderer renderer = stageOneMarkers[i].GetComponent<SpriteRenderer>();
-                if (renderer != null) renderer.color = occupiedSlots != null && occupiedSlots.Contains(i + 1)
+                marker.SetActive(available);
+                SpriteRenderer renderer = marker.GetComponent<SpriteRenderer>();
+                if (renderer != null) renderer.color = occupiedSlots != null && occupiedSlots.Contains(slotId)
                     ? Color.white : new Color(1f, 1f, 1f, 0.35f);
             }
-            CampActivityPoint point = stageOneAnchors[i] != null
-                ? stageOneAnchors[i].GetComponent<CampActivityPoint>() : null;
+            anchorsByGlobalSlot.TryGetValue(slotId, out Transform anchor);
+            CampActivityPoint point = anchor != null ? anchor.GetComponent<CampActivityPoint>() : null;
             if (point != null) point.available = available;
         }
     }
 
     public Transform GetRestPoint(int slotId)
     {
-        int index = slotId - 1;
-        if (stageOneAnchors == null || index < 0 || index >= stageOneAnchors.Length) return null;
-        CampActivityPoint point = stageOneAnchors[index] != null
-            ? stageOneAnchors[index].GetComponent<CampActivityPoint>() : null;
-        return point != null && point.available ? stageOneAnchors[index] : null;
+        if (!anchorsByGlobalSlot.TryGetValue(slotId, out Transform anchor) || anchor == null) return null;
+        CampActivityPoint point = anchor.GetComponent<CampActivityPoint>();
+        return point != null && point.available ? anchor : null;
     }
 
-    public Transform[] GetEstablishedRestPoints(int residentialStage, int establishedSlots)
+    public Transform[] GetEstablishedRestPoints(int establishedSlots)
     {
-        if (residentialStage < 1 || stageOneAnchors == null) return null;
-        int count = Mathf.Clamp(establishedSlots, 0, stageOneAnchors.Length);
-        Transform[] result = new Transform[count];
-        System.Array.Copy(stageOneAnchors, result, count);
-        return result;
+        if (!initialized) return null;
+        List<Transform> result = new List<Transform>();
+        foreach (int slotId in orderedGlobalSlots)
+            if (slotId <= establishedSlots && anchorsByGlobalSlot.TryGetValue(slotId, out Transform anchor))
+                result.Add(anchor);
+        return result.ToArray();
     }
 }

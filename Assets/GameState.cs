@@ -137,8 +137,15 @@ public class GameState : MonoBehaviour
         }
 
         Instance = this;
+        DetachFromSceneHierarchy(transform);
         DontDestroyOnLoad(gameObject);
         EnsureRuntimeDefaults();
+    }
+
+    static void DetachFromSceneHierarchy(Transform persistentTransform)
+    {
+        if (persistentTransform != null && persistentTransform.parent != null)
+            persistentTransform.SetParent(null, true);
     }
 
     public void EnsureRuntimeDefaults()

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a2da17118b2b46df8ff3f77bb23b0eb3, type: 3}
   m_Name: CampSpatialContract
   m_EditorClassIdentifier: Assembly-CSharp::CampSpatialContract
-  contractRevision: 1
+  contractRevision: 2
   zones:
   - zoneId: home-core
     kind: 0
@@ -21,35 +21,11 @@ MonoBehaviour:
   - zoneId: exit-structure
     kind: 1
     bounds: {m_Position: {x: 57, y: 51, z: 0}, m_Size: {x: 10, y: 8, z: 1}}
-    purpose: Permanent active portal structure and approach footing.
+    purpose: Single authoritative live portal at cell 61,54, with back-wall protection and approach footing.
   - zoneId: memorial-structure
     kind: 2
-    bounds: {m_Position: {x: 25, y: 52, z: 0}, m_Size: {x: 14, y: 10, z: 1}}
-    purpose: Permanent Bones Wall structure, approach, and breathing room.
-  - zoneId: residential-stage-1
-    kind: 3
-    bounds: {m_Position: {x: 62, y: 32, z: 0}, m_Size: {x: 8, y: 9, z: 1}}
-    purpose: First meaningful sleeping pocket behind a short east-side entrance.
-  - zoneId: residential-stage-2
-    kind: 4
-    bounds: {m_Position: {x: 70, y: 30, z: 0}, m_Size: {x: 9, y: 12, z: 1}}
-    purpose: Deepens and widens the lower residential pocket eastward.
-  - zoneId: residential-stage-3
-    kind: 5
-    bounds: {m_Position: {x: 62, y: 40, z: 0}, m_Size: {x: 9, y: 11, z: 1}}
-    purpose: Opens the upper residential pocket from Stage 1 and Stage 2.
-  - zoneId: residential-stage-4
-    kind: 6
-    bounds: {m_Position: {x: 71, y: 40, z: 0}, m_Size: {x: 10, y: 12, z: 1}}
-    purpose: Expands the upper pocket toward the east wall.
-  - zoneId: residential-stage-5
-    kind: 7
-    bounds: {m_Position: {x: 79, y: 28, z: 0}, m_Size: {x: 6, y: 16, z: 1}}
-    purpose: Connects and deepens the far-east residential capacity.
-  - zoneId: residential-entrance
-    kind: 8
-    bounds: {m_Position: {x: 60, y: 35, z: 0}, m_Size: {x: 2, y: 3, z: 1}}
-    purpose: Future first-buddy dig start, two to three cells into east dirt.
+    bounds: {m_Position: {x: 25, y: 51, z: 0}, m_Size: {x: 14, y: 8, z: 1}}
+    purpose: Permanent Bones Wall structure and approach, terminating at the authored back wall.
   - zoneId: collapse-west
     kind: 9
     bounds: {m_Position: {x: 18, y: 26, z: 0}, m_Size: {x: 13, y: 12, z: 1}}
@@ -64,12 +40,12 @@ MonoBehaviour:
     purpose: Permanent clear first-arrival footing around NewGameIntroSpawn.
   - zoneId: normal-arrival
     kind: 11
-    bounds: {m_Position: {x: 44, y: 27, z: 0}, m_Size: {x: 10, y: 8, z: 1}}
-    purpose: Permanent leader and buddy arrival-ring clearance.
+    bounds: {m_Position: {x: 35, y: 23, z: 0}, m_Size: {x: 12, y: 10, z: 1}}
+    purpose: Permanent southwest leader and active-buddy return pocket centered on cell 40,28.
   - zoneId: circulation-arrival-fire
     kind: 12
-    bounds: {m_Position: {x: 43, y: 28, z: 0}, m_Size: {x: 11, y: 8, z: 1}}
-    purpose: Reliable normal arrival to Fire path.
+    bounds: {m_Position: {x: 37, y: 27, z: 0}, m_Size: {x: 14, y: 10, z: 1}}
+    purpose: Reliable crooked southwest arrival-to-Fire approach clearance.
   - zoneId: circulation-fire-exit-a
     kind: 12
     bounds: {m_Position: {x: 50, y: 36, z: 0}, m_Size: {x: 8, y: 17, z: 1}}
@@ -92,13 +68,13 @@ MonoBehaviour:
     purpose: Northbound memorial approach.
   - zoneId: general-south
     kind: 13
-    bounds: {m_Position: {x: 31, y: 17, z: 0}, m_Size: {x: 23, y: 9, z: 1}}
-    purpose: Deliberately unreserved southern Camp space.
+    bounds: {m_Position: {x: 31, y: 17, z: 0}, m_Size: {x: 28, y: 6, z: 1}}
+    purpose: Deliberately solid/unreserved southern future-development direction.
   - zoneId: general-west
     kind: 13
     bounds: {m_Position: {x: 20, y: 38, z: 0}, m_Size: {x: 9, y: 13, z: 1}}
     purpose: Deliberately unreserved west-side space between resources and memorial.
   - zoneId: general-north
     kind: 13
-    bounds: {m_Position: {x: 39, y: 58, z: 0}, m_Size: {x: 17, y: 5, z: 1}}
-    purpose: Deliberately unreserved northern wall/floor space.
+    bounds: {m_Position: {x: 39, y: 59, z: 0}, m_Size: {x: 29, y: 5, z: 1}}
+    purpose: Solid terminating back-wall dirt behind the Bones-to-Exit shelf.

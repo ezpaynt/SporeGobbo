@@ -13,7 +13,7 @@ public class CampSuccessorPreferenceStore : MonoBehaviour
     public string markedSuccessorId = "";
 
     [Header("Debug")]
-    public bool logDebugMessages = true;
+    public bool logDebugMessages = false;
 
     void Awake()
     {
