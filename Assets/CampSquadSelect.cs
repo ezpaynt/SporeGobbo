@@ -2,14 +2,19 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using SporeGobbo.CampLifecycle;
 
 [RequireComponent(typeof(Collider2D))]
-public class CampSquadSelect : MonoBehaviour, ICampInteractable
+public class CampSquadSelect : MonoBehaviour, ICampInteractable, IWorldInteractionMetadata
 {
     [Header("Interaction")]
     [Tooltip("Only used to draw a helpful scene gizmo. Actual range is controlled by CampInteractionDetector.")]
     public float gizmoRadius = 1.35f;
     public string interactPrompt = "Choose who comes";
+    [Min(0.1f)] public float interactionRange = 1.2f;
+    public int interactionPriority = 5;
+    public HandcraftedCampTerrain campTerrain;
+    public string terrainFootprintId = CampEarlyMapCatalog.SquadFootprintId;
 
     [Header("Optional Assigned UI")]
     public Canvas targetCanvas;
@@ -38,6 +43,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
 
     private readonly List<GameObject> spawnedRows = new List<GameObject>();
     bool homeAvailable;
+    bool physicallyAccessible;
 
     void Awake()
     {
@@ -48,8 +54,9 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
 
     void Start()
     {
-        ApplyHomeAvailability(GameState.Instance != null && GameState.Instance.campTerrainState != null &&
-            GameState.Instance.campTerrainState.residentialSlotsEstablished >= 1);
+        if (campTerrain == null) campTerrain = Object.FindAnyObjectByType<HandcraftedCampTerrain>();
+        ApplyHomeAvailability(CampTerrainMilestoneState.IsSatisfied(
+            CampTerrainMilestone.FirstBuddyRecruited, GameState.Instance));
         if (buildReadableUiIfMissing && (panel == null || activeListParent == null || reserveListParent == null || closeButton == null))
             BuildReadableUi();
 
@@ -57,20 +64,43 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable
         CloseMenu();
     }
 
+    void Update()
+    {
+        if (homeAvailable) RefreshPhysicalAvailability();
+    }
+
     public string GetInteractPrompt() => interactPrompt;
+    public bool CanInteract(GobboController player) => player != null && homeAvailable && physicallyAccessible;
+    public Vector2 GetInteractionPoint() => transform.position;
+    public int InteractionPriority => interactionPriority;
+    public float InteractionRange => interactionRange;
 
     public void Interact(GobboController playerController)
     {
-        if (!homeAvailable) return;
+        if (!CanInteract(playerController)) return;
         OpenMenu(playerController);
     }
 
     public void ApplyHomeAvailability(bool available)
     {
         homeAvailable = available;
+        RefreshPhysicalAvailability();
+    }
+
+    public bool IsPhysicallyAccessible()
+    {
+        if (!homeAvailable) return false;
+        if (campTerrain == null) campTerrain = Object.FindAnyObjectByType<HandcraftedCampTerrain>();
+        return campTerrain != null && campTerrain.HasOpenAccessToFootprint(terrainFootprintId);
+    }
+
+    void RefreshPhysicalAvailability()
+    {
+        physicallyAccessible = IsPhysicallyAccessible();
         Collider2D col = GetComponent<Collider2D>();
-        if (col != null) col.enabled = available;
-        foreach (Renderer renderer in GetComponentsInChildren<Renderer>(true)) renderer.enabled = available;
+        if (col != null) col.enabled = physicallyAccessible;
+        foreach (Renderer renderer in GetComponentsInChildren<Renderer>(true))
+            renderer.enabled = physicallyAccessible;
     }
 
     public void OpenMenu(GobboController playerController = null)

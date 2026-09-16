@@ -124,7 +124,8 @@ namespace SporeGobbo.CampLifecycle
         NormalCampDiggable,
         NeverDiggable,
         ResidentialReserved,
-        CollapseEligible
+        CollapseEligible,
+        StagedCampDiggable
     }
 
     public enum TerrainDigAuthority
@@ -232,9 +233,11 @@ namespace SporeGobbo.CampLifecycle
             return CampDigCategory.NormalCampDiggable;
         }
 
-        public static bool CanApplyOrdinaryOrSavedClear(CampDigCategory category)
+        public static bool CanApplyOrdinaryOrSavedClear(CampDigCategory category,
+            bool stagedMilestoneSatisfied = false)
         {
-            return category == CampDigCategory.NormalCampDiggable || category == CampDigCategory.CollapseEligible;
+            return category == CampDigCategory.NormalCampDiggable || category == CampDigCategory.CollapseEligible ||
+                   category == CampDigCategory.StagedCampDiggable && stagedMilestoneSatisfied;
         }
 
         public const double BuddyDigRadiusInCells = 1.2;
@@ -360,10 +363,12 @@ namespace SporeGobbo.CampLifecycle
         }
 
         public static bool CanDig(CampDigCategory category, TerrainDigAuthority authority,
-            bool authorizedResidentialCell)
+            bool authorizedResidentialCell, bool stagedMilestoneSatisfied = false)
         {
             if (authority == TerrainDigAuthority.ResidentialProgression && authorizedResidentialCell) return true;
             if (category == CampDigCategory.NeverDiggable || category == CampDigCategory.ResidentialReserved) return false;
+            if (category == CampDigCategory.StagedCampDiggable)
+                return authority == TerrainDigAuthority.Player && stagedMilestoneSatisfied;
             return authority == TerrainDigAuthority.Player || authority == TerrainDigAuthority.Buddy;
         }
 

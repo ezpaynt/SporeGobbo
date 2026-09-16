@@ -1409,7 +1409,7 @@ MonoBehaviour:
   terrainPresentationRenderer: {fileID: 272650231}
   dirtTile: {fileID: 11400000, guid: a47a570b4943a354e8a840182013b09b, type: 2}
   permanentRockTile: {fileID: 11400000, guid: a47a570b4943a354e8a840182013b09b, type: 2}
-  layoutRevision: 7
+  layoutRevision: 9
   authoredBounds:
     m_Position: {x: 0, y: 0, z: 0}
     m_Size: {x: 128, y: 80, z: 1}
@@ -1432,30 +1432,30 @@ MonoBehaviour:
   reservedStationFootprints:
   - footprintId: campfire
     bounds:
-      m_Position: {x: 45, y: 31, z: 0}
-      m_Size: {x: 8, y: 9, z: 1}
+      m_Position: {x: 23, y: 38, z: 0}
+      m_Size: {x: 3, y: 3, z: 1}
   - footprintId: arrival
     bounds:
       m_Position: {x: 35, y: 23, z: 0}
       m_Size: {x: 12, y: 10, z: 1}
   - footprintId: run-exit
     bounds:
-      m_Position: {x: 57, y: 52, z: 0}
-      m_Size: {x: 8, y: 4, z: 1}
+      m_Position: {x: 38, y: 61, z: 0}
+      m_Size: {x: 5, y: 1, z: 1}
   - footprintId: resource-display
     bounds:
       m_Position: {x: 25, y: 37, z: 0}
       m_Size: {x: 10, y: 10, z: 1}
   - footprintId: bones-wall
     bounds:
-      m_Position: {x: 26, y: 54, z: 0}
-      m_Size: {x: 10, y: 4, z: 1}
+      m_Position: {x: 12, y: 63, z: 0}
+      m_Size: {x: 7, y: 1, z: 1}
   - footprintId: squad-selection
     bounds:
-      m_Position: {x: 37, y: 39, z: 0}
-      m_Size: {x: 10, y: 10, z: 1}
+      m_Position: {x: 57, y: 47, z: 0}
+      m_Size: {x: 4, y: 3, z: 1}
   spatialContract: {fileID: 0}
-  authoritativeCampExit: {fileID: 0}
+  authoritativeCampExit: {fileID: 745327673}
   authoritativeExitFootprintId: run-exit
   forceMainChamberRevealedForCurrentCamp: 0
   hasMainChamberRevealTrigger: 0
@@ -3486,7 +3486,7 @@ Transform:
   m_GameObject: {fileID: 609549346}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -2.87, y: 1.76, z: 0}
+  m_LocalPosition: {x: -15.3, y: 5.7, z: 0}
   m_LocalScale: {x: 0.5736979, y: 0.6092697, z: 1.25}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -4568,7 +4568,7 @@ Transform:
   m_GameObject: {fileID: 745327670}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 7.16, y: 14.92, z: 0}
+  m_LocalPosition: {x: -5.7, y: 18.9, z: 0}
   m_LocalScale: {x: 1.3948088, y: 1.5350507, z: 5}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -5413,7 +5413,7 @@ Camera:
   far clip plane: 1000
   field of view: 60
   orthographic: 1
-  orthographic size: 7.2
+  orthographic size: 10.8
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
@@ -6394,7 +6394,7 @@ Transform:
   m_GameObject: {fileID: 930000060}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -2.72, y: 6.9, z: 0}
+  m_LocalPosition: {x: 5.1, y: 11.1, z: 0}
   m_LocalScale: {x: 0.467625, y: 0.60929, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -6519,6 +6519,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CampSquadSelect
   gizmoRadius: 1.35
   interactPrompt: Choose who comes
+  interactionRange: 1.2
+  interactionPriority: 5
+  campTerrain: {fileID: 272650229}
+  terrainFootprintId: squad-selection
   targetCanvas: {fileID: 0}
   panel: {fileID: 1437228373}
   titleText: {fileID: 1246531829}
@@ -7200,7 +7204,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -36.25, y: 8.21, z: 0}
-  m_LocalScale: {x: 1.934, y: 2.127, z: 1}
+  m_LocalScale: {x: 2.901, y: 3.1905, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 990000101}
@@ -8299,7 +8303,7 @@ Transform:
   m_GameObject: {fileID: 1058529327}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -10.7185, y: 16.2435, z: 0}
+  m_LocalPosition: {x: -20.7, y: 20.1, z: 0}
   m_LocalScale: {x: 5.7334733, y: 3.7169285, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -8321,6 +8325,10 @@ MonoBehaviour:
   hideUntilFirstDeath: 1
   hideThisMarkerSpriteUntilVisible: 0
   interactPrompt: Read Old Bones
+  interactionRange: 1.4
+  interactionPriority: 5
+  campTerrain: {fileID: 272650229}
+  terrainFootprintId: bones-wall
   panel: {fileID: 1995234855}
   titleText: {fileID: 153949711}
   deadBuddiesText: {fileID: 1616227534}
@@ -15763,7 +15771,7 @@ Transform:
   m_GameObject: {fileID: 2113313628}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 7.16, y: 14.92, z: 0}
+  m_LocalPosition: {x: -5.7, y: 18.9, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -16681,7 +16689,7 @@ Transform:
   m_GameObject: {fileID: 2130448048}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -10.95, y: 16.12, z: 0}
+  m_LocalPosition: {x: -20.7, y: 20.1, z: 0}
   m_LocalScale: {x: 0.46019793, y: 0.47291097, z: 1.1414}
   m_ConstrainProportionsScale: 0
   m_Children: []

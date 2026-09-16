@@ -182,7 +182,9 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
             evaluated++;
             bool authorizedResidential = authority == TerrainDigAuthority.ResidentialProgression &&
                 validResidentialRequest && IsAuthorizedResidentialProgressionCell(cell, residentialStage, authorized);
-            if (!CampSpatialPolicy.CanDig(GetSpatialDigCategory(cell), authority, authorizedResidential)) continue;
+            CampDigCategory category = GetSpatialDigCategory(cell);
+            if (!CampSpatialPolicy.CanDig(category, authority, authorizedResidential,
+                    IsStagedTerrainUnlocked(cell))) continue;
             eligible++;
             bool changed = authorizedResidential ? RemoveResidentialCell(cell) : DigCell(cell, false);
             if (changed) removed++;
@@ -235,9 +237,8 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
     {
         EnsureReady();
         CampDigCategory category = GetSpatialDigCategory(cell);
-        if (category == CampDigCategory.NeverDiggable || category == CampDigCategory.ResidentialReserved)
-            return false;
-        return baselineDiggable.Contains(cell) && !baselineRock.Contains(cell) &&
+        return CampSpatialPolicy.CanDig(category, TerrainDigAuthority.Player, false, IsStagedTerrainUnlocked(cell)) &&
+               baselineDiggable.Contains(cell) && !baselineRock.Contains(cell) &&
                diggableDirtTilemap != null && diggableDirtTilemap.HasTile(ToTileCell(cell));
     }
 
@@ -253,7 +254,34 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
             if (optionalPlayerDigCells != null && optionalPlayerDigCells.Contains(tuple))
                 return CampDigCategory.NormalCampDiggable;
         }
+        if (CampEarlyMapCatalog.IsPermanentStructureCell((cell.x, cell.y)))
+            return CampDigCategory.NeverDiggable;
+        if (CampEarlyMapCatalog.FindStageContaining((cell.x, cell.y)) != null)
+            return CampDigCategory.StagedCampDiggable;
         return spatialContract != null ? spatialContract.Classify(cell) : CampDigCategory.NormalCampDiggable;
+    }
+
+    public bool IsStagedTerrainUnlocked(Vector2Int cell)
+    {
+        CampStagedTerrainDefinition stage = CampEarlyMapCatalog.FindStageContaining((cell.x, cell.y));
+        return stage?.Milestone != null &&
+               CampTerrainMilestoneState.IsSatisfied(stage.Milestone.Value, GameState.Instance);
+    }
+
+    public bool HasOpenAccessToFootprint(string footprintId)
+    {
+        if (!CampEarlyMapCatalog.TryGetLandmarkFootprint(footprintId, out BoundsInt footprint)) return false;
+        for (int x = footprint.xMin; x < footprint.xMax; x++)
+        {
+            if (!IsBlocked(new Vector2Int(x, footprint.yMin - 1)) ||
+                !IsBlocked(new Vector2Int(x, footprint.yMax))) return true;
+        }
+        for (int y = footprint.yMin; y < footprint.yMax; y++)
+        {
+            if (!IsBlocked(new Vector2Int(footprint.xMin - 1, y)) ||
+                !IsBlocked(new Vector2Int(footprint.xMax, y))) return true;
+        }
+        return false;
     }
 
     public bool IsInSpatialZone(Vector2Int cell, CampZoneKind kind)
@@ -363,7 +391,8 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
                 {
                     Vector2Int cell = ToCell(savedCell);
                     if (!baselineDiggable.Contains(cell) || baselineRock.Contains(cell) ||
-                        !CampSpatialPolicy.CanApplyOrdinaryOrSavedClear(GetSpatialDigCategory(cell)))
+                        !CampSpatialPolicy.CanApplyOrdinaryOrSavedClear(GetSpatialDigCategory(cell),
+                            IsStagedTerrainUnlocked(cell)))
                     {
                         LastIgnoredSavedCellCount++;
                         continue;
@@ -551,7 +580,8 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
         bool changed = false;
         foreach (Vector2Int cell in revealCells)
         {
-            if (!CampSpatialPolicy.CanApplyOrdinaryOrSavedClear(GetSpatialDigCategory(cell))) continue;
+            if (!CampSpatialPolicy.CanApplyOrdinaryOrSavedClear(GetSpatialDigCategory(cell),
+                    IsStagedTerrainUnlocked(cell))) continue;
             if (diggableDirtTilemap != null && diggableDirtTilemap.HasTile(ToTileCell(cell)))
             {
                 diggableDirtTilemap.SetTile(ToTileCell(cell), null);
@@ -610,34 +640,42 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
         baselineRock.Clear();
         revealCells.Clear();
 
-        AddCells(authoredOpenCells, baselineOpen, "open");
-        AddRegions(authoredOpenRegions, baselineOpen, "open");
-        AddCells(authoredDiggableCells, baselineDiggable, "diggable");
-        AddRegions(authoredDiggableRegions, baselineDiggable, "diggable");
-        AddPaths(authoredDiggablePaths, baselineDiggable, "diggable");
+        foreach ((int x, int y) cell in CampEarlyMapCatalog.InitialOpenCells)
+            baselineOpen.Add(new Vector2Int(cell.x, cell.y));
+        foreach (CampStagedTerrainDefinition stage in CampEarlyMapCatalog.Stages)
+        foreach ((int x, int y) cell in stage.TerrainCells)
+            baselineDiggable.Add(new Vector2Int(cell.x, cell.y));
         AddCells(authoredPermanentRockCells, baselineRock, "permanent rock");
         AddRegions(authoredPermanentRockRegions, baselineRock, "permanent rock");
-        AddCells(mainChamberRevealCells, revealCells, "main chamber reveal");
-        AddRegions(mainChamberRevealRegions, revealCells, "main chamber reveal");
-        RemoveRegions(mainChamberRevealExclusionRegions, revealCells);
 
-        foreach (Vector2Int cell in revealCells) baselineDiggable.Add(cell);
-        ApplyPermanentSpatialZones();
+        foreach (Vector2Int cell in baselineOpen)
+        {
+            baselineDiggable.Remove(cell);
+            baselineRock.Remove(cell);
+        }
+        foreach (CampStagedTerrainDefinition stage in CampEarlyMapCatalog.Stages)
+        foreach ((int x, int y) coordinate in stage.TerrainCells)
+        {
+            Vector2Int cell = new Vector2Int(coordinate.x, coordinate.y);
+            baselineOpen.Remove(cell);
+            baselineRock.Remove(cell);
+            baselineDiggable.Add(cell);
+        }
+        foreach ((int x, int y) coordinate in CampEarlyMapCatalog.PermanentStructureCells)
+        {
+            Vector2Int cell = new Vector2Int(coordinate.x, coordinate.y);
+            baselineOpen.Remove(cell);
+            baselineDiggable.Remove(cell);
+            baselineRock.Add(cell);
+        }
         AlignExitFootprintToAuthoritativeTransform();
         if (reservedStationFootprints != null)
         {
             foreach (CampReservedFootprint footprint in reservedStationFootprints)
             {
-                if (footprint == null) continue;
-                foreach (Vector3Int position in footprint.bounds.allPositionsWithin)
-                {
-                    Vector2Int cell = new Vector2Int(position.x, position.y);
-                    if (!Contains(authoredBounds, cell)) continue;
-                    baselineOpen.Add(cell);
-                    baselineDiggable.Remove(cell);
-                    baselineRock.Remove(cell);
-                    revealCells.Remove(cell);
-                }
+                if (footprint == null || !CampEarlyMapCatalog.TryGetLandmarkFootprint(
+                        footprint.footprintId, out BoundsInt authored)) continue;
+                footprint.bounds = authored;
             }
         }
         ValidateSpatialContractOnce();

@@ -24,7 +24,7 @@ public sealed class CampOrganicSpatialAuthoringTests
         CampRunPortal portal = Object.FindAnyObjectByType<CampRunPortal>(FindObjectsInactive.Include);
         Assert.That(portal, Is.Not.Null);
         Vector2Int cell = terrain.WorldToCell(portal.transform.position);
-        Assert.That(cell, Is.EqualTo(new Vector2Int(61, 54)));
+        Assert.That(cell, Is.EqualTo(CampEarlyMapCatalog.ExitAnchor));
 
         CampSpatialZone zone = terrain.SpatialContract.Find("exit-structure");
         Assert.That(zone, Is.Not.Null);
@@ -32,7 +32,7 @@ public sealed class CampOrganicSpatialAuthoringTests
 
         CampReservedFootprint footprint = terrain.reservedStationFootprints.Find(f => f.footprintId == "run-exit");
         Assert.That(footprint, Is.Not.Null);
-        Assert.That(footprint.bounds.position, Is.EqualTo(new Vector3Int(57, 52, 0)));
+        Assert.That(footprint.bounds, Is.EqualTo(CampEarlyMapCatalog.ExitFootprint));
         Assert.That(footprint.bounds.Contains(new Vector3Int(cell.x, cell.y, 0)), Is.True);
 
         GameObject marker = GameObject.Find("RunExitMarker");
@@ -56,13 +56,39 @@ public sealed class CampOrganicSpatialAuthoringTests
     }
 
     [Test]
-    public void BonesToExitShelfHasNoRuntimeOpeningBehindIt()
+    public void ApprovedEarlyMapCatalogIsTheRuntimeNonResidentialOpenAuthority()
     {
         HashSet<Vector2Int> runtimeOpen = BuildRuntimeOpenAuthoring();
-        for (int x = 25; x <= 67; x++)
-        for (int y = 59; y < terrain.AuthoredBounds.yMax; y++)
-            Assert.That(runtimeOpen.Contains(new Vector2Int(x, y)), Is.False,
-                $"Cell ({x},{y}) opens playable Camp behind the terminating Bones/Exit shelf.");
+        Assert.That(runtimeOpen.Count, Is.EqualTo(CampEarlyMapCatalog.InitialOpenCells.Count));
+        Assert.That(runtimeOpen.Contains(CampEarlyMapCatalog.FireAnchor), Is.True);
+        Assert.That(runtimeOpen.Contains(CampEarlyMapCatalog.ExitAnchor), Is.True);
+        Assert.That(runtimeOpen.Contains(CampEarlyMapCatalog.SquadInteractionAnchor), Is.False,
+            "Squad footprint begins as staged dirt, not starting-open Camp.");
+        Assert.That(CampEarlyMapCatalog.FirstBuddySquad.ContainsTerrainCell(
+            (CampEarlyMapCatalog.SquadInteractionAnchor.x, CampEarlyMapCatalog.SquadInteractionAnchor.y)), Is.True);
+        Assert.That(runtimeOpen.Contains(new Vector2Int(70, 70)), Is.False);
+    }
+
+    [Test]
+    public void FireExitSquadAndBonesSceneObjectsMatchApprovedGridAnchors()
+    {
+        GameObject fire = GameObject.Find("CampFire");
+        GameObject squadObject = GameObject.Find("SquadSelectSpot");
+        CampSquadSelect squad = Object.FindAnyObjectByType<CampSquadSelect>(FindObjectsInactive.Include);
+        GameObject bonesObject = GameObject.Find("BonesSpot");
+        CampOldBonesWall bones = Object.FindAnyObjectByType<CampOldBonesWall>(FindObjectsInactive.Include);
+        Assert.That(fire, Is.Not.Null);
+        Assert.That(squadObject, Is.Not.Null);
+        Assert.That(squad, Is.Not.Null);
+        Assert.That(bonesObject, Is.Not.Null);
+        Assert.That(bones, Is.Not.Null);
+        Assert.That(terrain.WorldToCell(fire.transform.position), Is.EqualTo(CampEarlyMapCatalog.FireAnchor));
+        Assert.That(terrain.WorldToCell(squadObject.transform.position), Is.EqualTo(CampEarlyMapCatalog.SquadInteractionAnchor));
+        Assert.That(squad.campTerrain, Is.SameAs(terrain));
+        Assert.That(squad.terrainFootprintId, Is.EqualTo(CampEarlyMapCatalog.SquadFootprintId));
+        Assert.That(terrain.WorldToCell(bonesObject.transform.position), Is.EqualTo(CampEarlyMapCatalog.BonesInteractionAnchor));
+        Assert.That(bones.campTerrain, Is.SameAs(terrain));
+        Assert.That(bones.terrainFootprintId, Is.EqualTo(CampEarlyMapCatalog.BonesFootprintId));
     }
 
     [Test]
@@ -92,15 +118,16 @@ public sealed class CampOrganicSpatialAuthoringTests
         Assert.That(Capacity(plan, "secondary"), Is.EqualTo(20));
         Assert.That(plan.plannedCampBounds, Is.EqualTo(terrain.AuthoredBounds));
 
-        HashSet<Vector2Int> runtimeOpen = BuildRuntimeOpenAuthoring();
+        HashSet<(int x, int y)> runtimeResidential = terrain.GetResidentialCatalog()
+            .GetResidentialAuthorizationCells();
         foreach (CampResidentialPlanRoom room in plan.rooms)
         {
             Assert.That(terrain.AuthoredBounds.Contains(room.protectedBounds.min), Is.True);
             Assert.That(terrain.AuthoredBounds.Contains(room.protectedBounds.max - Vector3Int.one), Is.True);
             if (room.currentlyImplemented) continue;
             foreach (CampCellCoordinate slot in room.slotCenters)
-                Assert.That(runtimeOpen.Contains(new Vector2Int(slot.x, slot.y)), Is.False,
-                    $"Future {room.roomId} slot ({slot.x},{slot.y}) became runtime-open terrain.");
+                Assert.That(runtimeResidential.Contains((slot.x, slot.y)), Is.False,
+                    $"Future {room.roomId} slot ({slot.x},{slot.y}) leaked into runtime residential authority.");
         }
     }
 
@@ -166,18 +193,8 @@ public sealed class CampOrganicSpatialAuthoringTests
     HashSet<Vector2Int> BuildRuntimeOpenAuthoring()
     {
         HashSet<Vector2Int> cells = new HashSet<Vector2Int>();
-        AddRegions(terrain.authoredOpenRegions, cells);
-        AddRegions(terrain.mainChamberRevealRegions, cells);
-        foreach (CampTerrainRegion exclusion in terrain.mainChamberRevealExclusionRegions)
-            foreach (Vector3Int position in exclusion.bounds.allPositionsWithin)
-                cells.Remove(new Vector2Int(position.x, position.y));
-        foreach (CampReservedFootprint footprint in terrain.reservedStationFootprints)
-            foreach (Vector3Int position in footprint.bounds.allPositionsWithin)
-                cells.Add(new Vector2Int(position.x, position.y));
-        foreach (CampSpatialZone zone in terrain.SpatialContract.zones)
-            if (CampSpatialPolicy.IsPermanent(zone.kind))
-                foreach (Vector3Int position in zone.bounds.allPositionsWithin)
-                    cells.Add(new Vector2Int(position.x, position.y));
+        foreach ((int x, int y) cell in CampEarlyMapCatalog.InitialOpenCells)
+            cells.Add(new Vector2Int(cell.x, cell.y));
         return cells;
     }
 

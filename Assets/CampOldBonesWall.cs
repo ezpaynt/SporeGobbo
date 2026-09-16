@@ -3,12 +3,13 @@ using System.Text;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using SporeGobbo.CampLifecycle;
 
 /// <summary>
 /// Interactable camp location for reading saved death history.
 /// Keep this GameObject active in the scene. This script hides/shows only the art, collider, and optional marker sprite.
 /// </summary>
-public class CampOldBonesWall : MonoBehaviour, ICampInteractable
+public class CampOldBonesWall : MonoBehaviour, ICampInteractable, IWorldInteractionMetadata
 {
     [Header("Visibility")]
     public GameObject wallVisualRoot;
@@ -17,6 +18,10 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
 
     [Header("Camp Interaction")]
     public string interactPrompt = "Read Old Bones";
+    [Min(0.1f)] public float interactionRange = 1.4f;
+    public int interactionPriority = 5;
+    public HandcraftedCampTerrain campTerrain;
+    public string terrainFootprintId = CampEarlyMapCatalog.BonesFootprintId;
 
     [Header("UI")]
     public GameObject panel;
@@ -28,6 +33,7 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
     public string emptyLeaderText = "No fallen leaders yet.";
 
     public Transform playerOverride;
+    bool lastAvailable;
 
     void Awake()
     {
@@ -41,6 +47,12 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
         RefreshVisibility();
     }
 
+    void Update()
+    {
+        bool available = IsAvailable();
+        if (available != lastAvailable) ApplyAvailability(available);
+    }
+
     void OnEnable()
     {
         HookButtons();
@@ -49,12 +61,17 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
 
     public string GetInteractPrompt()
     {
-        return IsVisible() ? interactPrompt : "";
+        return IsAvailable() ? interactPrompt : "";
     }
+
+    public bool CanInteract(GobboController player) => player != null && IsAvailable();
+    public Vector2 GetInteractionPoint() => transform.position;
+    public int InteractionPriority => interactionPriority;
+    public float InteractionRange => interactionRange;
 
     public void Interact(GobboController player)
     {
-        if (!IsVisible()) return;
+        if (!CanInteract(player)) return;
         if (player != null) playerOverride = player.transform;
         OpenPanel();
     }
@@ -88,16 +105,29 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable
         CampMenuModal.Close(this);
     }
 
-    bool IsVisible()
+    bool IsDeathPresentationEstablished()
     {
         if (!hideUntilFirstDeath) return true;
         return GameState.Instance != null && GameState.Instance.campTerrainState != null &&
             GameState.Instance.campTerrainState.memorialEstablished;
     }
 
+    public bool IsPhysicallyAccessible()
+    {
+        if (campTerrain == null) campTerrain = Object.FindAnyObjectByType<HandcraftedCampTerrain>();
+        return campTerrain != null && campTerrain.HasOpenAccessToFootprint(terrainFootprintId);
+    }
+
+    bool IsAvailable() => IsDeathPresentationEstablished() && IsPhysicallyAccessible();
+
     public void RefreshVisibility()
     {
-        bool visible = IsVisible();
+        ApplyAvailability(IsAvailable());
+    }
+
+    void ApplyAvailability(bool visible)
+    {
+        lastAvailable = visible;
 
         if (wallVisualRoot != null)
             wallVisualRoot.SetActive(visible);

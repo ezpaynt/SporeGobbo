@@ -854,7 +854,8 @@ public class CampStartRoutineManager : MonoBehaviour
             ? CampResidentialOccupancyResolver.GetOccupiedEstablishedSlots(GameState.Instance) : new HashSet<int>();
         residentialPresentation?.ApplyProgress(slots, occupied);
         CampSquadSelect squad = Object.FindAnyObjectByType<CampSquadSelect>(FindObjectsInactive.Include);
-        if (squad != null) squad.ApplyHomeAvailability(slots >= 1);
+        if (squad != null) squad.ApplyHomeAvailability(CampTerrainMilestoneState.IsSatisfied(
+            CampTerrainMilestone.FirstBuddyRecruited, GameState.Instance));
     }
 
     IEnumerator WaitForSpawnedBuddiesIfAny()
