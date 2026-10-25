@@ -4,6 +4,7 @@ namespace SporeGobbo.Input
     {
         Gameplay,
         Wheel,
+        Story,
         Modal,
         Pause
     }

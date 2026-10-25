@@ -27,7 +27,7 @@ public class CampInteractionDetector : MonoBehaviour
 
     private readonly List<Candidate> candidates = new();
     private readonly List<InteractionCandidateData> rankingData = new();
-    private readonly HashSet<int> seenOwners = new();
+    private readonly HashSet<ulong> seenOwners = new();
     private Candidate current;
     private GobboController player;
     private SporeInputReader inputReader;
@@ -115,7 +115,7 @@ public class CampInteractionDetector : MonoBehaviour
 
     void SelectCurrent()
     {
-        int currentId = IsUsable(current) ? current.Owner.GetInstanceID() : int.MinValue;
+        ulong currentId = IsUsable(current) ? EntityId.ToULong(current.Owner.GetEntityId()) : ulong.MaxValue;
         candidates.Clear();
         rankingData.Clear();
         seenOwners.Clear();
@@ -144,7 +144,7 @@ public class CampInteractionDetector : MonoBehaviour
             }
         }
 
-        if (owner == null || !owner.isActiveAndEnabled || !seenOwners.Add(owner.GetInstanceID())) return;
+        if (owner == null || !owner.isActiveAndEnabled || !seenOwners.Add(EntityId.ToULong(owner.GetEntityId()))) return;
 
         IWorldInteractionMetadata metadata = owner as IWorldInteractionMetadata;
         if (metadata != null && !metadata.CanInteract(player)) return;
@@ -168,7 +168,7 @@ public class CampInteractionDetector : MonoBehaviour
             Distance = distance
         };
         candidates.Add(candidate);
-        rankingData.Add(new InteractionCandidateData(owner.GetInstanceID(), candidate.Priority, distance, alignment));
+        rankingData.Add(new InteractionCandidateData(EntityId.ToULong(owner.GetEntityId()), candidate.Priority, distance, alignment));
     }
 
     bool IsUsable(Candidate candidate)
@@ -223,7 +223,7 @@ public class CampInteractionDetector : MonoBehaviour
 
     static Canvas FindPromptCanvas()
     {
-        Canvas[] canvases = Object.FindObjectsByType<Canvas>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        Canvas[] canvases = Object.FindObjectsByType<Canvas>();
         Canvas best = null;
         foreach (Canvas candidate in canvases)
         {

@@ -148,7 +148,7 @@ public class CampStartRoutineManager : MonoBehaviour
         int constructionCount = arrival.PendingConstructionCount;
         bool arrivalPhase = arrival.ArrivalPhase;
         LogResidentialArrival(arrival, occupancy.Resolution.UnassignedLivingBuddyIds,
-            Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None));
+            Object.FindObjectsByType<BuddyUnit>());
         firstHomeBuddyIds.Clear();
         foreach (string id in vacancyClaims) firstHomeBuddyIds.Add(id);
         int reservedConstructionCount = Mathf.Min(constructionCount,
@@ -199,7 +199,7 @@ public class CampStartRoutineManager : MonoBehaviour
         List<string> vacancyClaims, List<string> constructionBuddyIds, int constructionCount,
         System.Action<bool> completed)
     {
-        BuddyUnit[] liveBuddies = Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None);
+        BuddyUnit[] liveBuddies = Object.FindObjectsByType<BuddyUnit>();
         firstHomeApproaches.Clear();
 
         foreach (string id in vacancyClaims)
@@ -865,7 +865,7 @@ public class CampStartRoutineManager : MonoBehaviour
         float timer = 0f;
         while (timer < 2f)
         {
-            BuddyUnit[] buddies = Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None);
+        BuddyUnit[] buddies = Object.FindObjectsByType<BuddyUnit>();
             if (buddies.Length > 0) yield break;
             timer += Time.deltaTime;
             yield return null;
@@ -909,7 +909,7 @@ public class CampStartRoutineManager : MonoBehaviour
 
     void ReleaseNonFirstHomeBuddiesToNormalBehavior()
     {
-        foreach (BuddyUnit buddy in Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None))
+        foreach (BuddyUnit buddy in Object.FindObjectsByType<BuddyUnit>())
         {
             if (buddy == null || buddy.unitData != null && firstHomeBuddyIds.Contains(buddy.unitData.uniqueId))
                 continue;
@@ -926,7 +926,7 @@ public class CampStartRoutineManager : MonoBehaviour
     void SendAllBuddiesToTemporaryAnchor(Transform anchor, float radius, bool disableFreeWanderUntilArrived)
     {
         if (anchor == null) return;
-        BuddyUnit[] buddies = Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None);
+        BuddyUnit[] buddies = Object.FindObjectsByType<BuddyUnit>();
         foreach (BuddyUnit buddy in buddies)
         {
             if (buddy == null) continue;
@@ -943,7 +943,7 @@ public class CampStartRoutineManager : MonoBehaviour
 
     void ReleaseBuddiesToResidentialOrDefaultAnchors()
     {
-        BuddyUnit[] buddies = Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None);
+        BuddyUnit[] buddies = Object.FindObjectsByType<BuddyUnit>();
         for (int i = 0; i < buddies.Length; i++)
         {
             BuddyUnit buddy = buddies[i];
@@ -1019,7 +1019,7 @@ public class CampStartRoutineManager : MonoBehaviour
 
     void StageAllBuddiesAtFire()
     {
-        BuddyUnit[] buddies = Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None);
+        BuddyUnit[] buddies = Object.FindObjectsByType<BuddyUnit>();
         for (int i = 0; i < buddies.Length; i++)
         {
             BuddyUnit buddy = buddies[i];

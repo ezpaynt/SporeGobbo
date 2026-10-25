@@ -37,6 +37,9 @@ public class RunSummaryData
     public int buddiesFound = 0;
     public int buddiesLost = 0;
     public int enemiesKilled = 0;
+    public int mushroomsEaten = 0;
+    public int weevilsKilled = 0;
+    public int blobsKilled = 0;
 
     public List<string> newBuddyNames = new List<string>();
     public List<string> deadBuddyNames = new List<string>();
@@ -101,6 +104,9 @@ public class GameState : MonoBehaviour
     public List<string> unlockedStations = new List<string>();
     public List<string> decorationsUnlocked = new List<string>();
 
+    [Header("Campaign Facts")]
+    public CampaignFacts campaignFacts = new CampaignFacts();
+
     [Header("Item Inventory Save")]
     public List<InventoryStackSaveData> itemStacks = new List<InventoryStackSaveData>();
 
@@ -113,6 +119,9 @@ public class GameState : MonoBehaviour
 
     [Header("Camp Terrain Save")]
     public CampTerrainState campTerrainState = new CampTerrainState();
+
+    [Header("Persistent Test Cave Terrain Save")]
+    public PersistentTestCaveTerrainState persistentTestCaveTerrain = new PersistentTestCaveTerrainState();
 
     [Header("Story Progress")]
     public StoryProgressData storyProgress = new StoryProgressData();
@@ -127,6 +136,9 @@ public class GameState : MonoBehaviour
     private List<string> runStartActiveBuddyIds = new List<string>();
     private List<string> deadBuddyIdsThisRun = new List<string>();
     private List<string> deadBuddyNamesThisRun = new List<string>();
+    private bool hasActiveRunSnapshot;
+
+    public bool HasActiveRunSnapshot => hasActiveRunSnapshot;
 
     void Awake()
     {
@@ -140,6 +152,11 @@ public class GameState : MonoBehaviour
         DetachFromSceneHierarchy(transform);
         DontDestroyOnLoad(gameObject);
         EnsureRuntimeDefaults();
+    }
+
+    void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
     }
 
     static void DetachFromSceneHierarchy(Transform persistentTransform)
@@ -160,12 +177,16 @@ public class GameState : MonoBehaviour
         activeSquadIds ??= new List<string>();
         unlockedStations ??= new List<string>();
         decorationsUnlocked ??= new List<string>();
+        campaignFacts ??= new CampaignFacts();
+        campaignFacts.Normalize();
         itemStacks = InventoryService.NormalizeStacks(itemStacks, true);
         runSnackStacks = InventoryService.NormalizeStacks(runSnackStacks, false);
         campCycleNumber = Mathf.Max(0, campCycleNumber);
         deathHistory ??= new List<DeadBuddyRecord>();
         campTerrainState ??= new CampTerrainState();
         campTerrainState.Normalize();
+        persistentTestCaveTerrain ??= new PersistentTestCaveTerrainState();
+        persistentTestCaveTerrain.Normalize();
         storyProgress ??= new StoryProgressData();
         storyProgress.Normalize();
         if (lastRun == null) lastRun = new RunSummaryData();
@@ -206,8 +227,10 @@ public class GameState : MonoBehaviour
         leader.EnsureRuntimeDefaults();
     }
 
-    public void BeginRunSnapshot()
+    public bool TryBeginRunSnapshot()
     {
+        if (hasActiveRunSnapshot) return false;
+        hasActiveRunSnapshot = true;
         EnsureRuntimeDefaults();
         runStartTime = Time.time;
         runStartLeaderSnapshot = leader.CloneUnit();
@@ -236,6 +259,15 @@ public class GameState : MonoBehaviour
         lastRun.shiniesStart = leader.shinies;
         lastRun.buddiesStart = runStartBuddyIds.Count;
         RunSnackLootService.BeginRun(this);
+        return true;
+    }
+
+    public void BeginRunSnapshot() => TryBeginRunSnapshot();
+
+    public void EndRunSnapshot()
+    {
+        hasActiveRunSnapshot = false;
+        runStartTime = 0f;
     }
 
     public float GetCurrentRunElapsedTime()
@@ -266,11 +298,12 @@ public class GameState : MonoBehaviour
         RunSummaryService.BuildRunSummary(this, before, beforeIds, beforeGobbos, runStartActiveBuddyIds, deadBuddyNamesThisRun, runStartTime, survived);
         currentRunNumber = Mathf.Max(1, currentRunNumber + 1);
         leader.runsSurvived++;
+        EndRunSnapshot();
     }
 
     void SaveVisibleRunBuddies()
     {
-        BuddyUnit[] visibleBuddies = Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None);
+        BuddyUnit[] visibleBuddies = Object.FindObjectsByType<BuddyUnit>();
         foreach (BuddyUnit unit in visibleBuddies)
         {
             if (unit == null || unit.unitData == null) continue;
@@ -397,7 +430,51 @@ public class GameState : MonoBehaviour
     }
 
     public void RegisterXPGained(int amount) { if (amount <= 0) return; EnsureLastRun(); lastRun.xpGained += amount; }
-    public void RegisterEnemyKilled() { EnsureLastRun(); lastRun.enemiesKilled++; leader.kills++; }
+    public void RegisterEnemyKilled() { EnsureLastRun(); lastRun.enemiesKilled++; }
+
+    public void RegisterMushroomEaten(string eaterGobboId)
+    {
+        EnsureRuntimeDefaults();
+        EnsureLastRun();
+        lastRun.mushroomsEaten++;
+        campaignFacts.mushroomsEaten++;
+        GobboUnitSaveData eater = this.FindGobboById(eaterGobboId);
+        if (eater != null) eater.mushroomsEaten++;
+    }
+
+    public bool RegisterWeevilKilled(string killerGobboId)
+    {
+        return RegisterTypedEnemyKill(killerGobboId, true);
+    }
+
+    public bool RegisterBlobKilled(string killerGobboId)
+    {
+        return RegisterTypedEnemyKill(killerGobboId, false);
+    }
+
+    bool RegisterTypedEnemyKill(string killerGobboId, bool weevil)
+    {
+        EnsureRuntimeDefaults();
+        EnsureLastRun();
+        lastRun.enemiesKilled++;
+        GobboUnitSaveData killer = this.FindGobboById(killerGobboId);
+        if (killer == null) return false;
+
+        killer.kills++;
+        if (weevil)
+        {
+            lastRun.weevilsKilled++;
+            campaignFacts.weevilsKilled++;
+            killer.weevilsKilled++;
+        }
+        else
+        {
+            lastRun.blobsKilled++;
+            campaignFacts.blobsKilled++;
+            killer.blobsKilled++;
+        }
+        return true;
+    }
 
     public void RegisterGobboFound(GobboUnitSaveData unit = null)
     {

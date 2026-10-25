@@ -1,0 +1,8 @@
+{
+  "name": "SporeGobbo.Geometry.EditModeTests",
+  "rootNamespace": "SporeGobbo.Geometry.Tests",
+  "references": ["SporeGobbo.Geometry"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "autoReferenced": false
+}

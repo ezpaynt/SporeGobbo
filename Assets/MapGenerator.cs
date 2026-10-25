@@ -325,6 +325,18 @@ public class MapGenerator : MonoBehaviour, IDiggableTerrain
     private readonly HashSet<Vector2Int> generatedAreaCells = new HashSet<Vector2Int>();
     private readonly HashSet<Vector2Int> plannedTunnelCells = new HashSet<Vector2Int>();
     private readonly HashSet<Vector2Int> hiddenRevealCells = new HashSet<Vector2Int>();
+    private readonly HashSet<Vector2Int> persistentTestResetCells = new HashSet<Vector2Int>();
+    private PersistentTestCaveLayout activePersistentTestLayout;
+    public PersistentTestCaveLayout ActivePersistentTestLayout => activePersistentTestLayout;
+
+    public bool TryGetAuthoredEventLocation(string markerKey,
+        out PersistentTestCaveLayout.AuthoredEventLocation location)
+    {
+        location = null;
+        return activePersistentTestLayout != null &&
+            activePersistentTestLayout.TryGetEventLocation(markerKey, out location);
+    }
+    private bool persistentTestPersistenceReady;
 
     private readonly Dictionary<Vector2Int, PlannedArea> revealAreaByCell = new Dictionary<Vector2Int, PlannedArea>();
     private readonly Dictionary<Vector2Int, int> revealGroupByTriggerCell = new Dictionary<Vector2Int, int>();
@@ -340,7 +352,6 @@ public class MapGenerator : MonoBehaviour, IDiggableTerrain
     private readonly HashSet<Vector2Int> trimmedRootCells = new HashSet<Vector2Int>();
     private readonly List<Vector2Int> rejectedRootOrigins = new List<Vector2Int>();
     private int rejectedRootCount;
-    private int correctedRootCount;
     private readonly HashSet<int> correctedRootIds = new HashSet<int>();
     private int unsafeRootVCount;
     private int unsafeRootPocketCount;
@@ -489,12 +500,22 @@ public class MapGenerator : MonoBehaviour, IDiggableTerrain
 
         Data.FillBlocked();
 
-        BuildSpawn();
-        BuildBranches();
-        BuildFiller();
-        ApplyDevelopmentAreaMinimums();
-        if (requireRunExit) EnsureExitPortalExists();
-        if (generateRunContent) ApplyDevelopmentContentMinimums();
+        activePersistentTestLayout = (selectedProfile as RunProfile)?.persistentTestCaveLayout;
+        if (activePersistentTestLayout != null)
+        {
+            BuildPersistentTestCave(activePersistentTestLayout);
+            ApplyPersistentTestCaveExcavation(activePersistentTestLayout);
+            persistentTestPersistenceReady = true;
+        }
+        else
+        {
+            BuildSpawn();
+            BuildBranches();
+            BuildFiller();
+            ApplyDevelopmentAreaMinimums();
+            if (requireRunExit) EnsureExitPortalExists();
+            if (generateRunContent) ApplyDevelopmentContentMinimums();
+        }
         BuildDirtInfluenceField();
         PaintTilemaps();
 
@@ -812,6 +833,9 @@ public class MapGenerator : MonoBehaviour, IDiggableTerrain
 
     private void ClearPlanData()
     {
+        activePersistentTestLayout = null;
+        persistentTestPersistenceReady = false;
+        persistentTestResetCells.Clear();
         spawnOpen.Clear();
         mainPathCells.Clear();
         generatedAreaCells.Clear();
@@ -831,7 +855,6 @@ public class MapGenerator : MonoBehaviour, IDiggableTerrain
         trimmedRootCells.Clear();
         rejectedRootOrigins.Clear();
         rejectedRootCount = 0;
-        correctedRootCount = 0;
         unsafeRootVCount = 0;
         unsafeRootPocketCount = 0;
         rootSafetyFusionCount = 0;
@@ -874,6 +897,73 @@ public class MapGenerator : MonoBehaviour, IDiggableTerrain
 
         Data.ClearCircle(Data.CellToWorld(map.spawnCenter), map.spawnRadius * map.cellSize);
     }
+
+    private void BuildPersistentTestCave(PersistentTestCaveLayout layout)
+    {
+        map.spawnCenter = layout.spawnCenter;
+        map.spawnRadius = layout.spawnRadius;
+        BuildSpawn();
+        persistentTestResetCells.UnionWith(PersistentTestCaveRules.BuildResetCells(layout, Data.width, Data.height));
+
+        if (layout.initiallyOpenAreas != null)
+        {
+            foreach (RectInt area in layout.initiallyOpenAreas)
+            {
+                foreach (Vector2Int cell in area.allPositionsWithin)
+                {
+                    if (!Data.InBounds(cell)) continue;
+                    Data.SetBlocked(cell, false);
+                    generatedAreaCells.Add(cell);
+                    mainPathCells.Add(cell);
+                }
+            }
+        }
+
+        int contentId = 20000;
+        foreach (PersistentTestCaveLayout.Pocket pocket in layout.pockets)
+        {
+            if (pocket == null) continue;
+            int id;
+            if (pocket.startsRevealed)
+            {
+                id = contentId++;
+                foreach (Vector2Int cell in CellsInCircle(pocket.center, pocket.radius))
+                {
+                    if (!Data.InBounds(cell)) continue;
+                    Data.SetBlocked(cell, false);
+                    generatedAreaCells.Add(cell);
+                    mainPathCells.Add(cell);
+                }
+            }
+            else
+            {
+                AddRevealArea(AreaType.FillerPocket, pocket.center, pocket.radius);
+                id = plannedAreas[plannedAreas.Count - 1].id;
+            }
+
+            Data.camps.Add(PersistentTestCaveRules.CreatePocketContent(pocket, Data, id));
+        }
+    }
+
+    private void ApplyPersistentTestCaveExcavation(PersistentTestCaveLayout layout)
+    {
+        if (GameState.Instance == null) return;
+        GameState.Instance.EnsureRuntimeDefaults();
+        PersistentTestCaveTerrainState state = GameState.Instance.persistentTestCaveTerrain;
+        state.EnsureIdentity(layout.mapId, layout.layoutVersion);
+        PersistentTestCaveRules.ApplySavedExcavation(Data, state, persistentTestResetCells);
+    }
+
+    private void RecordPersistentTestCaveExcavation(Vector2Int cell)
+    {
+        if (!persistentTestPersistenceReady || activePersistentTestLayout == null ||
+            persistentTestResetCells.Contains(cell) || GameState.Instance == null) return;
+        PersistentTestCaveTerrainState state = GameState.Instance.persistentTestCaveTerrain;
+        state.EnsureIdentity(activePersistentTestLayout.mapId, activePersistentTestLayout.layoutVersion);
+        state.RecordCleared(cell);
+    }
+
+    public bool IsPersistentTestResetCell(Vector2Int cell) => persistentTestResetCells.Contains(cell);
 
     private void BuildBranches()
     {
@@ -1436,6 +1526,7 @@ public class MapGenerator : MonoBehaviour, IDiggableTerrain
         }
 
         Data.SetBlocked(cell, false);
+        RecordPersistentTestCaveExcavation(cell);
         SetCellTilesFromData(cell);
         terrainPresentationRenderer?.MarkDirty(cell);
     }

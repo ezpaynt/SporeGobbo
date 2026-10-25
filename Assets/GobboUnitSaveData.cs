@@ -127,6 +127,9 @@ public class GobboUnitSaveData
     public int runsSurvived = 0;
     public int nightsSurvived = 0; // UI/story alias for runsSurvived. Kept synced in EnsureRuntimeDefaults.
     public int kills = 0;
+    public int mushroomsEaten = 0;
+    public int weevilsKilled = 0;
+    public int blobsKilled = 0;
     public string causeOfDeath = "";
 
     [Header("Traits / Relationships")]
@@ -269,6 +272,9 @@ public class GobboUnitSaveData
         if (nightsSurvived > runsSurvived) runsSurvived = nightsSurvived;
         else nightsSurvived = runsSurvived;
         if (kills < 0) kills = 0;
+        if (mushroomsEaten < 0) mushroomsEaten = 0;
+        if (weevilsKilled < 0) weevilsKilled = 0;
+        if (blobsKilled < 0) blobsKilled = 0;
 
         if (string.IsNullOrWhiteSpace(primaryTraitId) && traitIds.Count > 0)
             primaryTraitId = traitIds[0];
@@ -404,6 +410,9 @@ public class GobboUnitSaveData
         copy.runsSurvived = runsSurvived;
         copy.nightsSurvived = nightsSurvived;
         copy.kills = kills;
+        copy.mushroomsEaten = mushroomsEaten;
+        copy.weevilsKilled = weevilsKilled;
+        copy.blobsKilled = blobsKilled;
         copy.causeOfDeath = causeOfDeath;
         copy.primaryTraitId = primaryTraitId;
         copy.relationships = CloneRelationships(relationships);

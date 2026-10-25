@@ -22,21 +22,21 @@ public sealed class SampleSceneModeController : MonoBehaviour
     void Awake()
     {
         CurrentMode = SampleSceneModeContext.ConsumeOrDefault();
-        ApplyConfiguration(CurrentMode);
+        ApplyConfiguration(CurrentMode, SampleSceneModeContext.ConsumeProfileOverride());
     }
 
     public void ConfigureForEditorPreview()
     {
         CurrentMode = editorPreviewMode;
-        ApplyConfiguration(CurrentMode);
+        ApplyConfiguration(CurrentMode, null);
     }
 
-    void ApplyConfiguration(SampleSceneMode mode)
+    void ApplyConfiguration(SampleSceneMode mode, RunProfile profileOverride)
     {
         ResolveReferences();
 
         bool intro = mode == SampleSceneMode.Intro;
-        RunProfile profile = intro ? introProfile : normalRunProfile;
+        RunProfile profile = intro ? introProfile : (profileOverride != null ? profileOverride : normalRunProfile);
         if (mapGenerator == null || profile == null)
         {
             Debug.LogError("SampleSceneModeController cannot configure SampleScene because its MapGenerator or selected profile is missing.", this);

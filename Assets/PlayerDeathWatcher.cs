@@ -134,6 +134,7 @@ public class PlayerDeathWatcher : MonoBehaviour
         store.BeginPlayerDeath(leaderName, leaderType, leaderLevel, runNumber, deathCause, candidateIds, snapshots);
         if (GameState.Instance != null && deadLeader != null)
             GameState.Instance.AddDeathHistoryRecord(GameState.Instance.BuildDeathRecord(deadLeader, runNumber, deathCause, true));
+        if (GameState.Instance != null) GameState.Instance.EndRunSnapshot();
         Debug.Log("[PlayerDeathWatcher] handled death from " + source + ". Successor candidates: " + candidateIds.Count + ", locked/preferred: " + (string.IsNullOrWhiteSpace(store.lockedSuccessorId) ? "none" : store.lockedSuccessorId));
         SporePauseService.ResetAll();
         CampArrivalContext.Clear();

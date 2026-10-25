@@ -84,7 +84,7 @@ public static class CampPendingGrowthListPresenter
         label.fontSize = header ? 24 : 18;
         label.fontStyle = header ? FontStyles.Bold : FontStyles.Normal;
         label.color = Color.white;
-        label.enableWordWrapping = true;
+        label.textWrappingMode = TextWrappingModes.Normal;
         label.raycastTarget = false;
 
         RectTransform rect = item.GetComponent<RectTransform>();
@@ -131,7 +131,7 @@ public static class CampPendingGrowthListPresenter
         label.fontStyle = FontStyles.Bold;
         label.alignment = TextAlignmentOptions.Center;
         label.color = new Color(0.196f, 0.196f, 0.196f, 1f);
-        label.enableWordWrapping = false;
+        label.textWrappingMode = TextWrappingModes.NoWrap;
         label.overflowMode = TextOverflowModes.Overflow;
         label.raycastTarget = false;
 

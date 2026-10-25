@@ -51,7 +51,7 @@ public static class TerrainProjectReferenceValidator
                 do
                 {
                     if (property.propertyType == SerializedPropertyType.ObjectReference &&
-                        property.objectReferenceValue == null && property.objectReferenceInstanceIDValue != 0)
+                        property.objectReferenceValue == null && EntityId.ToULong(property.objectReferenceEntityIdValue) != 0)
                         issues.Add($"BROKEN_REFERENCE | {assetPath} | {GetPath(transform)} | {component.GetType().Name}.{property.propertyPath}");
                 }
                 while (property.NextVisible(true));

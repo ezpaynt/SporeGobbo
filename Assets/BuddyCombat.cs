@@ -239,7 +239,8 @@ public class BuddyCombat : MonoBehaviour
 
     void DamageEnemy(GameObject enemy)
     {
-        enemy.SendMessage("TakeDamage", damage, SendMessageOptions.DontRequireReceiver);
+        string sourceId = unit != null && unit.unitData != null ? unit.unitData.uniqueId : "";
+        EnemyDamage.Apply(enemy, damage, sourceId);
     }
 
     void KnockEnemy(GameObject enemy, Vector2 direction)

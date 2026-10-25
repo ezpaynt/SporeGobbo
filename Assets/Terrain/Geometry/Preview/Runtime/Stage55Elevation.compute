@@ -1,0 +1,6 @@
+#pragma kernel Evaluate
+#include "FocusProjectionGpu.hlsl"
+StructuredBuffer<float4> Input;
+RWStructuredBuffer<float2> Output;
+int Count;
+[numthreads(64,1,1)]void Evaluate(uint3 id:SV_DispatchThreadID){if(id.x>=(uint)Count)return;float4 v=Input[id.x];float2 scale=SG_LocalScale(v.xy);float2 p=SG_Project(v.xy);p.y-=v.z*sqrt(scale.x*scale.y);Output[id.x]=p;}

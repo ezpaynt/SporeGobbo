@@ -35,9 +35,17 @@ public class FoodItem : MonoBehaviour, ICampInteractable, IWorldInteractionMetad
         if (gobbo == null) return;
         int heal = healsPlayer ? Mathf.Max(0, healAmount) : 0;
         gobbo.EatFood(xpValue, heal, foodValue);
+        RegisterConsumptionFact(gobbo);
         RegisterCollection();
         Debug.Log("Ate " + foodName + " for " + xpValue + " XP and " + foodValue + " horde food.");
         Destroy(gameObject);
+    }
+
+    void RegisterConsumptionFact(GobboController gobbo)
+    {
+        if (gobbo == null || ResolveFoodKind() != FoodKind.Mushroom || GameState.Instance == null) return;
+        GobboUnitSaveData eater = GameState.Instance.GetLeader();
+        GameState.Instance.RegisterMushroomEaten(eater != null ? eater.uniqueId : "");
     }
 
     void RegisterCollection()

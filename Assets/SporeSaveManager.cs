@@ -175,11 +175,15 @@ public static class SporeSaveManager
             existing.activeSquadIds = gs.activeSquadIds != null ? new List<string>(gs.activeSquadIds) : new List<string>();
             existing.unlockedStations = gs.unlockedStations != null ? new List<string>(gs.unlockedStations) : new List<string>();
             existing.decorationsUnlocked = gs.decorationsUnlocked != null ? new List<string>(gs.decorationsUnlocked) : new List<string>();
+            existing.campaignFacts = gs.campaignFacts != null ? gs.campaignFacts.Clone() : new CampaignFacts();
             existing.itemStacks = InventoryService.CloneStacks(gs.itemStacks);
             existing.lastRun = CloneRunSummary(gs.lastRun);
             existing.markedSuccessorId = gs.markedSuccessorId;
             existing.deathHistory = gs.GetDeathHistoryCopy();
             existing.campTerrainState = gs.campTerrainState != null ? gs.campTerrainState.Clone() : new CampTerrainState();
+            existing.persistentTestCaveTerrain = gs.persistentTestCaveTerrain != null
+                ? gs.persistentTestCaveTerrain.Clone()
+                : new PersistentTestCaveTerrainState();
             existing.storyProgress = gs.storyProgress != null ? gs.storyProgress.Clone() : new StoryProgressData();
         }
 
@@ -228,6 +232,7 @@ public static class SporeSaveManager
         gs.activeSquadIds = data.activeSquadIds != null ? new List<string>(data.activeSquadIds) : new List<string>();
         gs.unlockedStations = data.unlockedStations != null ? new List<string>(data.unlockedStations) : new List<string>();
         gs.decorationsUnlocked = data.decorationsUnlocked != null ? new List<string>(data.decorationsUnlocked) : new List<string>();
+        gs.campaignFacts = data.campaignFacts != null ? data.campaignFacts.Clone() : new CampaignFacts();
         gs.itemStacks = InventoryService.CloneStacks(data.itemStacks);
         gs.runSnackStacks = new List<InventoryStackSaveData>();
         gs.runSnackFinalizedThisRun = true;
@@ -235,6 +240,9 @@ public static class SporeSaveManager
         gs.markedSuccessorId = data.markedSuccessorId;
         gs.SetDeathHistory(data.deathHistory);
         gs.campTerrainState = data.campTerrainState != null ? data.campTerrainState.Clone() : new CampTerrainState();
+        gs.persistentTestCaveTerrain = data.persistentTestCaveTerrain != null
+            ? data.persistentTestCaveTerrain.Clone()
+            : new PersistentTestCaveTerrainState();
         gs.storyProgress = data.storyProgress != null ? data.storyProgress.Clone() : new StoryProgressData();
         gs.RepairRosterState();
 

@@ -48,7 +48,7 @@ public static class TerrainPresentationValidationRunner
         ValidateMapCells(map, renderer, lines, ref errors, mode.ToString());
         ValidateStableVariants(renderer, lines, ref errors, mode.ToString());
         MeasurePresentation(renderer, lines, mode.ToString());
-        lines.Add($"{mode}: seed={map.RuntimeMapSeed} generationMs={timer.Elapsed.TotalMilliseconds:F2} blocked={renderer.LastBuiltBlockedCells} floor={renderer.LastBuiltFloorCells} tilemaps={UnityEngine.Object.FindObjectsByType<Tilemap>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length}");
+        lines.Add($"{mode}: seed={map.RuntimeMapSeed} generationMs={timer.Elapsed.TotalMilliseconds:F2} blocked={renderer.LastBuiltBlockedCells} floor={renderer.LastBuiltFloorCells} tilemaps={UnityEngine.Object.FindObjectsByType<Tilemap>(FindObjectsInactive.Include).Length}");
     }
 
     static void ValidateMapCells(MapGenerator map, TerrainPresentationRenderer renderer, List<string> lines, ref int errors, string context)
@@ -116,7 +116,7 @@ public static class TerrainPresentationValidationRunner
         }
         if (mismatches != 0) Fail(lines, ref errors, $"Camp: floor mismatches={mismatches}");
         MeasurePresentation(renderer, lines, "Camp");
-        lines.Add($"Camp: reconstructionMs={timer.Elapsed.TotalMilliseconds:F2} blocked={renderer.LastBuiltBlockedCells} floor={renderer.LastBuiltFloorCells} tilemaps={UnityEngine.Object.FindObjectsByType<Tilemap>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length}");
+        lines.Add($"Camp: reconstructionMs={timer.Elapsed.TotalMilliseconds:F2} blocked={renderer.LastBuiltBlockedCells} floor={renderer.LastBuiltFloorCells} tilemaps={UnityEngine.Object.FindObjectsByType<Tilemap>(FindObjectsInactive.Include).Length}");
     }
 
     static void Fail(List<string> lines, ref int errors, string message) { errors++; lines.Add("ERROR " + message); }

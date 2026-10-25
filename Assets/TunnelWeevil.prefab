@@ -181,7 +181,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TunnelWeevilEnemy
   enemyName: Tunnel Weevil
-  enemyKind: 0
   maxHealth: 16
   health: 16
   scaleWithRunNumber: 1
@@ -229,10 +228,6 @@ MonoBehaviour:
   stunDuration: 0.12
   hitKnockbackForce: 3
   knockbackResistance: 0.25
-  applyPoison: 0
-  poisonDamagePerTick: 2
-  poisonDuration: 3
-  poisonTickRate: 1
   useDirectionalSprites: 1
   directionalSpriteController: {fileID: 0}
   flipSpriteToFaceTarget: 1

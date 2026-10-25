@@ -516,7 +516,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable, IWorldInteracti
         text.alignment = alignment;
         text.fontSize = fontSize;
         text.fontStyle = style;
-        text.enableWordWrapping = false;
+        text.textWrappingMode = TextWrappingModes.NoWrap;
         text.overflowMode = TextOverflowModes.Ellipsis;
         return text;
     }

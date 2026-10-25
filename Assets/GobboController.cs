@@ -611,7 +611,10 @@ public class GobboController : MonoBehaviour
 
     void DamageEnemyObject(GameObject target, int damage)
     {
-        target.SendMessage("TakeDamage", damage, SendMessageOptions.DontRequireReceiver);
+        string sourceId = GameState.Instance != null && GameState.Instance.GetLeader() != null
+            ? GameState.Instance.GetLeader().uniqueId
+            : "";
+        EnemyDamage.Apply(target, damage, sourceId);
     }
 
     void TryDashBite()
@@ -686,9 +689,7 @@ public class GobboController : MonoBehaviour
         if (target == null)
             return;
 
-        BuddyCombat[] buddies = Object.FindObjectsByType<BuddyCombat>(
-            FindObjectsSortMode.None
-        );
+        BuddyCombat[] buddies = Object.FindObjectsByType<BuddyCombat>();
 
         foreach (BuddyCombat buddy in buddies)
         {
@@ -862,9 +863,7 @@ public class GobboController : MonoBehaviour
 
     void ApplyBuddyModes()
     {
-        BuddyFollow[] follows = Object.FindObjectsByType<BuddyFollow>(
-            FindObjectsSortMode.None
-        );
+        BuddyFollow[] follows = Object.FindObjectsByType<BuddyFollow>();
 
         foreach (BuddyFollow follow in follows)
         {
@@ -872,9 +871,7 @@ public class GobboController : MonoBehaviour
                 follow.enabled = followersFollowing;
         }
 
-        BuddyCombat[] combats = Object.FindObjectsByType<BuddyCombat>(
-            FindObjectsSortMode.None
-        );
+        BuddyCombat[] combats = Object.FindObjectsByType<BuddyCombat>();
 
         foreach (BuddyCombat combat in combats)
         {

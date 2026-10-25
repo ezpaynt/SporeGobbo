@@ -820,7 +820,7 @@ MonoBehaviour:
   resumeButton: {fileID: 1819298678}
   quitToMenuButton: {fileID: 745034648}
   quitToDesktopButton: {fileID: 1514061498}
-  journalContentLibrary: {fileID: 0}
+  journalContentLibrary: {fileID: 11400000, guid: 25906c87f15669646bd1b6b1016702bf, type: 2}
 --- !u!4 &227296239
 Transform:
   m_ObjectHideFlags: 0
@@ -833,8 +833,7 @@ Transform:
   m_LocalPosition: {x: 888.0916, y: 632.554, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 1387348844}
+  m_Children: []
   m_Father: {fileID: 990100051}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &227819277
@@ -956,7 +955,6 @@ MonoBehaviour:
   reserveListParent: {fileID: 794436469}
   pendingEvolutionListParent: {fileID: 802009865}
   buddyButtonPrefab: {fileID: 534331450}
-  pauseMenu: {fileID: 227296237}
 --- !u!1 &233705239
 GameObject:
   m_ObjectHideFlags: 0
@@ -4488,6 +4486,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CampRunPortal
   runSceneName: SampleScene
+  developmentRunProfileOverride: {fileID: 11400000, guid: d47f355bd72e47b9b74f26a41569e85d, type: 2}
   promptPanel: {fileID: 905886036}
   promptText: {fileID: 1969653623}
   goButton: {fileID: 925440158}
@@ -4547,7 +4546,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 27
   m_MaskInteraction: 0
   m_Sprite: {fileID: -147626493552950482, guid: dfbe5437d19aa444189dec45c1a612aa, type: 3}
   m_Color: {r: 0.735849, g: 0.7269061, b: 0.70461017, a: 1}
@@ -5996,7 +5995,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &910568148
 Transform:
   m_ObjectHideFlags: 0
@@ -9867,7 +9866,7 @@ RectTransform:
   - {fileID: 1819298675}
   - {fileID: 745034645}
   - {fileID: 1514061501}
-  m_Father: {fileID: 227296239}
+  m_Father: {fileID: 1408705602}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
@@ -10135,6 +10134,7 @@ RectTransform:
   - {fileID: 838144956}
   - {fileID: 931897595}
   - {fileID: 1995234856}
+  - {fileID: 1387348844}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}

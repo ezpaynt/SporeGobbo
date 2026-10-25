@@ -85,7 +85,7 @@ public class InteractionSelectionMathTests
         return new List<InteractionCandidateData>(values);
     }
 
-    private static int Select(IReadOnlyList<InteractionCandidateData> candidates, int currentId = int.MinValue)
+    private static int Select(IReadOnlyList<InteractionCandidateData> candidates, ulong currentId = ulong.MaxValue)
     {
         return InteractionSelectionMath.Select(candidates, currentId, 0.2f, 0.1f);
     }

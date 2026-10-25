@@ -19,6 +19,8 @@ public class CampData
     public int sporeCount = 2;
     public int mushroomCount = 3;
     public int shinyCount = 0;
+    // -1 preserves the existing profile-driven random Blob behavior.
+    public int exactBlobSpitterCount = -1;
 }
 
 [System.Serializable]

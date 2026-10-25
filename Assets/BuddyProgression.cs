@@ -8,7 +8,7 @@ public static class BuddyProgression
 
     public const int BuddyBaseXPToNextLevel = 8;
     public const float BuddyXPGrowthRate = 1.35f;
-    public const bool UseFastBuddyXPForTesting = false;
+    public static readonly bool UseFastBuddyXPForTesting = false;
     public const float BuddyTestingXPCostDivisor = 4f;
 
     public static readonly int[] EvolutionLevels = { 2, 6, 12, 24, 48 };

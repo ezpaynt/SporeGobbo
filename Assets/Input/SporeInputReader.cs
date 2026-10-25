@@ -92,7 +92,9 @@ namespace SporeGobbo.Input
         {
             if (instance != null && instance != this)
             {
-                Debug.LogWarning("Duplicate SporeInputReader destroyed. Input has one authoritative runtime boundary.", this);
+                // Every independently playable scene supplies a bootstrap candidate so it can be
+                // tested directly. The first reader persists across scene loads; later candidates
+                // retire silently because this is the expected transition path, not an error.
                 Destroy(gameObject);
                 return;
             }

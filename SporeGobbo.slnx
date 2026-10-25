@@ -1,7 +1,12 @@
 ﻿<Solution>
   <Project Path="Assembly-CSharp.csproj" />
-  <Project Path="SporeGobbo.Input.csproj" />
+  <Project Path="SporeGobbo.Geometry.Preview.csproj" />
+  <Project Path="SporeGobbo.Geometry.Preview.EditModeTests.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
   <Project Path="SporeGobbo.Input.EditModeTests.csproj" />
+  <Project Path="SporeGobbo.Geometry.csproj" />
+  <Project Path="SporeGobbo.Geometry.Preview.Editor.csproj" />
+  <Project Path="SporeGobbo.Input.csproj" />
   <Project Path="SporeGobbo.CampLifecycle.csproj" />
+  <Project Path="SporeGobbo.Geometry.EditModeTests.csproj" />
 </Solution>

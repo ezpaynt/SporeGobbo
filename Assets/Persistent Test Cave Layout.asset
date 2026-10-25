@@ -1,0 +1,71 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a1842fd56c9f4b3c8f74dd8e0d83d4a1, type: 3}
+  m_Name: Persistent Test Cave Layout
+  m_EditorClassIdentifier: Assembly-CSharp::PersistentTestCaveLayout
+  mapId: persistent-test-cave
+  layoutVersion: 1
+  spawnCenter: {x: 18, y: 60}
+  spawnRadius: 5
+  persistentDigTestArea:
+    m_Position: {x: 28, y: 43}
+    m_Size: {x: 30, y: 34}
+  initiallyOpenAreas:
+  - m_Position: {x: 13, y: 55}
+    m_Size: {x: 13, y: 11}
+  - m_Position: {x: 25, y: 58}
+    m_Size: {x: 5, y: 5}
+  pockets:
+  - label: Weevil Reset Pocket
+    center: {x: 72, y: 84}
+    radius: 5
+    content: 0
+    count: 3
+    startsRevealed: 0
+  - label: Blob Reset Pocket
+    center: {x: 72, y: 60}
+    radius: 5
+    content: 1
+    count: 2
+    startsRevealed: 0
+  - label: Mushroom Reset Pocket
+    center: {x: 72, y: 36}
+    radius: 5
+    content: 2
+    count: 3
+    startsRevealed: 0
+  - label: Shiny Test Pocket
+    center: {x: 42, y: 90}
+    radius: 4
+    content: 3
+    count: 3
+    startsRevealed: 1
+  - label: Exit Pocket
+    center: {x: 105, y: 60}
+    radius: 5
+    content: 4
+    count: 1
+    startsRevealed: 1
+  eventLocations:
+  - markerKey: mush_worm_intro
+    actorCell: {x: 28, y: 60}
+    focusCell: {x: 28, y: 60}
+    cameraOffset: {x: 0, y: 0, z: -10}
+    cameraZoomMultiplier: 0.82
+    triggerCell: {x: 25, y: 60}
+    triggerRadius: 2
+    departureWaypoints:
+    - {x: 25, y: 60}
+    - {x: 22, y: 60}
+    - {x: 19, y: 60}
+    - {x: 16, y: 60}
+    despawnCell: {x: 13, y: 60}

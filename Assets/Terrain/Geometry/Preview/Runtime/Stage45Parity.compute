@@ -1,0 +1,8 @@
+#pragma kernel Evaluate
+#include "FocusProjectionGpu.hlsl"
+struct Sample {float4 logicalRole;float4 wall;float4 offset;};
+StructuredBuffer<Sample> Input;
+RWStructuredBuffer<float2> Output;
+int SampleCount;
+[numthreads(64,1,1)] void Evaluate(uint3 id:SV_DispatchThreadID)
+{if(id.x<SampleCount){Sample s=Input[id.x];Output[id.x]=SG_Resolve(s.logicalRole.xy,s.wall,s.logicalRole.z,s.offset.xy);}}

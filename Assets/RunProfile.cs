@@ -107,4 +107,8 @@ public class RunProfile : BranchMapProfile
     public Content content = new Content();
     public Difficulty difficulty = new Difficulty();
     public DevelopmentOverrides developmentOverrides = new DevelopmentOverrides();
+
+    [Header("Optional Authored Development Layout")]
+    [Tooltip("Null preserves normal procedural generation. Assign only to the Persistent Test Cave development profile.")]
+    public PersistentTestCaveLayout persistentTestCaveLayout;
 }

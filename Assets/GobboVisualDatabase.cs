@@ -101,7 +101,7 @@ public class GobboVisualDatabase : MonoBehaviour
 
     public void RefreshActiveVisualControllers()
     {
-        GobboVisualController[] controllers = Object.FindObjectsByType<GobboVisualController>(FindObjectsSortMode.None);
+        GobboVisualController[] controllers = Object.FindObjectsByType<GobboVisualController>();
         foreach (GobboVisualController controller in controllers)
         {
             if (controller == null) continue;

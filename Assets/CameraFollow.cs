@@ -35,7 +35,10 @@ public class CameraFollow : MonoBehaviour
 
     void HandleZoom()
     {
-        if (!allowScrollZoomForTesting || cam == null || !cam.orthographic) return;
+        bool storyOwnsInput = SporeInputReader.Instance != null &&
+            SporeInputReader.Instance.Context == SporeInputContext.Story;
+        if (!ShouldHandleTestZoom(allowScrollZoomForTesting, cam != null && cam.orthographic,
+                SporePauseService.IsPaused || storyOwnsInput)) return;
 
         SporeInputReader reader = SporeInputReader.Instance;
         float scroll = reader != null ? reader.DebugTestZoom.y : 0f;
@@ -44,4 +47,7 @@ public class CameraFollow : MonoBehaviour
         cam.orthographicSize -= scroll * zoomSpeed;
         cam.orthographicSize = Mathf.Clamp(cam.orthographicSize, minZoom, maxZoom);
     }
+
+    public static bool ShouldHandleTestZoom(bool enabled, bool orthographic, bool paused) =>
+        enabled && orthographic && !paused;
 }

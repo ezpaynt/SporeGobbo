@@ -48,7 +48,7 @@ public static class CampResidentialOccupancyResolver
                 gobbo.campResidentialSlotId = slot;
                 changed = true;
             }
-        foreach (BuddyUnit live in Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None))
+        foreach (BuddyUnit live in Object.FindObjectsByType<BuddyUnit>())
             if (live != null && live.unitData != null &&
                 resolution.Assignments.TryGetValue(live.unitData.uniqueId, out int liveSlot))
                 live.unitData.campResidentialSlotId = liveSlot;

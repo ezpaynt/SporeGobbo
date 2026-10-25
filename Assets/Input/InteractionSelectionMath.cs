@@ -4,7 +4,7 @@ namespace SporeGobbo.Input
 {
     public readonly struct InteractionCandidateData
     {
-        public InteractionCandidateData(int id, int priority, float distance, float facingAlignment, bool isValid = true)
+        public InteractionCandidateData(ulong id, int priority, float distance, float facingAlignment, bool isValid = true)
         {
             Id = id;
             Priority = priority;
@@ -13,7 +13,7 @@ namespace SporeGobbo.Input
             IsValid = isValid;
         }
 
-        public int Id { get; }
+        public ulong Id { get; }
         public int Priority { get; }
         public float Distance { get; }
         public float FacingAlignment { get; }
@@ -24,7 +24,7 @@ namespace SporeGobbo.Input
     {
         public static int Select(
             IReadOnlyList<InteractionCandidateData> candidates,
-            int currentId,
+            ulong currentId,
             float facingTieDistance,
             float switchDistanceAdvantage)
         {

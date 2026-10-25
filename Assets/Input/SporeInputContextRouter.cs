@@ -70,6 +70,17 @@ namespace SporeGobbo.Input
                         wheelMap: false,
                         uiMap: true);
 
+                case SporeInputContext.Story:
+                    return new SporeInputAvailability(
+                        gameplayMap: true,
+                        gameplayWorldActions: false,
+                        move: false,
+                        aim: false,
+                        commandWheel: false,
+                        pause: true,
+                        wheelMap: false,
+                        uiMap: true);
+
                 case SporeInputContext.Pause:
                     return new SporeInputAvailability(
                         gameplayMap: true,

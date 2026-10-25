@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 80c02769d912a1b40b78eba37c17ca92, type: 3}
+  m_Name: Stage54Palette
+  m_EditorClassIdentifier: SporeGobbo.Geometry.Preview::SporeGobbo.Geometry.Preview.Stage54Palette
+  entries:
+  - name: VoidBlackGreen
+    hex: '#08120F'
+  - name: PermanentMossBlack
+    hex: '#1E2A25'
+  - name: FloorDustySlate
+    hex: '#697780'
+  - name: FloorPlumShadow
+    hex: '#4D4C5B'
+  - name: DirtLevel1Umber
+    hex: '#987052'
+  - name: DirtLevel2Burnt
+    hex: '#704D3B'
+  - name: DirtLevel3Bruised
+    hex: '#49343B'
+  - name: ExposedWallMoss
+    hex: '#2D3930'
+  - name: RootSepia
+    hex: '#46362B'
+  - name: StoneColdGrey
+    hex: '#737D80'
+  - name: BoneLimestone
+    hex: '#D5CBB2'
+  - name: GrowthGrossGreen
+    hex: '#83964F'
+  - name: GrowthYellowMoss
+    hex: '#A0A35A'
+  - name: MineralDeepCerulean
+    hex: '#176B8B'
+  - name: GlowCerulean
+    hex: '#35A4C5'
+  - name: MineralTeal
+    hex: '#417E78'
+  - name: StrangeDustyPlum
+    hex: '#705F78'
+  - name: AccentOrangeRed
+    hex: '#C45A3D'
+  - name: AccentAlizarin
+    hex: '#8B2944'
+  - name: LightDirtyAmber
+    hex: '#D89A42'

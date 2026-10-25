@@ -89,7 +89,7 @@ public class PlayerDeathRunStore : MonoBehaviour
     public static PlayerDeathRunStore GetOrCreate()
     {
         if (Instance != null) return Instance;
-        PlayerDeathRunStore[] foundStores = Object.FindObjectsByType<PlayerDeathRunStore>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        PlayerDeathRunStore[] foundStores = Object.FindObjectsByType<PlayerDeathRunStore>(FindObjectsInactive.Include);
         foreach (PlayerDeathRunStore found in foundStores)
         {
             if (found != null && !found.IsMixedSceneObject())

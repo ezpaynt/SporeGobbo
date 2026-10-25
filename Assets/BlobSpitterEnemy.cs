@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody2D))]
-public class BlobSpitterEnemy : MonoBehaviour
+public class BlobSpitterEnemy : MonoBehaviour, IEnemyDamageReceiver
 {
     private enum BlobState
     {
@@ -415,10 +415,15 @@ public class BlobSpitterEnemy : MonoBehaviour
 
     public void TakeDamage(int amount)
     {
-        if (isDead)
+        ReceiveEnemyDamage(new EnemyDamageRequest(amount));
+    }
+
+    public void ReceiveEnemyDamage(EnemyDamageRequest request)
+    {
+        if (isDead || request == null)
             return;
 
-        health -= Mathf.Max(1, amount);
+        health -= Mathf.Max(1, request.amount);
 
         if (spriteRenderer != null)
         {
@@ -427,7 +432,7 @@ public class BlobSpitterEnemy : MonoBehaviour
         }
 
         if (health <= 0)
-            Die();
+            Die(request.gobboSourceId);
     }
 
     System.Collections.IEnumerator FlashRoutine()
@@ -440,7 +445,7 @@ public class BlobSpitterEnemy : MonoBehaviour
             spriteRenderer.color = originalColor == default ? before : originalColor;
     }
 
-    void Die()
+    void Die(string killerGobboId)
     {
         if (isDead)
             return;
@@ -448,7 +453,10 @@ public class BlobSpitterEnemy : MonoBehaviour
         isDead = true;
 
         if (GameState.Instance != null)
-            GameState.Instance.RegisterEnemyKilled();
+        {
+            if (string.IsNullOrWhiteSpace(killerGobboId)) GameState.Instance.RegisterEnemyKilled();
+            else GameState.Instance.RegisterBlobKilled(killerGobboId);
+        }
 
         if (splatPrefab != null)
             Instantiate(splatPrefab, transform.position, Quaternion.Euler(0f, 0f, Random.Range(0f, 360f)));

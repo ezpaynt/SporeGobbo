@@ -1,0 +1,9 @@
+{
+  "name": "SporeGobbo.Geometry.Preview",
+  "rootNamespace": "SporeGobbo.Geometry.Preview",
+  "references": [
+    "SporeGobbo.Geometry",
+    "Unity.InputSystem"
+  ],
+  "autoReferenced": true
+}

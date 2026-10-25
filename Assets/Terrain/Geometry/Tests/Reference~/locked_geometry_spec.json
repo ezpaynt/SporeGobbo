@@ -1,0 +1,426 @@
+{
+  "version": 2,
+  "status": "locked_for_first_unity_geometry_experiment",
+  "unit_square": {
+    "corners": {
+      "TL": [
+        0.0,
+        0.0
+      ],
+      "TR": [
+        1.0,
+        0.0
+      ],
+      "BR": [
+        1.0,
+        1.0
+      ],
+      "BL": [
+        0.0,
+        1.0
+      ]
+    },
+    "bits": {
+      "TL": 1,
+      "TR": 2,
+      "BR": 4,
+      "BL": 8
+    },
+    "anchors": {
+      "T": [
+        0.5,
+        0.0
+      ],
+      "R": [
+        1.0,
+        0.5
+      ],
+      "B": [
+        0.5,
+        1.0
+      ],
+      "L": [
+        0.0,
+        0.5
+      ]
+    },
+    "templates": {
+      "arc_TL": {
+        "p0": [
+          0.5,
+          0.0
+        ],
+        "c1": [
+          0.5,
+          0.2761423749153968
+        ],
+        "c2": [
+          0.2761423749153968,
+          0.5
+        ],
+        "p1": [
+          0.0,
+          0.5
+        ]
+      },
+      "arc_TR": {
+        "p0": [
+          0.5,
+          0.0
+        ],
+        "c1": [
+          0.5,
+          0.2761423749153968
+        ],
+        "c2": [
+          0.7238576250846032,
+          0.5
+        ],
+        "p1": [
+          1.0,
+          0.5
+        ]
+      },
+      "arc_BR": {
+        "p0": [
+          1.0,
+          0.5
+        ],
+        "c1": [
+          0.7238576250846032,
+          0.5
+        ],
+        "c2": [
+          0.5,
+          0.7238576250846032
+        ],
+        "p1": [
+          0.5,
+          1.0
+        ]
+      },
+      "arc_BL": {
+        "p0": [
+          0.5,
+          1.0
+        ],
+        "c1": [
+          0.5,
+          0.7238576250846032
+        ],
+        "c2": [
+          0.2761423749153968,
+          0.5
+        ],
+        "p1": [
+          0.0,
+          0.5
+        ]
+      },
+      "horizontal": {
+        "p0": [
+          0.0,
+          0.5
+        ],
+        "c1": [
+          0.3333333333333333,
+          0.5
+        ],
+        "c2": [
+          0.6666666666666666,
+          0.5
+        ],
+        "p1": [
+          1.0,
+          0.5
+        ]
+      },
+      "vertical": {
+        "p0": [
+          0.5,
+          0.0
+        ],
+        "c1": [
+          0.5,
+          0.3333333333333333
+        ],
+        "c2": [
+          0.5,
+          0.6666666666666666
+        ],
+        "p1": [
+          0.5,
+          1.0
+        ]
+      }
+    },
+    "kappa": 0.5522847498307936,
+    "tessellation_samples_per_segment": 10
+  },
+  "cases": [
+    {
+      "case": 0,
+      "bits_TL_TR_BR_BL": "0000",
+      "segments_connect_solid": [],
+      "segments_connect_open": []
+    },
+    {
+      "case": 1,
+      "bits_TL_TR_BR_BL": "1000",
+      "segments_connect_solid": [
+        "arc_TL"
+      ],
+      "segments_connect_open": [
+        "arc_TL"
+      ]
+    },
+    {
+      "case": 2,
+      "bits_TL_TR_BR_BL": "0100",
+      "segments_connect_solid": [
+        "arc_TR"
+      ],
+      "segments_connect_open": [
+        "arc_TR"
+      ]
+    },
+    {
+      "case": 3,
+      "bits_TL_TR_BR_BL": "1100",
+      "segments_connect_solid": [
+        "horizontal"
+      ],
+      "segments_connect_open": [
+        "horizontal"
+      ]
+    },
+    {
+      "case": 4,
+      "bits_TL_TR_BR_BL": "0010",
+      "segments_connect_solid": [
+        "arc_BR"
+      ],
+      "segments_connect_open": [
+        "arc_BR"
+      ]
+    },
+    {
+      "case": 5,
+      "bits_TL_TR_BR_BL": "1010",
+      "segments_connect_solid": [
+        "arc_TR",
+        "arc_BL"
+      ],
+      "segments_connect_open": [
+        "arc_TL",
+        "arc_BR"
+      ]
+    },
+    {
+      "case": 6,
+      "bits_TL_TR_BR_BL": "0110",
+      "segments_connect_solid": [
+        "vertical"
+      ],
+      "segments_connect_open": [
+        "vertical"
+      ]
+    },
+    {
+      "case": 7,
+      "bits_TL_TR_BR_BL": "1110",
+      "segments_connect_solid": [
+        "arc_BL"
+      ],
+      "segments_connect_open": [
+        "arc_BL"
+      ]
+    },
+    {
+      "case": 8,
+      "bits_TL_TR_BR_BL": "0001",
+      "segments_connect_solid": [
+        "arc_BL"
+      ],
+      "segments_connect_open": [
+        "arc_BL"
+      ]
+    },
+    {
+      "case": 9,
+      "bits_TL_TR_BR_BL": "1001",
+      "segments_connect_solid": [
+        "vertical"
+      ],
+      "segments_connect_open": [
+        "vertical"
+      ]
+    },
+    {
+      "case": 10,
+      "bits_TL_TR_BR_BL": "0101",
+      "segments_connect_solid": [
+        "arc_TL",
+        "arc_BR"
+      ],
+      "segments_connect_open": [
+        "arc_TR",
+        "arc_BL"
+      ]
+    },
+    {
+      "case": 11,
+      "bits_TL_TR_BR_BL": "1101",
+      "segments_connect_solid": [
+        "arc_BR"
+      ],
+      "segments_connect_open": [
+        "arc_BR"
+      ]
+    },
+    {
+      "case": 12,
+      "bits_TL_TR_BR_BL": "0011",
+      "segments_connect_solid": [
+        "horizontal"
+      ],
+      "segments_connect_open": [
+        "horizontal"
+      ]
+    },
+    {
+      "case": 13,
+      "bits_TL_TR_BR_BL": "1011",
+      "segments_connect_solid": [
+        "arc_TR"
+      ],
+      "segments_connect_open": [
+        "arc_TR"
+      ]
+    },
+    {
+      "case": 14,
+      "bits_TL_TR_BR_BL": "0111",
+      "segments_connect_solid": [
+        "arc_TL"
+      ],
+      "segments_connect_open": [
+        "arc_TL"
+      ]
+    },
+    {
+      "case": 15,
+      "bits_TL_TR_BR_BL": "1111",
+      "segments_connect_solid": [],
+      "segments_connect_open": []
+    }
+  ],
+  "unique_families": {
+    "uniform": {
+      "cases": [
+        0,
+        15
+      ],
+      "geometry": "no contour; occupancy side differs"
+    },
+    "corner_arc": {
+      "cases": [
+        1,
+        2,
+        4,
+        8,
+        7,
+        11,
+        13,
+        14
+      ],
+      "geometry": "one quarter-circle; complements reverse solid/open side"
+    },
+    "straight": {
+      "cases": [
+        3,
+        6,
+        9,
+        12
+      ],
+      "geometry": "one mid-edge straight; rotations/complements"
+    },
+    "saddle": {
+      "cases": [
+        5,
+        10
+      ],
+      "geometry": "two quarter-circles; connect-solid and connect-open alternatives"
+    }
+  },
+  "transforms": {
+    "rotate90_cw": "(x,y)->(1-y,x); bits TL->TR->BR->BL->TL; anchors T->R->B->L->T",
+    "reflect_x": "(x,y)->(1-x,y); bits TL<->TR, BL<->BR; anchors L<->R",
+    "reflect_y": "(x,y)->(x,1-y); bits TL<->BL, TR<->BR; anchors T<->B",
+    "complement": "case->15-case; identical contour coordinates with solid/open interpretation reversed"
+  },
+  "diagonal_policy": "connect_solid",
+  "wall_rules": {
+    "height_cells": 2.15,
+    "lip_width_cells": 0.22,
+    "orientation_filter_radius": 2,
+    "orientation_sigma": 1.15,
+    "wall_dirty_tile_radius": 4,
+    "collision": "occupancy only",
+    "face": "+screenY attached strip weighted by filtered solid normal",
+    "lip": "shallow open-side ribbon for foreground-facing contour"
+  },
+  "projection": {
+    "source": "grid_projection_exact.json",
+    "order": "logical vertices -> exact cumulative Excel edge mapping -> wall display vertices"
+  },
+  "excavation": [
+    {
+      "stage": 0,
+      "dig": null,
+      "case_diff": 0,
+      "geometry_diff": 0,
+      "geometry_hash": "f97594664268"
+    },
+    {
+      "stage": 1,
+      "dig": [
+        67,
+        24
+      ],
+      "case_diff": 0,
+      "geometry_diff": 0,
+      "geometry_hash": "c2a5f6052d3a"
+    },
+    {
+      "stage": 2,
+      "dig": [
+        68,
+        23
+      ],
+      "case_diff": 0,
+      "geometry_diff": 0,
+      "geometry_hash": "721c3f779858"
+    },
+    {
+      "stage": 3,
+      "dig": [
+        69,
+        22
+      ],
+      "case_diff": 0,
+      "geometry_diff": 0,
+      "geometry_hash": "b8d978b0ddc2"
+    },
+    {
+      "stage": 4,
+      "dig": [
+        72,
+        20
+      ],
+      "case_diff": 0,
+      "geometry_diff": 0,
+      "geometry_hash": "4c9b5c09b6a5"
+    }
+  ]
+}

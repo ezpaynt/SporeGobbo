@@ -1,0 +1,6 @@
+{
+  "name": "SporeGobbo.Geometry.Preview.Editor",
+  "references": ["SporeGobbo.Geometry", "SporeGobbo.Geometry.Preview"],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": true
+}

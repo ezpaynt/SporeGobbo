@@ -1,0 +1,6 @@
+{
+  "name": "SporeGobbo.Geometry",
+  "rootNamespace": "SporeGobbo.Geometry",
+  "autoReferenced": true,
+  "noEngineReferences": true
+}

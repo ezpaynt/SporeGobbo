@@ -14,6 +14,10 @@ public sealed class PauseMenuRunView : MonoBehaviour
     static readonly Color Muted = new Color(0.72f, 0.73f, 0.62f, 1f);
 
     RectTransform mainPage, journalPage, optionsPage, confirmationPage, squadContent;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    RectTransform devStatePage;
+    PauseMenuDevStateView devStateView;
+#endif
     TMP_Text playerText, modifiersText, runText, confirmationText;
     Button confirmButton, confirmationCancelButton, optionsBackButton, resumeDefaultButton, optionsOriginButton;
     PauseMenuJournalView journalView;
@@ -36,12 +40,15 @@ public sealed class PauseMenuRunView : MonoBehaviour
         Image overlay = pausePanel.GetComponent<Image>(); if (overlay == null) overlay = pausePanel.AddComponent<Image>(); overlay.color = Overlay;
         if (title != null) title.gameObject.SetActive(false);
 
-        RectTransform tabs = Rect("PauseTabs", root, new Vector2(.02f, .925f), new Vector2(.42f, .985f));
+        RectTransform tabs = Rect("PauseTabs", root, new Vector2(.02f, .925f), new Vector2(.62f, .985f));
         HorizontalLayoutGroup tabLayout = tabs.gameObject.AddComponent<HorizontalLayoutGroup>();
         tabLayout.spacing = 8f; tabLayout.childControlHeight = true; tabLayout.childControlWidth = true;
         tabLayout.childForceExpandHeight = true; tabLayout.childForceExpandWidth = true;
         NewButton("CurrentRunTab", tabs, journalOnly ? "Menu" : "Current Run", ShowMainPage);
         NewButton("JournalTab", tabs, "Journal", ShowJournal);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        NewButton("DevStateTab", tabs, "Dev State", ShowDevState);
+#endif
 
         mainPage = Rect("RunPausePage", root, Vector2.zero, new Vector2(1f, .91f));
         if (journalOnly)
@@ -63,6 +70,12 @@ public sealed class PauseMenuRunView : MonoBehaviour
         journalView = journalPage.gameObject.AddComponent<PauseMenuJournalView>();
         journalView.Build(journalPage, font);
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        devStatePage = Rect("DevStatePausePage", root, Vector2.zero, new Vector2(1f, .91f));
+        devStateView = devStatePage.gameObject.AddComponent<PauseMenuDevStateView>();
+        devStateView.Build(devStatePage, font);
+#endif
+
         BuildOptions(root); BuildConfirmation(root); ShowMainPage();
     }
 
@@ -74,12 +87,18 @@ public sealed class PauseMenuRunView : MonoBehaviour
         if (runText != null) runText.text = RunText(snapshot.run);
         if (squadContent != null) RebuildSquad(snapshot.activeSquad);
         if (journalView != null) journalView.Refresh(journal);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (devStateView != null) devStateView.Refresh();
+#endif
     }
 
     public void ShowMainPage()
     {
         if (mainPage != null) mainPage.gameObject.SetActive(true);
         if (journalPage != null) journalPage.gameObject.SetActive(false);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (devStatePage != null) devStatePage.gameObject.SetActive(false);
+#endif
         if (optionsPage != null) optionsPage.gameObject.SetActive(false);
         if (confirmationPage != null) confirmationPage.gameObject.SetActive(false);
         pendingConfirmation = null;
@@ -96,16 +115,35 @@ public sealed class PauseMenuRunView : MonoBehaviour
     {
         if (mainPage != null) mainPage.gameObject.SetActive(false);
         if (journalPage != null) journalPage.gameObject.SetActive(true);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (devStatePage != null) devStatePage.gameObject.SetActive(false);
+#endif
         if (optionsPage != null) optionsPage.gameObject.SetActive(false);
         if (confirmationPage != null) confirmationPage.gameObject.SetActive(false);
         pendingConfirmation = null;
         UiFocusUtility.Select(journalView != null ? journalView.DefaultSelectable : null);
     }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    public void ShowDevState()
+    {
+        if (mainPage != null) mainPage.gameObject.SetActive(false);
+        if (journalPage != null) journalPage.gameObject.SetActive(false);
+        if (devStatePage != null) devStatePage.gameObject.SetActive(true);
+        if (optionsPage != null) optionsPage.gameObject.SetActive(false);
+        if (confirmationPage != null) confirmationPage.gameObject.SetActive(false);
+        pendingConfirmation = null;
+        devStateView?.Refresh();
+    }
+#endif
+
     public void ShowOptions()
     {
         if (mainPage != null) mainPage.gameObject.SetActive(false);
         if (journalPage != null) journalPage.gameObject.SetActive(false);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (devStatePage != null) devStatePage.gameObject.SetActive(false);
+#endif
         if (confirmationPage != null) confirmationPage.gameObject.SetActive(false);
         if (optionsPage != null) optionsPage.gameObject.SetActive(true);
         UiFocusUtility.Select(optionsBackButton);
@@ -115,6 +153,9 @@ public sealed class PauseMenuRunView : MonoBehaviour
     {
         pendingConfirmation = accepted; confirmationText.text = message; ButtonLabel(confirmButton, actionLabel);
         mainPage.gameObject.SetActive(false); journalPage.gameObject.SetActive(false); optionsPage.gameObject.SetActive(false); confirmationPage.gameObject.SetActive(true);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (devStatePage != null) devStatePage.gameObject.SetActive(false);
+#endif
         UiFocusUtility.Select(confirmationCancelButton);
     }
 

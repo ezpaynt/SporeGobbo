@@ -5,7 +5,7 @@ using UnityEngine;
 [Serializable]
 public class SporeSaveSlotData
 {
-    public const int CurrentSaveVersion = 7;
+    public const int CurrentSaveVersion = 9;
 
     [Header("Slot Metadata")]
     public int saveVersion = CurrentSaveVersion;
@@ -35,6 +35,9 @@ public class SporeSaveSlotData
     public List<string> unlockedStations = new List<string>();
     public List<string> decorationsUnlocked = new List<string>();
 
+    [Header("Campaign Facts")]
+    public CampaignFacts campaignFacts = new CampaignFacts();
+
     [Header("Item Inventory")]
     public List<InventoryStackSaveData> itemStacks = new List<InventoryStackSaveData>();
 
@@ -44,6 +47,9 @@ public class SporeSaveSlotData
 
     [Header("Camp Terrain")]
     public CampTerrainState campTerrainState = new CampTerrainState();
+
+    [Header("Persistent Test Cave Terrain")]
+    public PersistentTestCaveTerrainState persistentTestCaveTerrain = new PersistentTestCaveTerrainState();
 
     [Header("Story Progress")]
     public StoryProgressData storyProgress = new StoryProgressData();
@@ -82,10 +88,12 @@ public class SporeSaveSlotData
             campLevel = 1,
             unlockedStations = new List<string>(),
             decorationsUnlocked = new List<string>(),
+            campaignFacts = new CampaignFacts(),
             itemStacks = new List<InventoryStackSaveData>(),
             lastRun = new RunSummaryData(),
             deathHistory = new List<DeadBuddyRecord>(),
             campTerrainState = new CampTerrainState(),
+            persistentTestCaveTerrain = new PersistentTestCaveTerrainState(),
             storyProgress = new StoryProgressData()
         };
         data.Normalize();
@@ -113,10 +121,14 @@ public class SporeSaveSlotData
         activeSquadIds ??= new List<string>();
         unlockedStations ??= new List<string>();
         decorationsUnlocked ??= new List<string>();
+        campaignFacts ??= new CampaignFacts();
+        campaignFacts.Normalize();
         itemStacks = InventoryService.NormalizeStacks(itemStacks, true);
         deathHistory ??= new List<DeadBuddyRecord>();
         campTerrainState ??= new CampTerrainState();
         campTerrainState.Normalize();
+        persistentTestCaveTerrain ??= new PersistentTestCaveTerrainState();
+        persistentTestCaveTerrain.Normalize();
         storyProgress ??= new StoryProgressData();
         storyProgress.Normalize();
         if (lastRun == null) lastRun = new RunSummaryData();

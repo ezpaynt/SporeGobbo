@@ -2,14 +2,8 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody2D))]
-public class TunnelWeevilEnemy : MonoBehaviour
+public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
 {
-    public enum EnemyKind
-    {
-        Weevil,
-        Scorpion
-    }
-
     private enum CombatState
     {
         Chasing,
@@ -20,7 +14,6 @@ public class TunnelWeevilEnemy : MonoBehaviour
 
     [Header("Enemy Identity")]
     public string enemyName = "Tunnel Weevil";
-    public EnemyKind enemyKind = EnemyKind.Weevil;
 
     [Header("Health")]
     public int maxHealth = 16;
@@ -89,12 +82,6 @@ public class TunnelWeevilEnemy : MonoBehaviour
     public float hitKnockbackForce = 3f;
     [Range(0f, 1f)] public float knockbackResistance = 0.25f;
 
-    [Header("Scorpion Poison")]
-    public bool applyPoison = false;
-    public int poisonDamagePerTick = 2;
-    public float poisonDuration = 3f;
-    public float poisonTickRate = 1f;
-
     [Header("Visual")]
     public bool useDirectionalSprites = true;
     public DirectionalSpriteController directionalSpriteController;
@@ -161,25 +148,8 @@ public class TunnelWeevilEnemy : MonoBehaviour
 
     void ApplyKindDefaults()
     {
-        if (enemyKind == EnemyKind.Scorpion)
-        {
-            if (enemyName == "Tunnel Weevil")
-                enemyName = "Tunnel Scorpion";
-
-            applyPoison = true;
-
-            // Scorpions are a bit less tanky/direct, but poison makes them scary.
-            maxHealth = Mathf.Max(maxHealth, 12);
-            attackDamage = Mathf.Max(attackDamage, 5);
-            chaseSpeed = Mathf.Max(chaseSpeed, 2.8f);
-            noticeRange = Mathf.Max(noticeRange, 11f);
-        }
-        else
-        {
-            applyPoison = false;
-            maxHealth = Mathf.Max(maxHealth, 16);
-            attackDamage = Mathf.Max(attackDamage, 23);
-        }
+        maxHealth = Mathf.Max(maxHealth, 16);
+        attackDamage = Mathf.Max(attackDamage, 23);
     }
 
     void ApplyRunScaling()
@@ -545,9 +515,6 @@ public class TunnelWeevilEnemy : MonoBehaviour
         lastMeleeHitConnected = true;
         targetCollider.SendMessage("TakeDamage", attackDamage, SendMessageOptions.DontRequireReceiver);
 
-        if (applyPoison)
-            ApplyPoisonToTarget(targetCollider.gameObject);
-
         timeSinceSuccessfulAttack = 0f;
     }
 
@@ -624,26 +591,6 @@ public class TunnelWeevilEnemy : MonoBehaviour
         }
 
         return bestPoint;
-    }
-
-    void ApplyPoisonToTarget(GameObject target)
-    {
-        if (target == null)
-            return;
-
-        GobboController gobbo = target.GetComponent<GobboController>();
-        if (gobbo != null)
-        {
-            gobbo.ApplyPoison(poisonDamagePerTick, poisonDuration, poisonTickRate);
-            return;
-        }
-
-        BuddyUnit buddy = target.GetComponent<BuddyUnit>();
-        if (buddy != null)
-        {
-            buddy.ApplyPoison(poisonDamagePerTick, poisonDuration, poisonTickRate);
-            return;
-        }
     }
 
     void IdleWander()
@@ -736,10 +683,15 @@ public class TunnelWeevilEnemy : MonoBehaviour
 
     public void TakeDamage(int amount)
     {
-        if (isDead)
+        ReceiveEnemyDamage(new EnemyDamageRequest(amount));
+    }
+
+    public void ReceiveEnemyDamage(EnemyDamageRequest request)
+    {
+        if (isDead || request == null)
             return;
 
-        health -= Mathf.Max(1, amount);
+        health -= Mathf.Max(1, request.amount);
 
         if (spriteRenderer != null)
         {
@@ -748,7 +700,7 @@ public class TunnelWeevilEnemy : MonoBehaviour
         }
 
         if (health <= 0)
-            Die();
+            Die(request.gobboSourceId);
         else
             ApplyKnockback(GetKnockbackDirectionFromNearestAttacker());
     }
@@ -804,7 +756,7 @@ public class TunnelWeevilEnemy : MonoBehaviour
             spriteRenderer.color = originalColor == default ? before : originalColor;
     }
 
-    void Die()
+    void Die(string killerGobboId)
     {
         if (isDead)
             return;
@@ -812,7 +764,10 @@ public class TunnelWeevilEnemy : MonoBehaviour
         isDead = true;
 
         if (GameState.Instance != null)
-            GameState.Instance.RegisterEnemyKilled();
+        {
+            if (string.IsNullOrWhiteSpace(killerGobboId)) GameState.Instance.RegisterEnemyKilled();
+            else GameState.Instance.RegisterWeevilKilled(killerGobboId);
+        }
 
         if (splatPrefab != null)
         {
@@ -838,7 +793,7 @@ public class TunnelWeevilEnemy : MonoBehaviour
         if (foodItem != null)
         {
             foodItem.xpValue = xpDropValue;
-            foodItem.foodName = enemyKind == EnemyKind.Scorpion ? "Scorpion Meat" : "Weevil Meat";
+            foodItem.foodName = "Weevil Parts";
         }
     }
 

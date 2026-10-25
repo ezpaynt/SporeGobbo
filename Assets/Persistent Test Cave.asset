@@ -1,0 +1,102 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8fb460bcfa2287f44bf0fcba8f815dcc, type: 3}
+  m_Name: Persistent Test Cave
+  m_EditorClassIdentifier: Assembly-CSharp::RunProfile
+  seed: 424242
+  randomSeed: 0
+  width: 120
+  height: 120
+  cellSize: 0.6
+  autoCenterSpawn: 0
+  spawnCenter: {x: 18, y: 60}
+  spawnRadius: 5
+  darkDistance: 12
+  darkerDistance: 48
+  fillerTunnelCount: 0
+  fillerPocketCount: 0
+  fillerLootPocketCount: 0
+  fillerMinDistanceFromMainPath: 2
+  fillerMaxDistanceFromMainPath: 35
+  branches: []
+  createTerminalPocketAtPrimaryBranchEnd: 0
+  terminalPocketRadius: 5
+  useOrganicAttachedPockets: 0
+  attachedPocketEdgeIrregularity: 0
+  attachedPocketOverlapCells: 0
+  identity:
+    stableProfileId: persistent-test-cave
+    displayName: Persistent Test Cave
+    description: Development-only 120x120 cave proving persistent player excavation and explicit resetting content pockets.
+    purpose: 2
+    developmentOnly: 1
+    notes: Assign this asset to CampRunPortal Development Run Profile Override. Null preserves Normal Run Baseline.
+  environment:
+    enableDirtInfluence: 0
+    dirtInfluenceTuning: 1
+    enableTerrainFormations: 0
+    formationCount: 0
+    enableRootFormations: 0
+    minimumRootCount: 0
+    maximumRootCount: 0
+    enableFormationClearanceValidation: 1
+    baseNavigationMargin: 0.12
+    minimumOptionalGapPolicy: 0
+    maximumErosionCellsPerFormation: 0
+    validateCriticalConnectivity: 1
+  content:
+    enemyPrefab: {fileID: 7598521876761444214, guid: 21e0bf3c8c30aad47b92b21867cd40f7, type: 3}
+    bossEnemyPrefab: {fileID: 7598521876761444214, guid: 21e0bf3c8c30aad47b92b21867cd40f7, type: 3}
+    blobSpitterPrefab: {fileID: 744620505064585365, guid: ceaf4d2f1ec516f4c8337564983ca069, type: 3}
+    mushroomPrefab: {fileID: 4950061718234420143, guid: d0900febf7660964196416d35b585d86, type: 3}
+    sporePrefab: {fileID: 793229160067691946, guid: cc7adcf56dbdc3f46b07a3b8f49433e7, type: 3}
+    shinyPrefab: {fileID: 3851985546638949781, guid: 6196460a0756f2846aed4c87c4f80476, type: 3}
+    exitPortalPrefab: {fileID: 4025575695747825317, guid: b8cb622ac95a9fa4380d4c7a62d66614, type: 3}
+    retreatPortalPrefab: {fileID: 7568801306619152230, guid: e51b7ef94e86a6b4a9648113dc2c411a, type: 3}
+    enableSnackSpawns: 0
+    snackPickupPrefab: {fileID: 0}
+    snackLootTable: []
+    lootPocketSnackChance: 0
+    combatCampSnackChance: 0
+    bossCampSnackChance: 0
+    forceSnackSpawn: 0
+    spawnInitialRevealedContentOnStart: 1
+    objectClearRadius: 0.35
+    placementTriesPerObject: 40
+    spawnRetreatPortalNearSpawn: 1
+    retreatPortalMinDistanceFromSpawn: 1.5
+    retreatPortalMaxDistanceFromSpawn: 2.5
+    retreatPortalClearRadius: 0.4
+    overrideCampWeevilCount: 0
+    weevilsPerCampMin: 3
+    weevilsPerCampMax: 3
+    overrideBossCampWeevilCount: 0
+    weevilsPerBossCampMin: 0
+    weevilsPerBossCampMax: 0
+    blobSpittersPerCampMin: 0
+    blobSpittersPerCampMax: 0
+    blobSpitterSpawnChance: 0
+    blobSpittersPerBossCampMin: 0
+    blobSpittersPerBossCampMax: 0
+    blobSpitterBossSpawnChance: 0
+    blobSpitterMinDistanceFromSpawn: 0
+  difficulty:
+    enabled: 0
+    enemyHealthMultiplier: 1
+    enemyDamageMultiplier: 1
+    playerDamageMultiplier: 1
+    resourceMultiplier: 1
+    xpMultiplier: 1
+  developmentOverrides:
+    enabled: 0
+    maximumFallbackAttempts: 1
+  persistentTestCaveLayout: {fileID: 11400000, guid: c36de24aa2834f958624c40db2f5d5ac, type: 2}

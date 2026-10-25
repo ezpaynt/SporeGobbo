@@ -131,7 +131,7 @@ public class CampDirectedWalk : MonoBehaviour
     void IgnoreOtherBuddyBodies()
     {
         if (bodyCollider == null || GetComponent<BuddyUnit>() == null) return;
-        BuddyUnit[] buddies = Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None);
+        BuddyUnit[] buddies = Object.FindObjectsByType<BuddyUnit>();
         foreach (BuddyUnit buddy in buddies)
         {
             if (buddy == null || buddy.gameObject == gameObject) continue;

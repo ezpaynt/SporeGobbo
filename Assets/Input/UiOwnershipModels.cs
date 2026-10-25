@@ -4,11 +4,11 @@ namespace SporeGobbo.Input
 {
     public sealed class PauseOwnerModel
     {
-        private readonly HashSet<int> owners = new();
+        private readonly HashSet<ulong> owners = new();
         public bool IsPaused => owners.Count > 0;
         public int Count => owners.Count;
-        public bool Acquire(int owner) => owners.Add(owner);
-        public bool Release(int owner) => owners.Remove(owner);
+        public bool Acquire(ulong owner) => owners.Add(owner);
+        public bool Release(ulong owner) => owners.Remove(owner);
         public void Clear() => owners.Clear();
     }
 
@@ -30,14 +30,16 @@ namespace SporeGobbo.Input
             bool cancelPressed,
             bool pauseHasSubpage)
         {
-            if (hasModal || context == SporeInputContext.Modal)
-                return cancelPressed ? SemanticUiRoute.CancelTopModal : SemanticUiRoute.None;
+            if (context == SporeInputContext.Story)
+                return pausePressed ? SemanticUiRoute.OpenPause : SemanticUiRoute.None;
             if (context == SporeInputContext.Pause)
             {
                 if (pausePressed) return SemanticUiRoute.ClosePause;
                 if (cancelPressed) return pauseHasSubpage ? SemanticUiRoute.PauseBack : SemanticUiRoute.ClosePause;
                 return SemanticUiRoute.None;
             }
+            if (hasModal || context == SporeInputContext.Modal)
+                return cancelPressed ? SemanticUiRoute.CancelTopModal : SemanticUiRoute.None;
             if (context == SporeInputContext.Wheel)
                 return pausePressed ? SemanticUiRoute.OpenPause : SemanticUiRoute.None;
             return context == SporeInputContext.Gameplay && pausePressed

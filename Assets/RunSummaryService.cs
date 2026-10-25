@@ -25,6 +25,9 @@ public static class RunSummaryService
         int trackedFoodValueGained = lastRun.foodValueGained;
         int trackedShiniesGained = lastRun.shiniesGained;
         int trackedEnemiesKilled = lastRun.enemiesKilled;
+        int trackedMushroomsEaten = lastRun.mushroomsEaten;
+        int trackedWeevilsKilled = lastRun.weevilsKilled;
+        int trackedBlobsKilled = lastRun.blobsKilled;
         List<string> trackedUpgrades = new List<string>(lastRun.upgradesChosen);
         List<string> trackedNewBuddyNames = lastRun.newBuddyNames != null ? new List<string>(lastRun.newBuddyNames) : new List<string>();
 
@@ -55,6 +58,9 @@ public static class RunSummaryService
         lastRun.shiniesEnd = leader.shinies;
         lastRun.shiniesGained = trackedShiniesGained > 0 ? trackedShiniesGained : Mathf.Max(0, leader.shinies - before.shinies);
         lastRun.enemiesKilled = trackedEnemiesKilled;
+        lastRun.mushroomsEaten = trackedMushroomsEaten;
+        lastRun.weevilsKilled = trackedWeevilsKilled;
+        lastRun.blobsKilled = trackedBlobsKilled;
         lastRun.upgradesChosen = trackedUpgrades;
         lastRun.buddiesStart = beforeIds.Count;
         lastRun.buddiesEnd = state.ownedGobbos != null ? state.ownedGobbos.Count : 0;

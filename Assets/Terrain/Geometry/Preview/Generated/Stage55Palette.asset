@@ -1,0 +1,73 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a8ecb5ca6e2bc9345b0eb3732c89f9e6, type: 3}
+  m_Name: Stage55Palette
+  m_EditorClassIdentifier: SporeGobbo.Geometry.Preview::SporeGobbo.Geometry.Preview.Stage55Palette
+  entries:
+  - name: InkBlack
+    hex: '#050907'
+  - name: VoidBlackGreen
+    hex: '#08120F'
+  - name: PermanentMossBlack
+    hex: '#111B17'
+  - name: PermanentWallFace
+    hex: '#1B2722'
+  - name: PermanentDeepShadow
+    hex: '#0C1411'
+  - name: UndugDirtMass
+    hex: '#242A26'
+  - name: UndugDirtVariation
+    hex: '#30322F'
+  - name: FreshFractureEdge
+    hex: '#676255'
+  - name: DigWallUpper
+    hex: '#504D46'
+  - name: DigWallLower
+    hex: '#282F2B'
+  - name: WallFootOcclusion
+    hex: '#151A19'
+  - name: FloorSlateBlue
+    hex: '#465963'
+  - name: FloorDust
+    hex: '#566469'
+  - name: FloorDeepBlueShadow
+    hex: '#172735'
+  - name: FloorPlumShadow
+    hex: '#453B51'
+  - name: StoneLight
+    hex: '#697476'
+  - name: StoneBase
+    hex: '#465156'
+  - name: StoneShadow
+    hex: '#293338'
+  - name: StoneDeep
+    hex: '#171D20'
+  - name: RootLight
+    hex: '#604A3D'
+  - name: RootBase
+    hex: '#49362F'
+  - name: RootShadow
+    hex: '#241B1B'
+  - name: BoneLimestone
+    hex: '#C8C1AA'
+  - name: BoneShadow
+    hex: '#817D70'
+  - name: MossStain
+    hex: '#536047'
+  - name: SicklyLichen
+    hex: '#7E904B'
+  - name: DeepCerulean
+    hex: '#176B8B'
+  - name: CeruleanGlow
+    hex: '#35A4C5'
+  - name: BlueViolet
+    hex: '#51445F'

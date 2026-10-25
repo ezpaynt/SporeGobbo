@@ -1,0 +1,16 @@
+{
+  "name": "SporeGobbo.Geometry.Preview.EditModeTests",
+  "references": [
+    "SporeGobbo.Geometry",
+    "SporeGobbo.Geometry.Preview",
+    "SporeGobbo.Geometry.Preview.Editor",
+    "Unity.InputSystem"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "autoReferenced": false
+}

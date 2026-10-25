@@ -24,22 +24,22 @@ public static class SporePauseService
     public static void Acquire(UnityEngine.Object owner)
     {
         if (owner == null) return;
-        owners.Acquire(owner.GetInstanceID());
+        owners.Acquire(EntityId.ToULong(owner.GetEntityId()));
         Apply();
     }
 
     public static void Release(UnityEngine.Object owner)
     {
         if (owner == null) return;
-        Release(owner.GetInstanceID(), owner.name, owner);
+        Release(EntityId.ToULong(owner.GetEntityId()), owner.name, owner);
     }
 
-    internal static void Release(int ownerId, string ownerName)
+    internal static void Release(ulong ownerId, string ownerName)
     {
         Release(ownerId, ownerName, null);
     }
 
-    private static void Release(int ownerId, string ownerName, UnityEngine.Object context)
+    private static void Release(ulong ownerId, string ownerName, UnityEngine.Object context)
     {
         if (!owners.Release(ownerId) && (Application.isEditor || Debug.isDebugBuild))
             Debug.LogWarning("Pause owner released without an active reason: " + ownerName, context);
@@ -104,13 +104,14 @@ public sealed class SporeUiCoordinator : MonoBehaviour
     private sealed class ModalRegistration
     {
         public UnityEngine.Object Owner;
-        public int OwnerId;
+        public ulong OwnerId;
         public string OwnerName;
         public Action Cancel;
         public bool Pauses;
         public Selectable DefaultSelectable;
         public Selectable PreviousSelectable;
         public GameObject ModalRoot;
+        public bool AllowsPause;
     }
 
     private static SporeUiCoordinator instance;
@@ -197,6 +198,13 @@ public sealed class SporeUiCoordinator : MonoBehaviour
 
     public void PushModal(UnityEngine.Object owner, Action cancel, bool pausesSimulation,
         Selectable defaultSelectable = null, GameObject modalRoot = null)
+        => PushModalInternal(owner, cancel, pausesSimulation, defaultSelectable, modalRoot, false);
+
+    public void PushStoryModal(UnityEngine.Object owner, Selectable defaultSelectable, GameObject modalRoot)
+        => PushModalInternal(owner, null, false, defaultSelectable, modalRoot, true);
+
+    private void PushModalInternal(UnityEngine.Object owner, Action cancel, bool pausesSimulation,
+        Selectable defaultSelectable, GameObject modalRoot, bool allowsPause)
     {
         if (owner == null) return;
         BuddyCommandWheelController.Active?.CancelWithoutCommand(false);
@@ -206,13 +214,14 @@ public sealed class SporeUiCoordinator : MonoBehaviour
         modals.Add(new ModalRegistration
         {
             Owner = owner,
-            OwnerId = owner.GetInstanceID(),
+            OwnerId = EntityId.ToULong(owner.GetEntityId()),
             OwnerName = owner.name,
             Cancel = cancel,
             Pauses = pausesSimulation,
             DefaultSelectable = defaultSelectable,
             PreviousSelectable = previous,
-            ModalRoot = modalRoot
+            ModalRoot = modalRoot,
+            AllowsPause = allowsPause
         });
         if (pausesSimulation) SporePauseService.Acquire(owner);
         RefreshContext();
@@ -260,12 +269,7 @@ public sealed class SporeUiCoordinator : MonoBehaviour
 
     private void FindPauseScreen()
     {
-        if (SceneManager.GetActiveScene().name == "CampScene")
-        {
-            CampSceneController camp = FindAnyObjectByType<CampSceneController>();
-            if (camp != null && camp.isActiveAndEnabled) { pauseScreen = camp; return; }
-        }
-        foreach (MonoBehaviour behaviour in FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
+        foreach (MonoBehaviour behaviour in FindObjectsByType<MonoBehaviour>())
             if (behaviour is ISporePauseScreen found && behaviour.isActiveAndEnabled)
             { pauseScreen = found; return; }
     }
@@ -273,8 +277,8 @@ public sealed class SporeUiCoordinator : MonoBehaviour
     private void RefreshContext()
     {
         if (inputReader == null) return;
-        SporeInputContext context = modals.Count > 0 ? SporeInputContext.Modal
-            : pauseScreen != null && pauseScreen.IsPauseOpen ? SporeInputContext.Pause
+        SporeInputContext context = pauseScreen != null && pauseScreen.IsPauseOpen ? SporeInputContext.Pause
+            : modals.Count > 0 ? (modals[modals.Count - 1].AllowsPause ? SporeInputContext.Story : SporeInputContext.Modal)
             : SceneManager.GetActiveScene().name == "MainMenu" ? SporeInputContext.Modal
             : inputReader.Context == SporeInputContext.Wheel ? SporeInputContext.Wheel
             : SporeInputContext.Gameplay;
@@ -309,9 +313,9 @@ public sealed class SporeUiCoordinator : MonoBehaviour
 
     private void RestoreTopFocus()
     {
-        if (modals.Count > 0) SelectModalDefault(modals[modals.Count - 1]);
-        else if (pauseScreen != null && pauseScreen.IsPauseOpen)
+        if (pauseScreen != null && pauseScreen.IsPauseOpen)
             UiFocusUtility.Select(pauseScreen.PauseDefaultSelectable);
+        else if (modals.Count > 0) SelectModalDefault(modals[modals.Count - 1]);
     }
 
     private static void SelectModalDefault(ModalRegistration registration)

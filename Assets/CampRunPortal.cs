@@ -9,6 +9,10 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable, IWorldInteraction
     [Header("Run Scene")]
     public string runSceneName = "SampleScene";
 
+    [Header("Development Only")]
+    [Tooltip("Optional. Assign 'Persistent Test Cave' to enter that profile from Camp. Null preserves the normal production run profile.")]
+    public RunProfile developmentRunProfileOverride;
+
     [Header("Prompt UI")]
     public GameObject promptPanel;
     public TMP_Text promptText;
@@ -139,7 +143,7 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable, IWorldInteraction
         HidePrompt();
         SporePauseService.ResetAll();
         PlayerDeathWatcher.SuppressDeathHandlingForSceneChange();
-        SampleSceneModeContext.SetPending(SampleSceneMode.NormalRun);
+        SampleSceneModeContext.SetPending(SampleSceneMode.NormalRun, developmentRunProfileOverride);
         SceneManager.LoadScene(runSceneName);
     }
 

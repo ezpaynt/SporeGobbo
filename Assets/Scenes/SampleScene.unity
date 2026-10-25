@@ -967,7 +967,7 @@ MonoBehaviour:
       backFrames: []
       backLeftFrames: []
       backRightFrames: []
-  logVisualDatabaseDiagnostics: 1
+  logVisualDatabaseDiagnostics: 0
 --- !u!4 &129664219
 Transform:
   m_ObjectHideFlags: 0

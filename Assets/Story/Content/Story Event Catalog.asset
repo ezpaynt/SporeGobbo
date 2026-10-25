@@ -19,3 +19,6 @@ MonoBehaviour:
   - eventId: story.a_spore_hatches.camp_discovered
     developerLabel: Camp Discovered
     developerDescription: Completed after the intro successfully arrives in Camp.
+  - eventId: story.mush_worm.intro
+    developerLabel: Mush/Worm Intro
+    developerDescription: Met the strange Mushroom and Worm pair in the persistent cave.

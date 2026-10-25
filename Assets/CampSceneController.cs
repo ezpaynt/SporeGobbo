@@ -5,7 +5,7 @@ using UnityEngine.UI;
 using UnityEngine.Serialization;
 using SporeGobbo.CampLifecycle;
 
-public class CampSceneController : MonoBehaviour, ISporePauseScreen
+public class CampSceneController : MonoBehaviour
 {
     [Header("Run Stats Screen")]
     [FormerlySerializedAs("summaryPanel")] public GameObject runStatsPanel;
@@ -51,9 +51,6 @@ public class CampSceneController : MonoBehaviour, ISporePauseScreen
     [Tooltip("Optional list for growth-ready buddies. Continue button still opens growth choices one at a time.")]
     public Transform pendingEvolutionListParent;
     public Button buddyButtonPrefab;
-
-    [Header("Camp Pause")]
-    public GameObject pauseMenu;
 
     private readonly List<BuddyTypeSetup> currentEvolutionChoices = new List<BuddyTypeSetup>();
     private readonly List<GobboCard> currentStatCardChoices = new List<GobboCard>();
@@ -109,54 +106,6 @@ public class CampSceneController : MonoBehaviour, ISporePauseScreen
         ShowRunStatsScreen();
     }
 
-    public bool IsPauseOpen => pauseMenu != null && pauseMenu.activeSelf;
-    public bool HasPauseSubpage => false;
-    public Selectable PauseDefaultSelectable => UiFocusUtility.FindFirst(pauseMenu);
-    public void OpenPause()
-    {
-        FindPauseMenuIfMissing();
-        if (pauseMenu != null && !pauseMenu.activeSelf)
-        {
-            pauseMenu.SetActive(true);
-            SporePauseService.Acquire(this);
-        }
-    }
-    public void ClosePause() => ResumeCampFromPause();
-    public void BackPauseSubpage() => ResumeCampFromPause();
-
-    public void ResumeCampFromPause()
-    {
-        FindPauseMenuIfMissing();
-        if (pauseMenu != null && pauseMenu.activeSelf)
-        {
-            pauseMenu.SetActive(false);
-            SporePauseService.Release(this);
-        }
-    }
-
-    void FindPauseMenuIfMissing()
-    {
-        if (pauseMenu != null) return;
-
-        GameObject activeFound = GameObject.Find("PauseMenu");
-        if (activeFound != null)
-        {
-            pauseMenu = activeFound;
-            return;
-        }
-
-        // GameObject.Find cannot see inactive objects, so search loaded objects too.
-        GameObject[] allObjects = Resources.FindObjectsOfTypeAll<GameObject>();
-        foreach (GameObject obj in allObjects)
-        {
-            if (obj != null && obj.name == "PauseMenu" && obj.scene.IsValid())
-            {
-                pauseMenu = obj;
-                return;
-            }
-        }
-    }
-
     bool TryStartDeathSuccessionFlow()
     {
         PlayerDeathRunStore pendingDeath = PlayerDeathRunStore.Instance;
@@ -178,7 +127,6 @@ public class CampSceneController : MonoBehaviour, ISporePauseScreen
     {
         if (campPlayableSpawner == null) campPlayableSpawner = Object.FindAnyObjectByType<CampPlayableSpawner>(FindObjectsInactive.Include);
         if (campStartRoutineManager == null) campStartRoutineManager = Object.FindAnyObjectByType<CampStartRoutineManager>(FindObjectsInactive.Include);
-        FindPauseMenuIfMissing();
         if (runStatsText == null && runStatsPanel != null) runStatsText = runStatsPanel.GetComponentInChildren<TMP_Text>(true);
         if (survivorsText == null && survivorsPanel != null) survivorsText = survivorsPanel.GetComponentInChildren<TMP_Text>(true);
         if (continueToSurvivorsButton == null && runStatsPanel != null) continueToSurvivorsButton = runStatsPanel.GetComponentInChildren<Button>(true);
@@ -506,7 +454,7 @@ public class CampSceneController : MonoBehaviour, ISporePauseScreen
         label.fontSize = header ? 24 : 18;
         label.fontStyle = header ? FontStyles.Bold : FontStyles.Normal;
         label.color = Color.white;
-        label.enableWordWrapping = true;
+        label.textWrappingMode = TextWrappingModes.Normal;
         label.raycastTarget = false;
 
         RectTransform rect = item.GetComponent<RectTransform>();

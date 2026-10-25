@@ -338,6 +338,9 @@ public class RunContentSpawner : MonoBehaviour
         if (camp == null || blobSpitterPrefab == null)
             return 0;
 
+        if (camp.exactBlobSpitterCount >= 0)
+            return camp.exactBlobSpitterCount;
+
         if (camp.enemyCount <= 0 && camp.bossEnemyCount <= 0)
             return 0;
 

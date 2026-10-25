@@ -225,7 +225,7 @@ public class CampFireRecovery : MonoBehaviour, ICampInteractable
                     buddy.hasBeenHit = false;
                 }
 
-                BuddyUnit[] visibleBuddies = Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None);
+                BuddyUnit[] visibleBuddies = Object.FindObjectsByType<BuddyUnit>();
                 foreach (BuddyUnit unit in visibleBuddies)
                 {
                     if (unit != null && unit.unitData != null)

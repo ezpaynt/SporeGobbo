@@ -25,8 +25,8 @@ public static class TerrainSceneValidator
         if (!(renderer.visualSourceBehaviour is ITerrainVisualSource)) { Debug.LogError($"{path}: visual source is invalid.", renderer); errors++; }
         ValidateMap(renderer.blockedTerrainPresentation, "BlockedTerrainPresentation", path, ref errors);
         ValidateMap(renderer.floorPresentation, "FloorPresentation", path, ref errors);
-        if (Object.FindObjectsByType<TerrainPresentationRenderer>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length != 1) { Debug.LogError($"{path}: expected exactly one shared terrain renderer."); errors++; }
-        foreach (Tilemap tilemap in Object.FindObjectsByType<Tilemap>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        if (Object.FindObjectsByType<TerrainPresentationRenderer>(FindObjectsInactive.Include).Length != 1) { Debug.LogError($"{path}: expected exactly one shared terrain renderer."); errors++; }
+        foreach (Tilemap tilemap in Object.FindObjectsByType<Tilemap>(FindObjectsInactive.Include))
             if (tilemap.name.Contains("RearSlope")) { Debug.LogError($"{path}: legacy rear-slope Tilemap remains: {tilemap.name}", tilemap); errors++; }
         if (runScene)
         {

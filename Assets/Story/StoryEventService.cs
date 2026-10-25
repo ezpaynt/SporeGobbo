@@ -4,6 +4,7 @@ public static class StoryEventIds
 {
     public const string ASporeHatchesNamed = "story.a_spore_hatches.named";
     public const string ASporeHatchesCampDiscovered = "story.a_spore_hatches.camp_discovered";
+    public const string MushWormIntro = "story.mush_worm.intro";
 }
 
 public static class StoryEventService

@@ -9,11 +9,11 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2987519051325394726}
-  - component: {fileID: 2038560707463211494}
   - component: {fileID: -6841785469022228854}
   - component: {fileID: 3277604171312373206}
+  - component: {fileID: 6901490395136416903}
   m_Layer: 0
-  m_Name: Healing Weevil Meat
+  m_Name: Weevil Parts_tuned
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -34,27 +34,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2038560707463211494
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1501292984417443018}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b52dd5ebcf7901c4aaacc014dbfc6c82, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::FoodItem
-  xpValue: 3
-  foodValue: 3
-  foodName: Healing Weevil Meat
-  healsPlayer: 1
-  healAmount: 10
-  foodKind: 3
-  mushroomValue: 0
-  moneyValue: 0
-  shinyValue: 0
 --- !u!212 &-6841785469022228854
 SpriteRenderer:
   serializedVersion: 2
@@ -150,3 +129,24 @@ CircleCollider2D:
   m_CompositeOrder: 0
   m_Offset: {x: 0, y: 0}
   m_Radius: 1.16
+--- !u!114 &6901490395136416903
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1501292984417443018}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0cbcf5ede54391e4c9439b2643e5cd56, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FoodItem
+  xpValue: 1
+  foodValue: 1
+  foodName: Weevil Parts
+  healsPlayer: 0
+  healAmount: 0
+  foodKind: 2
+  mushroomValue: 1
+  moneyValue: 0
+  shinyValue: 0

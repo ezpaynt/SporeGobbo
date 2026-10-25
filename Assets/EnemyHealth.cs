@@ -1,7 +1,7 @@
 using System.Collections;
 using UnityEngine;
 
-public class EnemyHealth : MonoBehaviour
+public class EnemyHealth : MonoBehaviour, IEnemyDamageReceiver
 {
     [Header("Health")]
     public int maxHealth = 3;
@@ -56,11 +56,16 @@ public class EnemyHealth : MonoBehaviour
 
     public void TakeDamage(int amount)
     {
-        if (isDead) return;
+        ReceiveEnemyDamage(new EnemyDamageRequest(amount));
+    }
 
-        health -= amount;
+    public void ReceiveEnemyDamage(EnemyDamageRequest request)
+    {
+        if (isDead || request == null) return;
 
-        Debug.Log(gameObject.name + " took " + amount + " damage. HP: " + health);
+        health -= request.amount;
+
+        Debug.Log(gameObject.name + " took " + request.amount + " damage. HP: " + health);
 
         if (spriteRenderer != null)
         {
@@ -69,7 +74,7 @@ public class EnemyHealth : MonoBehaviour
         }
 
         if (health <= 0)
-            Die();
+            Die(request.gobboSourceId);
     }
 
     IEnumerator FlashRed()
@@ -79,13 +84,16 @@ public class EnemyHealth : MonoBehaviour
         spriteRenderer.color = originalColor;
     }
 
-    void Die()
+    void Die(string killerGobboId)
     {
         if (isDead) return;
         isDead = true;
 
         if (GameState.Instance != null)
-            GameState.Instance.RegisterEnemyKilled();
+        {
+            if (string.IsNullOrWhiteSpace(killerGobboId)) GameState.Instance.RegisterEnemyKilled();
+            else GameState.Instance.RegisterWeevilKilled(killerGobboId);
+        }
 
         SpawnSplat();
         SpawnFood();
@@ -124,14 +132,14 @@ public class EnemyHealth : MonoBehaviour
             if (healing)
             {
                 foodItem.foodKind = FoodKind.HealingMeat;
-                foodItem.foodName = "Healing Weevil Meat";
+                foodItem.foodName = "Healing Weevil Parts";
                 foodItem.healsPlayer = true;
                 foodItem.healAmount = healingMeatHealAmount;
             }
             else
             {
                 foodItem.foodKind = FoodKind.Meat;
-                foodItem.foodName = "Weevil Meat";
+                foodItem.foodName = "Weevil Parts";
                 foodItem.healsPlayer = false;
                 foodItem.healAmount = 0;
             }

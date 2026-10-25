@@ -15,8 +15,6 @@ public static class RunProfileCoordinator
         if (selected.cellSize <= 0f) return Fail("Geometry cell size must be positive.");
         if (selected.spawnRadius < 0 || selected.spawnRadius * 2 >= Mathf.Min(selected.width, selected.height))
             return Fail("Spawn radius is invalid for the map dimensions.");
-        if (selected.branches == null || selected.branches.Count == 0) return Fail("At least one branch is required.");
-
         RunProfile complete = selected as RunProfile;
         if (complete == null)
             return Fail("The selected legacy BranchMapProfile is not a complete RunProfile. Apply a migrated profile.");
@@ -24,6 +22,11 @@ public static class RunProfileCoordinator
             complete.identity.stableProfileId == "unassigned")
             return Fail("Identity.stableProfileId is missing.");
         if (complete.environment == null || complete.content == null) return Fail("RunProfile sections are missing.");
+        bool authoredPersistentTest = complete.persistentTestCaveLayout != null;
+        if (!authoredPersistentTest && (selected.branches == null || selected.branches.Count == 0))
+            return Fail("At least one branch is required for procedural generation.");
+        if (authoredPersistentTest && !complete.persistentTestCaveLayout.IsValidFor(complete, out string layoutError))
+            return Fail("Persistent Test Cave layout is invalid: " + layoutError);
         if (complete.difficulty != null && complete.difficulty.enabled)
             return Fail("Difficulty overrides are not implemented in this architecture batch.");
         if (complete.developmentOverrides != null && complete.developmentOverrides.enabled && complete.developmentOverrides.unsupportedXpGuarantee)

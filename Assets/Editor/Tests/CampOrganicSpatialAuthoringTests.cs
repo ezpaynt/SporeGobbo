@@ -23,6 +23,11 @@ public sealed class CampOrganicSpatialAuthoringTests
     {
         CampRunPortal portal = Object.FindAnyObjectByType<CampRunPortal>(FindObjectsInactive.Include);
         Assert.That(portal, Is.Not.Null);
+        Assert.That(portal.developmentRunProfileOverride, Is.Not.Null);
+        Assert.That(portal.developmentRunProfileOverride.identity.stableProfileId,
+            Is.EqualTo("persistent-test-cave"));
+        Assert.That(portal.GetComponent<SpriteRenderer>().sortingOrder, Is.EqualTo(27),
+            "The authoritative portal must render above Camp terrain.");
         Vector2Int cell = terrain.WorldToCell(portal.transform.position);
         Assert.That(cell, Is.EqualTo(CampEarlyMapCatalog.ExitAnchor));
 
@@ -38,6 +43,22 @@ public sealed class CampOrganicSpatialAuthoringTests
         GameObject marker = GameObject.Find("RunExitMarker");
         Assert.That(marker, Is.Not.Null);
         Assert.That(Vector2.Distance(marker.transform.position, portal.transform.position), Is.LessThan(0.01f));
+
+        GameObject stalePortalSpot = FindSceneObject("PortalSpot");
+        Assert.That(stalePortalSpot, Is.Not.Null);
+        Assert.That(stalePortalSpot.activeSelf, Is.False,
+            "The obsolete visual-only PortalSpot must not appear beside the authoritative CampPortal.");
+    }
+
+    static GameObject FindSceneObject(string objectName)
+    {
+        foreach (GameObject root in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
+        {
+            Transform[] transforms = root.GetComponentsInChildren<Transform>(true);
+            foreach (Transform candidate in transforms)
+                if (candidate.name == objectName) return candidate.gameObject;
+        }
+        return null;
     }
 
     [Test]
