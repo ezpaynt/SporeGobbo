@@ -13,14 +13,15 @@ public sealed class V1VisualEvidence:MonoBehaviour
  {
   yield return null;yield return null;Check("visual fixture tools are explicitly enabled",V1RuntimeProfile.DevelopmentToolsEnabled);DevelopmentCampaignFixtures.Import(2);Find<MainMenuController>().LoadGame(2);
   float end=Time.realtimeSinceStartup+60;while(Find<CampSceneController>()?.WorldInputReady!=true&&Time.realtimeSinceStartup<end)yield return null;
-  Check("visual fixture real Camp ready",Find<CampSceneController>()?.WorldInputReady==true);yield return new WaitForSeconds(1);yield return Capture("camp-reference-grounding");
+  Check("visual fixture real Camp ready",Find<CampSceneController>()?.WorldInputReady==true);yield return new WaitForSeconds(1);yield return Capture("camp-reference-grounding");Find<DevelopmentCampControls>().Warp("fire.watch");yield return new WaitForSeconds(1.2f);yield return Capture("camp-fire-centered");
   var portal=Find<CampRunPortal>();portal.Interact(Find<CampPlayableSpawner>().SpawnedPlayer);portal.goButton.onClick.Invoke();end=Time.realtimeSinceStartup+60;while(!V1NormalEvidence.Expedition()&&Time.realtimeSinceStartup<end)yield return null;Check("visual fixture actual expedition ready",V1NormalEvidence.Expedition());
   ExpeditionDevelopmentControls.SetGodMode(true);var r=Find<ExpeditionRegion>();
   var cases=new[]{new Point2(108.5,52.5),new Point2(114.5,58.5),new Point2(108.5,65.5),new Point2(74.5,63.5),new Point2(78.5,68.5),new Point2(85.5,64.5),new Point2(107.5,97.5),new Point2(115.5,103.5),new Point2(107.5,109.5)};
   string[] names={"stone-back","stone-side","stone-front","root-back","root-underpass","root-side","fossil-back","fossil-side","fossil-front"};
-  foreach(int health in new[]{100,250,500})
+  var actualSizes=new System.Collections.Generic.HashSet<float>();
+  foreach(int health in new[]{100,150,250})
   {
-  var leader=GameState.Instance.GetLeader();leader.maxHealth=health;leader.health=health;GameState.Instance.ApplyToPlayer(r.Player);yield return null;
+  var leader=GameState.Instance.GetLeader();leader.maxHealth=health;leader.health=health;GameState.Instance.ApplyToPlayer(r.Player);yield return null;actualSizes.Add(r.Player.transform.localScale.x);
   for(int i=0;i<cases.Length;i++)
   {
    Vector2 p=r.World(cases[i]);var body=r.Player.GetComponent<Rigidbody2D>();bool fit=TileMover.CanOccupyBox(r,p,TileMover.GetMapClearanceExtents(body,.25f));
@@ -30,6 +31,7 @@ public sealed class V1VisualEvidence:MonoBehaviour
    if(view!=null)File.AppendAllText(Path.Combine(directory,"grounding.csv"),"hp"+health+"-"+names[i]+","+p.x+","+p.y+","+view.PhysicalFoot.x+","+view.PhysicalFoot.y+","+view.ProjectedHead.x+","+view.ProjectedHead.y+","+r.Player.transform.localScale.x+"\n");
   }
   }
+  Check("three genuinely distinct sizes use canonical gameplay scaling",actualSizes.Count==3);
   Check("visual fixtures preserve accepted projection and scale",r.CellSize==.6f&&r.Presentation.settings.anchor==.62f);Finish();
  }
  IEnumerator Capture(string name){Stage61RuntimeMetrics.Exclude("visual capture");Stage61RuntimeMetrics.Category("capture");yield return new WaitForEndOfFrame();var image=ScreenCapture.CaptureScreenshotAsTexture();try{File.WriteAllBytes(Path.Combine(directory,name+".png"),image.EncodeToPNG());}finally{Destroy(image);}}

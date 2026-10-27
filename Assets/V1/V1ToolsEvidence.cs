@@ -46,7 +46,35 @@ public sealed class V1ToolsEvidence:MonoBehaviour
   Check("actual Dig keyboard binding found",index>=0);if(finished)yield break;
   try{action.ApplyBindingOverride(index,"<Keyboard>/f6");bindings.LoadJson(bindings.SaveJson());string expected=bindings.GetDisplay("Gameplay","Dig",BindingScheme.KeyboardMouse);Check("Intro cache invalidates on existing BindingsChanged event",sequence.Binding("Dig")==expected&&expected!=oldDisplay);}finally{bindings.LoadJson(string.IsNullOrWhiteSpace(original)?"{\"bindings\":[]}":original);}
   string restoredDisplay=sequence.Binding("Dig"),restoredJson=bindings.SaveJson();File.WriteAllText(Path.Combine(directory,"binding-cache-diagnostics.json"),JsonUtility.ToJson(new BindingDiagnostics{originalJson=original,restoredJson=restoredJson,originalDisplay=oldDisplay,restoredDisplay=restoredDisplay},true));
-  Check("Intro cached prompt restores original binding without preference Save",restoredDisplay==oldDisplay&&restoredJson==original);Finish();
+  Check("Intro cached prompt restores original binding without preference Save",restoredDisplay==oldDisplay&&restoredJson==original);if(finished)yield break;
+  // Explicit setup returns to the already committed B campaign. This does not traverse the Intro a second time.
+  Find<PauseMenuController>().OpenPause();Find<PauseMenuController>().QuitToMainMenu();yield return Wait(()=>Find<MainMenuController>()!=null,"departure proof restores committed B through Menu");if(finished)yield break;
+  Find<MainMenuController>().LoadGame(2);yield return Wait(Camp,"departure proof ready real Camp B");if(finished)yield break;
+  yield return DepartureProof();if(finished)yield break;Finish();
+ }
+ IEnumerator QueuedCompletion(Action completed){yield return null;completed();}
+ IEnumerator DepartureProof()
+ {
+  var state=GameState.Instance;var camp=Find<SettlementCampRegion>();var routines=Find<CampStartRoutineManager>();var portal=Find<CampRunPortal>();
+  Check("real departure owners available",state!=null&&camp!=null&&routines!=null&&portal!=null);if(finished)yield break;
+  string path=SporeSaveManager.GetSlotPath(2),before=File.ReadAllText(path);int queued=0;
+  routines.StartCoroutine(QueuedCompletion(()=>queued++));
+  Stage61RuntimeMetrics.Category("departure injected failure");SporeSaveManager.FailNextDevelopmentWrite("validated");
+  portal.Interact(Find<CampPlayableSpawner>().SpawnedPlayer);portal.StartNextRun();
+  Check("failed departure preserves primary and does not begin run",!string.IsNullOrEmpty(portal.LastDepartureFailure)&&!state.HasActiveRunSnapshot&&File.ReadAllText(path)==before);
+  Check("failed departure thaws real terrain and existing routines",!camp.DeparturePending&&!routines.DeparturePending);if(finished)yield break;
+  yield return null;Check("suspension cancels queued manager completion before failure recovery",queued==0);if(finished)yield break;
+  routines.StartCoroutine(QueuedCompletion(()=>queued++));int revision=camp.Revision,capacity=state.campTerrainState.residentialSlotsEstablished;
+  portal.StartNextRun();
+  Check("retry synchronously freezes both owners before deferred unload",camp.DeparturePending&&routines.DeparturePending&&state.HasActiveRunSnapshot&&string.IsNullOrEmpty(portal.LastDepartureFailure));
+  Check("departure terrain rejects late bed completion without capacity mutation",!camp.CompleteResidentialSlotForProgression(1,capacity+1)&&state.campTerrainState.residentialSlotsEstablished==capacity&&camp.Revision==revision);if(finished)yield break;
+  var captured=SporeSaveManager.LoadSlot(2);Check("departure commit stores matching scalar and physical bed capacity",captured.campTerrainState.residentialSlotsEstablished==captured.campTerrainState.regionSnapshot.establishedBeds.Length);
+  yield return Wait(V1NormalEvidence.Expedition,"retried departure reaches real expedition");if(finished)yield break;
+  Check("no queued manager callback runs after successful departure",queued==0);
+  Check("canonical Camp cache matches capacity after queued unload frame",state.campTerrainState.residentialSlotsEstablished==state.campTerrainState.regionSnapshot.establishedBeds.Length);if(finished)yield break;
+  Check("real run return accepts preserved Camp after departure retry",RunReturnService.ReturnToCamp("CampScene",true,true,RunReturnReason.NormalExit,"departure barrier proof"));
+  yield return OpenReturn();if(finished)yield break;
+  Check("real Camp returns with coherent durable bed ownership",Camp()&&SporeSaveManager.InspectSlot(2)==SporeSaveManager.SlotStatus.Valid&&GameState.Instance.campTerrainState.residentialSlotsEstablished==GameState.Instance.campTerrainState.regionSnapshot.establishedBeds.Length);
  }
  static string Ids(System.Collections.Generic.IEnumerable<GobboUnitSaveData> roster)=>string.Join("|",roster.Where(x=>x!=null).Select(x=>x.uniqueId).OrderBy(x=>x,StringComparer.Ordinal));
  void CheckAuthorities(){Check("one real campaign terrain input UI and hub",UnityEngine.Object.FindObjectsByType<GameState>(FindObjectsSortMode.None).Length==1&&UnityEngine.Object.FindObjectsByType<SettlementCampRegion>(FindObjectsSortMode.None).Length==1&&UnityEngine.Object.FindObjectsByType<SporeInputReader>(FindObjectsSortMode.None).Length==1&&UnityEngine.Object.FindObjectsByType<SporeUiCoordinator>(FindObjectsSortMode.None).Length==1&&UnityEngine.Object.FindObjectsByType<DevelopmentGameControls>(FindObjectsSortMode.None).Length==1&&ReferenceEquals(DiggableTerrainService.Active,Find<SettlementCampRegion>()));}

@@ -5,6 +5,7 @@ public sealed class IntroSequence:MonoBehaviour
  public IntroRegion Region{get;private set;}public bool ControlReleased{get;private set;}public bool Arriving{get;private set;}public float BirthTime{get;private set;}public float QuietTime{get;private set;}public float TutorialSeconds{get;private set;}public bool PromptVisible{get;private set;}public bool Forgiven{get;private set;}public bool PlugCleared{get;private set;}public bool ShakeEnabled=true;
  public int CompletedCollapses{get;private set;}public float ActiveSeconds{get;private set;}public bool ClockActive=>Time.timeScale>0&&Focused&&(ControlReleased?SporeInputReader.Instance!=null&&SporeInputReader.Instance.Context==SporeInputContext.Gameplay:true);
  public bool PresentationInitialized{get;private set;}
+ bool birthClockPrimed;
  readonly Dictionary<string,string> bindingDisplays=new Dictionary<string,string>();SporeBindingService displayBindings;BindingScheme displayScheme;
  void InvalidateBindingDisplays()=>bindingDisplays.Clear();
  bool Focused=>Application.isFocused||!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPORE_STAGE61_CAPTURE"));
@@ -15,7 +16,7 @@ public sealed class IntroSequence:MonoBehaviour
  public string Binding(string action){using var profile=new Unity.Profiling.ProfilerMarker("Spore.V1.BindingDisplay").Auto();var input=SporeInputReader.Instance;if(input?.Bindings==null)return "…";var scheme=input.ActiveControlScheme==SporeControlScheme.Gamepad?BindingScheme.Gamepad:BindingScheme.KeyboardMouse;if(!ReferenceEquals(displayBindings,input.Bindings)){if(displayBindings!=null)displayBindings.BindingsChanged-=InvalidateBindingDisplays;displayBindings=input.Bindings;displayBindings.BindingsChanged+=InvalidateBindingDisplays;InvalidateBindingDisplays();}if(displayScheme!=scheme){displayScheme=scheme;InvalidateBindingDisplays();}if(!bindingDisplays.TryGetValue(action,out var text)){text=displayBindings.GetDisplay("Gameplay",action,scheme);bindingDisplays.Add(action,text);}return text;}
  void Update()
  {
-  using var profile=new Unity.Profiling.ProfilerMarker("Spore.Intro.Sequence").Auto();if(player==null||!Region.PresentationReady)return;if(Arriving){arrivalFade=Mathf.Clamp01(arrivalFade+Time.deltaTime/.7f);return;}
+  using var profile=new Unity.Profiling.ProfilerMarker("Spore.Intro.Sequence").Auto();if(player==null||!Region.PresentationReady)return;if(!birthClockPrimed){birthClockPrimed=true;return;}if(Arriving){arrivalFade=Mathf.Clamp01(arrivalFade+Time.deltaTime/.7f);return;}
   if(!ControlReleased){if(ClockActive)BirthTime+=Time.deltaTime;if(BirthTime>=2.4f&&BirthTime-Time.deltaTime<2.4f)Region.Cue("spore.impact",Region.Arrival);if(BirthTime>=4.1f){source.enabled=true;view.PresentationLift=-.12f*Mathf.Clamp01(1-(BirthTime-4.1f)/1.6f);if(BirthTime-Time.deltaTime<4.1f)Region.Cue("spore.hatch",Region.Arrival);}if(BirthTime>=6.2f)Release();return;}
   if(V1RuntimeProfile.DevelopmentToolsEnabled&&Keyboard.current!=null&&Keyboard.current.f7Key.wasPressedThisFrame){
 #if UNITY_EDITOR || DEVELOPMENT_BUILD

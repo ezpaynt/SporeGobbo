@@ -21,6 +21,22 @@ public class Stage63BRuntimeTests
         try { Persistence.DeleteKey(key);Assert.Throws<InvalidDataException>(()=>RunReturnService.RequireSelectedCampaign()); }
         finally { if(present)Persistence.SetInt(key,previous);else Persistence.DeleteKey(key); }
     }
+    [Test] public void DepartureBarrierIsIdempotentAndFailedDepartureReopensExistingPolicy()
+    {
+        var host=new GameObject("departure contract fixture");
+        try
+        {
+            var manager=host.AddComponent<CampStartRoutineManager>();manager.runRoutineOnCampOpen=false;
+            manager.SuspendForDeparture();manager.SuspendForDeparture();
+            Assert.That(manager.DeparturePending,Is.True);Assert.That(manager.IsCampVisitRoutineRunning,Is.False);
+            manager.BeginCampVisit();manager.RequestResidentialEntranceAssistance();
+            Assert.That(manager.RestartCampVisitForDevelopment(),Is.False);
+            Assert.That(manager.CurrentResidentialSlot,Is.Zero);
+            manager.ResumeAfterFailedDeparture();manager.ResumeAfterFailedDeparture();
+            Assert.That(manager.DeparturePending,Is.False);Assert.That(manager.IsCampVisitRoutineRunning,Is.False);
+        }
+        finally { UnityEngine.Object.DestroyImmediate(host); }
+    }
     [Test] public void NormalDestinationsDoNotRequireDevelopmentTools()
     {
         Assert.That(GameSceneCatalog.Intro,Is.EqualTo("FirstGobboIntro"));

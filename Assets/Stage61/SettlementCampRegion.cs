@@ -9,7 +9,7 @@ using SporeGobbo.CampLifecycle;
 using SporeGobbo.Input;
 /// <summary>Camp authored-region adapter. Campaign/visit/job ownership stays in existing services.</summary>
 [DefaultExecutionOrder(-1800)]
-public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProjectedActorContext,IRegionActorBinding,IRegionVisualBinding,ICampRegionSnapshotSource
+public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProjectedActorContext,IRegionActorBinding,IRegionVisualBinding,ICampRegionSnapshotSource,ICampDepartureState
 {
  static readonly Unity.Profiling.ProfilerMarker stage61SortingProfile=new Unity.Profiling.ProfilerMarker("Spore.Stage61.Sorting");
  static readonly Unity.Profiling.ProfilerMarker stage61InitializeProfile = new Unity.Profiling.ProfilerMarker("Spore.Stage61.RegionInitialize");
@@ -93,7 +93,10 @@ public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProj
  }
  public void BindStaticVisual(GameObject visual,Transform anchor)
  {var projected=visual.AddComponent<ProjectedWorldSprite>();projected.Initialize(this,anchor);}
- bool CanAct=>LogicalReady&&(lifecycle?.WorldInputReady??false)&&Time.timeScale>0&&SporeInputReader.Instance!=null&&SporeInputReader.Instance.Context==SporeInputContext.Gameplay;
+ public bool DeparturePending{get;private set;}
+ public void BeginDeparture(){DeparturePending=true;}
+ public void CancelDeparture(){DeparturePending=false;}
+ bool CanAct=>!DeparturePending&&LogicalReady&&(lifecycle?.WorldInputReady??false)&&Time.timeScale>0&&SporeInputReader.Instance!=null&&SporeInputReader.Instance.Context==SporeInputContext.Gameplay;
  public void DigCircle(Vector2 point,float radius)=>DigCircle(point,radius,TerrainDigAuthority.Player,0,null);
  public TerrainDigResult DigCircle(Vector2 point,float radius,TerrainDigAuthority authority,int progression,IReadOnlyCollection<Vector2Int> authorized)
  {
@@ -121,6 +124,7 @@ public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProj
  }
  public bool CompleteResidentialSlotForProgression(int progression,int slot)
  {
+  if(DeparturePending||!LogicalReady)return false;
   if(slot!=establishedBeds.Count+1||GetResidentialProgressionIndexForSlot(slot)!=progression||GetResidentialSlotFootprint(slot).Any(IsBlocked))return false;
   var p=catalog.GetSlot(slot).RestCell;if(State.Route(new Point2(p.x+.5,p.y+.5),Definition.Marker("fire").Interaction,3).Count==0)return false;
   establishedBeds.Add(slot);campaign.campTerrainState.residentialSlotsEstablished=establishedBeds.Count;campaign.campTerrainState.residentialStage=Math.Max(campaign.campTerrainState.residentialStage,progression);return true;

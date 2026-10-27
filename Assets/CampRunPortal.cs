@@ -31,12 +31,16 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable, IWorldInteraction
 
     private GobboController currentPlayer;
     private bool promptOpen;
+    private bool departureRequested;
+    public string LastDepartureFailure { get; private set; }
 
     void Awake()
     {
         HookButtons();
         HidePrompt();
     }
+
+    void OnDestroy() { SporePauseService.Release(gameObject); }
 
     void OnEnable()
     {
@@ -48,7 +52,7 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable, IWorldInteraction
         return promptMessage;
     }
 
-    public bool CanInteract(GobboController player) => player != null && !promptOpen;
+    public bool CanInteract(GobboController player) => player != null && !promptOpen && !departureRequested;
     public int InteractionPriority => interactionPriority;
     public float InteractionRange => interactionRange;
     public Vector2 GetInteractionPoint()
@@ -117,34 +121,56 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable, IWorldInteraction
 
     public void StartNextRun()
     {
+        if (departureRequested) return;
         GameState state = GameState.Instance;
-        if (state != null)
+        var routines = Object.FindAnyObjectByType<CampStartRoutineManager>();
+        var terrain = CampSpatialTerrain.Active as ICampDepartureState;
+        bool snapshotStarted = false;
+        try
         {
-            if (savePlayerBeforeLeaving && currentPlayer != null)
-                state.SavePlayer(currentPlayer);
-
+            if (state == null || state.HasActiveRunSnapshot)
+                throw new System.InvalidOperationException("Departure requires a ready Camp campaign without an active run.");
+            if (!Application.CanStreamedLevelBeLoaded(GameSceneCatalog.Run))
+                throw new System.InvalidOperationException("Run destination is unavailable.");
+            RunReturnService.RequireSelectedCampaign();
+            departureRequested = true;
+            LastDepartureFailure = null;
+            // Scene unload is deferred. Quiesce coroutines and terrain before capturing either snapshot.
+            terrain?.BeginDeparture();
+            routines?.SuspendForDeparture();
+            SporePauseService.Acquire(gameObject);
+            if (savePlayerBeforeLeaving && currentPlayer != null) state.SavePlayer(currentPlayer);
             CampSuccessorPreferenceStore pref = CampSuccessorPreferenceStore.Instance;
             if (pref != null) pref.ValidateAgainstRoster();
-
-            if (saveCampBeforeLeaving)
-                SporeSaveManager.SaveCurrentSlotFromGameState();
-
-            string markedSuccessorId = pref != null ? pref.GetMarkedSuccessorId() : state.markedSuccessorId;
-            PlayerDeathRunStore.GetOrCreate().LockSuccessorForRun(markedSuccessorId);
-
+            if (saveCampBeforeLeaving) SporeSaveManager.SaveCurrentSlotFromGameState();
+            string successor = pref != null ? pref.GetMarkedSuccessorId() : state.markedSuccessorId;
+            PlayerDeathRunStore.GetOrCreate().LockSuccessorForRun(successor);
             if (beginRunSnapshotBeforeLeaving)
-                state.BeginRunSnapshot();
-
-            Debug.Log("[CampRunPortal] Starting run. Roster: " + CountRoster() +
-                      ", active: " + CountActive() +
-                      ", marked successor: " + (string.IsNullOrWhiteSpace(markedSuccessorId) ? "none" : markedSuccessorId));
+            {
+                snapshotStarted = state.TryBeginRunSnapshot();
+                if (!snapshotStarted) throw new System.InvalidOperationException("Run snapshot already exists.");
+            }
+            Debug.Log("[CampRunPortal] Starting run. Roster: " + CountRoster() + ", active: " + CountActive());
+            HidePrompt();
+            PlayerDeathWatcher.SuppressDeathHandlingForSceneChange();
+            SampleSceneModeContext.SetPending(SampleSceneMode.NormalRun, developmentRunProfileOverride);
+            // Keep the departure pause until the existing single-scene readiness reset.
+            SceneManager.LoadScene(GameSceneCatalog.Run);
         }
-
-        HidePrompt();
-        SporePauseService.ResetAll();
-        PlayerDeathWatcher.SuppressDeathHandlingForSceneChange();
-        SampleSceneModeContext.SetPending(SampleSceneMode.NormalRun, developmentRunProfileOverride);
-        SceneManager.LoadScene(GameSceneCatalog.Run);
+        catch (System.Exception exception)
+        {
+            if (snapshotStarted) state.EndRunSnapshot();
+            if (departureRequested) PlayerDeathRunStore.GetOrCreate().ClearPendingDeath();
+            PlayerDeathWatcher.ClearSceneChangeSuppression();
+            terrain?.CancelDeparture();
+            SporePauseService.Release(gameObject);
+            departureRequested = false;
+            routines?.ResumeAfterFailedDeparture();
+            LastDepartureFailure = exception.Message;
+            ShowPrompt();
+            if (promptText != null) promptText.text = "Could not depart: " + exception.Message + "\nYour Camp remains available. Retry or cancel.";
+            Debug.LogWarning("[CampRunPortal] Departure held: " + exception.Message);
+        }
     }
 
     int CountRoster() => GameState.Instance != null && GameState.Instance.ownedGobbos != null ? GameState.Instance.ownedGobbos.Count : 0;

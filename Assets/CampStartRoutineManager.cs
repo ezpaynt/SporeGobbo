@@ -65,9 +65,73 @@ public class CampStartRoutineManager : MonoBehaviour
         public string Failure = "";
     }
     bool rootAssistanceRunning;
+    public bool DeparturePending { get; private set; }
+    readonly Dictionary<CampWander,bool> departureWanderStates = new Dictionary<CampWander,bool>();
+    readonly HashSet<GameObject> ownedTransientTargets = new HashSet<GameObject>();
+    IEnumerator activeBedPreparation;
+
+    GameObject CreateTransientTarget(string targetName)
+    {
+        var target = new GameObject(targetName);
+        ownedTransientTargets.Add(target);
+        return target;
+    }
+    void DestroyTransientTarget(GameObject target)
+    {
+        ownedTransientTargets.Remove(target);
+        if (target != null) Destroy(target);
+    }
+    public void SuspendForDeparture()
+    {
+        if (DeparturePending) return;
+        DeparturePending = true; // Publish before cancelling any callback/iterator.
+        StopAllCoroutines();
+        (activeBedPreparation as System.IDisposable)?.Dispose();
+        activeBedPreparation = null;
+        departureWanderStates.Clear();
+        foreach (var buddy in Object.FindObjectsByType<BuddyUnit>())
+        {
+            if (buddy == null || buddy.gameObject.scene != gameObject.scene) continue;
+            var wander = buddy.GetComponent<CampWander>();
+            if (wander != null) departureWanderStates.Add(wander,wander.enabled);
+            var walker = buddy.GetComponent<CampDirectedWalk>();
+            if (walker != null)
+            {
+                bool enableAfter = walker.enableWanderWhenDone;
+                walker.enableWanderWhenDone = false;
+                walker.CancelWalk();
+                walker.enableWanderWhenDone = enableAfter;
+            }
+            if (wander != null) wander.enabled = false;
+            var body = buddy.GetComponent<Rigidbody2D>();
+            if (body != null) body.linearVelocity = Vector2.zero;
+            var visual = buddy.GetComponent<GobboVisualController>();
+            if (visual == null) visual = buddy.GetComponentInChildren<GobboVisualController>();
+            visual?.SetAnimationState(GobboAnimationState.Idle);
+        }
+        foreach (var target in ownedTransientTargets) if (target != null) Destroy(target);
+        ownedTransientTargets.Clear();
+        firstHomeApproaches.Clear(); firstHomeBuddyIds.Clear();
+        rootAssistanceRunning = routineRunning = waitingForRecovery = false;
+        currentResidentialConstructorId = "";
+        CurrentResidentialRoomId = ""; CurrentResidentialSlot = 0;
+        CurrentResidentialStagingCell = CurrentResidentialDigCell = default;
+        constructionMoveSucceeded = residentialConstructionSucceeded = residentialPostConstructionSucceeded = false;
+        constructionMoveResult = CampDirectedWalkResult.Cancelled;
+    }
+    public void ResumeAfterFailedDeparture()
+    {
+        if (!DeparturePending) return;
+        DeparturePending = false;
+        foreach (var pair in departureWanderStates) if (pair.Key != null) pair.Key.enabled = pair.Value;
+        departureWanderStates.Clear();
+        routineStarted = false;
+        BeginCampVisit(); // Re-evaluate real occupancy/assignments using the existing visit policy.
+    }
+
 
     public void RequestResidentialEntranceAssistance()
-    {if(!rootAssistanceRunning && CampSpatialTerrain.Active!=null && !CampSpatialTerrain.Active.ResidentialEntranceOpen){rootAssistanceRunning=true;StartCoroutine(AssistResidentialEntrance());}}
+    {if(!DeparturePending && !rootAssistanceRunning && CampSpatialTerrain.Active!=null && !CampSpatialTerrain.Active.ResidentialEntranceOpen){rootAssistanceRunning=true;StartCoroutine(AssistResidentialEntrance());}}
 
     IEnumerator AssistResidentialEntrance()
     {
@@ -83,7 +147,7 @@ public class CampStartRoutineManager : MonoBehaviour
         if(helper!=null)
         {
             priorWander=helper.GetComponent<CampWander>()?.enabled??false;
-            var target=new GameObject("Root assistance target");target.transform.position=terrain.ResidentialEntranceWorld;
+            var target=CreateTransientTarget("Root assistance target");target.transform.position=terrain.ResidentialEntranceWorld;
             var walk=helper.GetComponent<CampDirectedWalk>()??helper.gameObject.AddComponent<CampDirectedWalk>();walk.destroyWhenDone=false;walk.enableWanderWhenDone=false;
             walk.BeginWalk(target.transform,GetCampSpeed(helper),.18f,CampBuddyPhysicalPolicy.GetDirectedWalkTimeout(nearest,GetCampSpeed(helper),constructionMoveTimeout));
             while(helper!=null && CampResidentialOccupancyResolver.IsLivingBuddy(helper.unitData) && walk.IsWalking && !terrain.ResidentialEntranceOpen)yield return null;
@@ -91,7 +155,7 @@ public class CampStartRoutineManager : MonoBehaviour
             if(helper==null||!CampResidentialOccupancyResolver.IsLivingBuddy(helper.unitData)||!terrain.ResidentialEntranceOpen&&walk.Result!=CampDirectedWalkResult.Arrived)
             {
                 if(helper!=null){var failedWander=helper.GetComponent<CampWander>();if(failedWander!=null)failedWander.enabled=priorWander;}
-                Destroy(target);rootAssistanceRunning=false;yield break;
+                DestroyTransientTarget(target);rootAssistanceRunning=false;yield break;
             }
             while(helper!=null && CampResidentialOccupancyResolver.IsLivingBuddy(helper.unitData) && !terrain.ResidentialEntranceOpen)
             {
@@ -100,7 +164,7 @@ public class CampStartRoutineManager : MonoBehaviour
                 yield return null;
             }
             if(helper!=null){var wander=helper.GetComponent<CampWander>();if(wander!=null)wander.enabled=priorWander;}
-            Destroy(target);
+            DestroyTransientTarget(target);
         }
         rootAssistanceRunning=false;
     }
@@ -122,7 +186,7 @@ public class CampStartRoutineManager : MonoBehaviour
 
     public void BeginCampVisit()
     {
-        if (!runRoutineOnCampOpen || routineStarted) return;
+        if (DeparturePending || !runRoutineOnCampOpen || routineStarted) return;
         routineStarted = true;
         ApplyUnlockedAreaVisibility();
         StartCoroutine(TrackedCampOpenRoutine());
@@ -140,6 +204,7 @@ public class CampStartRoutineManager : MonoBehaviour
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
     public bool RestartCampVisitForDevelopment()
     {
+        if (DeparturePending) return false;
         if (routineRunning) return false;
         routineStarted = false;
         BeginCampVisit();
@@ -391,7 +456,7 @@ public class CampStartRoutineManager : MonoBehaviour
 
     IEnumerator MoveFirstHomeBuddy(BuddyUnit buddy, Vector2 worldTarget, FirstHomeMoveOperation operation)
     {
-        GameObject targetObject = new GameObject("FirstHomeMoveTarget_RUNTIME");
+        GameObject targetObject = CreateTransientTarget("FirstHomeMoveTarget_RUNTIME");
         targetObject.transform.position = worldTarget;
         Rigidbody2D body = buddy != null ? buddy.GetComponent<Rigidbody2D>() : null;
         CampDirectedWalk walker = buddy != null ? buddy.GetComponent<CampDirectedWalk>() : null;
@@ -399,7 +464,7 @@ public class CampStartRoutineManager : MonoBehaviour
         {
             operation.Failure = "missing Buddy physics body";
             operation.Complete = true;
-            Destroy(targetObject);
+            DestroyTransientTarget(targetObject);
             yield break;
         }
         if (walker == null) walker = buddy.gameObject.AddComponent<CampDirectedWalk>();
@@ -416,7 +481,7 @@ public class CampStartRoutineManager : MonoBehaviour
         operation.Succeeded = buddy != null && walker.Result == CampDirectedWalkResult.Arrived;
         operation.Failure = buddy != null ? walker.Result + " / " + walker.BlockingColliderDescription : "Buddy destroyed";
         operation.Complete = true;
-        Destroy(targetObject);
+        DestroyTransientTarget(targetObject);
     }
 
     static BuddyUnit FindLiveBuddy(BuddyUnit[] buddies, string id) =>
@@ -589,7 +654,7 @@ public class CampStartRoutineManager : MonoBehaviour
             AbortResidentialConstruction(buddy, null, slotIndex, "Canonical construction route is missing.");
             yield break;
         }
-        GameObject targetObject = new GameObject("ResidentialSlotConstructionTarget_RUNTIME");
+        GameObject targetObject = CreateTransientTarget("ResidentialSlotConstructionTarget_RUNTIME");
         Transform target = targetObject.transform;
         CampWander wander = buddy.GetComponent<CampWander>();
         if (wander != null) wander.enabled = false;
@@ -768,7 +833,12 @@ public class CampStartRoutineManager : MonoBehaviour
             }
             advanceStartCell = targetCell;
         }
-        if (requiredDigActions == 0) yield return dig.PrepareBedRoutine(.8f);
+        if (requiredDigActions == 0)
+        {
+            activeBedPreparation = dig.PrepareBedRoutine(.8f);
+            yield return activeBedPreparation;
+            activeBedPreparation = null;
+        }
         if (buddy == null || !CampResidentialOccupancyResolver.IsLivingBuddy(buddy.unitData) || !dig.isActiveAndEnabled || requiredDigActions == 0 && !dig.LastBedPreparationCompleted)
         { AbortResidentialConstruction(buddy, targetObject, slotIndex, "Constructor unavailable or preparation cancelled", true); yield break; }
 
@@ -808,7 +878,7 @@ public class CampStartRoutineManager : MonoBehaviour
                 "This is an implementation invariant violation; no fallback was attempted.", buddy);
             residentialConstructionSucceeded = false;
             residentialPostConstructionSucceeded = false;
-            Destroy(targetObject);
+            DestroyTransientTarget(targetObject);
             yield break;
         }
         buddy.unitData.campResidentialSlotId = slotIndex;
@@ -818,7 +888,7 @@ public class CampStartRoutineManager : MonoBehaviour
         residentialConstructionSucceeded = true;
         residentialPostConstructionSucceeded = true;
         CompleteFirstHomeMovement(buddy);
-        Destroy(targetObject);
+        DestroyTransientTarget(targetObject);
     }
 
     void AbortResidentialConstruction(BuddyUnit buddy, GameObject targetObject, int slotIndex, string reason, bool expectedCancellation = false)
@@ -833,7 +903,7 @@ public class CampStartRoutineManager : MonoBehaviour
             " No save, assignment, retry, rollback, or fallback movement was performed; live state is preserved.";
         if(expectedCancellation)Debug.LogWarning(message,buddy!=null?buddy:this);
         else Debug.LogError(message,buddy!=null?buddy:this);
-        if (targetObject != null) Destroy(targetObject);
+        if (targetObject != null) DestroyTransientTarget(targetObject);
         if (buddy == null) return;
         Rigidbody2D body = buddy.GetComponent<Rigidbody2D>();
         if (body != null) body.linearVelocity = Vector2.zero;
@@ -968,7 +1038,7 @@ public class CampStartRoutineManager : MonoBehaviour
 
     public void NotifyFireRecovered()
     {
-        if (!waitingForRecovery) return;
+        if (DeparturePending || !waitingForRecovery) return;
         waitingForRecovery = false;
         CampMessageUI.Show(afterRecoveryPopup);
         ReleaseBuddiesToResidentialOrDefaultAnchors();
