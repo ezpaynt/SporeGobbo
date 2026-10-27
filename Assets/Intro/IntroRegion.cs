@@ -15,7 +15,7 @@ using System;using System.Linq;using System.Collections.Generic;using UnityEngin
  RegionTerrainPhysics physics;Func<IEnumerable<DualTile>,int,Func<DualTile,bool>,int> dig;Func<TerrainPlacementRequest,Func<IReadOnlyList<DualTile>,bool>,TerrainPlacementResult> place;int published=-1;bool disposed;
  void Awake()
  {
-  if(!GameSceneCatalog.DevelopmentCandidate||!GameSceneCatalog.AuthoredIntroEnabled||!SporeGobbo.Safety.Persistence.Isolated)throw new InvalidOperationException("Intro requires protected candidate entry");
+  if(!GameSceneCatalog.IsIntro(gameObject.scene))throw new InvalidOperationException("Intro scene role is invalid");
   SampleSceneModeController.EnterAuthoredIntro();using var profile=new Unity.Profiling.ProfilerMarker("Spore.Intro.Initialize").Auto();
   Definition=new IntroLayout();State=new RegionTerrainState("intro",IntroLayout.Width,IntroLayout.Height,Definition,IntroLayout.Seed);dig=State.TakeMutationControl();place=State.TakePlacementControl();physics=new RegionTerrainPhysics(State,transform);published=Revision;
   Discovery=new CaveDiscovery(State.World,new DiscoveryIndex(State.World,Definition.Concealed)){RevealDistance=9,MaxWaveCells=128,MaxReleases=256,Duration=.9};Discovery.SeedKnown(Definition.Known);

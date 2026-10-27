@@ -42,7 +42,6 @@ public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProj
  {
  using var _stage61Profile = stage61InitializeProfile.Auto();
 
-  if(GameSceneCatalog.DevelopmentCandidate)SporeGobbo.Safety.Persistence.ExperimentPath("Stage61");
   if(!GameSceneCatalog.IsCamp(gameObject.scene))throw new InvalidOperationException("Camp region is not the configured destination; use the protected development entry");campaign=GameState.Instance;
   if(campaign==null)throw new InvalidOperationException("Replacement Camp requires the real campaign entry flow");
   lifecycle=UnityEngine.Object.FindAnyObjectByType<CampSceneController>();spawner=UnityEngine.Object.FindAnyObjectByType<CampPlayableSpawner>();

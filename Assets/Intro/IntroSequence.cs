@@ -14,8 +14,12 @@ public sealed class IntroSequence:MonoBehaviour
  {
   using var profile=new Unity.Profiling.ProfilerMarker("Spore.Intro.Sequence").Auto();if(player==null||!Region.PresentationReady)return;if(Arriving){arrivalFade=Mathf.Clamp01(arrivalFade+Time.deltaTime/.7f);return;}
   if(!ControlReleased){if(ClockActive)BirthTime+=Time.deltaTime;if(BirthTime>=2.4f&&BirthTime-Time.deltaTime<2.4f)Region.Cue("spore.impact",Region.Arrival);if(BirthTime>=4.1f){source.enabled=true;view.PresentationLift=-.12f*Mathf.Clamp01(1-(BirthTime-4.1f)/1.6f);if(BirthTime-Time.deltaTime<4.1f)Region.Cue("spore.hatch",Region.Arrival);}if(BirthTime>=6.2f)Release();return;}
-  if(Keyboard.current!=null&&Keyboard.current.f7Key.wasPressedThisFrame)tools=!tools;
-  bool hover=tools&&Mouse.current!=null&&Mouse.current.position.ReadValue().x>Screen.width-365&&Mouse.current.position.ReadValue().y>Screen.height-250;if(hover&&!modal){SporeUiCoordinator.Instance.PushModal(this,null,false);modal=true;}else if(!hover&&modal){SporeUiCoordinator.Instance.PopModal(this);modal=false;}
+  if(V1RuntimeProfile.DevelopmentToolsEnabled&&Keyboard.current!=null&&Keyboard.current.f7Key.wasPressedThisFrame){
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+   if(!DevelopmentGameControls.OpenContext())tools=!tools;
+#endif
+  }
+  bool hover=V1RuntimeProfile.DevelopmentToolsEnabled&&tools&&Mouse.current!=null&&Mouse.current.position.ReadValue().x>Screen.width-365&&Mouse.current.position.ReadValue().y>Screen.height-250;if(hover&&!modal){SporeUiCoordinator.Instance.PushModal(this,null,false);modal=true;}else if(!hover&&modal){SporeUiCoordinator.Instance.PopModal(this);modal=false;}
   if(!ClockActive){Region.Presentation.VisualOffset=Vector2.zero;return;}ActiveSeconds+=Time.deltaTime;QuietTime+=Time.deltaTime;var p=Region.LogicalPosition(player.transform.position);
   if(QuietTime>=3&&!rumble){rumble=true;shake=.45f;Region.Cue("cave.first-rumble",player.transform.position);}
   if(shake>0){shake-=Time.deltaTime;Region.Presentation.VisualOffset=ShakeEnabled?new Vector2(Mathf.Sin(ActiveSeconds*24)*.035f,Mathf.Sin(ActiveSeconds*19)*.025f)*Mathf.Clamp01(shake/.45f):Vector2.zero;}else Region.Presentation.VisualOffset=Vector2.zero;
@@ -33,7 +37,7 @@ public sealed class IntroSequence:MonoBehaviour
   if(Vector2.Distance(player.transform.position,Region.World(Region.Definition.Exit))<1.3f&&PlugCleared)Region.ArrivalTransition.BeginArrival(player);
  }
  public void StopForArrival(){if(Arriving)return;Arriving=true;Region.Presentation.VisualOffset=Vector2.zero;if(player!=null){player.enabled=false;player.GetComponent<Rigidbody2D>().linearVelocity=Vector2.zero;}if(modal&&SporeUiCoordinator.Instance!=null)SporeUiCoordinator.Instance.PopModal(this);modal=false;}
- public FallingRockHazard DevelopmentRock(){if(!GameSceneCatalog.DevelopmentCandidate||!SporeGobbo.Safety.Persistence.Isolated||!ControlReleased)return null;return FallingRockHazard.Create(Region,player.transform.position,1,()=>ClockActive,null,Region.Cue);}
+ public FallingRockHazard DevelopmentRock(){if(!(V1RuntimeProfile.DevelopmentToolsEnabled||V1RuntimeProfile.EvidenceEnabled)||!SporeGobbo.Safety.Persistence.Isolated||!ControlReleased)return null;return FallingRockHazard.Create(Region,player.transform.position,1,()=>ClockActive,null,Region.Cue);}
  void OnGUI()
  {
   if(Region?.Projection==null)return;if(Arriving){GUI.color=new Color(.025f,.04f,.033f,arrivalFade);GUI.DrawTexture(new Rect(0,0,Screen.width,Screen.height),Texture2D.whiteTexture);GUI.color=Color.white;return;}
@@ -43,7 +47,19 @@ public sealed class IntroSequence:MonoBehaviour
   var logical=Region.LogicalPosition(player.transform.position);if(logical.X>110&&logical.X<127&&!PromptVisible)GUI.Box(new Rect(Screen.width*.5f-140,80,280,35),Binding("Dash")+" — a quick dash, if you like");
   if(logical.X<31&&QuietTime<7)GUI.Box(new Rect(Screen.width*.5f-135,80,270,35),"Move — "+Binding("Move"));
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-  GUI.Label(new Rect(Screen.width-400,Screen.height-80,390,25),"INTRO / F7 tools / shake "+(ShakeEnabled?"ON":"OFF"));if(tools){GUILayout.BeginArea(new Rect(Screen.width-360,10,350,230),GUI.skin.box);GUILayout.Label("Isolated Intro tools");if(GUILayout.Button("Camera shake: "+(ShakeEnabled?"ON":"OFF")))ShakeEnabled=!ShakeEnabled;if(GUILayout.Button("Warn, then drop one real rock here"))DevelopmentRock();GUILayout.Label("Rock impacts are nonlethal in this Intro.");GUILayout.Label("Replay: F9 → Main Menu → Reset owned Fresh A → Continue.");GUILayout.Label("Tutorial active seconds: "+TutorialSeconds.ToString("F1"));GUILayout.EndArea();}
+  if(V1RuntimeProfile.DevelopmentToolsEnabled&&!DevelopmentGameControls.HasHub&&tools){GUILayout.BeginArea(new Rect(Screen.width-360,10,350,230),GUI.skin.box);DrawDevelopmentControls();GUILayout.EndArea();}
+#endif
+ }
+ public void DrawDevelopmentControls()
+ {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+  if(!V1RuntimeProfile.DevelopmentToolsEnabled||!ControlReleased)return;
+  GUILayout.Label("Intro tools / nonlethal existing hazards");
+  if(GUILayout.Button("Camera shake: "+(ShakeEnabled?"ON":"OFF")))ShakeEnabled=!ShakeEnabled;
+  if(GUILayout.Button("Warn, then drop one real rock here"))DevelopmentRock();
+  GUILayout.Label("Rock impacts remain nonlethal in this Intro.");
+  GUILayout.Label("Replay: F9 campaign page / Main Menu / archive/reset owned Fresh A / Continue.");
+  GUILayout.Label("Tutorial active seconds: "+TutorialSeconds.ToString("F1"));
 #endif
  }
  void OnDestroy(){if(modal&&SporeUiCoordinator.Instance!=null)SporeUiCoordinator.Instance.PopModal(this);if(Region?.Presentation!=null)Region.Presentation.VisualOffset=Vector2.zero;if(disc!=null)Destroy(disc);}

@@ -85,18 +85,9 @@ public class CampSceneController : MonoBehaviour
         if (arrivalMode == CampArrivalMode.PostDeathSuccession)
         {
             if (TryStartDeathSuccessionFlow()) yield break;
-            if (GameSceneCatalog.DevelopmentCandidate)
-            {
-                Debug.LogWarning("[Development arrival] Missing pending succession. Camp remains closed; recover the last committed campaign through the development controls.");
-                yield break;
-            }
-            Debug.LogError("Post-death Camp arrival had no pending succession state. Refusing to open playable Camp.", this);
-            if (GameState.Instance != null)
-            {
-                GameState.Instance.lineageEnded = true;
-                SporeSaveManager.SaveCurrentSlotFromGameState();
-            }
-            LineageGameOverScreen.Show();
+            arrivalFailure = "The pending succession could not be restored. Return to the Main Menu to recover the last committed Camp.";
+            Debug.LogWarning("[Camp arrival] Missing pending succession; Camp remains closed.");
+            returnToMenuOnly = true;
             yield break;
         }
 
@@ -352,7 +343,7 @@ public class CampSceneController : MonoBehaviour
                 return;
             }
             state.EnsureRuntimeDefaults();
-            if (!GameSceneCatalog.DevelopmentCandidate){StoryEventService.Complete(state, StoryEventIds.ASporeHatchesCampDiscovered);SporeSaveManager.SaveCurrentSlotFromGameState();}
+            // First-arrival discovery is staged only in the detached ready-Camp commit below.
         }
         CompleteArrival();
     }
@@ -362,35 +353,49 @@ public class CampSceneController : MonoBehaviour
         if (campStartRoutineManager != null) campStartRoutineManager.BeginCampVisit();
     }
 
+    string arrivalFailure;
+    bool returnToMenuOnly;
+    public string ArrivalFailure => arrivalFailure;
     void CompleteArrival()
     {
-        if (GameSceneCatalog.DevelopmentCandidate && CampArrivalContext.HasPending && arrivalGeneration != CampArrivalContext.Generation)
+        if (CampArrivalContext.HasPending && arrivalGeneration != CampArrivalContext.Generation)
         {
-            Debug.LogWarning("[Development arrival] Stale arrival acknowledgement rejected."); return;
+            arrivalFailure="This Camp arrival is stale. Return to the Main Menu to recover the last committed Camp.";
+            returnToMenuOnly=true;
+            Debug.LogWarning("[Camp arrival] Stale acknowledgement rejected."); return;
         }
-        string pendingId = CampArrivalContext.PendingId;
+        string pendingId=CampArrivalContext.PendingId;
         CampArrivalContext.Acknowledge(arrivalGeneration);
-        if (GameSceneCatalog.DevelopmentCandidate)
+        try { SporeSaveManager.CommitReadyArrival(arrivalMode == CampArrivalMode.NewGameIntro); }
+        catch (System.Exception error)
         {
-            try { SporeSaveManager.CommitReadyDevelopmentArrival(arrivalMode == CampArrivalMode.NewGameIntro); }
-            catch (System.Exception error)
-            {
-                CampArrivalContext.RestorePending(arrivalMode, pendingId ?? System.Guid.NewGuid().ToString("N"));
-                arrivalGeneration = CampArrivalContext.Generation;
-                Debug.LogWarning("[Development arrival] Save acknowledgement failed; input remains disabled. Retry arrival from development controls: " + error.Message);
-                return;
-            }
+            CampArrivalContext.RestorePending(arrivalMode,pendingId??System.Guid.NewGuid().ToString("N"));
+            arrivalGeneration=CampArrivalContext.Generation;
+            arrivalFailure="Camp could not be saved. Your last committed campaign is preserved.";
+            Debug.LogWarning("[Camp arrival] Save acknowledgement failed; input remains disabled: "+error.Message);
+            return;
         }
-        WorldInputReady = true;
+        arrivalFailure=null;returnToMenuOnly=false;WorldInputReady=true;
+        RunReturnService.AcknowledgeCampArrival();
     }
-    public void RetryDevelopmentArrival()
+    public void RetryArrival()
     {
-        if (GameSceneCatalog.DevelopmentCandidate && !WorldInputReady && campPlayableSpawner != null && campPlayableSpawner.SpawnedPlayer != null) CompleteArrival();
+        if(!returnToMenuOnly&&!WorldInputReady&&campPlayableSpawner!=null&&campPlayableSpawner.SpawnedPlayer!=null)CompleteArrival();
+    }
+    public void RetryDevelopmentArrival()=>RetryArrival(); // Retained proof/old tools API; normal UI has the same recovery.
+    void OnGUI()
+    {
+        if(WorldInputReady||string.IsNullOrEmpty(arrivalFailure))return;
+        GUILayout.BeginArea(new Rect(Screen.width*.5f-240,Screen.height*.5f-100,480,210),GUI.skin.box);
+        GUILayout.Label(arrivalFailure);
+        if(!returnToMenuOnly&&GUILayout.Button("Retry saving Camp"))RetryArrival();
+        if(GUILayout.Button("Return to Main Menu")){SporePauseService.ResetAll();UnityEngine.SceneManagement.SceneManager.LoadScene(GameSceneCatalog.MainMenu);}
+        GUILayout.EndArea();
     }
 
     void FillRunStatsText()
     {
-        if(GameSceneCatalog.DevelopmentCandidate)CampCandidateUiLayout.RunStats(this);
+        if(GameSceneCatalog.IsCamp(gameObject.scene))CampCandidateUiLayout.RunStats(this);
         if (runStatsText == null || GameState.Instance == null) return;
         RunSummaryData run = GameState.Instance.lastRun;
         GobboUnitSaveData leader = GameState.Instance.GetLeader();
@@ -399,7 +404,7 @@ public class CampSceneController : MonoBehaviour
 
     void FillSurvivorsText()
     {
-        if(GameSceneCatalog.DevelopmentCandidate)CampCandidateUiLayout.Survivors(this);
+        if(GameSceneCatalog.IsCamp(gameObject.scene))CampCandidateUiLayout.Survivors(this);
         if (GameState.Instance == null) return;
         RunSummaryData run = GameState.Instance.lastRun;
         if (run == null) return;
@@ -500,7 +505,7 @@ public class CampSceneController : MonoBehaviour
         rect.anchorMin = new Vector2(0f, 1f);
         rect.anchorMax = new Vector2(1f, 1f);
         rect.pivot = new Vector2(0.5f, 1f);
-        rect.localScale=Vector3.one;rect.sizeDelta = new Vector2(0f, header ? 34f : GameSceneCatalog.DevelopmentCandidate?Mathf.Max(100,label.GetPreferredValues(text,Mathf.Max(180,((RectTransform)parent).rect.width-16),0).y+10):72f);
+        rect.localScale=Vector3.one;rect.sizeDelta = new Vector2(0f, header ? 34f : GameSceneCatalog.IsCamp(gameObject.scene)?Mathf.Max(100,label.GetPreferredValues(text,Mathf.Max(180,((RectTransform)parent).rect.width-16),0).y+10):72f);
         return label;
     }
 

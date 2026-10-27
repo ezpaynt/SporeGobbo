@@ -16,7 +16,7 @@ using System;using System.Linq;using System.Collections.Generic;using UnityEngin
  readonly HashSet<string> spawned=new HashSet<string>();
  void Awake()
  {
-  if(!GameSceneCatalog.DevelopmentCandidate||!GameSceneCatalog.ExpeditionEnabled||!SporeGobbo.Safety.Persistence.Isolated)throw new InvalidOperationException("Expedition requires protected candidate entry");
+  if(!GameSceneCatalog.IsExpedition(gameObject.scene))throw new InvalidOperationException("Expedition scene role is invalid");
   SampleSceneModeController.EnterAuthoredRun();
   using var profile=new Unity.Profiling.ProfilerMarker("Spore.Region.Initialize").Auto();
   long start=System.Diagnostics.Stopwatch.GetTimestamp();Definition=new ExpeditionLayout();State=new RegionTerrainState("expedition",ExpeditionLayout.Width,ExpeditionLayout.Height,Definition,ExpeditionLayout.Seed);commit=State.TakeMutationControl();physics=new RegionTerrainPhysics(State,transform);published=Revision;

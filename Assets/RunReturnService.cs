@@ -1,132 +1,114 @@
+using System;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public enum RunReturnReason
-{
-    NormalExit,
-    Retreat
-}
+public enum RunReturnReason { NormalExit, Retreat }
 
+/// <summary>One outcome/return transaction authority for normal runs and explicitly guarded Camp simulations.</summary>
 public static class RunReturnService
 {
-    private static bool returnInProgress;
-    private static bool preparedDevelopmentOutcome;
-    public static bool DevelopmentPreparationFailed { get; private set; }
-    private static UnityEngine.Object developmentReturnOwner;
-    public static float retreatSnackLossPercent = 0.75f;
+    static bool returnInProgress,preparedOutcome,campSimulation;
+    static UnityEngine.Object returnOwner;
+    public static bool DevelopmentPreparationFailed {get;private set;}
+    public static bool PreparingSimulatedOutcome {get;private set;}
+    public static bool HasPreparedOutcome=>preparedOutcome;
+    public static bool HasPreparedCampSimulation=>campSimulation&&preparedOutcome;
+    public static string LastFailure {get;private set;}
+    public static float retreatSnackLossPercent=0.75f;
+    public static RunReturnReason LastReturnReason{get;private set;}=RunReturnReason.NormalExit;
+    public static int LastRetreatMushroomsLost{get;private set;}
+    public static int LastRetreatShiniesLost{get;private set;}
 
-    public static RunReturnReason LastReturnReason { get; private set; } = RunReturnReason.NormalExit;
-    public static int LastRetreatMushroomsLost { get; private set; }
-    public static int LastRetreatShiniesLost { get; private set; }
-
-    public static bool ReturnToCamp(
-        string sceneToLoad = "CampScene",
-        bool saveRunBeforeLeaving = true,
-        bool saveSlotAfterRunCommit = true,
-        string source = "Run return")
+    // Transactions require an explicitly selected, valid committed campaign before any outcome mutation.
+    public static void RequireSelectedCampaign()
     {
-        return ReturnToCamp(
-            sceneToLoad,
-            saveRunBeforeLeaving,
-            saveSlotAfterRunCommit,
-            RunReturnReason.NormalExit,
-            source);
+        int slot=SporeSaveManager.GetCurrentSlot();
+        if(slot<1||slot>SporeSaveManager.SlotCount||SporeSaveManager.InspectSlot(slot)!=SporeSaveManager.SlotStatus.Valid)
+            throw new System.IO.InvalidDataException("Return requires a valid selected campaign. Recover the last committed Camp from Main Menu.");
     }
 
-    public static bool ReturnToCamp(
-        string sceneToLoad,
-        bool saveRunBeforeLeaving,
-        bool saveSlotAfterRunCommit,
-        RunReturnReason returnReason,
-        string source)
+    public static bool ReturnToCamp(string sceneToLoad="CampScene",bool saveRunBeforeLeaving=true,bool saveSlotAfterRunCommit=true,string source="Run return")
+        =>ReturnToCamp(sceneToLoad,saveRunBeforeLeaving,saveSlotAfterRunCommit,RunReturnReason.NormalExit,source);
+
+    public static bool ReturnToCamp(string sceneToLoad,bool saveRunBeforeLeaving,bool saveSlotAfterRunCommit,RunReturnReason returnReason,string source)
     {
-        sceneToLoad = GameSceneCatalog.Resolve(sceneToLoad);
-        if (GameSceneCatalog.DevelopmentCandidate && DevelopmentPreparationFailed)
-        { Debug.LogWarning("[Development return] Recover the last committed Camp before retrying a failed preparation."); return false; }
-        if (GameSceneCatalog.DevelopmentCandidate && !Application.CanStreamedLevelBeLoaded(sceneToLoad))
+        sceneToLoad=GameSceneCatalog.Resolve(sceneToLoad);
+        if(DevelopmentPreparationFailed){Debug.LogWarning("[Run return] Recover the last committed Camp before retrying failed preparation.");return false;}
+        if(!Application.CanStreamedLevelBeLoaded(sceneToLoad)){Debug.LogWarning("[Run return] Destination unavailable; campaign unchanged: "+sceneToLoad);return false;}
+        if(campSimulation)
         {
-            Debug.LogWarning("[Development return] Destination unavailable; campaign and run remain unchanged: " + sceneToLoad);
-            return false;
+            var camp=UnityEngine.Object.FindAnyObjectByType<CampSceneController>();
+            if(!V1RuntimeProfile.DevelopmentToolsEnabled||!SporeGobbo.Safety.Persistence.Isolated||camp==null||!camp.WorldInputReady)
+                return false;
+            returnOwner=camp;
         }
-        if (GameSceneCatalog.DevelopmentCandidate)
+        else
         {
-            developmentReturnOwner = Object.FindAnyObjectByType<RunStartInitializer>();
-            if (developmentReturnOwner == null || SampleSceneModeController.IsIntroMode)
-            { Debug.LogWarning("[Development return] No active NormalRun lifecycle; no effects applied."); return false; }
+            returnOwner=UnityEngine.Object.FindAnyObjectByType<RunStartInitializer>();
+            if(returnOwner==null||SampleSceneModeController.IsIntroMode){Debug.LogWarning("[Run return] No active NormalRun lifecycle; no effects applied.");return false;}
         }
-        if (returnInProgress)
-        {
-            Debug.LogWarning("[RunReturnService] Ignored duplicate return request from " + source + ".");
-            return false;
-        }
-
-        returnInProgress = true;
-        if (!preparedDevelopmentOutcome)
-        {
-            LastReturnReason = returnReason;
-            LastRetreatMushroomsLost = 0;
-            LastRetreatShiniesLost = 0;
-        }
-
-        Debug.Log("[RunReturnService] Returning to " + sceneToLoad + " from " + source + " | reason=" + returnReason + ".");
-
-        GameState state = EnsureGameState();
-
+        if(returnInProgress){Debug.LogWarning("[Run return] Duplicate request ignored from "+source);return false;}
+        returnInProgress=true;
+        if(!preparedOutcome){LastReturnReason=returnReason;LastRetreatMushroomsLost=LastRetreatShiniesLost=0;}
+        var state=EnsureGameState();
         try
         {
-        if (!preparedDevelopmentOutcome)
-        {
-            if (returnReason == RunReturnReason.Retreat)
+            RequireSelectedCampaign();
+            if(!preparedOutcome)
             {
-                RunSnackLootService.FinalizeRetreat(state, retreatSnackLossPercent);
-                ApplyRetreatLootPenalty(state);
+                if(returnReason==RunReturnReason.Retreat){RunSnackLootService.FinalizeRetreat(state,retreatSnackLossPercent);ApplyRetreatLootPenalty(state);}
+                else RunSnackLootService.FinalizeSuccess(state);
+                if(saveRunBeforeLeaving)state.SaveFromRun();
+                preparedOutcome=true;CampArrivalContext.SetPending(CampArrivalMode.ReturnedFromRun);SporePauseService.Acquire(returnOwner);
             }
-            else RunSnackLootService.FinalizeSuccess(state);
-
-            if (saveRunBeforeLeaving) state.SaveFromRun();
-            if (GameSceneCatalog.DevelopmentCandidate)
-            {
-                preparedDevelopmentOutcome = true;
-                CampArrivalContext.SetPending(CampArrivalMode.ReturnedFromRun);
-                SporePauseService.Acquire(developmentReturnOwner);
-            }
+            if(saveSlotAfterRunCommit)SporeSaveManager.SaveCurrentSlotFromGameState();
+            PlayerDeathRunStore.Instance?.ClearPendingDeath();
+            PlayerDeathWatcher.SuppressDeathHandlingForSceneChange();SporePauseService.ResetAll();
+            LastFailure=null;SceneManager.LoadScene(sceneToLoad);return true;
         }
-
-        if (saveSlotAfterRunCommit)
-            SporeSaveManager.SaveCurrentSlotFromGameState();
-
-        PlayerDeathRunStore deathStore = PlayerDeathRunStore.Instance;
-        if (deathStore != null)
-            deathStore.ClearPendingDeath();
-
-        PlayerDeathWatcher.SuppressDeathHandlingForSceneChange();
-        SporePauseService.ResetAll();
-        if (!GameSceneCatalog.DevelopmentCandidate) CampArrivalContext.SetPending(CampArrivalMode.ReturnedFromRun);
-        SceneManager.LoadScene(sceneToLoad);
-        return true;
-        }
-        catch (System.Exception error)
+        catch(Exception error)
         {
-            returnInProgress = false;
-            if (!GameSceneCatalog.DevelopmentCandidate) throw;
-            if (!preparedDevelopmentOutcome) DevelopmentPreparationFailed = true;
-            SporePauseService.Acquire(developmentReturnOwner);
-            Debug.LogWarning("[Development return] Outcome retained; retry return to save/arrive without repeating rewards. " + error.Message);
-            return false;
+            returnInProgress=false;if(!preparedOutcome)DevelopmentPreparationFailed=true;
+            LastFailure="The return could not be saved. Your last committed Camp is preserved.";
+            SporePauseService.Acquire(returnOwner);
+            Debug.LogWarning("[Run return] Outcome retained; retry without repeating rewards. "+error.Message);
+            RunReturnFailureView.Show(returnOwner);return false;
         }
     }
 
+    public static bool ReturnSimulatedCampOutcome(Action apply)
+    {
+        var camp=UnityEngine.Object.FindAnyObjectByType<CampSceneController>();
+        var state=GameState.Instance;
+        if(!V1RuntimeProfile.DevelopmentToolsEnabled||!SporeGobbo.Safety.Persistence.Isolated||camp==null||!camp.WorldInputReady||state==null||state.HasActiveRunSnapshot)
+            throw new InvalidOperationException("Camp simulation requires a ready Camp and owned development tools");
+        if(campSimulation&&preparedOutcome)return ReturnToCamp("CampScene",false,true,LastReturnReason,"Retry simulated Camp return");
+        if(DevelopmentPreparationFailed)throw new InvalidOperationException("Recover the last committed Camp after failed preparation");
+        if(apply==null)throw new ArgumentNullException(nameof(apply));
+        ResetForNewRun();returnOwner=camp;campSimulation=true;PreparingSimulatedOutcome=true;SporePauseService.Acquire(camp);
+        try
+        {
+            RequireSelectedCampaign();
+            apply();preparedOutcome=true;LastReturnReason=RunReturnReason.NormalExit;
+            CampArrivalContext.SetPending(CampArrivalMode.ReturnedFromRun);
+        }
+        catch(Exception error)
+        {
+            DevelopmentPreparationFailed=true;LastFailure="The simulated return could not be prepared. Recover your last committed Camp from the Main Menu.";
+            Debug.LogWarning("[Camp simulation] Preparation stopped without committing: "+error.Message);RunReturnFailureView.Show(camp);return false;
+        }
+        finally{PreparingSimulatedOutcome=false;}
+        return ReturnToCamp("CampScene",false,true,RunReturnReason.NormalExit,"Simulated Camp outcome");
+    }
+    public static void AcknowledgeCampArrival()
+    {
+        returnInProgress=preparedOutcome=campSimulation=PreparingSimulatedOutcome=DevelopmentPreparationFailed=false;
+        LastFailure=null;SporePauseService.Release(returnOwner);returnOwner=null;
+    }
     public static void ResetForNewRun()
     {
-        returnInProgress = false;
-        preparedDevelopmentOutcome = false;
-        DevelopmentPreparationFailed = false;
-        SporePauseService.Release(developmentReturnOwner);
-        LastReturnReason = RunReturnReason.NormalExit;
-        LastRetreatMushroomsLost = 0;
-        LastRetreatShiniesLost = 0;
+        AcknowledgeCampArrival();LastReturnReason=RunReturnReason.NormalExit;LastRetreatMushroomsLost=LastRetreatShiniesLost=0;
     }
-
     static void ApplyRetreatLootPenalty(GameState state)
     {
         if (state == null || state.lastRun == null)

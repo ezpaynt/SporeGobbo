@@ -28,7 +28,7 @@ public static class DevStateSnapshot
         List<DevStateSection> result = new List<DevStateSection>();
         GameState state = source != null ? source : GameState.Instance;
         if (state == null) { result.Add(new DevStateSection("STATE").Add("GameState", "Missing")); return result; }
-        state.EnsureRuntimeDefaults();
+        // Diagnostic projection only: missing/default data is displayed, never repaired here.
 
         var region = Object.FindAnyObjectByType<SettlementCampRegion>();
         if(region!=null)
@@ -43,18 +43,38 @@ public static class DevStateSnapshot
                 .Add("Constructor",routine!=null?routine.CurrentResidentialConstructorId:"")
                 .Add("Construction slot",routine!=null?routine.CurrentResidentialSlot:0)
                 .Add("Last construction failure",routine!=null?routine.LastResidentialFailureReason:"")
-                .Add("Storage","Owned development campaigns; production routing unchanged"));
+                .Add("Storage",V1RuntimeProfile.DevelopmentStorage ? "Isolated development namespace" : "Fresh V1 namespace"));
         }
         var expedition=Object.FindAnyObjectByType<ExpeditionRegion>();
         if(expedition!=null)result.Add(new DevStateSection("CURRENT WORLD REGION / EXPEDITION").Add("Layout",ExpeditionLayout.Identity).Add("Fingerprint",expedition.Definition.Fingerprint()).Add("Terrain revision",expedition.Revision).Add("Excavated cells",expedition.Excavations).Add("Discovery memory / shown",expedition.Discovery.Remembered.Count+" / "+expedition.Discovery.Visual.Count).Add("Encounters spawned",expedition.ActiveEncounters).Add("God Mode",ExpeditionDevelopmentControls.GodMode).Add("Temporary fixture power",expedition.TestDigPower).Add("Save boundary","Transient attempt; last committed Camp rollback on interrupted run"));
         var intro=Object.FindAnyObjectByType<IntroRegion>();
         if(intro!=null)result.Add(new DevStateSection("CURRENT WORLD REGION / INTRO").Add("Layout",IntroLayout.Identity).Add("Fingerprint",intro.Definition.Fingerprint()).Add("Revision",intro.Revision).Add("Excavated",intro.Excavations).Add("Placed rubble",intro.Placements).Add("Rejected rubble",intro.RejectedPlacements).Add("Hatch seconds",intro.Sequence.BirthTime).Add("Tutorial active seconds",intro.Sequence.TutorialSeconds).Add("Nonlethal hold",intro.Sequence.Forgiven).Add("Active rocks",FallingRockHazard.ActiveCount).Add("Save boundary","Incomplete Intro restarts from beginning; completion only at Camp commit"));
-        CampaignFacts facts = state.campaignFacts;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        string performance = Stage61RuntimeMetrics.ReadSummary();
+#else
+        string performance = "Diagnostics collector disabled in this build";
+#endif
+        result.Add(new DevStateSection("V1 SAVE / PERFORMANCE")
+            .Add("Development tools", V1RuntimeProfile.DevelopmentToolsEnabled)
+            .Add("Storage profile", V1RuntimeProfile.DevelopmentStorage ? "development / owned synthetic campaigns" : "normal / fresh V1 namespace")
+            .Add("Evidence driver", V1RuntimeProfile.EvidenceEnabled)
+            .Add("Performance", performance));
+        try
+        {
+            int slot = SporeSaveManager.GetCurrentSlot();
+            result.Add(new DevStateSection("DURABLE CAMPAIGN")
+                .Add("Selected slot", slot)
+                .Add("Read-only slot status", SporeSaveManager.InspectSlot(slot))
+                .Add("Recovery", "Explicit known-good backup; original failed bytes preserved"));
+        }
+        catch (System.Exception error)
+        { result.Add(new DevStateSection("DURABLE CAMPAIGN").Add("Status unavailable", error.Message)); }
+        CampaignFacts facts = state.campaignFacts ?? new CampaignFacts();
         result.Add(new DevStateSection("CAMPAIGN / LINEAGE")
             .Add("Lineage ended", state.lineageEnded).Add("Current run", state.currentRunNumber).Add("Camp cycle", state.campCycleNumber)
             .Add("Mushrooms eaten", facts.mushroomsEaten).Add("Weevils killed", facts.weevilsKilled).Add("Blobs killed", facts.blobsKilled));
 
-        RunSummaryData run = state.lastRun;
+        RunSummaryData run = state.lastRun ?? new RunSummaryData();
         result.Add(new DevStateSection(state.HasActiveRunSnapshot ? "CURRENT EXPEDITION" : "LAST FINALIZED EXPEDITION")
             .Add("Snapshot active", state.HasActiveRunSnapshot).Add("Run number", run.runNumber).Add("Survived", run.survived)
             .Add("Time", run.timeSpent.ToString("0.0") + "s").Add("Enemies killed", run.enemiesKilled)
@@ -65,11 +85,11 @@ public static class DevStateSnapshot
             .Add("New buddies", Join(run.newBuddyNames)).Add("Dead buddies", Join(run.deadBuddyNames))
             .Add("Upgrades", Join(run.upgradesChosen)).Add("Leveled buddies", Join(run.leveledBuddyNames)));
 
-        GobboUnitSaveData leader = state.GetLeader();
-        result.Add(BuildGobbo(leader, "LEADER — " + (leader != null ? leader.displayName.ToUpperInvariant() : "MISSING")));
-        List<GobboUnitSaveData> buddies = state.ownedGobbos;
+        GobboUnitSaveData leader = state.leader;
+        result.Add(BuildGobbo(leader, "LEADER — " + (leader != null ? Empty(leader.displayName).ToUpperInvariant() : "MISSING")));
+        List<GobboUnitSaveData> buddies = state.ownedGobbos ?? new List<GobboUnitSaveData>();
         for (int i = 0; i < buddies.Count; i++)
-            result.Add(BuildGobbo(buddies[i], "BUDDY " + (i + 1) + " — " + buddies[i].displayName.ToUpperInvariant()));
+            result.Add(BuildGobbo(buddies[i], "BUDDY " + (i + 1) + " — " + (buddies[i] != null ? Empty(buddies[i].displayName).ToUpperInvariant() : "MISSING")));
 
         result.Add(new DevStateSection("RESOURCES / INVENTORY")
             .Add("Mushrooms", leader != null ? leader.mushrooms : 0, "current balance, not Mushrooms Eaten")
@@ -79,17 +99,17 @@ public static class DevStateSnapshot
             .Add("Permanent item stacks", FormatStacks(state.itemStacks))
             .Add("Current-run snacks", FormatStacks(state.runSnackStacks)).Add("Run snacks finalized", state.runSnackFinalizedThisRun));
 
-        StoryProgressData story = state.storyProgress;
+        StoryProgressData story = state.storyProgress ?? new StoryProgressData();
         DevStateSection storySection = new DevStateSection("STORY").Add("Next unlock sequence", story.nextUnlockSequence);
-        if (story.completedEvents.Count == 0) storySection.Add("Completed records", "[]");
+        if (story.completedEvents == null || story.completedEvents.Count == 0) storySection.Add("Completed records", "[]");
         else foreach (StoryEventRecord record in story.completedEvents)
-            storySection.Add(record.unlockSequence + ". " + record.eventId, "run " + record.runNumber + ", camp cycle " + record.campCycle);
+            if (record != null) storySection.Add(record.unlockSequence + ". " + record.eventId, "run " + record.runNumber + ", camp cycle " + record.campCycle);
         if (StoryEventCoordinator.HasActiveEvent)
             storySection.Add("Active Story Event", StoryEventCoordinator.ActiveEventId);
         result.Add(storySection);
 
         MapGenerator map = MapGenerator.Instance;
-        PersistentTestCaveTerrainState cave = state.persistentTestCaveTerrain;
+        PersistentTestCaveTerrainState cave = state.persistentTestCaveTerrain ?? new PersistentTestCaveTerrainState();
         DevStateSection world = new DevStateSection("WORLD / MAP")
             .Add("Scene", SceneManager.GetActiveScene().name).Add("SampleScene mode", SampleSceneModeController.CurrentMode)
             .Add("Run profile", Empty(RunProfileCoordinator.ActiveDisplayName) + " [" + Empty(RunProfileCoordinator.ActiveProfileId) + "]")
@@ -103,21 +123,21 @@ public static class DevStateSnapshot
             .Add("Saved state matches layout", layout != null && cave.mapId == layout.mapId && cave.layoutVersion == layout.layoutVersion);
         result.Add(world);
 
-        CampTerrainState camp = state.campTerrainState;
+        CampTerrainState camp = state.campTerrainState ?? new CampTerrainState();
         result.Add(new DevStateSection("CAMP")
             .Add("Camp level", state.campLevel, "save-card value")
             .Add("Main chamber revealed", camp.mainChamberRevealed).Add("Layout revision", camp.layoutRevision)
             .Add("Residential stage", camp.residentialStage).Add("Established residential slots", camp.residentialSlotsEstablished)
-            .Add("Ordinary cleared terrain cells", camp.clearedCellCoordinates.Count).Add("Memorial established", camp.memorialEstablished)
+            .Add("Ordinary cleared terrain cells", camp.clearedCellCoordinates != null ? camp.clearedCellCoordinates.Count : 0).Add("Memorial established", camp.memorialEstablished)
             .Add("Station unlocks", Join(state.unlockedStations), "no production writer where empty")
             .Add("Expansion regions", Join(camp.unlockedExpansionRegionIds), "future-facing")
             .Add("Decorations", Join(state.decorationsUnlocked), "future-facing")
             .Add("Active squad IDs", Join(state.activeSquadIds)).Add("Marked successor", Empty(state.markedSuccessorId)));
 
-        DevStateSection deaths = new DevStateSection("DEATHS / MEMORIALS").Add("Records", state.deathHistory.Count,
+        DevStateSection deaths = new DevStateSection("DEATHS / MEMORIALS").Add("Records", state.deathHistory != null ? state.deathHistory.Count : 0,
             "memorial records snapshot generic kills, not newer species counters");
-        foreach (DeadBuddyRecord death in state.deathHistory)
-            deaths.Add(death.displayName + " [" + death.gobboId + "]", death.GetDisplayLine() + " | seen=" + death.memorialSeen);
+        if (state.deathHistory != null) foreach (DeadBuddyRecord death in state.deathHistory)
+            if (death != null) deaths.Add(death.displayName + " [" + death.gobboId + "]", death.GetDisplayLine() + " | seen=" + death.memorialSeen);
         result.Add(deaths);
         return result;
     }
@@ -132,7 +152,7 @@ public static class DevStateSnapshot
             .Add("Move / attack range / cooldown", g.moveSpeed + " / " + g.attackRange + " / " + g.attackCooldown)
             .Add("Dash", g.dashSpeed + " speed, " + g.dashDuration + "s, " + g.dashCooldown + "s cooldown")
             .Add("Dig", g.digPower + " power, " + g.digRadius + " radius, " + g.digRange + " range, " + g.digTickRate + "s tick")
-            .Add("Growth", g.pendingGrowthChoiceType + ", queue=" + g.pendingGrowthQueue.Count + ", evolutionPending=" + g.pendingEvolution)
+            .Add("Growth", g.pendingGrowthChoiceType + ", queue=" + (g.pendingGrowthQueue != null ? g.pendingGrowthQueue.Count : 0) + ", evolutionPending=" + g.pendingEvolution)
             .Add("Happiness", g.happiness).Add("Loyalty", g.loyalty, "not used yet")
             .Add("Runs survived", g.runsSurvived).Add("Nights survived", g.nightsSurvived, "compatibility alias")
             .Add("Kills", g.kills).Add("Mushrooms eaten", g.mushroomsEaten).Add("Weevils killed", g.weevilsKilled).Add("Blobs killed", g.blobsKilled)

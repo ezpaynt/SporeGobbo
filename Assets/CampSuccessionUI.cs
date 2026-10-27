@@ -121,7 +121,7 @@ public class CampSuccessionUI : MonoBehaviour
         if (acceptMarkedSuccessorButton != null)
         {
             PrepareButton(acceptMarkedSuccessorButton, "AcceptMarkedSuccessorButton", "Accept\nMarked\nSuccessor");
-            BindOwnedButton(acceptMarkedSuccessorButton,AcceptMarkedSuccessor,GameSceneCatalog.DevelopmentCandidate);
+            BindOwnedButton(acceptMarkedSuccessorButton,AcceptMarkedSuccessor,GameSceneCatalog.IsCamp(gameObject.scene));
             AttachRelay(acceptMarkedSuccessorButton, DeathButtonClickRelay.DeathButtonAction.AcceptMarkedSuccessor);
             Log("Hooked accept button: " + GetPath(acceptMarkedSuccessorButton.transform));
         }
@@ -130,7 +130,7 @@ public class CampSuccessionUI : MonoBehaviour
         if (letCampChooseButton != null)
         {
             PrepareButton(letCampChooseButton, "LetCampChooseButton", "Let Camp\nChoose");
-            BindOwnedButton(letCampChooseButton,LetCampChoose,GameSceneCatalog.DevelopmentCandidate);
+            BindOwnedButton(letCampChooseButton,LetCampChoose,GameSceneCatalog.IsCamp(gameObject.scene));
             AttachRelay(letCampChooseButton, DeathButtonClickRelay.DeathButtonAction.LetCampChoose);
             Log("Hooked choose button: " + GetPath(letCampChooseButton.transform));
         }
@@ -139,7 +139,7 @@ public class CampSuccessionUI : MonoBehaviour
         if (returnToMainMenuButton != null)
         {
             PrepareButton(returnToMainMenuButton, "ReturnToMainMenuButton", "Return To\nMain Menu");
-            BindOwnedButton(returnToMainMenuButton,ReturnToMainMenu,GameSceneCatalog.DevelopmentCandidate);
+            BindOwnedButton(returnToMainMenuButton,ReturnToMainMenu,GameSceneCatalog.IsCamp(gameObject.scene));
             AttachRelay(returnToMainMenuButton, DeathButtonClickRelay.DeathButtonAction.ReturnToMainMenu);
             Log("Hooked return button: " + GetPath(returnToMainMenuButton.transform));
         }
@@ -147,7 +147,7 @@ public class CampSuccessionUI : MonoBehaviour
 
     private void AttachRelay(Button button, DeathButtonClickRelay.DeathButtonAction action)
     {
-        if (GameSceneCatalog.DevelopmentCandidate)
+        if (GameSceneCatalog.IsCamp(gameObject.scene))
         {
             var existing = button != null ? button.GetComponent<DeathButtonClickRelay>() : null;
             if (existing != null) existing.Configure(this,action,false,false);
@@ -164,7 +164,7 @@ public class CampSuccessionUI : MonoBehaviour
     private void PrepareButton(Button button, string objectName, string label)
     {
         if (button == null) return;
-        if (GameSceneCatalog.DevelopmentCandidate) button.enabled = true;
+        if (GameSceneCatalog.IsCamp(gameObject.scene)) button.enabled = true;
 
         button.name = objectName;
         // Do not force SetActive(true) here. OpenSuccessionPanel controls which buttons should be visible.
@@ -183,7 +183,7 @@ public class CampSuccessionUI : MonoBehaviour
         {
             tmpText.text = label;
             tmpText.raycastTarget = false;
-            if (GameSceneCatalog.DevelopmentCandidate)
+            if (GameSceneCatalog.IsCamp(gameObject.scene))
             {
                 tmpText.alignment=TextAlignmentOptions.Center;tmpText.margin=Vector4.zero;tmpText.enableAutoSizing=true;tmpText.fontSizeMin=22;tmpText.fontSizeMax=28;
                 var textRect=tmpText.rectTransform;textRect.anchorMin=Vector2.zero;textRect.anchorMax=Vector2.one;textRect.offsetMin=new Vector2(12,8);textRect.offsetMax=new Vector2(-12,-8);
@@ -195,9 +195,9 @@ public class CampSuccessionUI : MonoBehaviour
         {
             oldText.text = label;
             oldText.raycastTarget = false;
-            if(GameSceneCatalog.DevelopmentCandidate){oldText.alignment=TextAnchor.MiddleCenter;oldText.resizeTextForBestFit=true;oldText.resizeTextMinSize=22;oldText.resizeTextMaxSize=28;}
+            if(GameSceneCatalog.IsCamp(gameObject.scene)){oldText.alignment=TextAnchor.MiddleCenter;oldText.resizeTextForBestFit=true;oldText.resizeTextMinSize=22;oldText.resizeTextMaxSize=28;}
         }
-        if(GameSceneCatalog.DevelopmentCandidate)
+        if(GameSceneCatalog.IsCamp(gameObject.scene))
         {
             var rect=(RectTransform)button.transform;rect.anchorMin=rect.anchorMax=new Vector2(.5f,0);rect.pivot=new Vector2(.5f,.5f);rect.sizeDelta=new Vector2(360,100);
             float x=markedSuccessor==null?0:button==acceptMarkedSuccessorButton?-230:button==letCampChooseButton?230:0;rect.anchoredPosition=new Vector2(x,130);
@@ -289,7 +289,7 @@ public class CampSuccessionUI : MonoBehaviour
         if (letCampChooseButton != null) letCampChooseButton.gameObject.SetActive(true);
 
         HookButtons();
-        if(GameSceneCatalog.DevelopmentCandidate)
+        if(GameSceneCatalog.IsCamp(gameObject.scene))
         {
             if(titleText!=null){var rect=titleText.rectTransform;rect.anchorMin=rect.anchorMax=new Vector2(.5f,1);rect.pivot=new Vector2(.5f,1);rect.anchoredPosition=new Vector2(0,-65);rect.sizeDelta=new Vector2(1300,100);titleText.alignment=TextAlignmentOptions.Center;titleText.margin=Vector4.zero;titleText.enableAutoSizing=false;titleText.fontSize=42;}
             if(bodyText!=null){var rect=bodyText.rectTransform;rect.anchorMin=new Vector2(.08f,.30f);rect.anchorMax=new Vector2(.92f,.78f);rect.offsetMin=rect.offsetMax=Vector2.zero;bodyText.alignment=TextAlignmentOptions.TopLeft;bodyText.margin=Vector4.zero;bodyText.fontSize=32;bodyText.enableAutoSizing=false;}
@@ -374,7 +374,7 @@ public class CampSuccessionUI : MonoBehaviour
 
     public void AcceptMarkedSuccessor()
     {
-        if (pendingPromotion != null) { FinishDevelopmentPromotion(); return; }
+        if (pendingPromotion != null) { FinishPromotion(); return; }
         if (resolvingSuccession) { Log("Accept ignored because succession is already resolving."); return; }
         Log("Accept marked successor clicked.");
 
@@ -389,7 +389,7 @@ public class CampSuccessionUI : MonoBehaviour
 
     public void LetCampChoose()
     {
-        if (pendingPromotion != null) { FinishDevelopmentPromotion(); return; }
+        if (pendingPromotion != null) { FinishPromotion(); return; }
         if (resolvingSuccession) { Log("Let Camp Choose ignored because succession is already resolving."); return; }
         Log("Let Camp Choose clicked.");
 
@@ -439,46 +439,25 @@ public class CampSuccessionUI : MonoBehaviour
         GameState.Instance.markedSuccessorId = "";
         GameState.Instance.lineageEnded = false;
 
-        if (GameSceneCatalog.DevelopmentCandidate)
-        {
-            pendingPromotion = successor;
-            CampSuccessorPreferenceStore.Instance?.ClearSuccessor(false);
-            FinishDevelopmentPromotion();
-            return;
-        }
-
-        CampSuccessorPreferenceStore pref = CampSuccessorPreferenceStore.Instance;
-        if (pref != null) pref.ClearSuccessor();
-
-        PlayerDeathRunStore store = PlayerDeathRunStore.Instance;
-        if (store != null) store.ClearPendingDeath();
-
-        SporeSaveManager.SaveCurrentSlotFromGameState();
-
-        Log("Promoted successor: " + successor.displayName + " / " + successor.uniqueId);
-
-        HideAllPanels();
-        SporePauseService.ResetAll();
-
-        CampSceneController controller = Object.FindAnyObjectByType<CampSceneController>(FindObjectsInactive.Include);
-        if (controller != null) controller.RevealCampVisuals();
+        pendingPromotion=successor;
+        CampSuccessorPreferenceStore.Instance?.ClearSuccessor(false);
+        FinishPromotion();
     }
 
     public void ReturnToMainMenu()
     {
         Log("Return to main menu clicked. Scene: " + mainMenuSceneName);
         CampArrivalContext.Clear();
-        if (!GameSceneCatalog.DevelopmentCandidate) PlayerDeathRunStore.Instance?.ClearPendingDeath();
         SporePauseService.ResetAll();
         if (!string.IsNullOrWhiteSpace(mainMenuSceneName))
             SceneManager.LoadScene(mainMenuSceneName);
     }
 
-    void FinishDevelopmentPromotion()
+    void FinishPromotion()
     {
         if (pendingPromotion == null) return;
         resolvingSuccession = true;
-        try { SporeSaveManager.CommitResolvedDevelopmentSuccession(); }
+        try { SporeSaveManager.CommitResolvedSuccession(); }
         catch (System.Exception error)
         {
             resolvingSuccession = false;

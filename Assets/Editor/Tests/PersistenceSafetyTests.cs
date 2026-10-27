@@ -8,6 +8,7 @@ public class PersistenceSafetyTests
  [Test] public void SandboxSaveRoundTripUsesProductionSerializer()
  {
   var data = SporeSaveSlotData.CreateNew(3,"Synthetic safety sentinel","CampScene");
+  data.campTerrainState.regionSnapshot = CampRegionSnapshot.Pristine();
   string before = UnityEngine.JsonUtility.ToJson(data);
   SporeSaveManager.SaveSlot(data);
   Assert.That(SporeSaveManager.LoadSlot(3).playerName,Is.EqualTo(data.playerName));
@@ -61,7 +62,9 @@ public class PersistenceSafetyTests
    var state=host.AddComponent<GameState>(); state.EnsureRuntimeDefaults();
    var unit=new GobboUnitSaveData { uniqueId="safety-synthetic-buddy", displayName="Synthetic Buddy" };
    state.AddGobbo(unit,false);
-   SporeSaveManager.SaveSlot(new SporeSaveSlotData {slotIndex=1,playerName="Synthetic campaign"});
+   var campaign = SporeSaveSlotData.CreateNew(1,"Synthetic campaign","CampScene");
+   campaign.campTerrainState.regionSnapshot = CampRegionSnapshot.Pristine();
+   SporeSaveManager.SaveSlot(campaign);
    string path=SporeSaveManager.GetSlotPath(1); string before=File.ReadAllText(path);
    // The historical incident had no registered campaign authority. Isolation remains required,
    // and canonical capture now rejects that invalid caller instead of rewriting its selected slot.

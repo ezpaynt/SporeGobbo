@@ -144,7 +144,7 @@ public class CampRunPortal : MonoBehaviour, ICampInteractable, IWorldInteraction
         SporePauseService.ResetAll();
         PlayerDeathWatcher.SuppressDeathHandlingForSceneChange();
         SampleSceneModeContext.SetPending(SampleSceneMode.NormalRun, developmentRunProfileOverride);
-        SceneManager.LoadScene(GameSceneCatalog.DevelopmentCandidate?GameSceneCatalog.Run:runSceneName);
+        SceneManager.LoadScene(GameSceneCatalog.Run);
     }
 
     int CountRoster() => GameState.Instance != null && GameState.Instance.ownedGobbos != null ? GameState.Instance.ownedGobbos.Count : 0;

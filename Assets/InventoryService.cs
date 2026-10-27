@@ -15,17 +15,18 @@ public static class InventoryService
     public static int GetQuantity(GameState state, string itemId)
     {
         if (state == null) return 0;
-        Normalize(state);
         string normalized = ItemIdUtility.Normalize(itemId);
         if (string.IsNullOrWhiteSpace(normalized)) return 0;
 
-        foreach (InventoryStackSaveData stack in state.itemStacks)
-        {
-            if (stack != null && stack.itemId == normalized)
-                return Mathf.Max(0, stack.quantity);
-        }
-
-        return 0;
+        // A query observes the normalized value without repairing canonical stacks.
+        long total = 0;
+        if (state.itemStacks != null)
+            foreach (InventoryStackSaveData stack in state.itemStacks)
+                if (stack != null && ItemIdUtility.Normalize(stack.itemId) == normalized && stack.quantity > 0)
+                    total = Math.Min(int.MaxValue, total + stack.quantity);
+        ItemDefinition definition = ItemDatabase.Get(normalized);
+        int maximum = definition != null ? definition.GetMaxStack() : int.MaxValue;
+        return Math.Min((int)total, maximum);
     }
 
     public static bool Has(GameState state, string itemId, int quantity = 1)
@@ -102,16 +103,13 @@ public static class InventoryService
     public static IReadOnlyList<InventoryStackSaveData> GetStacks(GameState state)
     {
         if (state == null) return new List<InventoryStackSaveData>();
-        Normalize(state);
-        return CloneStacks(state.itemStacks);
+        return NormalizeStacks(state.itemStacks, true);
     }
 
     public static IEnumerable<ItemDefinition> EnumerateOwnedDefinitions(GameState state, ItemCategory? category = null, ItemTrait requiredTraits = ItemTrait.None)
     {
         if (state == null) yield break;
-        Normalize(state);
-
-        foreach (InventoryStackSaveData stack in state.itemStacks)
+        foreach (InventoryStackSaveData stack in GetStacks(state))
         {
             if (stack == null || stack.quantity <= 0) continue;
             ItemDefinition definition = ItemDatabase.Get(stack.itemId);

@@ -34,7 +34,7 @@ namespace SporeGobbo.Geometry.Preview
   {
    if(World!=null)throw new InvalidOperationException("Region renderer already bound");
    World=world;materials=layers;projectionShader=shader;previewCamera=camera;focus=start;
-   settings=Stage49Preview.Settings(2);settings.anchor=.62f;
+   settings=ReferenceCameraSettings.Create();settings.anchor=.62f;
    origin=new Point2(world.Width*.5,world.Height*.5);Gpu=gameObject.AddComponent<Stage45GpuProjection>();
    Gpu.projectionShader=shader;Gpu.bufferPoolLimit=48;Gpu.cacheMaterialBindings=true;
    if(fillOutside){exteriorData=new PreviewMeshData("Protected exterior",PreviewLayer.Solid);double pad=512;exteriorData.Rectangle(-pad,-pad,world.Width+pad,0);exteriorData.Rectangle(-pad,world.Height,world.Width+pad,world.Height+pad);exteriorData.Rectangle(-pad,0,0,world.Height);exteriorData.Rectangle(world.Width,0,world.Width+pad,world.Height);exteriorFilter=Create("Protected exterior",PreviewLayer.Solid,1);}
@@ -90,3 +90,4 @@ void Release(MeshFilter f){if(f==null)return;Gpu.Forget(f);f.gameObject.SetActiv
 void Evict(StreamedChunk c){if(presentations.TryGetValue(c.Key,out var p)){if(presentationPool.Count<8){foreach(var f in p.Filters){Gpu.Forget(f);f.sharedMesh.Clear();f.gameObject.SetActive(false);}presentationPool.Push(p);}else foreach(var filter in p.Filters)Release(filter);presentations.Remove(c.Key);}}void OnDestroy(){if(exteriorFilter!=null)Release(exteriorFilter);Stream?.Dispose();while(presentationPool.Count>0)foreach(var f in presentationPool.Pop().Filters)Release(f);}
  }
 }
+

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 namespace SporeGobbo.Safety
 {
-    // Normal player saves retain their original location and format. Editor tests fail closed.
+    // V1 profiles have separate namespaces. Protected builds and Editor tests fail closed.
     public static class Persistence
     {
         static readonly Dictionary<string, object> prefs = new Dictionary<string, object>();
@@ -12,6 +12,7 @@ namespace SporeGobbo.Safety
         {
             get
             {
+                if (ProtectedPlayerIdentity(Application.companyName, Application.productName)) return true;
                 if (Application.isBatchMode || Array.IndexOf(Environment.GetCommandLineArgs(), "-runTests") >= 0) return true;
 #if UNITY_INCLUDE_TESTS && !UNITY_EDITOR
                 return true;
@@ -30,6 +31,7 @@ namespace SporeGobbo.Safety
                 return Preview(scene) || Preview(first);
             }
         }
+        public static bool ProtectedPlayerIdentity(string company, string product) => company == "SporeGobboSafety" || (!string.IsNullOrEmpty(product) && product.StartsWith("Safety_", StringComparison.Ordinal));
         static bool Preview(string path) => path.StartsWith("Assets/Stage", StringComparison.Ordinal) || path.StartsWith("Assets/Terrain/", StringComparison.Ordinal);
         public static string ExperimentRoot => Root();
         public static string ExperimentPath(params string[] parts) => Within(Root(), Path.Combine(parts));
@@ -65,11 +67,12 @@ namespace SporeGobbo.Safety
         {
             get
             {
-                if (Isolated || RequiresIsolation) return Within(Root(), "Saves");
-                return Path.Combine(Application.persistentDataPath, "Saves");
+                if (Isolated || RequiresIsolation) return Within(Root(), V1RuntimeProfile.CampaignRelativeFolder);
+                if (V1RuntimeProfile.DevelopmentStorage) throw new InvalidOperationException("Development campaigns require owned isolation");
+                return Path.Combine(Application.persistentDataPath, "V1", "Campaigns");
             }
         }
-        public static string SlotPath(string folder, string file) => Isolated || RequiresIsolation ? Within(folder, file) : Path.Combine(folder, file);
+        public static string SlotPath(string folder, string file) => Within(folder, file);
         static bool MemoryPrefs { get { if (Isolated || RequiresIsolation) { Root(); return true; } return false; } }
         public static int GetInt(string key, int fallback = 0) => MemoryPrefs ? (prefs.TryGetValue(key,out var value) && value is int i ? i : fallback) : PlayerPrefs.GetInt(key,fallback);
         public static string GetString(string key,string fallback = "") => MemoryPrefs ? (prefs.TryGetValue(key,out var value) && value is string s ? s : fallback) : PlayerPrefs.GetString(key,fallback);

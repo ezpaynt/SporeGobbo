@@ -51,7 +51,7 @@ public class EnemyProjectile : MonoBehaviour
         if(spent)return;
         Vector2 position=rb!=null?rb.position:(Vector2)transform.position;
         var region=RegionQueries.Current;
-        if(GameSceneCatalog.DevelopmentCandidate&&UnityEngine.SceneManagement.SceneManager.GetActiveScene().name==GameSceneCatalog.CandidateExpedition&&region==null){StopAtTerrain();return;}
+        if(GameSceneCatalog.IsExpedition(UnityEngine.SceneManagement.SceneManager.GetActiveScene())&&region==null){StopAtTerrain();return;}
         float distance=speed*Time.fixedDeltaTime;
         if(region!=null){
             if(!region.LogicalReady){StopAtTerrain();return;}

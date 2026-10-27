@@ -70,7 +70,7 @@ public sealed class Stage61PersistenceTests
     }
     [Test] public void DeathRemovesRosterAndSquadBeforeMemorialAutosave()
     {
-        string current="SporeGobbo_CurrentSlot",last="SporeGobbo_LastPlayedSlot";
+        string current=V1RuntimeProfile.PreferencePrefix+"CurrentSlot",last=V1RuntimeProfile.PreferencePrefix+"LastPlayedSlot";
         int oldCurrent=Persistence.GetInt(current,0),oldLast=Persistence.GetInt(last,0);
         var host=new GameObject("owned death transaction test");
         try

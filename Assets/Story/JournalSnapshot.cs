@@ -27,7 +27,14 @@ public static class JournalSnapshotBuilder
     {
         JournalSnapshot snapshot = new JournalSnapshot();
         if (library == null || state == null || state.storyProgress == null || library.threads == null) return snapshot;
-        state.storyProgress.Normalize();
+        // Normalize a detached projection only. StoryProgressData.Find/Clone normalize their receiver.
+        var story = new StoryProgressData { nextUnlockSequence = state.storyProgress.nextUnlockSequence };
+        if (state.storyProgress.completedEvents != null)
+            foreach (var record in state.storyProgress.completedEvents)
+                if (record != null) story.completedEvents.Add(record.Clone());
+        story.Normalize();
+        var completed = new Dictionary<string, StoryEventRecord>(System.StringComparer.Ordinal);
+        foreach (var record in story.completedEvents) completed[record.eventId] = record;
 
         foreach (JournalThreadDefinition definition in library.threads)
         {
@@ -43,8 +50,8 @@ public static class JournalSnapshotBuilder
             {
                 JournalEntryDefinition entry = definition.entries[i];
                 if (entry == null) continue;
-                StoryEventRecord record = state.storyProgress.Find(entry.requiredStoryEventId);
-                if (record == null) continue;
+                if (string.IsNullOrWhiteSpace(entry.requiredStoryEventId) ||
+                    !completed.TryGetValue(entry.requiredStoryEventId.Trim(), out StoryEventRecord record)) continue;
                 thread.entries.Add(new JournalEntrySnapshot
                 {
                     entryId = entry.entryId,
