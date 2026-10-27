@@ -18,13 +18,17 @@ public sealed class V1VisualEvidence:MonoBehaviour
   ExpeditionDevelopmentControls.SetGodMode(true);var r=Find<ExpeditionRegion>();
   var cases=new[]{new Point2(108.5,52.5),new Point2(114.5,58.5),new Point2(108.5,65.5),new Point2(74.5,63.5),new Point2(78.5,68.5),new Point2(85.5,64.5),new Point2(107.5,97.5),new Point2(115.5,103.5),new Point2(107.5,109.5)};
   string[] names={"stone-back","stone-side","stone-front","root-back","root-underpass","root-side","fossil-back","fossil-side","fossil-front"};
+  foreach(int health in new[]{100,250,500})
+  {
+  var leader=GameState.Instance.GetLeader();leader.maxHealth=health;leader.health=health;GameState.Instance.ApplyToPlayer(r.Player);yield return null;
   for(int i=0;i<cases.Length;i++)
   {
    Vector2 p=r.World(cases[i]);var body=r.Player.GetComponent<Rigidbody2D>();bool fit=TileMover.CanOccupyBox(r,p,TileMover.GetMapClearanceExtents(body,.25f));
    if(!fit){bool found=false;for(int d=1;d<=4&&!found;d++)for(int x=-d;x<=d&&!found;x++)for(int y=-d;y<=d&&!found;y++){var q=r.World(cases[i]+new Point2(x,y));if(TileMover.CanOccupyBox(r,q,TileMover.GetMapClearanceExtents(body,.25f))){p=q;found=true;}}fit=found;}
-   Check("representative logical clearance / "+names[i],fit);if(!fit)continue;body.position=p;r.Player.transform.position=p;body.linearVelocity=Vector2.zero;Physics2D.SyncTransforms();yield return new WaitForSeconds(1.2f);yield return Capture(names[i]);
+   Check("representative logical clearance / hp"+health+" / "+names[i],fit);if(!fit)continue;body.position=p;r.Player.transform.position=p;body.linearVelocity=Vector2.zero;Physics2D.SyncTransforms();yield return new WaitForSeconds(1.2f);yield return Capture("hp"+health+"-"+names[i]);
    var view=r.Player.GetComponent<Stage59ActorView>();Check("projected feet agree with shared terrain mapping / "+names[i],view!=null&&view.IsPresented&&Vector2.Distance(view.ProjectedFoot,(Vector2)r.Render(view.PhysicalFoot))<.001f);
-   if(view!=null)File.AppendAllText(Path.Combine(directory,"grounding.csv"),names[i]+","+p.x+","+p.y+","+view.PhysicalFoot.x+","+view.PhysicalFoot.y+","+view.ProjectedHead.x+","+view.ProjectedHead.y+"\n");
+   if(view!=null)File.AppendAllText(Path.Combine(directory,"grounding.csv"),"hp"+health+"-"+names[i]+","+p.x+","+p.y+","+view.PhysicalFoot.x+","+view.PhysicalFoot.y+","+view.ProjectedHead.x+","+view.ProjectedHead.y+","+r.Player.transform.localScale.x+"\n");
+  }
   }
   Check("visual fixtures preserve accepted projection and scale",r.CellSize==.6f&&r.Presentation.settings.anchor==.62f);Finish();
  }

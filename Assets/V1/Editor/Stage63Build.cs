@@ -3,7 +3,7 @@ using System;using System.IO;using UnityEngine;using UnityEditor;using UnityEdit
 /// <summary>Fixed protected V1 build; normal MainMenu-first scene policy, no preview entry.</summary>
 public static class Stage63Build
 {
- public static readonly string[] Scenes={"Assets/Scenes/MainMenu.unity","Assets/Intro/FirstGobboIntro.unity","Assets/Stage61/FutureCampCandidate.unity","Assets/Expedition/FirstExpedition.unity"};
+ public static readonly string[] Scenes={"Assets/Scenes/MainMenu.unity","Assets/Intro/FirstGobboIntro.unity",V1RuntimeProfile.NormalCampSceneAsset,"Assets/Expedition/FirstExpedition.unity"};
  public static void Build()
  {
   string project=Path.GetFullPath(Path.Combine(Application.dataPath,".."));

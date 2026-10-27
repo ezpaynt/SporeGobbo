@@ -23,7 +23,9 @@ public sealed class Stage61RuntimeMetrics : MonoBehaviour
         "Spore.Stage61.Camera","Spore.Stage61.RegionInitialize","Spore.Stage61.CollisionPublish","Spore.Stage61.Navigation","Spore.Stage61.Digging",
         "Spore.Stage61.RenderRefresh","Spore.Stage61.MeshPublication","Spore.Stage61.SnapshotCapture","Spore.Stage61.SaveCommit","Spore.Stage61.ResidentialPlanner",
         "Spore.V1.SaveSerialize","Spore.V1.SaveValidate","Spore.V1.StorageRead","Spore.V1.StorageHash","Spore.V1.StorageValidate",
-        "Spore.V1.StorageWrite","Spore.V1.StorageFlush","Spore.V1.StorageReplace","Spore.V1.StorageRecovery","Spore.V1.StorageCommit"
+        "Spore.V1.StorageWrite","Spore.V1.StorageFlush","Spore.V1.StorageReplace","Spore.V1.StorageRecovery","Spore.V1.StorageCommit",
+        "Spore.V1.GobboStart","Spore.V1.CommandWheelInit","Spore.V1.LeaderRefresh","Spore.V1.WorldInteractorInit",
+        "Spore.V1.IntroRelease","Spore.V1.BindingDisplay","Spore.V1.IntroGUI","Spore.V1.IntroPromptPrepare"
     };
     struct Frame
     {

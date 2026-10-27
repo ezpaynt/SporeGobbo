@@ -174,6 +174,7 @@ public class GobboController : MonoBehaviour
 
     void Start()
     {
+        using var _v1InitProfile = new Unity.Profiling.ProfilerMarker("Spore.V1.GobboStart").Auto();
         if (inputReader == null)
             inputReader = SporeInputReader.Instance;
 
@@ -246,6 +247,7 @@ public class GobboController : MonoBehaviour
 
     public void RefreshAfterSaveLoad()
     {
+        using var _v1InitProfile = new Unity.Profiling.ProfilerMarker("Spore.V1.LeaderRefresh").Auto();
         health = Mathf.Clamp(health, 1, maxHealth);
         UpdateSize();
         UpdateDirectionalSprite();

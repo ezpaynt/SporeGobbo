@@ -143,6 +143,7 @@ public sealed class BuddyCommandWheelController : MonoBehaviour
     void EnsureUi()
     {
         if (canvas != null) return;
+        using var _v1InitProfile = new Unity.Profiling.ProfilerMarker("Spore.V1.CommandWheelInit").Auto();
 
         GameObject canvasObject = new("BuddyCommandWheelCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
         canvasObject.transform.SetParent(transform, false);

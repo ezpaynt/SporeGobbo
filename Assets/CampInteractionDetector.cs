@@ -237,6 +237,7 @@ public class CampInteractionDetector : MonoBehaviour
         if (promptPanel != null && promptText != null) return;
         if (promptResolutionAttempted) return;
 
+        using var _v1InitProfile = new Unity.Profiling.ProfilerMarker("Spore.V1.WorldInteractorInit").Auto();
         promptResolutionAttempted = true;
         Canvas canvas = FindPromptCanvas();
         GameObject prefab = Resources.Load<GameObject>(RuntimePromptResourcePath);

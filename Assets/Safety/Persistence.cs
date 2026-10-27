@@ -32,7 +32,8 @@ namespace SporeGobbo.Safety
             }
         }
         public static bool ProtectedPlayerIdentity(string company, string product) => company == "SporeGobboSafety" || (!string.IsNullOrEmpty(product) && product.StartsWith("Safety_", StringComparison.Ordinal));
-        static bool Preview(string path) => path.StartsWith("Assets/Stage", StringComparison.Ordinal) || path.StartsWith("Assets/Terrain/", StringComparison.Ordinal);
+        static bool Preview(string path) => IsHistoricalPreviewScene(path);
+        public static bool IsHistoricalPreviewScene(string path) => path != V1RuntimeProfile.NormalCampSceneAsset && !string.IsNullOrEmpty(path) && (path.StartsWith("Assets/Stage", StringComparison.Ordinal) || path.StartsWith("Assets/Terrain/", StringComparison.Ordinal));
         public static string ExperimentRoot => Root();
         public static string ExperimentPath(params string[] parts) => Within(Root(), Path.Combine(parts));
         public static bool Isolated => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("SPORE_TEST_ROOT"));
@@ -73,7 +74,7 @@ namespace SporeGobbo.Safety
             }
         }
         public static string SlotPath(string folder, string file) => Within(folder, file);
-        static bool MemoryPrefs { get { if (Isolated || RequiresIsolation) { Root(); return true; } return false; } }
+        static bool MemoryPrefs { get { if (Isolated || RequiresIsolation || V1RuntimeProfile.DevelopmentStorage) { Root(); return true; } return false; } }
         public static int GetInt(string key, int fallback = 0) => MemoryPrefs ? (prefs.TryGetValue(key,out var value) && value is int i ? i : fallback) : PlayerPrefs.GetInt(key,fallback);
         public static string GetString(string key,string fallback = "") => MemoryPrefs ? (prefs.TryGetValue(key,out var value) && value is string s ? s : fallback) : PlayerPrefs.GetString(key,fallback);
         public static bool HasKey(string key) => MemoryPrefs ? prefs.ContainsKey(key) : PlayerPrefs.HasKey(key);

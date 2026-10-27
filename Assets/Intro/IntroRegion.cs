@@ -6,7 +6,7 @@ using System;using System.Linq;using System.Collections.Generic;using UnityEngin
  public IntroLayout Definition{get;private set;}public RegionTerrainState State{get;private set;}public CaveDiscovery Discovery{get;private set;}public WorldRegionPresentation Presentation{get;private set;}
  public GobboController Player{get;private set;}public Camera RegionCamera{get;private set;}public IntroSequence Sequence{get;private set;}public IntroCampTransition ArrivalTransition{get;private set;}
  public float CellSize=>.6f;public int Revision=>State?.Revision??-1;public bool LogicalReady=>!disposed&&State!=null&&published==Revision;
- public bool PresentationReady=>LogicalReady&&Presentation!=null&&Presentation.ViewAvailable;public Transform PresentationRoot=>transform;public Shader ActorShader=>spriteShader;public FocusProjection Projection=>Presentation?.Snapshot;public Stage4Settings PresentationSettings=>Presentation.settings;public Vector2 Arrival=>World(Definition.Birth);
+ public bool PresentationReady=>LogicalReady&&Presentation!=null&&Presentation.ViewAvailable&&Sequence!=null&&Sequence.PresentationInitialized;public Transform PresentationRoot=>transform;public Shader ActorShader=>spriteShader;public FocusProjection Projection=>Presentation?.Snapshot;public Stage4Settings PresentationSettings=>Presentation.settings;public Vector2 Arrival=>World(Definition.Birth);
  public bool ControlReady=>Sequence!=null&&Sequence.ControlReleased&&!Sequence.Arriving;
  public int Excavations{get;private set;}public int Placements{get;private set;}public int RejectedPlacements{get;private set;}
  public event Action<string,Vector2> SoundCue;public readonly List<string> Cues=new List<string>();

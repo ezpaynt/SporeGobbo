@@ -9,7 +9,7 @@ public sealed class V1EvidenceSession:MonoBehaviour
   Application.targetFrameRate=60;QualitySettings.vSyncCount=0;
   try
   {
-   if(Application.companyName=="SporeGobboSafety"&&Application.productName.StartsWith("Safety_",StringComparison.Ordinal))_ = Persistence.ExperimentRoot;
+   if(Persistence.ProtectedPlayerIdentity(Application.companyName,Application.productName))_ = Persistence.ExperimentRoot;
    if(!Persistence.Isolated||!V1RuntimeProfile.DevelopmentToolsEnabled&&!V1RuntimeProfile.EvidenceEnabled)return;
    var go=new GameObject("V1 optional diagnostics and test session");DontDestroyOnLoad(go);go.AddComponent<V1EvidenceSession>();
   }
@@ -30,8 +30,9 @@ public sealed class V1EvidenceSession:MonoBehaviour
   if(scenario=="lifecycle")gameObject.AddComponent<Stage62CIntroEvidence>();
   else if(scenario.StartsWith("continue-",StringComparison.Ordinal))gameObject.AddComponent<Stage61ContinueEvidence>();
   else if(scenario=="normal")gameObject.AddComponent<V1NormalEvidence>();
-  else if(scenario=="performance")gameObject.AddComponent<V1PerformanceEvidence>();
+  else if(scenario=="performance"||scenario=="startup")gameObject.AddComponent<V1PerformanceEvidence>();
   else if(scenario=="occlusion")gameObject.AddComponent<V1VisualEvidence>();
+  else if(scenario=="tools")gameObject.AddComponent<V1ToolsEvidence>();
   else throw new InvalidOperationException("Unreviewed V1 evidence scenario");
  }
  void OnDestroy(){SceneManager.sceneLoaded-=Loaded;lease?.Dispose();}

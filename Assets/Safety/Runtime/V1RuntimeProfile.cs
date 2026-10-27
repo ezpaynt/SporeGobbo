@@ -5,6 +5,7 @@ using SporeGobbo.Safety;
 /// <summary>Immutable storage choice and optional tool capabilities. Never selects gameplay destinations or correctness.</summary>
 public static class V1RuntimeProfile
 {
+    public const string NormalCampSceneAsset = "Assets/Stage61/FutureCampCandidate.unity";
     static readonly string selectedStorage = ParseStorageProfile(Environment.GetEnvironmentVariable("SPORE_V1_PROFILE"));
     static bool legacyTools;
     public static string StorageProfile => selectedStorage;

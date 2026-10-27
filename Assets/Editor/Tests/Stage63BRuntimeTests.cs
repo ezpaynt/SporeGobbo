@@ -32,6 +32,16 @@ public class Stage63BRuntimeTests
     [TestCase(null,"normal")][TestCase("normal","normal")][TestCase("development","development")]
     public void ExplicitStorageProfiles(string input,string expected)=>Assert.That(V1RuntimeProfile.ParseStorageProfile(input),Is.EqualTo(expected));
     [Test] public void UnknownStorageFailsClosed()=>Assert.Throws<InvalidOperationException>(()=>V1RuntimeProfile.ParseStorageProfile("production-typo"));
+    [Test] public void CanonicalCampIsNotAHistoricalPreviewDespiteItsPreservedAssetPath()
+    {
+        Assert.That(Persistence.IsHistoricalPreviewScene(V1RuntimeProfile.NormalCampSceneAsset),Is.False);
+        Assert.That(Persistence.IsHistoricalPreviewScene("Assets/Intro/FirstGobboIntro.unity"),Is.False);
+        Assert.That(Persistence.IsHistoricalPreviewScene("Assets/Expedition/FirstExpedition.unity"),Is.False);
+        Assert.That(Persistence.IsHistoricalPreviewScene("Assets/Stage61/DevelopmentEntry.unity"),Is.True);
+        Assert.That(Persistence.IsHistoricalPreviewScene("Assets/Stage60/FutureCampStage60.unity"),Is.True);
+        Assert.That(Persistence.IsHistoricalPreviewScene("Assets/Terrain/Camp/Scenes/FutureCampStage56.unity"),Is.True);
+        Assert.That(Persistence.ProtectedPlayerIdentity("SporeGobboSafety","Safety_NormalMainMenu"),Is.True);
+    }
     [Test] public void ProtectedIdentityRequiresIsolationIndependentOfFirstScene()
     {
         Assert.That(Persistence.ProtectedPlayerIdentity("SporeGobboSafety","Anything"),Is.True);
