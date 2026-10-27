@@ -7,9 +7,11 @@ public class PersistenceSafetyTests
 {
  [Test] public void SandboxSaveRoundTripUsesProductionSerializer()
  {
-  var data = new SporeSaveSlotData { slotIndex=3, playerName="Synthetic safety sentinel" };
+  var data = SporeSaveSlotData.CreateNew(3,"Synthetic safety sentinel","CampScene");
+  string before = UnityEngine.JsonUtility.ToJson(data);
   SporeSaveManager.SaveSlot(data);
   Assert.That(SporeSaveManager.LoadSlot(3).playerName,Is.EqualTo(data.playerName));
+  Assert.That(UnityEngine.JsonUtility.ToJson(data),Is.EqualTo(before),"Save must capture detached data rather than mutate its caller");
   Assert.That(SporeSaveManager.GetSlotPath(3).StartsWith(Environment.GetEnvironmentVariable("SPORE_TEST_ROOT")),Is.True);
  }
  [Test] public void MissingRootFailsClosed()
@@ -61,8 +63,11 @@ public class PersistenceSafetyTests
    state.AddGobbo(unit,false);
    SporeSaveManager.SaveSlot(new SporeSaveSlotData {slotIndex=1,playerName="Synthetic campaign"});
    string path=SporeSaveManager.GetSlotPath(1); string before=File.ReadAllText(path);
-   state.RegisterGobboDeath(state.FindOwnedGobbo(unit.uniqueId));
-   Assert.That(File.ReadAllText(path),Is.Not.EqualTo(before));
+   // The historical incident had no registered campaign authority. Isolation remains required,
+   // and canonical capture now rejects that invalid caller instead of rewriting its selected slot.
+   Assert.That(GameState.Instance==null,Is.True);
+   Assert.Throws<InvalidOperationException>(()=>state.RegisterGobboDeath(state.FindOwnedGobbo(unit.uniqueId)));
+   Assert.That(File.ReadAllText(path),Is.EqualTo(before));
    Assert.That(path.StartsWith(Environment.GetEnvironmentVariable("SPORE_TEST_ROOT")),Is.True);
    // Match the legacy EditMode path: Awake has not registered this synthetic state.
    Assert.That(SporeSaveManager.LoadSlot(1).hasSave,Is.True);

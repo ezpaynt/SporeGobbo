@@ -31,27 +31,11 @@ public class RunStartInitializer : MonoBehaviour
         if (map == null)
             map = Object.FindAnyObjectByType<MapGenerator>();
 
-        if (map == null)
-        {
-            Debug.LogError("RunStartInitializer: no MapGenerator found in the scene. Cannot start run.", this);
-            yield break;
-        }
-
-        // Let MapGenerator.Start run first if it generates on start.
+        IWorldRegion region=RegionQueries.Current;
         yield return null;
-
-        float wait = 0f;
-        while (map.Data == null && wait < 3f)
-        {
-            wait += Time.deltaTime;
-            yield return null;
-        }
-
-        if (map.Data == null)
-        {
-            Debug.LogError("RunStartInitializer: MapGenerator exists but Data was never created. Turn Generate On Start on or call Generate() before spawning the player.", map);
-            yield break;
-        }
+        float wait=0;
+        while((region!=null?!region.LogicalReady:map!=null&&map.Data==null)&&wait<5){wait+=Time.unscaledDeltaTime;yield return null;}
+        if(region==null&&(map==null||map.Data==null)||region!=null&&!region.LogicalReady){Debug.LogError("Run terrain missing or not ready");yield break;}
 
         GobboController player = Object.FindAnyObjectByType<GobboController>();
 
@@ -87,6 +71,7 @@ public class RunStartInitializer : MonoBehaviour
         if (applySavedPlayerStats)
             state.ApplyToPlayer(player);
 
+        if(region!=null){region.BindActor(player.gameObject);var interaction=Object.FindAnyObjectByType<CampInteractionDetector>();if(interaction==null)interaction=new GameObject("Existing world interaction service").AddComponent<CampInteractionDetector>();interaction.SetPlayer(player.transform); }
         BuddyRoster roster = Object.FindAnyObjectByType<BuddyRoster>();
         if (applySavedRosterToSceneRoster && roster != null && state.ownedGobbos != null && state.ownedGobbos.Count > 0)
             state.ApplyToRoster(roster);
@@ -123,7 +108,8 @@ public class RunStartInitializer : MonoBehaviour
     {
         Vector3 spawnPos;
 
-        if (spawnAtMapStartCell)
+        if(RegionQueries.Current is IWorldRegion region) spawnPos=region.Arrival;
+        else if (spawnAtMapStartCell)
         {
             spawnPos = map.CellToWorldCenter(map.map.spawnCenter);
         }

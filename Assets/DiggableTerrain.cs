@@ -53,7 +53,10 @@ public static class DiggableTerrainService
 
     public static void Register(IDiggableTerrain terrain)
     {
-        if (terrain != null) Active = terrain;
+        if(terrain==null)return;
+        bool previousAlive=Active!=null && (!(Active is Object previous) || previous!=null);
+        if(previousAlive && !ReferenceEquals(Active,terrain))throw new System.InvalidOperationException("A terrain provider already owns the active region");
+        Active=terrain;
     }
 
     public static void Unregister(IDiggableTerrain terrain)

@@ -167,7 +167,7 @@ public static class RunSummaryService
         BuddyRunReport report = new BuddyRunReport();
         report.buddyId = buddyId;
         report.displayName = GetGobboLabel(source);
-        report.role = wasActive ? "Run Squad" : "Camp";
+        report.role = beforeUnit == null ? "Recruited this run" : wasActive ? "Departing squad" : "Stayed at Camp";
         report.wasActive = wasActive;
         report.died = afterUnit == null || source.isDead;
         report.survived = !report.died;

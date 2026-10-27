@@ -240,8 +240,8 @@ public class GobboUnitSaveData
         else
             EnsureBuddyStatDefaults();
 
-        if (health <= 0 || health > maxHealth)
-            health = maxHealth;
+        if (isDead) health = 0;
+        else if (health <= 0 || health > maxHealth) health = maxHealth;
 
         if (attack <= 0 && damage > 0) attack = damage;
         if (damage <= 0 && attack > 0) damage = attack;

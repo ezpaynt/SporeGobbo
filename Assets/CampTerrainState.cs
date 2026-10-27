@@ -22,6 +22,7 @@ public sealed class CampCellCoordinate
 [Serializable]
 public sealed class CampTerrainState
 {
+    public CampRegionSnapshot regionSnapshot; // Detached transport/cache; the loaded region owns physical state.
     public int layoutRevision = 0;
     public bool mainChamberRevealed = false;
     public int residentialStage = 0;
@@ -92,6 +93,7 @@ public sealed class CampTerrainState
     {
         CampTerrainState copy = new CampTerrainState
         {
+            regionSnapshot = regionSnapshot?.Clone(),
             layoutRevision = layoutRevision,
             mainChamberRevealed = mainChamberRevealed,
             residentialStage = residentialStage,

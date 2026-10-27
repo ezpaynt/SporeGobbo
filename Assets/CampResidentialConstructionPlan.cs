@@ -21,6 +21,7 @@ public sealed class ResidentialDigStep
 /// <summary>An immutable, validated interpretation of one authored residential slot.</summary>
 public sealed class ResidentialConstructionPlan
 {
+    static readonly Unity.Profiling.ProfilerMarker stage61PlannerProfile=new Unity.Profiling.ProfilerMarker("Spore.Stage61.ResidentialPlanner");
     public int SlotId { get; }
     public int ProgressionIndex { get; }
     public string RoomId { get; }
@@ -57,6 +58,7 @@ public sealed class ResidentialConstructionPlan
         Vector2 halfExtents, float digRadius, out ResidentialConstructionPlan plan, out string failure,
         int bodyLayer = -1)
     {
+        using var _stage61Profile=stage61PlannerProfile.Auto();
         plan = null;
         failure = null;
         CampResidentialCatalog catalog = terrain != null ? terrain.GetResidentialCatalog() : null;

@@ -9,7 +9,9 @@ public sealed class MushWormIntroRuntime : MonoBehaviour
     const string PlaceholderLine = "Placeholder line.";
     const float PresentationSeconds = 0.55f;
     MapGenerator map;
-    PersistentTestCaveLayout.AuthoredEventLocation location;
+    IWorldRegion worldRegion;
+    RegionStoryLocation location;
+    Vector3 Cell(Vector2Int cell)=>map!=null?map.CellToWorld(cell):worldRegion.CellToWorld(cell);
     StoryEventCoordinator coordinator;
     StoryEventPresentation presentation;
     StoryEventTrigger trigger;
@@ -28,20 +30,26 @@ public sealed class MushWormIntroRuntime : MonoBehaviour
 
     void Initialize(MapGenerator generator, PersistentTestCaveLayout.AuthoredEventLocation authoredLocation)
     {
-        map = generator; location = authoredLocation; coordinator = StoryEventCoordinator.GetOrCreate();
-        actor = CreateWorldLabel("Mush/Worm Placeholder", "M + W", map.CellToWorld(location.actorCell));
+        map = generator; InitializeCommon(RegionStoryLocation.Legacy(authoredLocation));
+    }
+
+    public static MushWormIntroRuntime Create(IWorldRegion region,RegionStoryLocation location){var host=new GameObject("Mush/Worm existing regional event");var runtime=host.AddComponent<MushWormIntroRuntime>();runtime.worldRegion=region;runtime.InitializeCommon(location);return runtime;}
+    void InitializeCommon(RegionStoryLocation authoredLocation)
+    {
+        location=authoredLocation;coordinator = StoryEventCoordinator.GetOrCreate();
+        actor = CreateWorldLabel("Mush/Worm Placeholder", "M + W", Cell(location.actorCell));
         focus = new GameObject("Mush/Worm Camera Focus").transform;
-        focus.SetParent(transform, false); focus.position = map.CellToWorld(location.focusCell);
+        focus.SetParent(transform, false); focus.position = Cell(location.focusCell);
         GameObject triggerObject = new GameObject("Mush/Worm Proximity Trigger");
-        triggerObject.transform.SetParent(transform, false); triggerObject.transform.position = map.CellToWorld(location.triggerCell);
+        triggerObject.transform.SetParent(transform, false); triggerObject.transform.position = Cell(location.triggerCell);
         trigger = triggerObject.AddComponent<StoryEventTrigger>();
-        trigger.Configure(location.triggerRadius * map.CellSize, IsEligible, Begin);
+        trigger.Configure(location.triggerRadius * (map!=null?map.CellSize:worldRegion.CellSize), IsEligible, Begin);
     }
 
     bool IsEligible()
     {
         GameState state = GameState.Instance;
-        return state != null && map != null && map.TryGetAuthoredEventLocation(MarkerKey, out _) &&
+        return state != null && (map != null && map.TryGetAuthoredEventLocation(MarkerKey, out _) || worldRegion!=null&&worldRegion.LogicalReady&&location.markerKey==MarkerKey) &&
             MushWormIntroEligibility.IsEligible(state.currentRunNumber, state.storyProgress, true);
     }
 
@@ -84,8 +92,8 @@ public sealed class MushWormIntroRuntime : MonoBehaviour
     {
         var route = new List<Vector3>();
         if (location.departureWaypoints != null)
-            foreach (Vector2Int cell in location.departureWaypoints) route.Add(map.CellToWorld(cell));
-        route.Add(map.CellToWorld(location.despawnCell));
+            foreach (Vector2Int cell in location.departureWaypoints) route.Add(Cell(cell));
+        route.Add(Cell(location.despawnCell));
         foreach (Vector3 point in route)
         {
             Vector3 destination = new Vector3(point.x, point.y, actor.position.z);
@@ -108,12 +116,14 @@ public sealed class MushWormIntroRuntime : MonoBehaviour
     Transform CreateWorldLabel(string objectName, string text, Vector3 position)
     {
         GameObject labelObject = new GameObject(objectName);
-        labelObject.transform.SetParent(transform, false); labelObject.transform.position = new Vector3(position.x, position.y, -1f);
+        Transform logical=null;if(worldRegion!=null){logical=new GameObject(objectName+" logical anchor").transform;logical.SetParent(transform,false);logical.position=position;}
+        labelObject.transform.SetParent(logical!=null?logical:transform, false);if(logical==null)labelObject.transform.position = new Vector3(position.x, position.y, -1f);
         TextMesh label = labelObject.AddComponent<TextMesh>();
         label.text = text; label.fontSize = 64; label.characterSize = 0.08f;
         label.anchor = TextAnchor.MiddleCenter; label.alignment = TextAlignment.Center;
         label.color = new Color(0.82f, 0.66f, 0.28f);
         label.GetComponent<MeshRenderer>().sortingOrder = 50;
+        if(logical!=null){labelObject.AddComponent<ProjectedWorldSprite>().Initialize(worldRegion,logical);return logical;}
         return labelObject.transform;
     }
 }

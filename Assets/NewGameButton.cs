@@ -140,7 +140,7 @@ public class NewGameButton : MonoBehaviour
         CampArrivalContext.Clear();
         SampleSceneModeContext.SetPending(SampleSceneMode.Intro);
         SporePauseService.ResetAll();
-        SceneManager.LoadScene(firstSceneName);
+        SceneManager.LoadScene(GameSceneCatalog.ResolveIntro(firstSceneName));
     }
 
     void ShowSavesFull()

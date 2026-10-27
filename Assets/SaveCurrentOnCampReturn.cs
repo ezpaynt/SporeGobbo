@@ -8,14 +8,16 @@ public class SaveCurrentOnCampReturn : MonoBehaviour
     public bool saveOnlyIfGameStateExists = true;
     public string campSceneName = "CampScene";
 
-    private void Start()
+    private System.Collections.IEnumerator Start()
     {
-        if (!saveOnStart) return;
-        if (SceneManager.GetActiveScene().name != campSceneName) return;
+        if (!saveOnStart) yield break;
+        if (!GameSceneCatalog.IsCamp(SceneManager.GetActiveScene())) yield break;
+        CampSceneController controller = FindAnyObjectByType<CampSceneController>();
+        while (controller != null && !controller.WorldInputReady) yield return null;
         if (saveOnlyIfGameStateExists && GameState.Instance == null)
         {
             Debug.LogWarning("[SaveCurrentOnCampReturn] No GameState found. Skipping camp return save.");
-            return;
+            yield break;
         }
         SporeSaveManager.SaveCurrentSlotFromGameState();
     }

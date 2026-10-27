@@ -34,6 +34,7 @@ public class CampFireRecovery : MonoBehaviour, ICampInteractable
     public bool healBuddies = true;
     public bool saveAfterRecovery = true;
 
+    public event System.Action MenuClosed;
     private bool recoveredThisCampVisit = false;
     private bool menuOpen = false;
     private GobboController currentPlayer;
@@ -85,6 +86,7 @@ public class CampFireRecovery : MonoBehaviour, ICampInteractable
 
     public void OpenMenu()
     {
+        if(GameSceneCatalog.DevelopmentCandidate)CampCandidateUiLayout.Shade(fireMenuPanel);
         menuOpen = true;
         if (fireMenuPanel != null)
         {
@@ -104,6 +106,7 @@ public class CampFireRecovery : MonoBehaviour, ICampInteractable
         if (fireMenuPanel != null) fireMenuPanel.SetActive(false);
         if (upgradesPanel != null) upgradesPanel.SetActive(false);
         CampMenuModal.Close(this);
+        MenuClosed?.Invoke();
     }
 
     void RefreshMenuText()

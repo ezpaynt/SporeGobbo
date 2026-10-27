@@ -154,6 +154,7 @@ public class RunSquadSpawner : MonoBehaviour
             scavenger.brainAllowsMovement = false;
         }
 
+        RegionQueries.Bind(obj);
         CampWander wander = obj.GetComponent<CampWander>();
         if (wander != null) wander.enabled = false;
 

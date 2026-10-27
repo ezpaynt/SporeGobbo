@@ -66,8 +66,11 @@ public class CampWander : MonoBehaviour
         PickNewTarget();
     }
 
+    readonly RegionRouteFollower regionRoute=new RegionRouteFollower();
     void FixedUpdate()
     {
+        var binding=GetComponent<ActorTerrainBinding>();
+        if(binding!=null && (binding.Ready!=null&&!binding.Ready() || SporeGobbo.Input.SporeInputReader.Instance==null || SporeGobbo.Input.SporeInputReader.Instance.Context!=SporeGobbo.Input.SporeInputContext.Gameplay)){rb.linearVelocity=Vector2.zero;return;}
         Vector2 anchorPos = GetAnchorPosition();
 
         if (idleTimer > 0f)
@@ -93,7 +96,7 @@ public class CampWander : MonoBehaviour
         if (!semanticDestinations && Vector2.Distance(rb.position, anchorPos) > wanderRadius * 1.75f)
             target = anchorPos;
 
-        Vector2 moveDir = (target - rb.position).normalized;
+        if(!regionRoute.Direction(binding,rb.position,target,out Vector2 moveDir)){rb.linearVelocity=Vector2.zero;stuckTimer+=Time.fixedDeltaTime;if(stuckTimer>=repickIfStuckTime){stuckTimer=0;PickNewTarget();}return;}
         TileMover.Move(rb, moveDir * moveSpeed, bodyRadius);
         SetVisualState(GobboAnimationState.Walk, moveDir);
 
@@ -125,6 +128,7 @@ public class CampWander : MonoBehaviour
 
     void PickNewTarget()
     {
+        regionRoute.Reset();
         if (semanticDestinations)
         {
             CampActivityPoint[] points = CampActivityPoint.GetValidFor(buddy != null ? buddy.unitData : null);

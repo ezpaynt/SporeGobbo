@@ -14,6 +14,8 @@ public sealed class BuddyDigAbility : MonoBehaviour
     BuddyDirectionalSprite directionalSprite;
     GobboVisualController visualController;
     IDiggableTerrain boundTerrain;
+    public bool IsPreparingBed { get; private set; }
+    public bool LastBedPreparationCompleted { get; private set; }
 
     public IDiggableTerrain ResolvedTerrain => boundTerrain ?? DiggableTerrainService.Active;
     public void BindTerrain(IDiggableTerrain terrain) => boundTerrain = terrain;
@@ -48,6 +50,31 @@ public sealed class BuddyDigAbility : MonoBehaviour
         if (digDuration > 0f) yield return new WaitForSeconds(digDuration);
         visualController?.SetAnimationState(GobboAnimationState.Idle);
         completed?.Invoke(result);
+    }
+
+    public IEnumerator PrepareBedRoutine(float seconds)
+    {
+        IsPreparingBed = true;
+        LastBedPreparationCompleted = false;
+        visualController?.SetAnimationState(GobboAnimationState.Dig);
+        try
+        {
+            float elapsed = 0;
+            while (elapsed < seconds)
+            {
+                if (!isActiveAndEnabled) yield break;
+                var input = SporeGobbo.Input.SporeInputReader.Instance;
+                if (Time.timeScale > 0 && input != null && input.Context == SporeGobbo.Input.SporeInputContext.Gameplay)
+                    elapsed += Time.deltaTime;
+                yield return null;
+            }
+            LastBedPreparationCompleted = true;
+        }
+        finally
+        {
+            IsPreparingBed = false;
+            visualController?.SetAnimationState(GobboAnimationState.Idle);
+        }
     }
 
     void Face(Vector2 target)

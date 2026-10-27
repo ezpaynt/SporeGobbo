@@ -52,27 +52,12 @@ public class CampDeathHistoryStore : MonoBehaviour
         LoadFromCurrentSaveIfEmpty();
     }
 
-    void LoadFromCurrentSaveIfEmpty()
+    void LoadFromCurrentSaveIfEmpty() => RefreshFromCampaign();
+
+    // Compatibility view only. Campaign loading belongs to SporeSaveManager and Camp lifecycle.
+    public void RefreshFromCampaign()
     {
-        if (deadBuddyHistory != null && deadBuddyHistory.Count > 0) return;
-
-        if (GameState.Instance != null && GameState.Instance.deathHistory != null && GameState.Instance.deathHistory.Count > 0)
-        {
-            deadBuddyHistory = GameState.Instance.GetDeathHistoryCopy();
-            Log("Loaded " + deadBuddyHistory.Count + " memorial records from GameState.");
-            return;
-        }
-
-        int slotIndex = SporeSaveManager.GetCurrentSlot();
-        if (slotIndex <= 0) slotIndex = SporeSaveManager.GetLastPlayedSlot();
-        if (slotIndex <= 0) return;
-
-        SporeSaveSlotData data = SporeSaveManager.LoadSlot(slotIndex);
-        if (data == null || !data.hasSave || data.deathHistory == null || data.deathHistory.Count == 0) return;
-
-        deadBuddyHistory = new List<DeadBuddyRecord>(data.deathHistory);
-        if (GameState.Instance != null) GameState.Instance.SetDeathHistory(deadBuddyHistory);
-        Log("Loaded " + deadBuddyHistory.Count + " memorial records from save slot " + slotIndex + ".");
+        if (GameState.Instance != null) deadBuddyHistory = GameState.Instance.GetDeathHistoryCopy();
     }
 
     void OnDestroy()
@@ -97,11 +82,13 @@ public class CampDeathHistoryStore : MonoBehaviour
 
     public bool HasAnyDeaths()
     {
+        RefreshFromCampaign();
         return deadBuddyHistory != null && deadBuddyHistory.Count > 0;
     }
 
     public bool HasUnseenMemorials()
     {
+        RefreshFromCampaign();
         if (deadBuddyHistory == null) return false;
         foreach (DeadBuddyRecord record in deadBuddyHistory)
         {
@@ -112,12 +99,12 @@ public class CampDeathHistoryStore : MonoBehaviour
 
     public void MarkAllSeen()
     {
+        RefreshFromCampaign();
         if (deadBuddyHistory == null) return;
         foreach (DeadBuddyRecord record in deadBuddyHistory)
         {
             if (record != null) record.memorialSeen = true;
         }
-        if (GameState.Instance != null) GameState.Instance.SetDeathHistory(deadBuddyHistory);
         TrySaveCurrentSlot();
     }
 
@@ -192,20 +179,9 @@ public class CampDeathHistoryStore : MonoBehaviour
     public DeadBuddyRecord AddRecord(DeadBuddyRecord record)
     {
         if (record == null) return null;
-        deadBuddyHistory ??= new List<DeadBuddyRecord>();
-
-        // Prevent duplicate records for the same gobbo/run/role.
-        foreach (DeadBuddyRecord existing in deadBuddyHistory)
-        {
-            if (existing == null) continue;
-            bool sameId = !string.IsNullOrWhiteSpace(record.gobboId) && existing.gobboId == record.gobboId;
-            bool sameName = string.IsNullOrWhiteSpace(record.gobboId) && existing.displayName == record.displayName;
-            if ((sameId || sameName) && existing.runNumber == record.runNumber && existing.wasLeader == record.wasLeader)
-                return existing;
-        }
-
-        deadBuddyHistory.Add(record);
-        if (GameState.Instance != null) GameState.Instance.AddDeathHistoryRecord(record);
+        if (GameState.Instance == null) { Debug.LogError("Memorial updates require the canonical campaign"); return null; }
+        record = GameState.Instance.AddDeathHistoryRecord(record);
+        RefreshFromCampaign();
         Log("Added memorial: " + record.GetDisplayLine());
         TrySaveCurrentSlot();
         return record;
@@ -213,6 +189,7 @@ public class CampDeathHistoryStore : MonoBehaviour
 
     public List<DeadBuddyRecord> GetDeadBuddiesFromCurrentRun()
     {
+        RefreshFromCampaign();
         int run = GameState.Instance != null ? GameState.Instance.currentRunNumber : 1;
         List<DeadBuddyRecord> result = new List<DeadBuddyRecord>();
         if (deadBuddyHistory == null) return result;
@@ -225,6 +202,7 @@ public class CampDeathHistoryStore : MonoBehaviour
 
     public List<DeadBuddyRecord> GetDeadLeaders()
     {
+        RefreshFromCampaign();
         List<DeadBuddyRecord> result = new List<DeadBuddyRecord>();
         if (deadBuddyHistory == null) return result;
         foreach (DeadBuddyRecord record in deadBuddyHistory)

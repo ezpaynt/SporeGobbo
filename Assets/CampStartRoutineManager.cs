@@ -64,6 +64,48 @@ public class CampStartRoutineManager : MonoBehaviour
         public bool Succeeded;
         public string Failure = "";
     }
+    bool rootAssistanceRunning;
+
+    public void RequestResidentialEntranceAssistance()
+    {if(!rootAssistanceRunning && CampSpatialTerrain.Active!=null && !CampSpatialTerrain.Active.ResidentialEntranceOpen){rootAssistanceRunning=true;StartCoroutine(AssistResidentialEntrance());}}
+
+    IEnumerator AssistResidentialEntrance()
+    {
+        var terrain=CampSpatialTerrain.Active;BuddyUnit helper=null;float nearest=float.PositiveInfinity;bool priorWander=false;
+        foreach(var b in Object.FindObjectsByType<BuddyUnit>())
+        {
+            if(!CampResidentialOccupancyResolver.IsLivingBuddy(b.unitData))continue;
+            if(b.unitData.uniqueId==currentResidentialConstructorId || firstHomeApproaches.TryGetValue(b.unitData.uniqueId,out var firstHome)&&!firstHome.Complete)continue;
+            var currentWalk=b.GetComponent<CampDirectedWalk>();if(currentWalk!=null&&currentWalk.IsWalking)continue;
+            var binding=b.GetComponent<ActorTerrainBinding>();if(binding==null||!binding.TryPath(b.transform.position,terrain.ResidentialEntranceWorld,out var route))continue;
+            float distance=Vector2.Distance(b.transform.position,terrain.ResidentialEntranceWorld);if(distance<nearest){nearest=distance;helper=b;}
+        }
+        if(helper!=null)
+        {
+            priorWander=helper.GetComponent<CampWander>()?.enabled??false;
+            var target=new GameObject("Root assistance target");target.transform.position=terrain.ResidentialEntranceWorld;
+            var walk=helper.GetComponent<CampDirectedWalk>()??helper.gameObject.AddComponent<CampDirectedWalk>();walk.destroyWhenDone=false;walk.enableWanderWhenDone=false;
+            walk.BeginWalk(target.transform,GetCampSpeed(helper),.18f,CampBuddyPhysicalPolicy.GetDirectedWalkTimeout(nearest,GetCampSpeed(helper),constructionMoveTimeout));
+            while(helper!=null && CampResidentialOccupancyResolver.IsLivingBuddy(helper.unitData) && walk.IsWalking && !terrain.ResidentialEntranceOpen)yield return null;
+            if(helper!=null && walk.IsWalking)walk.CancelWalk();
+            if(helper==null||!CampResidentialOccupancyResolver.IsLivingBuddy(helper.unitData)||!terrain.ResidentialEntranceOpen&&walk.Result!=CampDirectedWalkResult.Arrived)
+            {
+                if(helper!=null){var failedWander=helper.GetComponent<CampWander>();if(failedWander!=null)failedWander.enabled=priorWander;}
+                Destroy(target);rootAssistanceRunning=false;yield break;
+            }
+            while(helper!=null && CampResidentialOccupancyResolver.IsLivingBuddy(helper.unitData) && !terrain.ResidentialEntranceOpen)
+            {
+                var player=Object.FindAnyObjectByType<CampPlayableSpawner>()?.SpawnedPlayer;
+                if(player==null||Vector2.Distance(player.transform.position,terrain.ResidentialEntranceWorld)>4)break;
+                yield return null;
+            }
+            if(helper!=null){var wander=helper.GetComponent<CampWander>();if(wander!=null)wander.enabled=priorWander;}
+            Destroy(target);
+        }
+        rootAssistanceRunning=false;
+    }
+
+    void OnDestroy(){if(Instance==this)Instance=null;}
 
     void Awake()
     {
@@ -111,9 +153,13 @@ public class CampStartRoutineManager : MonoBehaviour
         yield return new WaitForSeconds(Mathf.Max(0f, startRoutineDelay));
         yield return WaitForSpawnedBuddiesIfAny();
         if (GameState.Instance == null) yield break;
+        // The optional root is independent of first-home work. Existing legacy terrain keeps its own gates.
+        if (CampSpatialTerrain.Active != null && !(CampSpatialTerrain.Active is SettlementCampRegion))
+            while ((!CampSpatialTerrain.Active.ResidentialEntranceOpen || rootAssistanceRunning) &&
+                GameState.Instance.ownedGobbos.Exists(CampResidentialOccupancyResolver.IsLivingBuddy)) yield return null;
 
         bool presentedMilestone = false;
-        HandcraftedCampTerrain terrain = Object.FindAnyObjectByType<HandcraftedCampTerrain>();
+        ICampSpatialTerrain terrain = CampSpatialTerrain.Active;
         int residentialCapacity = terrain != null
             ? terrain.TotalResidentialCapacity : CampResidentialCatalog.CurrentRuntimeCapacity;
         GameState.Instance.campTerrainState ??= new CampTerrainState();
@@ -158,6 +204,45 @@ public class CampStartRoutineManager : MonoBehaviour
 
         if (arrivalPhase)
         {
+            if (terrain is SettlementCampRegion projectedCamp)
+            {
+                // Reuse the real directed walker and existing Fire activity points before the home approach.
+                var fireArrivals = new List<FirstHomeMoveOperation>();
+                int fireIndex = 0;
+                foreach (var buddy in Object.FindObjectsByType<BuddyUnit>())
+                    if (buddy.unitData != null && firstHomeBuddyIds.Contains(buddy.unitData.uniqueId))
+                    {
+                        var arrivalMove = new FirstHomeMoveOperation();
+                        fireArrivals.Add(arrivalMove);
+                        StartCoroutine(MoveFirstHomeBuddy(buddy, GetFireWaitingPoint(fireIndex++).position, arrivalMove));
+                    }
+                foreach (var arrivalMove in fireArrivals)
+                {
+                    while (!arrivalMove.Complete) yield return null;
+                    if (!arrivalMove.Succeeded)
+                    {
+                        LastResidentialFailureReason = "First-home Fire arrival failed: " + arrivalMove.Failure;
+                        Debug.LogError("[CampResidential Implementation] " + LastResidentialFailureReason, this);
+                        yield break;
+                    }
+                }
+                // Actor spawn changes the followed focus. Let that view publish before spending the brief cue.
+                int visibleFrames = 0;
+                float presentationDeadline = Time.realtimeSinceStartup + 12f;
+                while (visibleFrames < 3 && Time.realtimeSinceStartup < presentationDeadline)
+                {
+                    yield return null;
+                    visibleFrames = projectedCamp.Ready && projectedCamp.RegionCamera.cullingMask != 0
+                        && SporeGobbo.Input.SporeInputReader.Instance != null
+                        && SporeGobbo.Input.SporeInputReader.Instance.Context == SporeGobbo.Input.SporeInputContext.Gameplay
+                        ? visibleFrames + 1 : 0;
+                }
+                if (visibleFrames >= 3)
+                    foreach (var buddy in Object.FindObjectsByType<BuddyUnit>())
+                        if (buddy.unitData != null && firstHomeBuddyIds.Contains(buddy.unitData.uniqueId))
+                            BuddyHomeThought.Show(buddy, 3.5f);
+                yield return new WaitForSeconds(2f);
+            }
             bool staged = false;
             yield return RunConcurrentFirstHomeApproaches(terrain, vacancyClaims,
                 occupancy.Resolution.UnassignedLivingBuddyIds, reservedConstructionCount,
@@ -195,7 +280,7 @@ public class CampStartRoutineManager : MonoBehaviour
         ReleaseBuddiesToResidentialOrDefaultAnchors();
     }
 
-    IEnumerator RunConcurrentFirstHomeApproaches(HandcraftedCampTerrain terrain,
+    IEnumerator RunConcurrentFirstHomeApproaches(ICampSpatialTerrain terrain,
         List<string> vacancyClaims, List<string> constructionBuddyIds, int constructionCount,
         System.Action<bool> completed)
     {
@@ -256,7 +341,7 @@ public class CampStartRoutineManager : MonoBehaviour
         completed(true);
     }
 
-    IEnumerator RunFirstHomeRoute(HandcraftedCampTerrain terrain, BuddyUnit buddy, int slotId,
+    IEnumerator RunFirstHomeRoute(ICampSpatialTerrain terrain, BuddyUnit buddy, int slotId,
         bool moveToEstablishedHome, FirstHomeMoveOperation operation)
     {
         List<Vector2Int> route = terrain != null
@@ -378,7 +463,7 @@ public class CampStartRoutineManager : MonoBehaviour
     IEnumerator RunMissingResidentialSlots(List<string> unassignedBuddyIds, int constructionCount)
     {
         residentialConstructionsCompleted = 0;
-        HandcraftedCampTerrain terrain = Object.FindAnyObjectByType<HandcraftedCampTerrain>();
+        ICampSpatialTerrain terrain = CampSpatialTerrain.Active;
         BuddyUnit[] buddies = Object.FindObjectsByType<BuddyUnit>();
         if (terrain == null || buddies.Length == 0)
         {
@@ -405,7 +490,7 @@ public class CampStartRoutineManager : MonoBehaviour
                 {
                     LastResidentialFailureReason = approach.Failure;
                     Debug.LogError("[CampResidential Implementation] Constructor " + gobboId +
-                        " failed its own first-home approach. No retry or fallback was attempted.", buddy);
+                        " failed its own first-home approach: " + approach.Failure + ". No retry or fallback was attempted.", buddy);
                     break;
                 }
             }
@@ -482,7 +567,7 @@ public class CampStartRoutineManager : MonoBehaviour
             " directedWalkSpeed=" + directedSpeed.ToString("0.###") + " slot=" + slotIndex, buddy);
     }
 
-    IEnumerator RunResidentialSlotArrival(HandcraftedCampTerrain terrain, BuddyUnit buddy, int slotIndex)
+    IEnumerator RunResidentialSlotArrival(ICampSpatialTerrain terrain, BuddyUnit buddy, int slotIndex)
     {
         CurrentResidentialSlot = slotIndex;
         CurrentResidentialRoomId = terrain.GetResidentialCatalog() != null &&
@@ -586,9 +671,14 @@ public class CampStartRoutineManager : MonoBehaviour
                 TerrainDigResult digResult = new TerrainDigResult(0, 0, 0, TerrainDigFailureReason.None);
                 Vector2 localTargetWorld = terrain.CellToWorld(localTarget);
                 CurrentResidentialDigCell = localTarget;
+                while (SporeGobbo.Input.SporeInputReader.Instance != null && SporeGobbo.Input.SporeInputReader.Instance.Context != SporeGobbo.Input.SporeInputContext.Gameplay) yield return null;
+                if(buddy==null||!CampResidentialOccupancyResolver.IsLivingBuddy(buddy.unitData)||!dig.isActiveAndEnabled)
+                {AbortResidentialConstruction(buddy,targetObject,slotIndex,"Constructor unavailable before Dig",true);yield break;}
                 yield return dig.DigRoutine(localTargetWorld, TerrainDigAuthority.ResidentialProgression,
                     residentialProgression, footprint,
                     result => digResult = result);
+                if(buddy==null||!CampResidentialOccupancyResolver.IsLivingBuddy(buddy.unitData)||!dig.isActiveAndEnabled)
+                {AbortResidentialConstruction(buddy,targetObject,slotIndex,"Constructor removed or disabled during Dig",true);yield break;}
                 LogResidentialDig(buddy, slotIndex, localTarget, localTargetWorld, dig, digResult,
                     !terrain.IsBlocked(targetCell));
                 if (!digResult.Changed)
@@ -678,6 +768,9 @@ public class CampStartRoutineManager : MonoBehaviour
             }
             advanceStartCell = targetCell;
         }
+        if (requiredDigActions == 0) yield return dig.PrepareBedRoutine(.8f);
+        if (buddy == null || !CampResidentialOccupancyResolver.IsLivingBuddy(buddy.unitData) || !dig.isActiveAndEnabled || requiredDigActions == 0 && !dig.LastBedPreparationCompleted)
+        { AbortResidentialConstruction(buddy, targetObject, slotIndex, "Constructor unavailable or preparation cancelled", true); yield break; }
 
         int blockedRequiredCells = 0;
         foreach (Vector2Int cell in footprint) if (terrain.IsBlocked(cell)) blockedRequiredCells++;
@@ -728,17 +821,18 @@ public class CampStartRoutineManager : MonoBehaviour
         Destroy(targetObject);
     }
 
-    void AbortResidentialConstruction(BuddyUnit buddy, GameObject targetObject, int slotIndex, string reason)
+    void AbortResidentialConstruction(BuddyUnit buddy, GameObject targetObject, int slotIndex, string reason, bool expectedCancellation = false)
     {
         residentialConstructionSucceeded = false;
         residentialPostConstructionSucceeded = false;
         LastResidentialFailureReason = reason ?? "Unknown residential construction failure.";
         if (buddy != null && buddy.unitData != null)
             firstHomeBuddyIds.Remove(buddy.unitData.uniqueId);
-        Debug.LogError("[CampResidential Implementation] Slot " + slotIndex +
+        string message = (expectedCancellation ? "[CampResidential Cancelled] Slot " : "[CampResidential Implementation] Slot ") + slotIndex +
             " construction stopped: " + reason +
-            " No save, assignment, retry, rollback, or fallback movement was performed; live state is preserved.",
-            buddy != null ? buddy : this);
+            " No save, assignment, retry, rollback, or fallback movement was performed; live state is preserved.";
+        if(expectedCancellation)Debug.LogWarning(message,buddy!=null?buddy:this);
+        else Debug.LogError(message,buddy!=null?buddy:this);
         if (targetObject != null) Destroy(targetObject);
         if (buddy == null) return;
         Rigidbody2D body = buddy.GetComponent<Rigidbody2D>();
@@ -999,7 +1093,7 @@ public class CampStartRoutineManager : MonoBehaviour
             GameObject owner = new GameObject("CampResidentialPresentation");
             residentialPresentation = owner.AddComponent<CampResidentialPresentation>();
         }
-        residentialPresentation.Initialize(Object.FindAnyObjectByType<HandcraftedCampTerrain>());
+        residentialPresentation.Initialize(CampSpatialTerrain.Active);
         if (activityPointsInitialized) return;
         activityPointsInitialized = true;
         InitializeSemanticActivityPoints();
@@ -1007,7 +1101,7 @@ public class CampStartRoutineManager : MonoBehaviour
 
     bool IsOpenActivityPosition(Vector2 position)
     {
-        HandcraftedCampTerrain terrain = Object.FindAnyObjectByType<HandcraftedCampTerrain>();
+        ICampSpatialTerrain terrain = CampSpatialTerrain.Active;
         return terrain == null || !terrain.IsBlocked(terrain.WorldToCell(position));
     }
 

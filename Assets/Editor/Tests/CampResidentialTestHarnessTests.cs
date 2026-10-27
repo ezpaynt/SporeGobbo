@@ -136,8 +136,8 @@ public sealed class FakeRunReturnTestHarnessTests
         state.AddGobbo(CreateExisting("b", 2), false);
         FakeCompletedRunBuilder.Apply(state, new FakeCompletedRunInput(2, 1, 2));
         string report = CampReportTextBuilder.BuildMiddleSurvivorSummary(state.lastRun, null, state.ownedGobbos.Count);
-        Assert.That(report, Does.Contain("Participated: 2"));
-        Assert.That(report, Does.Contain("Returned: 1"));
+        Assert.That(report, Does.Contain("Departed squad: 2"));
+        Assert.That(report, Does.Contain("Squad returned: 1"));
         Assert.That(report, Does.Contain("Buddies lost: 1"));
         Assert.That(report, Does.Contain("New buddies: 2"));
     }

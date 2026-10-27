@@ -28,7 +28,7 @@ public sealed class CampReservedFootprint
     public string footprintId = "";
     public BoundsInt bounds = new BoundsInt();
 }
-public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
+public sealed class HandcraftedCampTerrain : MonoBehaviour, ICampSpatialTerrain
 {
     [Header("Stable Grid")]
     public Grid grid;
@@ -67,6 +67,16 @@ public sealed class HandcraftedCampTerrain : MonoBehaviour, IDiggableTerrain
     public List<CampTerrainRegion> mainChamberRevealExclusionRegions = new List<CampTerrainRegion>();
 
     public int LastIgnoredSavedCellCount { get; private set; }
+
+    public bool Ready => true;
+
+    public bool ResidentialEntranceOpen => true;
+
+    public Vector2 ResidentialEntranceWorld => Vector2.zero;
+
+    public bool TryOpenResidentialEntrance(GobboController player) => false;
+
+    public bool IsDerivedTerrainCollider(Collider2D collider) => collider is UnityEngine.Tilemaps.TilemapCollider2D;
     public float CellSize => grid != null ? Mathf.Max(0.0001f, Mathf.Abs(grid.cellSize.x)) : 1f;
     public BoundsInt AuthoredBounds => authoredBounds;
     public int LayoutRevision => layoutRevision;

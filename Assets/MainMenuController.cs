@@ -201,6 +201,8 @@ public class MainMenuController : MonoBehaviour
     {
         SporeSaveSlotData data = SporeSaveManager.LoadSlot(slotIndex);
         bool hasSave = data != null && data.hasSave;
+        var status = SporeSaveManager.InspectSlot(slotIndex);
+        bool occupied = status != SporeSaveManager.SlotStatus.Missing;
 
         if (slotButton != null)
         {
@@ -208,11 +210,12 @@ public class MainMenuController : MonoBehaviour
             if (label != null)
             {
                 if (currentSlotMode == SlotMode.NewGame)
-                    label.text = hasSave ? data.GetButtonLabel() + "\nFull" : "Slot " + slotIndex + " — New Game";
+                    label.text = occupied ? (hasSave ? data.GetButtonLabel() : "Slot " + slotIndex + " — " + status) + "\nFull" : "Slot " + slotIndex + " — New Game";
                 else
-                    label.text = hasSave ? data.GetButtonLabel() : "Slot " + slotIndex + " — Empty";
+                    label.text = hasSave ? data.GetButtonLabel() : "Slot " + slotIndex + " — " + (occupied ? status.ToString() : "Empty");
+                if (GameSceneCatalog.DevelopmentCandidate) label.text = "DEVELOPMENT " + (char)('A' + slotIndex - 1) + "\n" + label.text;
             }
-            slotButton.interactable = currentSlotMode == SlotMode.NewGame ? !hasSave : hasSave;
+            slotButton.interactable = currentSlotMode == SlotMode.NewGame ? !occupied : hasSave;
         }
 
         if (deleteButton != null)
@@ -256,7 +259,7 @@ public class MainMenuController : MonoBehaviour
         CampArrivalContext.Clear();
         SampleSceneModeContext.SetPending(SampleSceneMode.Intro);
         SporePauseService.ResetAll();
-        SceneManager.LoadScene(firstSceneName);
+        SceneManager.LoadScene(GameSceneCatalog.ResolveIntro(firstSceneName));
     }
 
     public void ContinueLastGame()
@@ -297,16 +300,16 @@ public class MainMenuController : MonoBehaviour
         }
         SporeSaveSlotData loaded = SporeSaveManager.LoadSlot(slotIndex);
         bool loadIntro = SporeSaveManager.ShouldLoadIntro(loaded);
-        string destination = loadIntro ? firstSceneName : campSceneName;
+        string destination = loadIntro ? GameSceneCatalog.ResolveIntro(firstSceneName) : campSceneName;
         if (loadIntro)
         {
             CampArrivalContext.Clear();
             SampleSceneModeContext.SetPending(SampleSceneMode.Intro);
         }
-        else CampArrivalContext.SetPending(CampArrivalMode.LoadedSave);
+        else if (!CampArrivalContext.HasPending) CampArrivalContext.SetPending(CampArrivalMode.LoadedSave);
         Debug.Log("[MainMenuController] Loaded slot " + slotIndex + ". Loading " + destination + ".");
         SporePauseService.ResetAll();
-        SceneManager.LoadScene(destination);
+        SceneManager.LoadScene(GameSceneCatalog.Resolve(destination));
     }
 
     public void AskDeleteSlot(int slotIndex)

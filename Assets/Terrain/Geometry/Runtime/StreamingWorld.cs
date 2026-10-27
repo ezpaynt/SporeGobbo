@@ -9,6 +9,7 @@ namespace SporeGobbo.Geometry
     { bool TrySolid(int x,int y,out bool solid); bool Protected(int x,int y); }
     /// Complete authored definitions own every cell and protection rule; stress defaults never apply.
     public interface ICompleteTerrainDefinition : IStreamingTerrainDefinition {}
+    public interface IBlockingTerrainDefinition { bool PlacementAllowed(int x,int y); }
     public interface IRefillableTerrainDefinition { bool Refillable(int x,int y); }
     public readonly struct TerrainCellChange
     {public readonly int X,Y,Revision;public readonly bool Solid;public TerrainCellChange(int x,int y,int revision,bool solid){X=x;Y=y;Revision=revision;Solid=solid;}}
@@ -57,6 +58,9 @@ namespace SporeGobbo.Geometry
         public bool Excavate(int x,int y){if(mutationControlTaken)throw new InvalidOperationException("Use the owning terrain transaction service");return ExcavateCore(x,y);}
         bool ExcavateCore(int x,int y)
         {if(Locked(x,y)||!solid[y*Width+x])return false;solid[y*Width+x]=false;if(IsRefillable(x,y))temporaryOpen.Add(y*Width+x);else edits.Add(y*Width+x);Revision++;Changed?.Invoke(new TerrainCellChange(x,y,Revision,false));return true;}
+        bool placementControlTaken;
+        internal Func<int,int,bool> TakePlacementControl(){if(!mutationControlTaken||placementControlTaken)throw new InvalidOperationException("Placement requires the existing terrain owner");placementControlTaken=true;return PlaceOwned;}
+        bool PlaceOwned(int x,int y){if(Locked(x,y)||solid[y*Width+x])return false;solid[y*Width+x]=true;temporaryOpen.Remove(y*Width+x);edits.Remove(y*Width+x);Revision++;Changed?.Invoke(new TerrainCellChange(x,y,Revision,true));return true;}
         public bool Refill(int x,int y)
         {if(mutationControlTaken)throw new InvalidOperationException("Refill is not authorized by the terrain owner");if(!Contains(x,y)||Locked(x,y)||!IsRefillable(x,y)||solid[y*Width+x])return false;solid[y*Width+x]=true;temporaryOpen.Remove(y*Width+x);Revision++;Changed?.Invoke(new TerrainCellChange(x,y,Revision,true));return true;}
         public void WriteDeltas(BinaryWriter writer)

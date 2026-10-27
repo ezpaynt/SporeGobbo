@@ -27,7 +27,7 @@ public class PauseMenuController : MonoBehaviour, ISporePauseScreen
     void Start()
     {
         isIntroMenu = SampleSceneModeController.IsIntroMode;
-        isRunMenu = SceneManager.GetActiveScene().name != campSceneName;
+        isRunMenu = !GameSceneCatalog.IsCamp(SceneManager.GetActiveScene());
         HookButtons();
         BuildRunMenuIfNeeded();
         paused = false;
@@ -120,7 +120,7 @@ public class PauseMenuController : MonoBehaviour, ISporePauseScreen
 
     void SaveIfInCamp(string reason)
     {
-        if (SceneManager.GetActiveScene().name != campSceneName)
+        if (!GameSceneCatalog.IsCamp(SceneManager.GetActiveScene()))
         {
             Debug.Log("[PauseMenuController] Not saving " + reason + " because active scene is a run. Mid-run progress rolls back.");
             return;

@@ -18,6 +18,8 @@ public class SporeSaveSlotData
     public long lastPlayedUtcTicks = 0;
     public string lastPlayedAt = "";
     public string nextSceneName = "CampScene";
+    public int pendingCampArrivalMode = -1;
+    public string pendingCampArrivalId;
 
     [Header("Unified Gobbo Data")]
     public GobboUnitSaveData leader = new GobboUnitSaveData { isLeader = true, displayName = "Gobbo" };
@@ -111,7 +113,6 @@ public class SporeSaveSlotData
         if (string.IsNullOrWhiteSpace(lastPlayedAt)) lastPlayedAt = new DateTime(lastPlayedUtcTicks, DateTimeKind.Utc).ToLocalTime().ToString("yyyy-MM-dd HH:mm");
         if (leader == null) leader = new GobboUnitSaveData { isLeader = true, displayName = string.IsNullOrWhiteSpace(playerName) ? "Gobbo" : playerName };
         leader.isLeader = true;
-        leader.isDead = false;
         leader.EnsureIdentity(string.IsNullOrWhiteSpace(playerName) ? "Gobbo" : playerName);
         if (string.IsNullOrWhiteSpace(playerName)) playerName = leader.displayName;
         if (string.IsNullOrWhiteSpace(saveName)) saveName = playerName + "'s Camp";

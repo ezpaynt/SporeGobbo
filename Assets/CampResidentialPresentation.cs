@@ -8,8 +8,9 @@ public sealed class CampResidentialPresentation : MonoBehaviour
     readonly Dictionary<int, GameObject> markersByGlobalSlot = new Dictionary<int, GameObject>();
     readonly List<int> orderedGlobalSlots = new List<int>();
     bool initialized;
+    readonly List<Object> ownedVisualAssets = new List<Object>();
 
-    public void Initialize(HandcraftedCampTerrain terrain)
+    public void Initialize(IResidentialPlanTerrain terrain)
     {
         if (terrain == null || initialized) return;
         CampResidentialCatalog catalog = terrain.GetResidentialCatalog();
@@ -37,7 +38,9 @@ public sealed class CampResidentialPresentation : MonoBehaviour
             texture.Apply();
             SpriteRenderer renderer = marker.AddComponent<SpriteRenderer>();
             renderer.sprite = Sprite.Create(texture, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f), 1f);
-            renderer.sortingOrder = 28;
+            renderer.sortingOrder = 19;
+            ownedVisualAssets.Add(texture); ownedVisualAssets.Add(renderer.sprite);
+            (DiggableTerrainService.Active as IRegionVisualBinding)?.BindStaticVisual(marker, anchor.transform);
             markersByGlobalSlot[slotId] = marker;
         }
         orderedGlobalSlots.Sort();
@@ -62,6 +65,8 @@ public sealed class CampResidentialPresentation : MonoBehaviour
             if (point != null) point.available = available;
         }
     }
+
+    void OnDestroy(){foreach(var asset in ownedVisualAssets)if(asset!=null){if(Application.isPlaying)Destroy(asset);else DestroyImmediate(asset);}ownedVisualAssets.Clear();}
 
     public Transform GetRestPoint(int slotId)
     {

@@ -14,7 +14,7 @@ public class SaveOnApplicationQuit : MonoBehaviour
 
     public void TrySave(string reason = "manual")
     {
-        if (saveOnlyInCamp && SceneManager.GetActiveScene().name != campSceneName)
+        if (saveOnlyInCamp && !GameSceneCatalog.IsCamp(SceneManager.GetActiveScene()))
         {
             if (logDebugMessages) Debug.Log("[SaveOnApplicationQuit] Skipping save during " + reason + " because active scene is not camp.");
             return;

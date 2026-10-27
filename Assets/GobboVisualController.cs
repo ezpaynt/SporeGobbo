@@ -2,6 +2,8 @@ using UnityEngine;
 
 public class GobboVisualController : MonoBehaviour
 {
+ static readonly Unity.Profiling.ProfilerMarker stage61AnimationProfile = new Unity.Profiling.ProfilerMarker("Spore.Stage61.Animation");
+
     public SpriteRenderer spriteRenderer;
     public GobboAnimationState currentState = GobboAnimationState.Idle;
 
@@ -43,6 +45,8 @@ public class GobboVisualController : MonoBehaviour
 
     void Update()
     {
+ using var _stage61Profile = stage61AnimationProfile.Auto();
+
         AdvanceFrameTimer(Time.deltaTime);
     }
 

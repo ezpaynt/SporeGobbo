@@ -71,6 +71,7 @@ public static class GobboRuntimeSpawnExtensions
         BuddyScavenger scavenger = buddyObject.GetComponent<BuddyScavenger>();
         if (scavenger != null) scavenger.enabled = data.collectsFood;
 
+        RegionQueries.Bind(buddyObject);
         player.AddFollower(1);
         Debug.Log("Spawned gobbo unit: " + data.displayName + " / " + data.gobboType + " / " + data.uniqueId);
     }

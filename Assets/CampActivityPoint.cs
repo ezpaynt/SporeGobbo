@@ -21,15 +21,15 @@ public sealed class CampActivityPoint : MonoBehaviour
             pointAvailable, pointResidentialSlot, gobboResidentialSlot);
     }
 
-    public bool IsValidFor(GobboUnitSaveData gobbo, HandcraftedCampTerrain terrain)
+    public bool IsValidFor(GobboUnitSaveData gobbo, ICampSpatialTerrain terrain)
     {
         if (!CanUse(kind, available, residentialSlot, gobbo != null ? gobbo.campResidentialSlotId : 0)) return false;
-        return terrain == null || !terrain.IsBlocked(terrain.WorldToCell(transform.position));
+        return terrain != null && !terrain.IsBlocked(terrain.WorldToCell(transform.position));
     }
 
     public static CampActivityPoint[] GetValidFor(GobboUnitSaveData gobbo)
     {
-        HandcraftedCampTerrain terrain = Object.FindAnyObjectByType<HandcraftedCampTerrain>();
+        ICampSpatialTerrain terrain = CampSpatialTerrain.Active;
         CampActivityPoint[] all = Object.FindObjectsByType<CampActivityPoint>(FindObjectsInactive.Exclude);
         System.Collections.Generic.List<CampActivityPoint> valid = new System.Collections.Generic.List<CampActivityPoint>();
         foreach (CampActivityPoint point in all)

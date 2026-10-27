@@ -86,8 +86,8 @@ public static class CampReportTextBuilder
         int returned = System.Math.Max(0, participated - died);
 
         string text = "Roll call" +
-            "\n\nParticipated: " + participated +
-            "\nReturned: " + returned;
+            "\n\nDeparted squad: " + participated +
+            "\nSquad returned: " + returned;
 
         text += "\n\nNew buddies: " + run.buddiesFound;
         if (run.newBuddyNames != null && run.newBuddyNames.Count > 0)

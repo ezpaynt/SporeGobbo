@@ -169,7 +169,6 @@ public class GameState : MonoBehaviour
     {
         if (leader == null) leader = new GobboUnitSaveData { isLeader = true, displayName = "Gobbo" };
         leader.isLeader = true;
-        leader.isDead = false;
         leader.EnsureIdentity(string.IsNullOrWhiteSpace(leader.displayName) ? "Gobbo" : leader.displayName);
         leader.EnsureRuntimeDefaults();
 
@@ -222,7 +221,6 @@ public class GameState : MonoBehaviour
 
         leader = newLeader.CloneUnit();
         leader.isLeader = true;
-        leader.isDead = false;
         leader.EnsureIdentity(string.IsNullOrWhiteSpace(leader.displayName) ? "Gobbo" : leader.displayName);
         leader.EnsureRuntimeDefaults();
     }
@@ -287,8 +285,8 @@ public class GameState : MonoBehaviour
     {
         GobboController player = Object.FindAnyObjectByType<GobboController>();
         GobboUnitSaveData before = runStartLeaderSnapshot != null ? runStartLeaderSnapshot.CloneUnit() : leader.CloneUnit();
-        List<string> beforeIds = runStartBuddyIds.Count > 0 ? new List<string>(runStartBuddyIds) : GetOwnedGobboIds();
-        List<GobboUnitSaveData> beforeGobbos = runStartGobboRosterSnapshot.Count > 0 ? CloneUnitList(runStartGobboRosterSnapshot) : CloneUnitList(ownedGobbos);
+        List<string> beforeIds = hasActiveRunSnapshot ? new List<string>(runStartBuddyIds) : GetOwnedGobboIds();
+        List<GobboUnitSaveData> beforeGobbos = hasActiveRunSnapshot ? CloneUnitList(runStartGobboRosterSnapshot) : CloneUnitList(ownedGobbos);
 
         if (player != null) SavePlayer(player);
         SaveVisibleRunBuddies();
@@ -509,6 +507,9 @@ public class GameState : MonoBehaviour
         // Permanent memorial data belongs to GameState/save data.
         // The camp-side CampDeathHistoryStore mirrors this list when CampScene opens.
         AddDeathHistoryRecord(BuildDeathRecord(unit, currentRunNumber, unit.causeOfDeath, false));
+        // Publish one coherent death: the living roster and active squad must no longer
+        // reference this identity when the memorial-triggered autosave captures them.
+        RemoveGobbo(unit.uniqueId);
         SporeSaveManager.SaveCurrentSlotFromGameState();
     }
 

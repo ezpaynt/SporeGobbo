@@ -24,8 +24,14 @@ public sealed class IntroCampTransition : MonoBehaviour
     void OnTriggerEnter2D(Collider2D other)
     {
         if (!SampleSceneModeController.IsIntroMode || triggered || !other.CompareTag("Player")) return;
-        triggered = true;
-        StartCoroutine(Transition(other.GetComponent<GobboController>()));
+        BeginArrival(other.GetComponent<GobboController>());
+    }
+
+    public void BeginArrival(GobboController player)
+    {
+        if(triggered||player==null||!SampleSceneModeController.IsIntroMode)return;
+        triggered=true;var intro=GetComponent<IntroRegion>();if(intro!=null){if(!intro.Sequence.PlugCleared){triggered=false;return;}intro.PrepareArrival();GameState.Instance.SavePlayer(player);}
+        StartCoroutine(Transition(player));
     }
 
     IEnumerator Transition(GobboController player)
@@ -41,7 +47,7 @@ public sealed class IntroCampTransition : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < total)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += GetComponent<IntroRegion>()!=null?Time.deltaTime:Time.unscaledDeltaTime;
             if (fadeOverlay != null) fadeOverlay.alpha = Mathf.Clamp01(elapsed / Mathf.Max(0.01f, fadeSeconds));
             if (cameraFollow != null && elapsed < rumbleSeconds)
                 cameraFollow.offset = originalCameraOffset + (Vector3)(Random.insideUnitCircle * shakeStrength);
@@ -52,6 +58,6 @@ public sealed class IntroCampTransition : MonoBehaviour
 
         CampArrivalContext.SetPending(CampArrivalMode.NewGameIntro);
         SporePauseService.ResetAll();
-        SceneManager.LoadScene(campSceneName);
+        SceneManager.LoadScene(GameSceneCatalog.Resolve(campSceneName));
     }
 }

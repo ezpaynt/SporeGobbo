@@ -30,6 +30,7 @@ public class BuddyScavenger : MonoBehaviour
     private Transform targetFood;
     private readonly List<Vector2> currentPath = new List<Vector2>();
     private int pathIndex = 0;
+    private int regionPathRevision = -1;
     private float repathTimer = 0f;
     private Vector2 lastPathGoal;
 
@@ -72,6 +73,7 @@ public class BuddyScavenger : MonoBehaviour
 
     void FixedUpdate()
     {
+        using var profile=new Unity.Profiling.ProfilerMarker("Spore.AI.BuddyScavenger").Auto();
         if (!brainAllowsMovement) return;
         if (!CanScavenge() || targetFood == null || player == null) return;
 
@@ -141,20 +143,21 @@ public class BuddyScavenger : MonoBehaviour
     bool CanReachFood(Transform food)
     {
         if (food == null) return false;
-        if (MapPathfinder.HasLineOfWalkableSight(rb.position, food.position)) return true;
+        if (RegionQueries.Sight(gameObject,rb.position, food.position)) return true;
 
         List<Vector2> testPath;
-        return MapPathfinder.TryFindPath(rb.position, food.position, out testPath) && testPath.Count > 0;
+        return RegionQueries.Path(gameObject,rb.position, food.position, out testPath) && testPath.Count > 0;
     }
 
     Vector2 GetPathDirection(Vector2 targetPos)
     {
-        if (MapPathfinder.HasLineOfWalkableSight(rb.position, targetPos))
+        if (RegionQueries.Sight(gameObject,rb.position, targetPos))
         {
             ClearPath();
             return (targetPos - rb.position).normalized;
         }
 
+        if(RegionQueries.Current is IWorldRegion region && regionPathRevision!=region.Revision){currentPath.Clear();pathIndex=0;regionPathRevision=region.Revision;}
         repathTimer -= Time.fixedDeltaTime;
         bool needsNewPath = currentPath.Count == 0 ||
                             pathIndex >= currentPath.Count ||
@@ -181,7 +184,7 @@ public class BuddyScavenger : MonoBehaviour
         repathTimer = repathTime;
         lastPathGoal = targetPos;
 
-        if (MapPathfinder.TryFindPath(rb.position, targetPos, out List<Vector2> newPath))
+        if (RegionQueries.Path(gameObject,rb.position, targetPos, out List<Vector2> newPath))
         {
             currentPath.Clear();
             currentPath.AddRange(newPath);

@@ -91,7 +91,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable, IWorldInteracti
     {
         if (!homeAvailable) return false;
         if (campTerrain == null) campTerrain = Object.FindAnyObjectByType<HandcraftedCampTerrain>();
-        return campTerrain != null && campTerrain.HasOpenAccessToFootprint(terrainFootprintId);
+        return CampSpatialTerrain.Resolve(campTerrain)?.HasOpenAccessToFootprint(terrainFootprintId) ?? false;
     }
 
     void RefreshPhysicalAvailability()
@@ -145,6 +145,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable, IWorldInteracti
 
     void RefreshMenu()
     {
+        if(GameSceneCatalog.DevelopmentCandidate)CampCandidateUiLayout.Squad(this);
         ClearRows();
 
         if (GameState.Instance == null)
@@ -192,13 +193,13 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable, IWorldInteracti
         rowRt.anchorMin = new Vector2(0f, 1f);
         rowRt.anchorMax = new Vector2(1f, 1f);
         rowRt.pivot = new Vector2(0.5f, 1f);
-        rowRt.sizeDelta = new Vector2(0f, 52f);
+        rowRt.sizeDelta = new Vector2(0f, GameSceneCatalog.DevelopmentCandidate?72f:52f);
         rowRt.offsetMin = new Vector2(0f, rowRt.offsetMin.y);
         rowRt.offsetMax = new Vector2(0f, rowRt.offsetMax.y);
 
         LayoutElement rowElement = row.AddComponent<LayoutElement>();
-        rowElement.preferredHeight = 52f;
-        rowElement.minHeight = 52f;
+        rowElement.preferredHeight = GameSceneCatalog.DevelopmentCandidate?72f:52f;
+        rowElement.minHeight = GameSceneCatalog.DevelopmentCandidate?72f:52f;
         rowElement.flexibleWidth = 1f;
 
         Image rowBg = row.GetComponent<Image>();
@@ -243,13 +244,13 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable, IWorldInteracti
         Button button = obj.GetComponent<Button>();
         button.targetGraphic = image;
 
-        TMP_Text txt = CreateText(obj.transform, "Text", TextAlignmentOptions.Left, 15, FontStyles.Normal);
+        TMP_Text txt = CreateText(obj.transform, "Text", TextAlignmentOptions.Left, GameSceneCatalog.DevelopmentCandidate?18:15, FontStyles.Normal);
         txt.rectTransform.anchorMin = Vector2.zero;
         txt.rectTransform.anchorMax = Vector2.one;
         txt.rectTransform.offsetMin = new Vector2(10f, 3f);
         txt.rectTransform.offsetMax = new Vector2(-10f, -3f);
         txt.color = Color.white;
-        txt.text = label;
+        txt.text = label;if(GameSceneCatalog.DevelopmentCandidate)txt.textWrappingMode=TextWrappingModes.Normal;
         txt.raycastTarget = false;
 
         return button;
@@ -259,7 +260,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable, IWorldInteracti
     {
         string action = active ? " → Send to reserve" : " → Bring along";
         string successor = IsMarkedSuccessor(gobbo.uniqueId) ? " [SUCCESSOR]" : "";
-        return DisplayName(gobbo) + " " + gobbo.gobboType + " / " + gobbo.ageStage + " Lv " + gobbo.level + " HP " + gobbo.health + "/" + gobbo.maxHealth + successor + action;
+        return DisplayName(gobbo) + (GameSceneCatalog.DevelopmentCandidate?"\n":" ") + gobbo.gobboType + " / " + gobbo.ageStage + " Lv " + gobbo.level + " HP " + gobbo.health + "/" + gobbo.maxHealth + successor + action;
     }
 
     string DisplayName(GobboUnitSaveData gobbo)
@@ -502,7 +503,7 @@ public class CampSquadSelect : MonoBehaviour, ICampInteractable, IWorldInteracti
         txt.rectTransform.offsetMin = Vector2.zero;
         txt.rectTransform.offsetMax = Vector2.zero;
         txt.color = Color.white;
-        txt.text = label;
+        txt.text = label;if(GameSceneCatalog.DevelopmentCandidate)txt.textWrappingMode=TextWrappingModes.Normal;
         txt.raycastTarget = false;
 
         return button;

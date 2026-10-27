@@ -64,6 +64,7 @@ public class BlobSpitterEnemy : MonoBehaviour, IEnemyDamageReceiver
 
     private readonly List<Vector2> currentPath = new List<Vector2>();
     private int pathIndex = 0;
+    private int regionPathRevision = -1;
     private float repathTimer = 0f;
     private Vector2 lastPathGoal;
 
@@ -141,6 +142,7 @@ public class BlobSpitterEnemy : MonoBehaviour, IEnemyDamageReceiver
 
     void FixedUpdate()
     {
+        using var profile=new Unity.Profiling.ProfilerMarker("Spore.AI.Blob").Auto();
         if (isDead)
             return;
 
@@ -279,8 +281,8 @@ public class BlobSpitterEnemy : MonoBehaviour, IEnemyDamageReceiver
         if (!requireLineOfSight)
             return true;
 
-        return MapPathfinder.HasLineOfWalkableSight(transform.position, target.position) ||
-               MapPathfinder.TryFindPath(transform.position, target.position, out List<Vector2> path) && path.Count > 0;
+        return RegionQueries.Sight(gameObject,transform.position, target.position) ||
+               RegionQueries.Path(gameObject,transform.position, target.position, out List<Vector2> path) && path.Count > 0;
     }
 
     bool IsInAttackRange()
@@ -291,7 +293,7 @@ public class BlobSpitterEnemy : MonoBehaviour, IEnemyDamageReceiver
         if (Vector2.Distance(transform.position, currentTarget.position) > attackRange)
             return false;
 
-        return !requireLineOfSight || MapPathfinder.HasLineOfWalkableSight(transform.position, currentTarget.position);
+        return !requireLineOfSight || RegionQueries.Vision(gameObject,transform.position, currentTarget.position);
     }
 
     void MoveTowardTarget()
@@ -310,12 +312,13 @@ public class BlobSpitterEnemy : MonoBehaviour, IEnemyDamageReceiver
 
     Vector2 GetPathDirection(Vector2 targetPos)
     {
-        if (MapPathfinder.HasLineOfWalkableSight(rb.position, targetPos))
+        if (RegionQueries.Sight(gameObject,rb.position, targetPos))
         {
             ClearPath();
             return (targetPos - rb.position).normalized;
         }
 
+        if(RegionQueries.Current is IWorldRegion region && regionPathRevision!=region.Revision){currentPath.Clear();pathIndex=0;regionPathRevision=region.Revision;}
         repathTimer -= Time.fixedDeltaTime;
 
         bool needsNewPath = currentPath.Count == 0 ||
@@ -347,7 +350,7 @@ public class BlobSpitterEnemy : MonoBehaviour, IEnemyDamageReceiver
         repathTimer = repathTime;
         lastPathGoal = targetPos;
 
-        if (MapPathfinder.TryFindPath(rb.position, targetPos, out List<Vector2> path))
+        if (RegionQueries.Path(gameObject,rb.position, targetPos, out List<Vector2> path))
         {
             currentPath.Clear();
             currentPath.AddRange(path);
@@ -459,7 +462,7 @@ public class BlobSpitterEnemy : MonoBehaviour, IEnemyDamageReceiver
         }
 
         if (splatPrefab != null)
-            Instantiate(splatPrefab, transform.position, Quaternion.Euler(0f, 0f, Random.Range(0f, 360f)));
+            RegionQueries.Current?.BindVisual(Instantiate(splatPrefab, transform.position, Quaternion.Euler(0f, 0f, Random.Range(0f, 360f))));
 
         Destroy(gameObject);
     }

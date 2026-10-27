@@ -59,6 +59,7 @@ public static class GameStateGobboAPI
         GobboUnitSaveData newLeader = successor.CloneUnit();
         newLeader.isLeader = true;
         newLeader.isDead = false;
+        newLeader.campResidentialSlotId = 0;
         state.RemoveGobbo(successor.uniqueId);
         state.SetLeader(newLeader);
         if (state.markedSuccessorId == successor.uniqueId) state.markedSuccessorId = "";

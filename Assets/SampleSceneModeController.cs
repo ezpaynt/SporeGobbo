@@ -19,6 +19,10 @@ public sealed class SampleSceneModeController : MonoBehaviour
     public static SampleSceneMode CurrentMode { get; private set; } = SampleSceneMode.NormalRun;
     public static bool IsIntroMode => CurrentMode == SampleSceneMode.Intro;
 
+    public static void EnterAuthoredRun(){CurrentMode=SampleSceneMode.NormalRun;SampleSceneModeContext.ConsumeOrDefault();SampleSceneModeContext.ConsumeProfileOverride();}
+
+    public static void EnterAuthoredIntro(){CurrentMode=SampleSceneMode.Intro;SampleSceneModeContext.ConsumeOrDefault();SampleSceneModeContext.ConsumeProfileOverride();}
+
     void Awake()
     {
         CurrentMode = SampleSceneModeContext.ConsumeOrDefault();

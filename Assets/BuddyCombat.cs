@@ -38,6 +38,7 @@ public class BuddyCombat : MonoBehaviour
     private float attackTimer = 0f;
     private readonly List<Vector2> currentPath = new List<Vector2>();
     private int pathIndex = 0;
+    private int regionPathRevision = -1;
     private float repathTimer = 0f;
     private Vector2 lastPathGoal;
     private float bounceTimer = 0f;
@@ -74,6 +75,7 @@ public class BuddyCombat : MonoBehaviour
 
     void FixedUpdate()
     {
+        using var profile=new Unity.Profiling.ProfilerMarker("Spore.AI.BuddyCombat").Auto();
         if (!brainAllowsMovement) return;
         if (!AllowedToFight() || currentTarget == null) return;
 
@@ -158,12 +160,12 @@ public class BuddyCombat : MonoBehaviour
 
     bool CanSeeOrPathTo(Vector2 targetPos)
     {
-        bool hasSight = !requireLineOfSightToTarget || MapPathfinder.HasLineOfWalkableSight(rb.position, targetPos);
+        bool hasSight = !requireLineOfSightToTarget || RegionQueries.Sight(gameObject,rb.position, targetPos);
         if (hasSight) return true;
         if (!requireReachableTarget) return true;
 
         List<Vector2> testPath;
-        return MapPathfinder.TryFindPath(rb.position, targetPos, out testPath) && testPath.Count > 0;
+        return RegionQueries.Path(gameObject,rb.position, targetPos, out testPath) && testPath.Count > 0;
     }
 
     void MoveTowardTarget()
@@ -178,12 +180,13 @@ public class BuddyCombat : MonoBehaviour
 
     Vector2 GetPathDirection(Vector2 targetPos)
     {
-        if (MapPathfinder.HasLineOfWalkableSight(rb.position, targetPos))
+        if (RegionQueries.Sight(gameObject,rb.position, targetPos))
         {
             ClearPath();
             return (targetPos - rb.position).normalized;
         }
 
+        if(RegionQueries.Current is IWorldRegion region && regionPathRevision!=region.Revision){currentPath.Clear();pathIndex=0;regionPathRevision=region.Revision;}
         repathTimer -= Time.fixedDeltaTime;
         bool needsNewPath = currentPath.Count == 0 ||
                             pathIndex >= currentPath.Count ||
@@ -210,7 +213,7 @@ public class BuddyCombat : MonoBehaviour
         repathTimer = repathTime;
         lastPathGoal = targetPos;
 
-        if (MapPathfinder.TryFindPath(rb.position, targetPos, out List<Vector2> newPath))
+        if (RegionQueries.Path(gameObject,rb.position, targetPos, out List<Vector2> newPath))
         {
             currentPath.Clear();
             currentPath.AddRange(newPath);
@@ -226,7 +229,7 @@ public class BuddyCombat : MonoBehaviour
     {
         rb.linearVelocity = Vector2.zero;
         if (attackTimer > 0f || currentTarget == null) return;
-        if (!MapPathfinder.HasLineOfWalkableSight(rb.position, currentTarget.position)) return;
+        if (!RegionQueries.Sight(gameObject,rb.position, currentTarget.position)) return;
 
         attackTimer = attackCooldown;
         Vector2 directionToEnemy = ((Vector2)currentTarget.position - rb.position).normalized;

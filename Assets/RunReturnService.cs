@@ -10,6 +10,9 @@ public enum RunReturnReason
 public static class RunReturnService
 {
     private static bool returnInProgress;
+    private static bool preparedDevelopmentOutcome;
+    public static bool DevelopmentPreparationFailed { get; private set; }
+    private static UnityEngine.Object developmentReturnOwner;
     public static float retreatSnackLossPercent = 0.75f;
 
     public static RunReturnReason LastReturnReason { get; private set; } = RunReturnReason.NormalExit;
@@ -37,6 +40,20 @@ public static class RunReturnService
         RunReturnReason returnReason,
         string source)
     {
+        sceneToLoad = GameSceneCatalog.Resolve(sceneToLoad);
+        if (GameSceneCatalog.DevelopmentCandidate && DevelopmentPreparationFailed)
+        { Debug.LogWarning("[Development return] Recover the last committed Camp before retrying a failed preparation."); return false; }
+        if (GameSceneCatalog.DevelopmentCandidate && !Application.CanStreamedLevelBeLoaded(sceneToLoad))
+        {
+            Debug.LogWarning("[Development return] Destination unavailable; campaign and run remain unchanged: " + sceneToLoad);
+            return false;
+        }
+        if (GameSceneCatalog.DevelopmentCandidate)
+        {
+            developmentReturnOwner = Object.FindAnyObjectByType<RunStartInitializer>();
+            if (developmentReturnOwner == null || SampleSceneModeController.IsIntroMode)
+            { Debug.LogWarning("[Development return] No active NormalRun lifecycle; no effects applied."); return false; }
+        }
         if (returnInProgress)
         {
             Debug.LogWarning("[RunReturnService] Ignored duplicate return request from " + source + ".");
@@ -44,26 +61,36 @@ public static class RunReturnService
         }
 
         returnInProgress = true;
-        LastReturnReason = returnReason;
-        LastRetreatMushroomsLost = 0;
-        LastRetreatShiniesLost = 0;
+        if (!preparedDevelopmentOutcome)
+        {
+            LastReturnReason = returnReason;
+            LastRetreatMushroomsLost = 0;
+            LastRetreatShiniesLost = 0;
+        }
 
         Debug.Log("[RunReturnService] Returning to " + sceneToLoad + " from " + source + " | reason=" + returnReason + ".");
 
         GameState state = EnsureGameState();
 
-        if (returnReason == RunReturnReason.Retreat)
+        try
         {
-            RunSnackLootService.FinalizeRetreat(state, retreatSnackLossPercent);
-            ApplyRetreatLootPenalty(state);
-        }
-        else
+        if (!preparedDevelopmentOutcome)
         {
-            RunSnackLootService.FinalizeSuccess(state);
-        }
+            if (returnReason == RunReturnReason.Retreat)
+            {
+                RunSnackLootService.FinalizeRetreat(state, retreatSnackLossPercent);
+                ApplyRetreatLootPenalty(state);
+            }
+            else RunSnackLootService.FinalizeSuccess(state);
 
-        if (saveRunBeforeLeaving)
-            state.SaveFromRun();
+            if (saveRunBeforeLeaving) state.SaveFromRun();
+            if (GameSceneCatalog.DevelopmentCandidate)
+            {
+                preparedDevelopmentOutcome = true;
+                CampArrivalContext.SetPending(CampArrivalMode.ReturnedFromRun);
+                SporePauseService.Acquire(developmentReturnOwner);
+            }
+        }
 
         if (saveSlotAfterRunCommit)
             SporeSaveManager.SaveCurrentSlotFromGameState();
@@ -74,14 +101,27 @@ public static class RunReturnService
 
         PlayerDeathWatcher.SuppressDeathHandlingForSceneChange();
         SporePauseService.ResetAll();
-        CampArrivalContext.SetPending(CampArrivalMode.ReturnedFromRun);
+        if (!GameSceneCatalog.DevelopmentCandidate) CampArrivalContext.SetPending(CampArrivalMode.ReturnedFromRun);
         SceneManager.LoadScene(sceneToLoad);
         return true;
+        }
+        catch (System.Exception error)
+        {
+            returnInProgress = false;
+            if (!GameSceneCatalog.DevelopmentCandidate) throw;
+            if (!preparedDevelopmentOutcome) DevelopmentPreparationFailed = true;
+            SporePauseService.Acquire(developmentReturnOwner);
+            Debug.LogWarning("[Development return] Outcome retained; retry return to save/arrive without repeating rewards. " + error.Message);
+            return false;
+        }
     }
 
     public static void ResetForNewRun()
     {
         returnInProgress = false;
+        preparedDevelopmentOutcome = false;
+        DevelopmentPreparationFailed = false;
+        SporePauseService.Release(developmentReturnOwner);
         LastReturnReason = RunReturnReason.NormalExit;
         LastRetreatMushroomsLost = 0;
         LastRetreatShiniesLost = 0;

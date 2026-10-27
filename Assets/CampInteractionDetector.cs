@@ -4,6 +4,7 @@ using TMPro;
 using UnityEngine;
 
 /// <summary>Single authority for world interaction selection, prompts, and execution.</summary>
+[DefaultExecutionOrder(2800)]
 public class CampInteractionDetector : MonoBehaviour
 {
     private const string RuntimePromptResourcePath = "UI/CampInteractionPrompt";
@@ -34,6 +35,13 @@ public class CampInteractionDetector : MonoBehaviour
     private SporeUiCoordinator uiCoordinator;
     private string currentPrompt;
     private bool promptResolutionAttempted;
+    private SettlementCampRegion promptRegion;
+    private RectTransform promptRect;
+    private Canvas promptCanvas;
+    readonly List<Collider2D> overlapHits = new List<Collider2D>(16);
+    readonly List<MonoBehaviour> ownerComponents = new List<MonoBehaviour>(16);
+    readonly Dictionary<MonoBehaviour,Candidate> candidateCache = new Dictionary<MonoBehaviour,Candidate>();
+    string cachedBinding,cachedAction;MonoBehaviour promptOwner;
 
     private sealed class Candidate
     {
@@ -65,7 +73,7 @@ public class CampInteractionDetector : MonoBehaviour
         uiCoordinator = null;
     }
 
-    void HandlePresentationChanged() => UpdatePrompt();
+    void HandlePresentationChanged(){cachedBinding=null;UpdatePrompt();}
 
     void Update()
     {
@@ -120,8 +128,9 @@ public class CampInteractionDetector : MonoBehaviour
         rankingData.Clear();
         seenOwners.Clear();
 
-        Collider2D[] hits = Physics2D.OverlapCircleAll(playerTransform.position, interactRadius, interactableLayers);
-        foreach (Collider2D hit in hits) AddCandidate(hit);
+        var filter=new ContactFilter2D{useLayerMask=true,layerMask=interactableLayers,useTriggers=Physics2D.queriesHitTriggers};
+        overlapHits.Clear();Physics2D.OverlapCircle(playerTransform.position,interactRadius,filter,overlapHits);
+        foreach (Collider2D hit in overlapHits) AddCandidate(hit);
 
         int selectedIndex = InteractionSelectionMath.Select(
             rankingData, currentId, facingTieDistance, switchDistanceAdvantage);
@@ -134,7 +143,8 @@ public class CampInteractionDetector : MonoBehaviour
 
         MonoBehaviour owner = null;
         ICampInteractable interactable = null;
-        foreach (MonoBehaviour behaviour in hit.GetComponentsInParent<MonoBehaviour>(true))
+        ownerComponents.Clear();hit.GetComponentsInParent(true,ownerComponents);
+        foreach (MonoBehaviour behaviour in ownerComponents)
         {
             if (behaviour is ICampInteractable found)
             {
@@ -151,6 +161,10 @@ public class CampInteractionDetector : MonoBehaviour
         if (string.IsNullOrWhiteSpace(interactable.GetInteractPrompt())) return;
 
         Vector2 point = metadata != null ? metadata.GetInteractionPoint() : owner.transform.position;
+        var logicalAnchor=owner.GetComponent<IWorldInteractionAnchor>();
+        if(logicalAnchor!=null)point=logicalAnchor.InteractionPoint;
+        var binding=player.GetComponent<ActorTerrainBinding>();
+        if(binding!=null && !binding.InteractionSight(playerTransform.position,point))return;
         float distance = Vector2.Distance(playerTransform.position, point);
         float allowedRange = metadata != null ? metadata.InteractionRange : interactRadius;
         if (distance > Mathf.Min(interactRadius, Mathf.Max(0.1f, allowedRange))) return;
@@ -159,14 +173,9 @@ public class CampInteractionDetector : MonoBehaviour
         float alignment = direction.sqrMagnitude > 0.0001f
             ? Vector2.Dot(player.CurrentAimDirection, direction.normalized)
             : 1f;
-        var candidate = new Candidate
-        {
-            Owner = owner,
-            Interactable = interactable,
-            Metadata = metadata,
-            Priority = metadata?.InteractionPriority ?? 0,
-            Distance = distance
-        };
+        if(!candidateCache.TryGetValue(owner,out var candidate))
+        {candidate=new Candidate();candidateCache.Add(owner,candidate);}
+        candidate.Owner=owner;candidate.Interactable=interactable;candidate.Metadata=metadata;candidate.Priority=metadata?.InteractionPriority??0;candidate.Distance=distance;
         candidates.Add(candidate);
         rankingData.Add(new InteractionCandidateData(EntityId.ToULong(owner.GetEntityId()), candidate.Priority, distance, alignment));
     }
@@ -187,9 +196,36 @@ public class CampInteractionDetector : MonoBehaviour
             return;
         }
 
-        currentPrompt = inputReader.GetInteractBindingDisplay() + " - " + current.Interactable.GetInteractPrompt();
-        if (promptText != null) promptText.text = currentPrompt;
+        string action=current.Interactable.GetInteractPrompt();
+        if(promptOwner!=current.Owner||cachedAction!=action||cachedBinding==null||currentPrompt==null)
+        {
+            cachedBinding??=inputReader.GetInteractBindingDisplay();if(cachedBinding.StartsWith("Press ",System.StringComparison.Ordinal))cachedBinding=cachedBinding.Substring(6);cachedAction=action;promptOwner=current.Owner;
+            currentPrompt=cachedBinding+" · "+action;if(promptText!=null)promptText.text=currentPrompt;
+        }
         if (promptPanel != null) promptPanel.SetActive(true);
+    }
+
+    void LateUpdate()
+    {
+        if (!GameSceneCatalog.DevelopmentCandidate || !IsUsable(current) || promptPanel == null || !promptPanel.activeSelf) return;
+        if (promptRegion == null) promptRegion = Object.FindAnyObjectByType<SettlementCampRegion>();
+        if (promptRegion == null || !promptRegion.PresentationReady) return;
+        if (promptRect == null)
+        {
+            promptRect = promptPanel.GetComponent<RectTransform>();promptCanvas = promptPanel.GetComponentInParent<Canvas>();
+            promptRect.sizeDelta = new Vector2(280,40);promptRect.localScale=Vector3.one;
+            if(promptText!=null){promptText.fontSize=22;promptText.enableAutoSizing=false;promptText.textWrappingMode=TextWrappingModes.NoWrap;promptText.overflowMode=TextOverflowModes.Ellipsis;promptText.margin=Vector4.zero;var textRect=promptText.rectTransform;textRect.anchorMin=Vector2.zero;textRect.anchorMax=Vector2.one;textRect.offsetMin=new Vector2(8,3);textRect.offsetMax=new Vector2(-8,-3);textRect.localScale=Vector3.one;promptText.alignment=TextAlignmentOptions.Center;}
+        }
+        var station = current.Owner.GetComponent<CampStationMarker>();
+        Vector2 physical = station != null ? station.PromptPoint : (Vector2)current.Owner.transform.position;
+        if(current.Owner is CampRootEntrance)physical=promptRegion.World(promptRegion.Definition.Marker(SporeGobbo.CampCandidate.SettlementCampLayout.RootId).Anchor);
+        var projectedAnchor=current.Owner.GetComponent<IProjectedInteractionAnchor>();
+        Vector2 screen=promptRegion.RegionCamera.WorldToScreenPoint(projectedAnchor!=null?projectedAnchor.ProjectedPromptAnchor:promptRegion.Render(physical));
+        // Caption bottom sits six pixels above the actual rendered visual, independently of interaction range.
+        screen.y += 26f * Screen.height / 1080f;
+        var parent=promptRect.parent as RectTransform;
+        if(parent!=null&&promptCanvas!=null&&RectTransformUtility.ScreenPointToLocalPointInRectangle(parent,screen,promptCanvas.renderMode==RenderMode.ScreenSpaceOverlay?null:promptCanvas.worldCamera,out var local))
+        {promptRect.anchorMin=promptRect.anchorMax=parent.pivot;promptRect.anchoredPosition=local;}
     }
 
     void EnsurePromptPresentation()

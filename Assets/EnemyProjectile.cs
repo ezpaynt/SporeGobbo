@@ -10,6 +10,11 @@ public class EnemyProjectile : MonoBehaviour
     public LayerMask hitLayers;
     public bool destroyOnHit = true;
 
+    readonly RaycastHit2D[] sweepHits=new RaycastHit2D[32];
+    readonly System.Collections.Generic.HashSet<int> contacts=new System.Collections.Generic.HashSet<int>();
+    bool spent;
+    public static int TerrainImpacts{get;private set;}
+    void StopAtTerrain(){if(spent)return;spent=true;TerrainImpacts++;if(rb!=null)rb.linearVelocity=Vector2.zero;Destroy(gameObject);}
     private Rigidbody2D rb;
     private Vector2 direction = Vector2.right;
     private Transform ownerRoot;
@@ -36,11 +41,31 @@ public class EnemyProjectile : MonoBehaviour
 
     void Start()
     {
+        if(RegionQueries.Current!=null)gameObject.AddComponent<ProjectedProjectileView>();
         Destroy(gameObject, Mathf.Max(0.01f, lifetime));
     }
 
     void FixedUpdate()
     {
+        using var profile=new Unity.Profiling.ProfilerMarker("Spore.Projectile.TerrainSweep").Auto();
+        if(spent)return;
+        Vector2 position=rb!=null?rb.position:(Vector2)transform.position;
+        var region=RegionQueries.Current;
+        if(GameSceneCatalog.DevelopmentCandidate&&UnityEngine.SceneManagement.SceneManager.GetActiveScene().name==GameSceneCatalog.CandidateExpedition&&region==null){StopAtTerrain();return;}
+        float distance=speed*Time.fixedDeltaTime;
+        if(region!=null){
+            if(!region.LogicalReady){StopAtTerrain();return;}
+            float radius=Mathf.Max(.01f,Mathf.Max(GetComponent<Collider2D>().bounds.extents.x,GetComponent<Collider2D>().bounds.extents.y));
+            float wall=1.01f;
+            if(!region.RayClear(position,position+direction*distance,radius)){
+                float lo=0,hi=1;for(int i=0;i<10;i++){float mid=(lo+hi)*.5f;if(region.RayClear(position,position+direction*distance*mid,radius))lo=mid;else hi=mid;}wall=hi;
+            }
+            var filter=new ContactFilter2D();filter.SetLayerMask(hitLayers);filter.useTriggers=true;
+            int count=Physics2D.CircleCast(position,radius,direction,filter,sweepHits,distance);Collider2D first=null;float nearest=float.PositiveInfinity;
+            for(int i=0;i<count;i++){var hit=sweepHits[i];if(hit.collider==null||IsOwnerCollider(hit.collider)||contacts.Contains(hit.collider.GetInstanceID()))continue;if(hit.distance<nearest){nearest=hit.distance;first=hit.collider;}}
+            if(first!=null&&nearest<=wall*distance){HandleHit(first);if(spent)return;}
+            if(wall<=1){StopAtTerrain();return;}
+        }
         Vector2 velocity = direction * speed;
 
         if (rb != null)
@@ -103,17 +128,22 @@ public class EnemyProjectile : MonoBehaviour
         if (other == null)
             return;
 
+        if(spent)return;
+        if(RegionQueries.Current is ExpeditionRegion region && region.DerivedCollider(other)){StopAtTerrain();return;}
         if (IsOwnerCollider(other))
             return;
 
         if (!IsInHitLayers(other.gameObject.layer))
             return;
 
+        if(!contacts.Add(other.GetInstanceID()))return;
         other.SendMessage("TakeDamage", damage, SendMessageOptions.DontRequireReceiver);
 
-        if (destroyOnHit)
-            Destroy(gameObject);
+        if (destroyOnHit){spent=true;Destroy(gameObject);}
     }
+
+    void OnTriggerExit2D(Collider2D c)=>contacts.Remove(c.GetInstanceID());
+    void OnCollisionExit2D(Collision2D c)=>contacts.Remove(c.collider.GetInstanceID());
 
     bool IsOwnerCollider(Collider2D other)
     {

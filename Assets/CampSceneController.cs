@@ -38,7 +38,9 @@ public class CampSceneController : MonoBehaviour
     public Transform newGameIntroSpawn;
     public Transform mainCampArrivalSpawn;
 
+    public bool WorldInputReady { get; private set; }
     private CampArrivalMode arrivalMode = CampArrivalMode.LoadedSave;
+    private int arrivalGeneration;
 
     [Header("Optional Future UI")]
     public TMP_Text playerStatsText;
@@ -61,7 +63,8 @@ public class CampSceneController : MonoBehaviour
     private void Awake()
     {
         EnsureGameState();
-        arrivalMode = CampArrivalContext.ConsumeOrDefault();
+        arrivalMode = CampArrivalContext.PeekOrDefault();
+        arrivalGeneration = CampArrivalContext.Generation;
         PrepareArrivalState();
         ValidateRequiredReferences();
     }
@@ -73,14 +76,20 @@ public class CampSceneController : MonoBehaviour
         GameState.Instance.campTerrainState.mainChamberRevealed = true;
     }
 
-    private void Start()
+    private System.Collections.IEnumerator Start()
     {
+        while(CampSpatialTerrain.Active!=null && !CampSpatialTerrain.Active.Ready)yield return null;
         EnsureGameState();
         HookButtons();
 
         if (arrivalMode == CampArrivalMode.PostDeathSuccession)
         {
-            if (TryStartDeathSuccessionFlow()) return;
+            if (TryStartDeathSuccessionFlow()) yield break;
+            if (GameSceneCatalog.DevelopmentCandidate)
+            {
+                Debug.LogWarning("[Development arrival] Missing pending succession. Camp remains closed; recover the last committed campaign through the development controls.");
+                yield break;
+            }
             Debug.LogError("Post-death Camp arrival had no pending succession state. Refusing to open playable Camp.", this);
             if (GameState.Instance != null)
             {
@@ -88,19 +97,19 @@ public class CampSceneController : MonoBehaviour
                 SporeSaveManager.SaveCurrentSlotFromGameState();
             }
             LineageGameOverScreen.Show();
-            return;
+            yield break;
         }
 
         if (arrivalMode == CampArrivalMode.NewGameIntro)
         {
             OpenCampForArrival(newGameIntroSpawn, false, false, true);
-            return;
+            yield break;
         }
 
         if (arrivalMode == CampArrivalMode.LoadedSave)
         {
             OpenCampForArrival(mainCampArrivalSpawn, true, true, false);
-            return;
+            yield break;
         }
 
         ShowRunStatsScreen();
@@ -309,7 +318,9 @@ public class CampSceneController : MonoBehaviour
         if (campPlayableSpawner != null)
         {
             campPlayableSpawner.SpawnPlayableCamp();
+            if (campPlayableSpawner.SpawnedPlayer == null) return;
             BeginCampStartRoutineIfPresent();
+            CompleteArrival();
             return;
         }
 
@@ -341,9 +352,9 @@ public class CampSceneController : MonoBehaviour
                 return;
             }
             state.EnsureRuntimeDefaults();
-            StoryEventService.Complete(state, StoryEventIds.ASporeHatchesCampDiscovered);
-            SporeSaveManager.SaveCurrentSlotFromGameState();
+            if (!GameSceneCatalog.DevelopmentCandidate){StoryEventService.Complete(state, StoryEventIds.ASporeHatchesCampDiscovered);SporeSaveManager.SaveCurrentSlotFromGameState();}
         }
+        CompleteArrival();
     }
 
     void BeginCampStartRoutineIfPresent()
@@ -351,8 +362,35 @@ public class CampSceneController : MonoBehaviour
         if (campStartRoutineManager != null) campStartRoutineManager.BeginCampVisit();
     }
 
+    void CompleteArrival()
+    {
+        if (GameSceneCatalog.DevelopmentCandidate && CampArrivalContext.HasPending && arrivalGeneration != CampArrivalContext.Generation)
+        {
+            Debug.LogWarning("[Development arrival] Stale arrival acknowledgement rejected."); return;
+        }
+        string pendingId = CampArrivalContext.PendingId;
+        CampArrivalContext.Acknowledge(arrivalGeneration);
+        if (GameSceneCatalog.DevelopmentCandidate)
+        {
+            try { SporeSaveManager.CommitReadyDevelopmentArrival(arrivalMode == CampArrivalMode.NewGameIntro); }
+            catch (System.Exception error)
+            {
+                CampArrivalContext.RestorePending(arrivalMode, pendingId ?? System.Guid.NewGuid().ToString("N"));
+                arrivalGeneration = CampArrivalContext.Generation;
+                Debug.LogWarning("[Development arrival] Save acknowledgement failed; input remains disabled. Retry arrival from development controls: " + error.Message);
+                return;
+            }
+        }
+        WorldInputReady = true;
+    }
+    public void RetryDevelopmentArrival()
+    {
+        if (GameSceneCatalog.DevelopmentCandidate && !WorldInputReady && campPlayableSpawner != null && campPlayableSpawner.SpawnedPlayer != null) CompleteArrival();
+    }
+
     void FillRunStatsText()
     {
+        if(GameSceneCatalog.DevelopmentCandidate)CampCandidateUiLayout.RunStats(this);
         if (runStatsText == null || GameState.Instance == null) return;
         RunSummaryData run = GameState.Instance.lastRun;
         GobboUnitSaveData leader = GameState.Instance.GetLeader();
@@ -361,6 +399,7 @@ public class CampSceneController : MonoBehaviour
 
     void FillSurvivorsText()
     {
+        if(GameSceneCatalog.DevelopmentCandidate)CampCandidateUiLayout.Survivors(this);
         if (GameState.Instance == null) return;
         RunSummaryData run = GameState.Instance.lastRun;
         if (run == null) return;
@@ -404,7 +443,7 @@ public class CampSceneController : MonoBehaviour
         if (reserveListParent == null) return;
 
         ClearListParent(reserveListParent);
-        AddListText(reserveListParent, "CAMP BUDDIES", true);
+        AddListText(reserveListParent, "CAMP & NEW ARRIVALS", true);
 
         if (run.reserveBuddyReports == null || run.reserveBuddyReports.Count == 0)
         {
@@ -413,7 +452,7 @@ public class CampSceneController : MonoBehaviour
         }
 
         foreach (BuddyRunReport report in run.reserveBuddyReports)
-            AddListText(reserveListParent, FormatCampBuddyReport(report), false);
+            AddListText(reserveListParent, report.role + "\n" + (report.role == "Recruited this run" ? FormatRunBuddyReport(report) : FormatCampBuddyReport(report)), false);
     }
 
     void FillPendingEvolutionList(List<GobboUnitSaveData> pending)
@@ -461,7 +500,7 @@ public class CampSceneController : MonoBehaviour
         rect.anchorMin = new Vector2(0f, 1f);
         rect.anchorMax = new Vector2(1f, 1f);
         rect.pivot = new Vector2(0.5f, 1f);
-        rect.sizeDelta = new Vector2(0f, header ? 34f : 72f);
+        rect.localScale=Vector3.one;rect.sizeDelta = new Vector2(0f, header ? 34f : GameSceneCatalog.DevelopmentCandidate?Mathf.Max(100,label.GetPreferredValues(text,Mathf.Max(180,((RectTransform)parent).rect.width-16),0).y+10):72f);
         return label;
     }
 

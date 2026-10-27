@@ -386,7 +386,7 @@ public class RunContentSpawner : MonoBehaviour
         EnsureShinyPickup(shiny);
     }
 
-    private void EnsureShinyPickup(GameObject shiny)
+    public static void EnsureShinyPickup(GameObject shiny)
     {
         if (shiny == null) return;
 

@@ -8,6 +8,8 @@ public sealed class ActorTerrainBinding : MonoBehaviour
 {
     public IDiggableTerrain Terrain { get; private set; }
     public float MinimumBodyRadius;
+    // Historical isolated actor proofs opt out; real regions retain campaign controls.
+    public bool SuppressCampaignBootstrap = true;
     public Func<bool> Ready;
     public Func<int> ReadRevision;
     public Func<Vector2,Vector2,List<Vector2>> FindRoute;
@@ -27,6 +29,7 @@ public sealed class ActorTerrainBinding : MonoBehaviour
         using(new Scope("SG59.NavigationLOS"))
         return Terrain!=null && (Ready==null||Ready()) && TileMover.CanTraverseBox(Terrain,a,b,TileMover.GetMapClearanceExtents(GetComponent<Rigidbody2D>(),MinimumBodyRadius));
     }
+    public bool InteractionSight(Vector2 a,Vector2 b)=>Terrain!=null&&(Ready==null||Ready())&&(Terrain is IWorldRegion region?region.RayClear(a,b):Sight(a,b));
     public static bool HasSight(GameObject actor,Vector2 a,Vector2 b)
     {var binding=actor.GetComponent<ActorTerrainBinding>();return binding!=null?binding.Sight(a,b):MapPathfinder.HasLineOfWalkableSight(a,b);}
     public bool TryPath(Vector2 a,Vector2 b,out List<Vector2> path)

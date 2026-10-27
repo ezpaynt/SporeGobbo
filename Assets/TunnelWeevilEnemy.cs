@@ -113,6 +113,7 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
 
     private readonly List<Vector2> currentPath = new List<Vector2>();
     private int pathIndex = 0;
+    private int regionPathRevision = -1;
     private float repathTimer = 0f;
     private Vector2 lastPathGoal;
 
@@ -192,6 +193,7 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
 
     void FixedUpdate()
     {
+        using var profile=new Unity.Profiling.ProfilerMarker("Spore.AI.Weevil").Auto();
         if (isDead)
             return;
 
@@ -258,7 +260,7 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
 
         Vector2 closestTargetPoint = GetClosestPointOnCurrentTarget();
 
-        if (!MapPathfinder.HasLineOfWalkableSight(transform.position, closestTargetPoint))
+        if (!RegionQueries.Sight(gameObject,transform.position, closestTargetPoint))
             return;
 
         combatState = CombatState.AttackWindup;
@@ -401,7 +403,7 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
             return false;
 
         bool hasSight = !requireLineOfSightToNotice ||
-                        MapPathfinder.HasLineOfWalkableSight(transform.position, target.position);
+                        RegionQueries.Sight(gameObject,transform.position, target.position);
 
         if (hasSight)
             return true;
@@ -410,7 +412,7 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
             return true;
 
         List<Vector2> testPath;
-        return MapPathfinder.TryFindPath(transform.position, target.position, out testPath) && testPath.Count > 0;
+        return RegionQueries.Path(gameObject,transform.position, target.position, out testPath) && testPath.Count > 0;
     }
 
     void MoveTowardTarget(float speed)
@@ -433,12 +435,13 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
 
     Vector2 GetPathDirection(Vector2 targetPos)
     {
-        if (MapPathfinder.HasLineOfWalkableSight(rb.position, targetPos))
+        if (RegionQueries.Sight(gameObject,rb.position, targetPos))
         {
             ClearPath();
             return (targetPos - rb.position).normalized;
         }
 
+        if(RegionQueries.Current is IWorldRegion region && regionPathRevision!=region.Revision){currentPath.Clear();pathIndex=0;regionPathRevision=region.Revision;}
         repathTimer -= Time.fixedDeltaTime;
 
         bool needsNewPath =
@@ -473,7 +476,7 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
         repathTimer = repathTime;
         lastPathGoal = targetPos;
 
-        if (MapPathfinder.TryFindPath(rb.position, targetPos, out List<Vector2> path))
+        if (RegionQueries.Path(gameObject,rb.position, targetPos, out List<Vector2> path))
         {
             currentPath.Clear();
             currentPath.AddRange(path);
@@ -500,6 +503,7 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
         if (attackDebugPrefab != null)
         {
             GameObject marker = Instantiate(attackDebugPrefab, hitCenter, Quaternion.identity);
+            RegionQueries.Current?.BindVisual(marker);
             marker.transform.localScale = Vector3.one * meleeHitRadius * 2f;
             Destroy(marker, 0.15f);
         }
@@ -634,8 +638,7 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
 
     bool IsWorldPointUsable(Vector2 point)
     {
-        return MapGenerator.Instance == null ||
-               MapGenerator.Instance.IsWorldPositionClearForBody(point, bodyRadius);
+        return RegionQueries.Clear(gameObject,point,bodyRadius);
     }
 
     void FaceTargetDirection(Vector2 targetPosition)
@@ -772,6 +775,7 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
         if (splatPrefab != null)
         {
             GameObject splat = Instantiate(splatPrefab, transform.position, Quaternion.identity);
+            RegionQueries.Current?.BindVisual(splat);
             splat.transform.rotation = Quaternion.Euler(0f, 0f, Random.Range(0f, 360f));
         }
 
@@ -788,6 +792,7 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
         Vector2 dropOffset = Random.insideUnitCircle * 0.25f;
         GameObject food = Instantiate(foodDropPrefab, (Vector2)transform.position + dropOffset, Quaternion.identity);
 
+        RegionQueries.Current?.BindVisual(food);
         FoodItem foodItem = food.GetComponent<FoodItem>();
 
         if (foodItem != null)

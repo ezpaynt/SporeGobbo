@@ -53,6 +53,9 @@ public class CampResourcePile : MonoBehaviour
 
     private bool playerInRange;
     private float popupTimer;
+    private SettlementCampRegion projectedRegion;
+    private RectTransform popupRect;
+    private Canvas popupCanvas;
 
     void Reset()
     {
@@ -66,7 +69,20 @@ public class CampResourcePile : MonoBehaviour
         if (warnIfColliderIsNotTrigger && trigger != null && !trigger.isTrigger)
             Debug.LogWarning(name + " has CampResourcePile but its Collider2D is not set as Trigger.", this);
 
+        if(Application.isPlaying&&GameSceneCatalog.DevelopmentCandidate)CreateProjectedCaption();
         HidePopup();
+    }
+
+    void CreateProjectedCaption()
+    {
+        // The serialized legacy reference is the shared CampMessageUI canvas. Never move/hide that canvas for a pile.
+        var font=popupText!=null?popupText.font:TMP_Settings.defaultFontAsset;
+        var canvasObject=new GameObject("Resource caption canvas (view only)",typeof(RectTransform),typeof(Canvas),typeof(UnityEngine.UI.CanvasScaler));canvasObject.transform.SetParent(transform,false);
+        var canvas=canvasObject.GetComponent<Canvas>();canvas.renderMode=RenderMode.ScreenSpaceOverlay;canvas.sortingOrder=90;
+        var scaler=canvasObject.GetComponent<UnityEngine.UI.CanvasScaler>();scaler.uiScaleMode=UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;scaler.referenceResolution=new Vector2(1920,1080);scaler.matchWidthOrHeight=1;
+        var card=new GameObject("Projected resource counts",typeof(RectTransform),typeof(UnityEngine.UI.Image));card.transform.SetParent(canvasObject.transform,false);var image=card.GetComponent<UnityEngine.UI.Image>();image.color=new Color(.02f,.03f,.025f,.72f);image.raycastTarget=false;
+        var label=new GameObject("Actual inventory quantities",typeof(RectTransform),typeof(TextMeshProUGUI));label.transform.SetParent(card.transform,false);var text=label.GetComponent<TextMeshProUGUI>();if(font!=null)text.font=font;text.color=Color.white;text.raycastTarget=false;
+        popupPanel=card;popupText=text;
     }
 
     void OnEnable()
@@ -111,6 +127,18 @@ public class CampResourcePile : MonoBehaviour
         if (playerInRange) ShowPopup();
     }
 
+    void LateUpdate()
+    {
+        if(!GameSceneCatalog.DevelopmentCandidate||popupPanel==null||!popupPanel.activeSelf)return;
+        if(Time.timeScale<=0||SporeGobbo.Input.SporeInputReader.Instance==null||SporeGobbo.Input.SporeInputReader.Instance.Context!=SporeGobbo.Input.SporeInputContext.Gameplay){popupPanel.SetActive(false);return;}
+        if(projectedRegion==null)projectedRegion=Object.FindAnyObjectByType<SettlementCampRegion>();
+        if(projectedRegion==null||!projectedRegion.Ready)return;
+        if(popupRect==null){popupRect=popupPanel.GetComponent<RectTransform>();popupCanvas=popupPanel.GetComponentInParent<Canvas>();popupRect.sizeDelta=new Vector2(240,70);popupRect.localScale=Vector3.one;if(popupText!=null){popupText.fontSize=22;popupText.enableAutoSizing=false;popupText.margin=Vector4.zero;popupText.alignment=TextAlignmentOptions.MidlineLeft;var textRect=popupText.rectTransform;textRect.anchorMin=Vector2.zero;textRect.anchorMax=Vector2.one;textRect.offsetMin=new Vector2(8,4);textRect.offsetMax=new Vector2(-8,-4);textRect.localScale=Vector3.one;}}
+        var parent=popupRect.parent as RectTransform;if(parent==null||popupCanvas==null)return;
+        Vector2 screen=projectedRegion.RegionCamera.WorldToScreenPoint(projectedRegion.Render(projectedRegion.World(projectedRegion.Definition.Marker("storage").Anchor)));screen.y+=55f*Screen.height/1080f;
+        if(RectTransformUtility.ScreenPointToLocalPointInRectangle(parent,screen,popupCanvas.renderMode==RenderMode.ScreenSpaceOverlay?null:popupCanvas.worldCamera,out var local)){popupRect.anchorMin=popupRect.anchorMax=parent.pivot;popupRect.anchoredPosition=local;}
+    }
+
     void ApplyResourceSprites()
     {
         if (resourceVisuals == null) return;
@@ -129,6 +157,7 @@ public class CampResourcePile : MonoBehaviour
 
     void ShowPopup()
     {
+        if(GameSceneCatalog.DevelopmentCandidate&&(Time.timeScale<=0||SporeGobbo.Input.SporeInputReader.Instance==null||SporeGobbo.Input.SporeInputReader.Instance.Context!=SporeGobbo.Input.SporeInputContext.Gameplay)){if(popupPanel!=null)popupPanel.SetActive(false);return;}
         string message = BuildPopupText();
         popupTimer = Mathf.Max(0.05f, popupRefreshSeconds);
 

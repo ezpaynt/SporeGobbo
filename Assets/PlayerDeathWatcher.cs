@@ -154,7 +154,7 @@ public class PlayerDeathWatcher : MonoBehaviour
         GameState.Instance.lineageEnded = false;
         CampArrivalContext.SetPending(CampArrivalMode.PostDeathSuccession);
         SuppressDeathHandlingForSceneChange();
-        SceneManager.LoadScene(campSceneName);
+        SceneManager.LoadScene(GameSceneCatalog.Resolve(campSceneName));
     }
 
     private List<GobboUnitSaveData> BuildSuccessorSnapshots(List<string> ids)

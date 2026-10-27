@@ -30,6 +30,25 @@ public static class DevStateSnapshot
         if (state == null) { result.Add(new DevStateSection("STATE").Add("GameState", "Missing")); return result; }
         state.EnsureRuntimeDefaults();
 
+        var region = Object.FindAnyObjectByType<SettlementCampRegion>();
+        if(region!=null)
+        {
+            var routine=CampStartRoutineManager.Instance;
+            result.Add(new DevStateSection("CURRENT WORLD REGION")
+                .Add("Region",region.RegionId).Add("Layout",region.LayoutId)
+                .Add("Terrain revision",region.Revision).Add("Accepted cell edits",region.State.World.EditCount)
+                .Add("Root opened",region.ResidentialEntranceOpen).Add("Logical ready",region.LogicalReady).Add("Presentation ready",region.Ready)
+                .Add("Collision patches",region.CollisionPatches).Add("Last collision ms",region.CollisionMs.ToString("F3"))
+                .Add("Rejected routes",region.RejectedRoutes)
+                .Add("Constructor",routine!=null?routine.CurrentResidentialConstructorId:"")
+                .Add("Construction slot",routine!=null?routine.CurrentResidentialSlot:0)
+                .Add("Last construction failure",routine!=null?routine.LastResidentialFailureReason:"")
+                .Add("Storage","Owned development campaigns; production routing unchanged"));
+        }
+        var expedition=Object.FindAnyObjectByType<ExpeditionRegion>();
+        if(expedition!=null)result.Add(new DevStateSection("CURRENT WORLD REGION / EXPEDITION").Add("Layout",ExpeditionLayout.Identity).Add("Fingerprint",expedition.Definition.Fingerprint()).Add("Terrain revision",expedition.Revision).Add("Excavated cells",expedition.Excavations).Add("Discovery memory / shown",expedition.Discovery.Remembered.Count+" / "+expedition.Discovery.Visual.Count).Add("Encounters spawned",expedition.ActiveEncounters).Add("God Mode",ExpeditionDevelopmentControls.GodMode).Add("Temporary fixture power",expedition.TestDigPower).Add("Save boundary","Transient attempt; last committed Camp rollback on interrupted run"));
+        var intro=Object.FindAnyObjectByType<IntroRegion>();
+        if(intro!=null)result.Add(new DevStateSection("CURRENT WORLD REGION / INTRO").Add("Layout",IntroLayout.Identity).Add("Fingerprint",intro.Definition.Fingerprint()).Add("Revision",intro.Revision).Add("Excavated",intro.Excavations).Add("Placed rubble",intro.Placements).Add("Rejected rubble",intro.RejectedPlacements).Add("Hatch seconds",intro.Sequence.BirthTime).Add("Tutorial active seconds",intro.Sequence.TutorialSeconds).Add("Nonlethal hold",intro.Sequence.Forgiven).Add("Active rocks",FallingRockHazard.ActiveCount).Add("Save boundary","Incomplete Intro restarts from beginning; completion only at Camp commit"));
         CampaignFacts facts = state.campaignFacts;
         result.Add(new DevStateSection("CAMPAIGN / LINEAGE")
             .Add("Lineage ended", state.lineageEnded).Add("Current run", state.currentRunNumber).Add("Camp cycle", state.campCycleNumber)

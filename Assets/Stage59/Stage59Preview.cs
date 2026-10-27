@@ -8,8 +8,14 @@ using SporeGobbo.Geometry.Preview;
 using SporeGobbo.CampCandidate.Preview;
 
 [DefaultExecutionOrder(-1500)]
-public sealed class Stage59Preview:MonoBehaviour,ISporePauseScreen
+public sealed class Stage59Preview:MonoBehaviour,ISporePauseScreen,IProjectedActorContext
 {
+    public Transform PresentationRoot=>transform;
+    public Shader ActorShader=>SpriteShader;
+    public FocusProjection Projection=>Live.Snapshot;
+    public Stage4Settings PresentationSettings=>Live.settings;
+    public bool PresentationReady=>Live.Ready;
+    public Point2 LogicalPosition(Vector2 physical)=>Authority.ToLogical(physical);
     public GameObject PlayerPrefab,BuddyPrefab;
     public Shader SpriteShader;
     public List<GobboVisualSet> VisualSets=new List<GobboVisualSet>();

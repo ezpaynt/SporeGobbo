@@ -143,6 +143,7 @@ public class CampPlayableSpawner : MonoBehaviour
         }
 
         ForceVisible(playerObject, playerSortingOrder);
+        (DiggableTerrainService.Active as IRegionActorBinding)?.BindActor(playerObject);
         AssignCamera(playerObject.transform);
         AssignInteractionDetector(playerObject.transform);
         return controller;
@@ -215,6 +216,17 @@ public class CampPlayableSpawner : MonoBehaviour
         wander.SetAnchor(anchor, wanderRadius, CampBuddyPhysicalPolicy.GetMovementSpeed(unitData.moveSpeed, activeSquad));
 
         ForceVisible(buddyObject, sortingOrder);
+        (DiggableTerrainService.Active as IRegionActorBinding)?.BindActor(buddyObject);
+    }
+
+    public bool SpawnAdditionalOwnedBuddy(string id, Vector2 center)
+    {
+        var state=GameState.Instance;var unit=state?.ownedGobbos?.Find(g=>g!=null&&g.uniqueId==id);
+        if(unit==null || spawnedObjects.Exists(o=>o!=null&&o.GetComponent<BuddyUnit>()?.unitData?.uniqueId==id))return false;
+        bool active=state.activeSquadIds.Contains(id);int count=Mathf.Max(1,state.ownedGobbos.Count);float angle=count*2.39996f;
+        Vector2 position=center+new Vector2(Mathf.Cos(angle),Mathf.Sin(angle))*1.25f;
+        SpawnCampBuddy(active?activeBuddyPrefab:reserveBuddyPrefab!=null?reserveBuddyPrefab:activeBuddyPrefab,unit,position,active,active?activeSortingOrder:reserveSortingOrder,active?activeWanderRadius:reserveWanderRadius,count-1);
+        return true;
     }
 
     void RefreshPlayerVisual(GobboController controller)

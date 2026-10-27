@@ -6,6 +6,8 @@ using SporeGobbo.Input;
 [RequireComponent(typeof(Rigidbody2D))]
 public class GobboController : MonoBehaviour
 {
+ static readonly Unity.Profiling.ProfilerMarker stage61InputProfile = new Unity.Profiling.ProfilerMarker("Spore.Stage61.Input");
+
     [Header("Identity")]
     public string displayName = "Gobbo";
 
@@ -178,9 +180,11 @@ public class GobboController : MonoBehaviour
         if (inputReader == null)
             Debug.LogError("GobboController requires the persistent SporeInputReader.", this);
 
-        if (GetComponent<ActorTerrainBinding>() == null) StartCoroutine(EnsureWorldInteractionAuthority());
+        var terrainBinding = GetComponent<ActorTerrainBinding>();
+        bool campaignControls = terrainBinding == null || !terrainBinding.SuppressCampaignBootstrap;
+        if (campaignControls) StartCoroutine(EnsureWorldInteractionAuthority());
         commandWheel = GetComponent<BuddyCommandWheelController>();
-        if (commandWheel == null && GetComponent<ActorTerrainBinding>() == null) commandWheel = gameObject.AddComponent<BuddyCommandWheelController>();
+        if (commandWheel == null && campaignControls) commandWheel = gameObject.AddComponent<BuddyCommandWheelController>();
         if (commandWheel != null) commandWheel.Configure(this);
 
         if (spriteRenderer == null)
@@ -249,6 +253,8 @@ public class GobboController : MonoBehaviour
 
     void ReadInput()
     {
+ using var _stage61Profile = stage61InputProfile.Auto();
+
         using (new ActorTerrainBinding.Scope("SG59.GobboController.ReadInput", gameObject.GetComponent<ActorTerrainBinding>() != null))
         {
         moveInput = inputReader != null &&
@@ -579,6 +585,7 @@ public class GobboController : MonoBehaviour
         if (attackDebugPrefab != null)
         {
             GameObject marker = Instantiate(attackDebugPrefab, attackPoint, Quaternion.identity);
+            RegionQueries.Current?.BindVisual(marker);
             marker.transform.localScale = Vector3.one * attackRadius * 2f;
             Destroy(marker, 0.15f);
         }
@@ -746,6 +753,8 @@ public class GobboController : MonoBehaviour
             return;
         }
 
+        Vector2 placePoint = (Vector2)transform.position + aimDirection.normalized * sporePlaceRange;
+        if(RegionQueries.Current is IWorldRegion region && (!region.LogicalReady||!TileMover.CanOccupyBox(region,placePoint,Vector2.one*.35f)||!region.RayClear(transform.position,placePoint,.1f)))return;
         bool hasSpore = false;
 
         if (sporeInventory != null)
@@ -762,9 +771,9 @@ public class GobboController : MonoBehaviour
             return;
         }
 
-        Vector2 placePoint = (Vector2)transform.position + aimDirection.normalized * sporePlaceRange;
         GameObject plantedSpore = Instantiate(plantedSporePrefab, placePoint, Quaternion.identity);
 
+        RegionQueries.Current?.BindVisual(plantedSpore);
         SporeGrow grow = plantedSpore.GetComponent<SporeGrow>();
 
         if (grow != null && grow.buddyPrefab == null)
@@ -844,6 +853,7 @@ public class GobboController : MonoBehaviour
             combat.enabled = followersAggressive;
         }
 
+        RegionQueries.Bind(buddyObject);
         AddFollower(1);
 
         Debug.Log("Spawned buddy: " + data.displayName + " / " + data.gobboType);
@@ -1005,7 +1015,8 @@ public class GobboController : MonoBehaviour
             return;
 
         int damageTaken = Mathf.Max(1, amount - defense);
-        health -= damageTaken;
+        if(RegionQueries.Current!=null)ExpeditionDevelopmentControls.Observe(damageTaken);
+        health = ExpeditionDevelopmentControls.Protects(this)||GetComponent<IntroNonlethalProtection>()!=null?Mathf.Max(1,health-damageTaken):health-damageTaken;
         FlashHurtColor();
         Debug.Log("Gobbo took damage: " + damageTaken);
 

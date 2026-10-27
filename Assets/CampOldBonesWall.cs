@@ -115,7 +115,7 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable, IWorldInteract
     public bool IsPhysicallyAccessible()
     {
         if (campTerrain == null) campTerrain = Object.FindAnyObjectByType<HandcraftedCampTerrain>();
-        return campTerrain != null && campTerrain.HasOpenAccessToFootprint(terrainFootprintId);
+        return CampSpatialTerrain.Resolve(campTerrain)?.HasOpenAccessToFootprint(terrainFootprintId) ?? false;
     }
 
     bool IsAvailable() => IsDeathPresentationEstablished() && IsPhysicallyAccessible();
@@ -146,6 +146,7 @@ public class CampOldBonesWall : MonoBehaviour, ICampInteractable, IWorldInteract
     public void RefreshPanel()
     {
         CampDeathHistoryStore store = CampDeathHistoryStore.GetOrCreate();
+        if(store!=null)store.RefreshFromCampaign();
         if (titleText != null) titleText.text = "Old Bones";
 
         List<DeadBuddyRecord> buddies = new List<DeadBuddyRecord>();

@@ -28,9 +28,12 @@ namespace SporeGobbo.Geometry.Preview
         }
     }
     /// <summary>Optional Stage 4.5 backend. Logical vertex streams upload only after terrain/overlay edits or a backend switch.</summary>
-    [RequireComponent(typeof(Stage4CameraPreview))]
+    // Backend accepts an explicit caller; no automatic preview simulation dependencies.
     public sealed class Stage45GpuProjection:MonoBehaviour
     {
+ static readonly Unity.Profiling.ProfilerMarker stage61CameraProfile = new Unity.Profiling.ProfilerMarker("Spore.Stage61.Camera");
+ static readonly Unity.Profiling.ProfilerMarker stage61MeshProfile = new Unity.Profiling.ProfilerMarker("Spore.Stage61.MeshPublication");
+
         public Shader projectionShader;
         public ComputeShader parityShader;
         public bool useGpu=true,showStationaryReferences;
@@ -62,6 +65,8 @@ namespace SporeGobbo.Geometry.Preview
         static readonly ProfilerMarker marker=new ProfilerMarker("SporeGobbo.Stage45.GpuControl"),uploadMarker=new ProfilerMarker("SporeGobbo.Stage45.LogicalUpload");
         public bool BeginFrame(FocusProjection snapshot,Stage4Settings settings,Point2 origin=default)
         {
+ using var _stage61Profile = stage61CameraProfile.Auto();
+
             long start=System.Diagnostics.Stopwatch.GetTimestamp();VisibleVertices=TerrainUploads=TotalUploads=0;UploadedVertices=0;UploadMs=ControlMs=0;
             if(projectionShader==null)throw new InvalidOperationException("Assign the Stage 4.5 projection shader.");
             bool changed=!initialized||useGpu!=lastGpu;if(changed){generation++;lastGpu=useGpu;initialized=true;}
@@ -87,6 +92,8 @@ namespace SporeGobbo.Geometry.Preview
         }
         public bool Draw(PreviewMeshData data,MeshFilter filter,ProjectionBounds logical,bool dirty)
         {
+ using var _stage61Profile = stage61MeshProfile.Auto();
+
             long controlStart=System.Diagnostics.Stopwatch.GetTimestamp();using(marker.Auto())
             {
                 VisibleVertices+=data.Vertices.Count;

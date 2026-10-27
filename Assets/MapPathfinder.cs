@@ -24,8 +24,8 @@ public static class MapPathfinder
 
     public static bool HasLineOfWalkableSight(Vector2 from, Vector2 to, float stepSize = 0.25f)
     {
-        if (MapGenerator.Instance == null)
-            return true;
+        if (RegionQueries.Current is IWorldRegion region) return region.LogicalReady && TileMover.CanTraverseBox(region,from,to,Vector2.one*bodyRadius);
+        if (MapGenerator.Instance == null) return false;
 
         float distance = Vector2.Distance(from, to);
         int steps = Mathf.Max(1, Mathf.CeilToInt(distance / stepSize));
@@ -44,6 +44,7 @@ public static class MapPathfinder
     public static bool TryFindPath(Vector2 startWorld, Vector2 goalWorld, out List<Vector2> path)
     {
         path = new List<Vector2>();
+        if(RegionQueries.Current is IWorldRegion region){if(!region.LogicalReady)return false;path=region.Route(startWorld,goalWorld,Vector2.one*bodyRadius);return path.Count>0;}
 
         if (MapGenerator.Instance == null || MapGenerator.Instance.Data == null)
             return false;
