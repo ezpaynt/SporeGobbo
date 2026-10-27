@@ -122,6 +122,22 @@ public sealed class SporeUiCoordinator : MonoBehaviour
     public event Action PresentationChanged;
 
     public void NotifyPresentationChanged() => PresentationChanged?.Invoke();
+    // Explicit opt-in for independently playable scenes whose screen appears after bootstrap.
+    // Refuses to displace another scene's pause owner; automatic production discovery is unchanged.
+    public bool TryBindPauseScreen(ISporePauseScreen screen)
+    {
+        if (screen == null || (pauseScreen != null && !ReferenceEquals(pauseScreen, screen))) return false;
+        pauseScreen = screen;
+        RefreshContext();
+        return true;
+    }
+    public void UnbindPauseScreen(ISporePauseScreen screen)
+    {
+        if (!ReferenceEquals(pauseScreen, screen)) return;
+        pauseScreen = null;
+        RefreshContext();
+    }
+
 
     public static SporeUiCoordinator Instance => EnsureInstance();
     public static bool HasModal => instance != null && instance.modals.Count > 0;

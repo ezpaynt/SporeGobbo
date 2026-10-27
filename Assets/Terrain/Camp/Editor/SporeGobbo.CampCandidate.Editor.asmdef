@@ -1,0 +1,14 @@
+{
+  "name": "SporeGobbo.CampCandidate.Editor",
+  "references": [
+    "SporeGobbo.CampCandidate",
+    "SporeGobbo.CampCandidate.Preview",
+    "SporeGobbo.Geometry",
+    "SporeGobbo.Geometry.Preview",
+    "SporeGobbo.Geometry.Preview.Editor"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "autoReferenced": true
+}

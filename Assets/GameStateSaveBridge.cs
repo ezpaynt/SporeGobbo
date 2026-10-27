@@ -147,8 +147,8 @@ public class GameStateSaveBridge : MonoBehaviour
 
     void MarkNextCampLoadAsContinue()
     {
-        PlayerPrefs.SetString(CampLoadReasonPrefsKey, CampLoadReasonContinue);
-        PlayerPrefs.Save();
+        SporeGobbo.Safety.Persistence.SetString(CampLoadReasonPrefsKey, CampLoadReasonContinue);
+        SporeGobbo.Safety.Persistence.Save();
     }
 
     void Log(string message)

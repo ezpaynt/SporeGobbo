@@ -1,0 +1,57 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+using SporeGobbo.Input;
+
+/// <summary>Explicit per-actor dependency. No registry, singleton or production scene installation.</summary>
+public sealed class ActorTerrainBinding : MonoBehaviour
+{
+    public IDiggableTerrain Terrain { get; private set; }
+    public float MinimumBodyRadius;
+    public Func<bool> Ready;
+    public Func<int> ReadRevision;
+    public Func<Vector2,Vector2,List<Vector2>> FindRoute;
+    public Func<Vector2,Vector2> PointerToWorld;
+    public int DigAttempts {get;private set;}
+    public void ObserveDig()=>DigAttempts++;
+    public int Revision => ReadRevision?.Invoke() ?? -1;
+    public int LastRouteRevision { get; private set; } = -1;
+    public void Bind(IDiggableTerrain terrain) { Terrain=terrain; }
+    public static IDiggableTerrain Resolve(GameObject actor)
+    {
+        var binding=actor.GetComponent<ActorTerrainBinding>();
+        return binding != null ? binding.Terrain : DiggableTerrainService.Active;
+    }
+    public bool Sight(Vector2 a,Vector2 b)
+    {
+        using(new Scope("SG59.NavigationLOS"))
+        return Terrain!=null && (Ready==null||Ready()) && TileMover.CanTraverseBox(Terrain,a,b,TileMover.GetMapClearanceExtents(GetComponent<Rigidbody2D>(),MinimumBodyRadius));
+    }
+    public static bool HasSight(GameObject actor,Vector2 a,Vector2 b)
+    {var binding=actor.GetComponent<ActorTerrainBinding>();return binding!=null?binding.Sight(a,b):MapPathfinder.HasLineOfWalkableSight(a,b);}
+    public bool TryPath(Vector2 a,Vector2 b,out List<Vector2> path)
+    {
+        using(new Scope("SG59.Navigation"))
+        {
+            int revision=Revision;path=FindRoute?.Invoke(a,b)??new List<Vector2>();
+            if(revision!=Revision){path.Clear();return false;}
+            LastRouteRevision=revision;return path.Count>0;
+        }
+    }
+    public bool AcceptsRoute(int revision)=>Terrain!=null && (Ready==null||Ready()) && revision==Revision;
+    public static bool TryPointer(GameObject actor,SporeInputReader input,Camera camera,out Vector2 world)
+    {
+        var binding=actor.GetComponent<ActorTerrainBinding>();
+        if(binding==null)return input.TryGetPointerWorldPosition(camera,out world);
+        if(binding.Ready!=null&&!binding.Ready()){world=default;return false;}
+        using(new Scope("SG59.InversePointer"))
+        {world=binding.PointerToWorld!=null?binding.PointerToWorld(input.AimPointer):default;return binding.PointerToWorld!=null;}
+    }
+    public readonly struct Scope:IDisposable
+    {
+        readonly bool active;
+        public Scope(string name,bool active=true){this.active=active;if(active)UnityEngine.Profiling.Profiler.BeginSample(name);}
+        public void Dispose(){if(active)UnityEngine.Profiling.Profiler.EndSample();}
+    }
+    void OnDestroy(){Terrain=null;Ready=null;ReadRevision=null;FindRoute=null;PointerToWorld=null;}
+}

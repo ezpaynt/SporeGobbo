@@ -1,0 +1,9 @@
+{
+  "name": "SporeGobbo.CampCandidate",
+  "references": [
+    "SporeGobbo.Geometry",
+    "SporeGobbo.CampLifecycle"
+  ],
+  "noEngineReferences": true,
+  "autoReferenced": true
+}

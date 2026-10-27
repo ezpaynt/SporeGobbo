@@ -167,17 +167,17 @@ namespace SporeGobbo.Input
             if (!json.TrimStart().StartsWith("{") || !json.Contains("\"bindings\"")) throw new FormatException("Binding override JSON is invalid.");
             actions.LoadBindingOverridesFromJson(json, true); BindingsChanged?.Invoke();
         }
-        public void Save() { PlayerPrefs.SetString(PreferencesKey, SaveJson()); PlayerPrefs.Save(); }
+        public void Save() { SporeGobbo.Safety.Persistence.SetString(PreferencesKey, SaveJson()); SporeGobbo.Safety.Persistence.Save(); }
         public void Load()
         {
-            string json = PlayerPrefs.GetString(PreferencesKey, "");
+            string json = SporeGobbo.Safety.Persistence.GetString(PreferencesKey, "");
             if (string.IsNullOrWhiteSpace(json)) return;
             try { LoadJson(json); }
-            catch (Exception ex) { actions.RemoveAllBindingOverrides(); PlayerPrefs.DeleteKey(PreferencesKey); Debug.LogWarning("Invalid saved controls were reset: " + ex.Message); }
+            catch (Exception ex) { actions.RemoveAllBindingOverrides(); SporeGobbo.Safety.Persistence.DeleteKey(PreferencesKey); Debug.LogWarning("Invalid saved controls were reset: " + ex.Message); }
         }
         public void ResetAll()
         {
-            CancelRebind(); actions.RemoveAllBindingOverrides(); PlayerPrefs.DeleteKey(PreferencesKey); PlayerPrefs.Save(); BindingsChanged?.Invoke();
+            CancelRebind(); actions.RemoveAllBindingOverrides(); SporeGobbo.Safety.Persistence.DeleteKey(PreferencesKey); SporeGobbo.Safety.Persistence.Save(); BindingsChanged?.Invoke();
         }
         public void Dispose() { CancelRebind(); DisposeOperation(); }
         static bool BindingHasGroup(InputBinding binding, string group) =>

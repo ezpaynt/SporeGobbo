@@ -14,7 +14,8 @@ namespace SporeGobbo.Geometry.Preview
         public Stage4Settings settings=new Stage4Settings{coverage=.55f,side=.25f,top=.2f,foreground=1.9f};
         [NonSerialized] public float RightPanelWidth;
         [NonSerialized] public bool ExternalInputBlock,ExternalPresentationBlock;
-        IOccupancySource previewPresentation;
+        IOccupancySource previewPresentation; StreamingWorld initialAuthoredWorld;
+        public void SupplyInitialWorld(StreamingWorld value){if(initialized)throw new InvalidOperationException("Supply authored world before initialization");if(value.Width!=value.Height)throw new ArgumentException("Host requires square world");initialAuthoredWorld=value;worldSize=value.Width;}
         public void ReplacePreviewWorld(StreamingWorld next,IOccupancySource presentation=null){Initialize();if(next.Width!=worldSize||next.Height!=worldSize)throw new ArgumentException("Preview dimensions must match");Stream.Dispose();World=next;previewPresentation=presentation;CreateStream();}
         public void SetPreviewFocus(Vector2 next){focus=next;}
         public int worldSize=1024;public float footprint=1,speed=5,digRadius=2.2f;
@@ -35,7 +36,7 @@ namespace SporeGobbo.Geometry.Preview
         MeshFilter playerFilter,activeFilter,dormantFilter;Point2 origin;float cooldown;double displayWidth,displayHeight;Vector2 focus;bool initialized;
         Stage49Preview composition;
         string message="";Vector2 scroll;
-        public string SnapshotPath=>Path.Combine(Application.persistentDataPath,"Stage47Experiment","excavation.sg47");
+        public string SnapshotPath=>SporeGobbo.Safety.Persistence.ExperimentPath("Stage47Experiment","excavation.sg47");
         void Start()=>Initialize();
         public void Initialize()
         {
@@ -43,7 +44,7 @@ namespace SporeGobbo.Geometry.Preview
             var args=Environment.GetCommandLineArgs();int sizeArg=Array.IndexOf(args,"-stage48WorldSize");if(sizeArg>=0)worldSize=int.Parse(args[sizeArg+1]);if(Array.IndexOf(args,"-stage48Reference")>=0)stage48Optimized=false;
             if(stage48Optimized){Gpu.bufferPoolLimit=48;Gpu.cacheMaterialBindings=true;}
             if(terrainArtShader!=null)Gpu.projectionShader=terrainArtShader;
-            long start=System.Diagnostics.Stopwatch.GetTimestamp();World=new StreamingWorld(worldSize,worldSize);CreationMs=StreamingGeometry.Elapsed(start);
+            long start=System.Diagnostics.Stopwatch.GetTimestamp();World=initialAuthoredWorld??new StreamingWorld(worldSize,worldSize);CreationMs=StreamingGeometry.Elapsed(start);
             origin=new Point2(worldSize*.5,worldSize*.5);Position=focus=new Vector2(worldSize*.5f+.5f,worldSize*.5f+.5f);CreateStream();
             playerFilter=Create("Gobbo and brush",PreviewLayer.Gobbo,25);activeFilter=Create("Active logical actors",PreviewLayer.Gobbo,24);dormantFilter=Create("Dormant logical actors",PreviewLayer.Gobbo,24);
             Tint(playerFilter,new Color(.42f,1,.3f));Tint(activeFilter,new Color(1,.65f,.15f));Tint(dormantFilter,new Color(.35f,.7f,1));
@@ -77,6 +78,7 @@ namespace SporeGobbo.Geometry.Preview
         void Evict(StreamedChunk c){if(presentations.TryGetValue(c.Key,out var p)){if(stage48Optimized&&presentationPool.Count<8){foreach(var f in p.Filters){Gpu.Forget(f);f.sharedMesh.Clear();f.gameObject.SetActive(false);}presentationPool.Push(p);}else foreach(var filter in p.Filters)Release(filter);presentations.Remove(c.Key);}}
         public void Teleport(Vector2 target)
         {Initialize();target.x=Mathf.Clamp(target.x,5,World.Width-6);target.y=Mathf.Clamp(target.y,5,World.Height-6);if(!PreviewMotion.Fits(World,target,footprint)){message="Teleport destination is solid; use the open center axes.";return;}Position=focus=target;}
+        public void TeleportWithoutFocus(Vector2 target){if(PreviewMotion.Fits(World,target,footprint))Position=target;}
         public int DigAt(Vector2 target){PreviewDigBrush.Cells(target,brush,digRadius,World,brushCells);return Stream.Dig(brushCells);}
         public void Step(Vector2 movement,Vector2 aim,bool dig,float dt)
         {
@@ -158,9 +160,9 @@ namespace SporeGobbo.Geometry.Preview
             if(!initialized)return;
             if(!Ready){GUI.Box(new Rect(Screen.width*.5f-240,Screen.height*.5f-50,480,100),Stream.OverBudget?"Viewport exceeds 384-chunk safety cap. Increase compression scales or coverage.":$"Loading actual terrain: {Stream.Resident.Count} resident, {Stream.Pending} queued\nMovement resumes when the expanded viewport is complete.");}
             if(!showUI||composition!=null)return;GUILayout.BeginArea(new Rect(8,8,340,Screen.height-16),GUI.skin.box);scroll=GUILayout.BeginScrollView(scroll);
-            GUILayout.Label(terrainArtShader!=null?"STAGE 4.8 — TERRAIN TEXTURE PROOF":stage48Optimized?"STAGE 4.8 — OPTIMIZED WORLD":"STAGE 4.7 — LARGE WORLD (isolated)");GUILayout.Label($"{World.Width}×{World.Height} · seed {World.Seed}\nGobbo {Position.x:F1}, {Position.y:F1} · edits {World.EditCount}\nResident {Stream.Resident.Count}/{Stream.Capacity} · visible {Stream.Visible.Count}\nQueue {Stream.Pending} · meshes/objects {MeshCount}\nCache tiles {Stream.CacheTiles:N0} · normals {Stream.CacheSamples:N0}\nActive actors {ActiveActors} · visible dormant {VisibleDormant}\nPresented {PresentedActors} · unloaded {Actors.Count-PresentedActors}\nSimulation chunks {SimulationChunks}\nBuild {Stream.BuildMs:F2} ms · unload {Stream.UnloadMs:F2} ms\nDig {Stream.DigMs:F2} ms / {Stream.LastDigRebuilds} chunks\nDisplay {DisplayMs:F2} ms · vertices {VertexCount:N0}");
-            GUILayout.Label("WASD · mouse aim · LMB/Space dig · Tab UI");
-            int body=GUILayout.Toolbar(footprint==1?0:footprint==3?1:2,new[]{"1×1","3×3","9×9"});float nextBody=new[]{1,3,9}[body];if(PreviewMotion.Fits(World,Position,nextBody))footprint=nextBody;
+            GUILayout.Label(terrainArtShader!=null?"STAGE 4.8 â€” TERRAIN TEXTURE PROOF":stage48Optimized?"STAGE 4.8 â€” OPTIMIZED WORLD":"STAGE 4.7 â€” LARGE WORLD (isolated)");GUILayout.Label($"{World.Width}Ã—{World.Height} Â· seed {World.Seed}\nGobbo {Position.x:F1}, {Position.y:F1} Â· edits {World.EditCount}\nResident {Stream.Resident.Count}/{Stream.Capacity} Â· visible {Stream.Visible.Count}\nQueue {Stream.Pending} Â· meshes/objects {MeshCount}\nCache tiles {Stream.CacheTiles:N0} Â· normals {Stream.CacheSamples:N0}\nActive actors {ActiveActors} Â· visible dormant {VisibleDormant}\nPresented {PresentedActors} Â· unloaded {Actors.Count-PresentedActors}\nSimulation chunks {SimulationChunks}\nBuild {Stream.BuildMs:F2} ms Â· unload {Stream.UnloadMs:F2} ms\nDig {Stream.DigMs:F2} ms / {Stream.LastDigRebuilds} chunks\nDisplay {DisplayMs:F2} ms Â· vertices {VertexCount:N0}");
+            GUILayout.Label("WASD Â· mouse aim Â· LMB/Space dig Â· Tab UI");
+            int body=GUILayout.Toolbar(footprint==1?0:footprint==3?1:2,new[]{"1Ã—1","3Ã—3","9Ã—9"});float nextBody=new[]{1,3,9}[body];if(PreviewMotion.Fits(World,Position,nextBody))footprint=nextBody;
             brush=(DigBrush)GUILayout.Toolbar((int)brush,new[]{"Single","3-wide","Radius"});digRadius=Slider("Brush radius",digRadius,.5f,8);
             settings.uniform=GUILayout.Toggle(settings.uniform,"Uniform comparison");GUILayout.BeginHorizontal();if(GUILayout.Button("Gentle"))Preset(0);if(GUILayout.Button("Balanced"))Preset(1);if(GUILayout.Button("Strong"))Preset(2);GUILayout.EndHorizontal();
             settings.centerWidth=Slider("Center width",settings.centerWidth,24,64);settings.centerHeight=Slider("Center height",settings.centerHeight,12,40);settings.coverage=Slider("Coverage",settings.coverage,.35f,.85f);settings.side=Slider("Side scale",settings.side,.15f,1);settings.top=Slider("Top scale",settings.top,.1f,1);settings.foreground=Slider("Foreground",settings.foreground,.5f,2.5f);settings.distance=Slider("Transition",settings.distance,4,40);settings.anchor=Slider("Anchor",settings.anchor,.3f,.7f);settings.wallHeight=Slider("Wall height",settings.wallHeight,0,4);settings.smoothing=Slider("Follow smoothing",settings.smoothing,0,.5f);

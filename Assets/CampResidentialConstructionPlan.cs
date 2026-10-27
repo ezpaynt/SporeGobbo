@@ -42,7 +42,18 @@ public sealed class ResidentialConstructionPlan
         Footprint = footprint;
     }
 
+    // Existing production API retained; only the read-only planning source is adapted.
     public static bool TryBuild(HandcraftedCampTerrain terrain, int slotId,
+        Vector2 halfExtents, float digRadius, out ResidentialConstructionPlan plan, out string failure,
+        int bodyLayer = -1) => TryBuild(terrain != null ? new ProductionResidentialPlanTerrain(terrain) : null,
+            slotId, halfExtents, digRadius, out plan, out failure, bodyLayer);
+
+    public static bool ValidateStaticPhysicsSegment(HandcraftedCampTerrain terrain,
+        Vector2Int from, Vector2Int to, Vector2 halfExtents, int bodyLayer, out string blocker) =>
+        ValidateStaticPhysicsSegment(terrain != null ? new ProductionResidentialPlanTerrain(terrain) : null,
+            from, to, halfExtents, bodyLayer, out blocker);
+
+    public static bool TryBuild(IResidentialPlanTerrain terrain, int slotId,
         Vector2 halfExtents, float digRadius, out ResidentialConstructionPlan plan, out string failure,
         int bodyLayer = -1)
     {
@@ -145,7 +156,7 @@ public sealed class ResidentialConstructionPlan
         return true;
     }
 
-    public static bool ValidateStaticPhysicsSegment(HandcraftedCampTerrain terrain,
+    public static bool ValidateStaticPhysicsSegment(IResidentialPlanTerrain terrain,
         Vector2Int fromCell, Vector2Int toCell, Vector2 halfExtents, int bodyLayer, out string blocker)
     {
         blocker = null;
@@ -163,7 +174,7 @@ public sealed class ResidentialConstructionPlan
         {
             Collider2D collider = hit.collider;
             if (collider == null || !collider.enabled || collider.isTrigger ||
-                collider is UnityEngine.Tilemaps.TilemapCollider2D) continue;
+                terrain.IsDerivedTerrainCollider(collider)) continue;
             Rigidbody2D attached = collider.attachedRigidbody;
             if (attached != null && attached.bodyType != RigidbodyType2D.Static) continue;
             blocker = GetHierarchyPath(collider.transform) + " (" + collider.GetType().Name +
@@ -185,7 +196,7 @@ public sealed class ResidentialConstructionPlan
         return path;
     }
 
-    static Vector2Int ChooseDigCenter(HandcraftedCampTerrain terrain, List<Vector2Int> footprint,
+    static Vector2Int ChooseDigCenter(IResidentialPlanTerrain terrain, List<Vector2Int> footprint,
         HashSet<Vector2Int> blocked, Vector2Int stand, Vector2Int desired, float reach, float radius)
     {
         Vector2Int best = new Vector2Int(int.MinValue, int.MinValue);
@@ -209,7 +220,7 @@ public sealed class ResidentialConstructionPlan
         return best;
     }
 
-    static bool RemovesAny(HandcraftedCampTerrain terrain, HashSet<Vector2Int> blocked,
+    static bool RemovesAny(IResidentialPlanTerrain terrain, HashSet<Vector2Int> blocked,
         Vector2Int center, float radius)
     {
         foreach (Vector2Int cell in blocked)
@@ -218,7 +229,7 @@ public sealed class ResidentialConstructionPlan
         return false;
     }
 
-    static List<Vector2Int> ApplySimulatedDig(HandcraftedCampTerrain terrain, HashSet<Vector2Int> domain,
+    static List<Vector2Int> ApplySimulatedDig(IResidentialPlanTerrain terrain, HashSet<Vector2Int> domain,
         HashSet<Vector2Int> blocked, Vector2Int center, float radius)
     {
         List<Vector2Int> removed = new List<Vector2Int>();
@@ -231,7 +242,7 @@ public sealed class ResidentialConstructionPlan
         return removed;
     }
 
-    static bool CanOccupy(HandcraftedCampTerrain terrain, Vector2Int center, Vector2 extents,
+    static bool CanOccupy(IResidentialPlanTerrain terrain, Vector2Int center, Vector2 extents,
         HashSet<Vector2Int> domain, HashSet<Vector2Int> simulatedBlocked)
     {
         Vector2 world = terrain.CellToWorld(center);
@@ -252,7 +263,7 @@ public sealed class ResidentialConstructionPlan
         return true;
     }
 
-    static bool CanTraverse(HandcraftedCampTerrain terrain, Vector2Int from, Vector2Int to, Vector2 extents,
+    static bool CanTraverse(IResidentialPlanTerrain terrain, Vector2Int from, Vector2Int to, Vector2 extents,
         HashSet<Vector2Int> domain, HashSet<Vector2Int> simulatedBlocked)
     {
         Vector2 start = terrain.CellToWorld(from), end = terrain.CellToWorld(to);
@@ -267,7 +278,7 @@ public sealed class ResidentialConstructionPlan
         return true;
     }
 
-    static bool CanOccupyWorld(HandcraftedCampTerrain terrain, Vector2 world, Vector2Int center,
+    static bool CanOccupyWorld(IResidentialPlanTerrain terrain, Vector2 world, Vector2Int center,
         Vector2 extents, HashSet<Vector2Int> domain, HashSet<Vector2Int> simulatedBlocked)
     {
         float halfCell = terrain.CellSize * 0.5f;
