@@ -16,8 +16,44 @@ public class BuddyBrain : MonoBehaviour
     private BuddyCombat combat;
     private BuddyScavenger scavenger;
 
+    // Runtime command recipient only; canonical roster/region remain authoritative elsewhere.
+    public GobboController SquadLeader {get;private set;}
+    public bool SquadScoped {get;private set;}
+    public bool Following {get;private set;}=true;
+    public bool Aggressive {get;private set;}=true;
+    public Vector2 StayAnchor {get;private set;}
+    Rigidbody2D commandBody;
+    public float StayRadius {get {var size=TileMover.GetMapClearanceExtents(commandBody,follow!=null?follow.physicalBodyRadius:.28f);return Mathf.Max(1.8f,Mathf.Max(size.x,size.y)*2f);}}
+    public bool SquadAuthorized=>!SquadScoped||SquadLeader!=null&&SquadLeader.CanControlBuddy(this);
+    public bool CombatPermitted=>allowCombat&&SquadAuthorized&&(!SquadScoped||Aggressive);
+    public Vector2 ActivityOrigin=>SquadScoped&&!Following?StayAnchor:SquadLeader!=null?(Vector2)SquadLeader.transform.position:(Vector2)transform.position;
+    public void BindSquad(GobboController leader,bool following,bool aggressive)
+    {bool fresh=!SquadScoped;SquadLeader=leader;SquadScoped=true;if(fresh)Following=true;ApplyModes(following,aggressive);}
+    public void ApplyModes(bool following,bool aggressive)
+    {
+        if(Following&&!following)StayAnchor=transform.position;
+        bool changed=Following!=following;
+        Following=following;Aggressive=aggressive;
+        if(changed){follow?.ResetCommandMotion();combat?.InvalidateReachability();scavenger?.InvalidateReachability();}
+        if(!aggressive)combat?.CancelEngagement();
+        UpdateTaskPermissions();
+    }
+    public bool AllowsDestination(Vector2 position)=>SquadAuthorized&&(!SquadScoped||Following||Vector2.Distance(position,StayAnchor)<=StayRadius);
+    public Vector2 BoundVelocity(Vector2 position,Vector2 velocity,float delta)
+    {
+        if(!SquadAuthorized)return Vector2.zero;
+        if(!SquadScoped||Following||delta<=0)return velocity;
+        Vector2 offset=position-StayAnchor;
+        if(offset.magnitude>StayRadius)
+        {Vector2 inward=-offset.normalized;return inward*Mathf.Max(0,Vector2.Dot(velocity,inward));}
+        Vector2 next=position+velocity*delta-StayAnchor;
+        return (Vector2.ClampMagnitude(next,StayRadius)+StayAnchor-position)/delta;
+    }
+    public void SuspendCommandMotion(){combat?.CancelEngagement();follow?.ResetCommandMotion();SetMovementPermissions(false,false,false);}
+
     void Awake()
     {
+        commandBody=GetComponent<Rigidbody2D>();
         unit = GetComponent<BuddyUnit>();
         follow = GetComponent<BuddyFollow>();
         combat = GetComponent<BuddyCombat>();
@@ -36,7 +72,8 @@ public class BuddyBrain : MonoBehaviour
 
     void UpdateTaskPermissions()
     {
-        bool canCombat = allowCombat && combat != null && combat.enabled && combat.WantsControl();
+        if(!SquadAuthorized||!CombatSessionBinding.AllowsActions(gameObject)){SuspendCommandMotion();currentTask="Idle";return;}
+        bool canCombat = CombatPermitted && combat != null && combat.enabled && combat.WantsControl();
         bool canScavenge = allowScavenging && scavenger != null && scavenger.enabled && scavenger.WantsControl();
         bool canFollow = allowFollowing && follow != null && follow.enabled;
 

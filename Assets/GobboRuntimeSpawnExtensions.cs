@@ -30,6 +30,12 @@ public static class GobboRuntimeSpawnExtensions
             return;
         }
 
+        var state=GameState.Instance;
+        if(state==null)return;
+        GobboUnitSaveData canonical=null;
+        foreach(var owned in state.ownedGobbos)if(owned!=null&&owned.uniqueId==data.uniqueId){canonical=owned;break;}
+        if(canonical==null||!state.activeSquadIds.Contains(canonical.uniqueId))return;
+        data=canonical;
         data.isLeader = false;
         data.EnsureRuntimeDefaults();
 
@@ -50,14 +56,14 @@ public static class GobboRuntimeSpawnExtensions
             Vector2 offset = Random.insideUnitCircle;
             if (offset.sqrMagnitude < 0.001f) offset = Vector2.right;
             follow.SetFormationOffset(offset.normalized * player.buddyFormationSpread);
-            follow.enabled = player.followersFollowing;
+            follow.enabled = true;
         }
 
         BuddyCombat combat = buddyObject.GetComponent<BuddyCombat>();
         if (combat != null)
         {
             combat.SetPlayer(player.transform);
-            combat.enabled = player.followersAggressive;
+            combat.enabled = true;
         }
 
         BuddyBrain brain = buddyObject.GetComponent<BuddyBrain>();
@@ -72,6 +78,7 @@ public static class GobboRuntimeSpawnExtensions
         if (scavenger != null) scavenger.enabled = data.collectsFood;
 
         RegionQueries.Bind(buddyObject);
+        if(!player.RegisterSquadBuddy(unit)){buddyObject.SetActive(false);Object.Destroy(buddyObject);Debug.LogWarning("Rejected invalid recruited squad spawn; canonical roster retained.");return;}
         player.AddFollower(1);
         Debug.Log("Spawned gobbo unit: " + data.displayName + " / " + data.gobboType + " / " + data.uniqueId);
     }

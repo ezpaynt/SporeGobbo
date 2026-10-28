@@ -107,7 +107,8 @@ public class BuddyFollow : MonoBehaviour
             return;
         }
 
-        Vector2 targetPosition = (Vector2)player.position + formationOffset * offsetStrength;
+        var brain=GetComponent<BuddyBrain>();
+        Vector2 targetPosition = brain!=null&&brain.SquadScoped&&!brain.Following?brain.StayAnchor:(Vector2)player.position + formationOffset * offsetStrength;
 
         if (Vector2.Distance(rb.position, targetPosition) <= stopDistance)
         {
@@ -122,11 +123,16 @@ public class BuddyFollow : MonoBehaviour
         Vector2 moveDir = GetFollowDirection(targetPosition);
         moveDir = ApplyGobboDance(moveDir, targetPosition);
 
-        TileMover.Move(rb, moveDir * followSpeed, physicalBodyRadius);
+        Vector2 velocity=moveDir*followSpeed;
+        if(brain!=null)velocity=brain.BoundVelocity(rb.position,velocity,Time.fixedDeltaTime);
+        TileMover.Move(rb, velocity, physicalBodyRadius);
         FaceDirection(moveDir);
     
         }
 }
+
+    public void ResetCommandMotion()
+    {ClearPath();danceTimer=backstepTimer=stuckTimer=0;if(rb!=null)rb.linearVelocity=Vector2.zero;}
 
     Vector2 GetFollowDirection(Vector2 targetPosition)
     {

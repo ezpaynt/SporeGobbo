@@ -222,6 +222,7 @@ public class GobboController : MonoBehaviour
     void OnDisable()
     {
         moveInput = Vector2.zero;
+        foreach(var brain in squadRecipients)if(brain!=null)brain.SuspendCommandMotion();
         digTimer = 0f;
         if (commandWheel != null) commandWheel.CancelWithoutCommand(!isDead);
         if (inputReader != null)
@@ -708,15 +709,8 @@ public class GobboController : MonoBehaviour
         if (target == null)
             return;
 
-        BuddyCombat[] buddies = Object.FindObjectsByType<BuddyCombat>();
-
-        foreach (BuddyCombat buddy in buddies)
-        {
-            if (buddy == null)
-                continue;
-
-            buddy.SetTarget(target);
-        }
+        foreach(var brain in squadRecipients)
+            if(CanControlBuddy(brain)&&brain.CombatPermitted)brain.GetComponent<BuddyCombat>()?.SetTarget(target);
     }
 
     bool TryDash()
@@ -837,7 +831,7 @@ public class GobboController : MonoBehaviour
         {
             follow.SetPlayer(transform);
             follow.SetFormationOffset(Random.insideUnitCircle.normalized * buddyFormationSpread);
-            follow.enabled = followersFollowing;
+            follow.enabled = true;
         }
 
         BuddyCombat combat = buddyObject.GetComponent<BuddyCombat>();
@@ -845,10 +839,11 @@ public class GobboController : MonoBehaviour
         if (combat != null)
         {
             combat.SetPlayer(transform);
-            combat.enabled = followersAggressive;
+            combat.enabled = true;
         }
 
         RegionQueries.Bind(buddyObject);
+        if(!RegisterSquadBuddy(unit)){buddyObject.SetActive(false);Destroy(buddyObject);Debug.LogWarning("Rejected invalid squad spawn; canonical roster retained.");return;}
         AddFollower(1);
 
         Debug.Log("Spawned buddy: " + data.displayName + " / " + data.gobboType);
@@ -883,23 +878,32 @@ public class GobboController : MonoBehaviour
             : !followersAggressive;
     }
 
+    readonly List<BuddyBrain> squadRecipients=new List<BuddyBrain>();
+    bool ValidSquadIdentity(BuddyBrain brain)
+    {
+        if(brain==null||!brain.isActiveAndEnabled||!isActiveAndEnabled||!CombatAlive)return false;
+        var state=GameState.Instance;var unit=brain.GetComponent<BuddyUnit>();
+        if(state==null||unit==null||!unit.isActiveAndEnabled||!unit.CombatAlive||unit.unitData==null||!state.ownedGobbos.Contains(unit.unitData)||!state.activeSquadIds.Contains(unit.unitData.uniqueId)||state.activeSquadIds.IndexOf(unit.unitData.uniqueId)>=Mathf.Max(1,state.maxActiveSquad))return false;
+        var terrain=ActorTerrainBinding.Resolve(gameObject);
+        var scene=gameObject.scene;
+        return GameSceneCatalog.IsExpedition(scene)&&terrain is ExpeditionRegion expedition&&expedition.Player==this&&brain.gameObject.scene==scene&&terrain!=null&&object.ReferenceEquals(terrain,DiggableTerrainService.Active)&&object.ReferenceEquals(terrain,ActorTerrainBinding.Resolve(brain.gameObject));
+    }
+    public bool CanControlBuddy(BuddyBrain brain)=>ValidSquadIdentity(brain)&&squadRecipients.Contains(brain)&&brain.SquadLeader==this;
+    public bool RegisterSquadBuddy(BuddyUnit unit)
+    {
+        var brain=unit!=null?unit.GetComponent<BuddyBrain>():null;
+        if(!ValidSquadIdentity(brain)||brain.SquadLeader!=null&&brain.SquadLeader!=this)return false;
+        squadRecipients.RemoveAll(b=>b==null);
+        foreach(var existing in squadRecipients)
+            if(existing!=brain&&existing.GetComponent<BuddyUnit>()?.unitData?.uniqueId==unit.unitData.uniqueId)return false;
+        if(!squadRecipients.Contains(brain))squadRecipients.Add(brain);
+        brain.BindSquad(this,followersFollowing,followersAggressive);return true;
+    }
     void ApplyBuddyModes()
     {
-        BuddyFollow[] follows = Object.FindObjectsByType<BuddyFollow>();
-
-        foreach (BuddyFollow follow in follows)
-        {
-            if (follow != null)
-                follow.enabled = followersFollowing;
-        }
-
-        BuddyCombat[] combats = Object.FindObjectsByType<BuddyCombat>();
-
-        foreach (BuddyCombat combat in combats)
-        {
-            if (combat != null)
-                combat.enabled = followersAggressive;
-        }
+        squadRecipients.RemoveAll(b=>b==null);
+        foreach(var brain in squadRecipients)
+            if(CanControlBuddy(brain))brain.ApplyModes(followersFollowing,followersAggressive);
     }
 
     void SpecialAbility()

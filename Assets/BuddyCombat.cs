@@ -47,6 +47,8 @@ public class BuddyCombat : MonoBehaviour
     private GobboVisualController visualController;
     private BuddyDirectionalSprite directionalSprite;
 
+    Vector2 reachabilityGoal,reachabilityFrom;int reachabilityRevision=-1;float nextReachability;bool cachedReachability,hasReachability;
+
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -82,7 +84,7 @@ public class BuddyCombat : MonoBehaviour
         if (bounceTimer > 0f)
         {
             bounceTimer -= Time.fixedDeltaTime;
-            TileMover.Move(rb, bounceVelocity, bodyRadius);
+            TileMover.Move(rb, BoundMotion(bounceVelocity), bodyRadius);
             FaceDirection(bounceVelocity, GobboAnimationState.Walk);
             return;
         }
@@ -105,6 +107,8 @@ public class BuddyCombat : MonoBehaviour
 
     bool AllowedToFight()
     {
+        var brain=GetComponent<BuddyBrain>();
+        if(brain!=null&&!brain.CombatPermitted)return false;
         if(!CombatSessionBinding.AllowsActions(gameObject)||!EnemyDamage.Ready(gameObject))return false;
         if (unit == null || unit.unitData == null) return true;
         if (unit.unitData.onlyFightsAfterHit && !unit.unitData.hasBeenHit) return false;
@@ -153,6 +157,9 @@ public class BuddyCombat : MonoBehaviour
 
     bool IsTargetAllowedByPlayerDistance(Transform target)
     {
+        var brain=GetComponent<BuddyBrain>();
+        if(brain!=null&&!brain.AllowsDestination(target.position))return false;
+        if(brain!=null&&brain.SquadScoped&&!brain.Following)return true;
         if (!onlyFightNearPlayer || player == null) return true;
 
         float buddyDistanceFromPlayer = Vector2.Distance(transform.position, player.position);
@@ -163,12 +170,19 @@ public class BuddyCombat : MonoBehaviour
 
     bool CanSeeOrPathTo(Vector2 targetPos)
     {
-        bool hasSight = !requireLineOfSightToTarget || RegionQueries.Sight(gameObject,rb.position, targetPos);
-        if (hasSight) return true;
-        if (!requireReachableTarget) return true;
-
-        List<Vector2> testPath;
-        return RegionQueries.Path(gameObject,rb.position, targetPos, out testPath) && testPath.Count > 0;
+        var binding=GetComponent<ActorTerrainBinding>();int revision=binding!=null?binding.Revision:RegionQueries.Current?.Revision??-1;
+        if(hasReachability&&Time.time<nextReachability&&revision==reachabilityRevision&&Vector2.Distance(targetPos,reachabilityGoal)<repathDistance&&Vector2.Distance(rb.position,reachabilityFrom)<repathDistance)return cachedReachability;
+        reachabilityRevision=revision;reachabilityGoal=targetPos;reachabilityFrom=rb.position;nextReachability=Time.time+Mathf.Max(.05f,repathTime);hasReachability=true;
+        cachedReachability=RegionQueries.Sight(gameObject,rb.position,targetPos);
+        if(!cachedReachability&&!requireReachableTarget)cachedReachability=!requireLineOfSightToTarget;
+        if(!cachedReachability&&requireReachableTarget)
+        {
+            cachedReachability=RegionQueries.Path(gameObject,rb.position,targetPos,out List<Vector2> route)&&route.Count>0;
+            var brain=GetComponent<BuddyBrain>();
+            if(cachedReachability&&brain!=null&&brain.SquadScoped&&!brain.Following)
+                foreach(var point in route)if(!brain.AllowsDestination(point)){cachedReachability=false;break;}
+        }
+        return cachedReachability;
     }
 
     void MoveTowardTarget()
@@ -177,7 +191,7 @@ public class BuddyCombat : MonoBehaviour
 
         Vector2 targetPos = currentTarget.position;
         Vector2 moveDir = GetPathDirection(targetPos);
-        TileMover.Move(rb, moveDir * chaseSpeed, bodyRadius);
+        TileMover.Move(rb, BoundMotion(moveDir * chaseSpeed), bodyRadius);
         FaceDirection(moveDir, GobboAnimationState.Walk);
     }
 
@@ -232,7 +246,7 @@ public class BuddyCombat : MonoBehaviour
     void TryAttack()
     {
         rb.linearVelocity = Vector2.zero;
-        if (attackTimer > 0f || currentTarget == null) return;
+        if (!AllowedToFight()||attackTimer > 0f || currentTarget == null||!IsStillValidTarget(currentTarget)) return;
         if (!RegionQueries.Sight(gameObject,rb.position, currentTarget.position)) return;
 
         attackTimer = attackCooldown;
@@ -276,6 +290,12 @@ public class BuddyCombat : MonoBehaviour
             directionalSprite.SetDirection(direction);
     }
 
+    public void InvalidateReachability()=>hasReachability=false;
+    public void CancelEngagement()
+    {ClearTarget();hasReachability=false;bounceTimer=0;bounceVelocity=Vector2.zero;brainAllowsMovement=false;if(rb!=null)rb.linearVelocity=Vector2.zero;}
+    Vector2 BoundMotion(Vector2 velocity)
+    {var brain=GetComponent<BuddyBrain>();return brain!=null?brain.BoundVelocity(rb.position,velocity,Time.fixedDeltaTime):velocity;}
+
     void ClearTarget()
     {
         currentTarget = null;
@@ -303,7 +323,7 @@ public class BuddyCombat : MonoBehaviour
     public void SetTarget(Transform target)
     {
         var receiver=EnemyDamage.Resolve(target!=null?target.gameObject:null);
-        currentTarget=EnemyDamage.Eligible(gameObject,receiver)?receiver.transform:null;
+        currentTarget=AllowedToFight()&&EnemyDamage.Eligible(gameObject,receiver)&&IsTargetAllowedByPlayerDistance(receiver.transform)?receiver.transform:null;
         ClearPath();
     }
 }

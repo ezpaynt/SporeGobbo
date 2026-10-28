@@ -34,6 +34,9 @@ public class BuddyScavenger : MonoBehaviour
     private float repathTimer = 0f;
     private Vector2 lastPathGoal;
 
+    Vector2 reachabilityGoal,reachabilityFrom;int reachabilityRevision=-1;float nextReachability;bool cachedReachability,hasReachability;
+    Vector2 ActivityOrigin {get {var brain=GetComponent<BuddyBrain>();return brain!=null&&brain.SquadScoped&&!brain.Following?brain.StayAnchor:player!=null?(Vector2)player.position:(Vector2)transform.position;}}
+
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -57,7 +60,7 @@ public class BuddyScavenger : MonoBehaviour
         FindPlayerIfMissing();
         if (player == null) return;
 
-        float distanceFromPlayer = Vector2.Distance(transform.position, player.position);
+        float distanceFromPlayer = Vector2.Distance(transform.position, ActivityOrigin);
         if (distanceFromPlayer > abandonFoodDistance)
         {
             DropFoodTarget();
@@ -76,8 +79,9 @@ public class BuddyScavenger : MonoBehaviour
         using var profile=new Unity.Profiling.ProfilerMarker("Spore.AI.BuddyScavenger").Auto();
         if (!brainAllowsMovement) return;
         if (!CanScavenge() || targetFood == null || player == null) return;
+        if(!IsFoodStillValid(targetFood)){DropFoodTarget();return;}
 
-        float distanceFromPlayer = Vector2.Distance(transform.position, player.position);
+        float distanceFromPlayer = Vector2.Distance(transform.position, ActivityOrigin);
         if (distanceFromPlayer > abandonFoodDistance)
         {
             DropFoodTarget();
@@ -88,7 +92,8 @@ public class BuddyScavenger : MonoBehaviour
         if (distanceToFood > pickupRange)
         {
             Vector2 moveDir = GetPathDirection(targetFood.position);
-            TileMover.Move(rb, moveDir * unit.unitData.moveSpeed, bodyRadius);
+            var brain=GetComponent<BuddyBrain>();var velocity=moveDir*unit.unitData.moveSpeed;
+            TileMover.Move(rb, brain!=null?brain.BoundVelocity(rb.position,velocity,Time.fixedDeltaTime):velocity, bodyRadius);
             FaceDirection(moveDir, GobboAnimationState.Walk);
         }
         else
@@ -104,7 +109,8 @@ public class BuddyScavenger : MonoBehaviour
 
     bool CanScavenge()
     {
-        return unit != null && unit.unitData != null && unit.unitData.collectsFood;
+        var brain=GetComponent<BuddyBrain>();
+        return EnemyDamage.Ready(gameObject)&&(brain==null||brain.SquadAuthorized)&&CombatSessionBinding.AllowsActions(gameObject)&&unit != null && unit.unitData != null && unit.unitData.collectsFood;
     }
 
     void FindFood()
@@ -136,17 +142,25 @@ public class BuddyScavenger : MonoBehaviour
     bool IsFoodStillValid(Transform food)
     {
         if (food == null || !food.gameObject.activeInHierarchy) return false;
-        if (player != null && Vector2.Distance(food.position, player.position) > abandonFoodDistance + 2f) return false;
+        if (player != null && Vector2.Distance(food.position, ActivityOrigin) > abandonFoodDistance + 2f) return false;
         return CanReachFood(food);
     }
 
     bool CanReachFood(Transform food)
     {
         if (food == null) return false;
-        if (RegionQueries.Sight(gameObject,rb.position, food.position)) return true;
-
-        List<Vector2> testPath;
-        return RegionQueries.Path(gameObject,rb.position, food.position, out testPath) && testPath.Count > 0;
+        var brain=GetComponent<BuddyBrain>();if(brain!=null&&!brain.AllowsDestination(food.position))return false;
+        var binding=GetComponent<ActorTerrainBinding>();int revision=binding!=null?binding.Revision:RegionQueries.Current?.Revision??-1;
+        if(hasReachability&&Time.time<nextReachability&&revision==reachabilityRevision&&Vector2.Distance(food.position,reachabilityGoal)<repathDistance&&Vector2.Distance(rb.position,reachabilityFrom)<repathDistance)return cachedReachability;
+        reachabilityRevision=revision;reachabilityGoal=food.position;reachabilityFrom=rb.position;nextReachability=Time.time+Mathf.Max(.05f,repathTime);hasReachability=true;
+        cachedReachability=RegionQueries.Sight(gameObject,rb.position,food.position);
+        if(!cachedReachability)
+        {
+            cachedReachability=RegionQueries.Path(gameObject,rb.position,food.position,out List<Vector2> route)&&route.Count>0;
+            if(cachedReachability&&brain!=null&&brain.SquadScoped&&!brain.Following)
+                foreach(var point in route)if(!brain.AllowsDestination(point)){cachedReachability=false;break;}
+        }
+        return cachedReachability;
     }
 
     Vector2 GetPathDirection(Vector2 targetPos)
@@ -157,7 +171,8 @@ public class BuddyScavenger : MonoBehaviour
             return (targetPos - rb.position).normalized;
         }
 
-        if(RegionQueries.Current is IWorldRegion region && regionPathRevision!=region.Revision){currentPath.Clear();pathIndex=0;regionPathRevision=region.Revision;}
+        var binding=GetComponent<ActorTerrainBinding>();int revision=binding!=null?binding.Revision:RegionQueries.Current?.Revision??-1;
+        if(regionPathRevision!=revision){currentPath.Clear();pathIndex=0;regionPathRevision=revision;}
         repathTimer -= Time.fixedDeltaTime;
         bool needsNewPath = currentPath.Count == 0 ||
                             pathIndex >= currentPath.Count ||
@@ -203,7 +218,8 @@ public class BuddyScavenger : MonoBehaviour
         FaceDirection((Vector2)targetFood.position - rb.position, GobboAnimationState.Grab);
 
         FoodItem food = targetFood.GetComponent<FoodItem>();
-        GobboController playerGobbo = Object.FindAnyObjectByType<GobboController>();
+        var brain=GetComponent<BuddyBrain>();
+        GobboController playerGobbo = brain!=null&&brain.SquadScoped?brain.SquadLeader:player!=null?player.GetComponent<GobboController>():null;
         if (food != null && playerGobbo != null)
             food.Eat(playerGobbo);
 
@@ -226,6 +242,7 @@ public class BuddyScavenger : MonoBehaviour
             directionalSprite.SetDirection(direction);
     }
 
+    public void InvalidateReachability()=>hasReachability=false;
     void DropFoodTarget()
     {
         targetFood = null;

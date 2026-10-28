@@ -62,6 +62,8 @@ public static class EnemyDamage
         source=Resolve(source)?.gameObject??source;
         if(!Alive(target)||source==target.gameObject||!Ready(target.gameObject))return false;
         if(source!=null&&(!Ready(source)||!Alive(Resolve(source))||!CombatSessionBinding.AllowsActions(source)))return false;
+        var brain=source!=null?source.GetComponent<BuddyBrain>():null;
+        if(brain!=null&&brain.SquadScoped&&!brain.CombatPermitted)return false;
         var a=source!=null?source.GetComponent<CombatSessionBinding>():null;
         var b=target.GetComponent<CombatSessionBinding>();
         if(a!=null&&a.Rules!=null||b!=null&&b.Rules!=null)
