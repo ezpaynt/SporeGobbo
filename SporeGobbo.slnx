@@ -6,7 +6,12 @@
   <Project Path="SporeGobbo.Input.EditModeTests.csproj" />
   <Project Path="SporeGobbo.Geometry.csproj" />
   <Project Path="SporeGobbo.Geometry.Preview.Editor.csproj" />
+  <Project Path="SporeGobbo.CampCandidate.csproj" />
+  <Project Path="SporeGobbo.CampCandidate.Editor.csproj" />
   <Project Path="SporeGobbo.Input.csproj" />
+  <Project Path="SporeGobbo.CampCandidate.Tests.csproj" />
+  <Project Path="SporeGobbo.CampCandidate.Preview.csproj" />
   <Project Path="SporeGobbo.CampLifecycle.csproj" />
   <Project Path="SporeGobbo.Geometry.EditModeTests.csproj" />
+  <Project Path="SporeGobbo.Safety.csproj" />
 </Solution>

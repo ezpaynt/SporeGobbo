@@ -42,6 +42,7 @@ public class BuddyFollow : MonoBehaviour
     public float separationForce = 0.08f;
     public LayerMask buddyLayer;
 
+    private int boundRouteRevision = -1;
     private Rigidbody2D rb;
     private GobboVisualController visualController;
     private BuddyDirectionalSprite directionalSprite;
@@ -79,7 +80,11 @@ public class BuddyFollow : MonoBehaviour
 
     void FixedUpdate()
     {
+        using (new ActorTerrainBinding.Scope("SG59.BuddyFollow.FixedUpdate", gameObject.GetComponent<ActorTerrainBinding>() != null))
+        {
         FindPlayerIfMissing();
+        var binding = GetComponent<ActorTerrainBinding>();
+        if (binding != null && boundRouteRevision != binding.Revision) { ClearPath(); boundRouteRevision = binding.Revision; }
 
         if (!brainAllowsMovement)
         {
@@ -93,7 +98,7 @@ public class BuddyFollow : MonoBehaviour
 
         float distanceToPlayer = Vector2.Distance(rb.position, player.position);
 
-        if (distanceToPlayer > teleportDistance)
+        if (distanceToPlayer > teleportDistance && GetComponent<ActorTerrainBinding>() == null)
         {
             transform.position = player.position + (Vector3)Random.insideUnitCircle;
             rb.linearVelocity = Vector2.zero;
@@ -119,7 +124,9 @@ public class BuddyFollow : MonoBehaviour
 
         TileMover.Move(rb, moveDir * followSpeed, physicalBodyRadius);
         FaceDirection(moveDir);
-    }
+    
+        }
+}
 
     Vector2 GetFollowDirection(Vector2 targetPosition)
     {
@@ -130,7 +137,8 @@ public class BuddyFollow : MonoBehaviour
         if (directDir.sqrMagnitude < 0.001f)
             return Vector2.zero;
 
-        bool directClear = MapPathfinder.HasLineOfWalkableSight(rb.position, targetPosition);
+        var binding = GetComponent<ActorTerrainBinding>();
+        bool directClear = binding != null ? binding.Sight(rb.position, targetPosition) : MapPathfinder.HasLineOfWalkableSight(rb.position, targetPosition);
 
         if (!usePathfinding || (currentPath.Count == 0 && directClear))
         {
@@ -176,7 +184,8 @@ public class BuddyFollow : MonoBehaviour
         repathTimer = repathTime;
         lastPathGoal = targetPosition;
 
-        if (MapPathfinder.TryFindPath(rb.position, targetPosition, out currentPath))
+        var binding = GetComponent<ActorTerrainBinding>();
+        if (binding != null ? binding.TryPath(rb.position, targetPosition, out currentPath) : MapPathfinder.TryFindPath(rb.position, targetPosition, out currentPath))
             pathIndex = 0;
         else
             ClearPath();

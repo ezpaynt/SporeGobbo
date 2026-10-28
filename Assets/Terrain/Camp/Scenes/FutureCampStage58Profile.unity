@@ -1,0 +1,490 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!29 &1
+OcclusionCullingSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_OcclusionBakeSettings:
+    smallestOccluder: 5
+    smallestHole: 0.25
+    backfaceThreshold: 100
+  m_SceneGUID: 00000000000000000000000000000000
+  m_OcclusionCullingData: {fileID: 0}
+--- !u!104 &2
+RenderSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 10
+  m_Fog: 0
+  m_FogColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  m_FogMode: 3
+  m_FogDensity: 0.01
+  m_LinearFogStart: 0
+  m_LinearFogEnd: 300
+  m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
+  m_AmbientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
+  m_AmbientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
+  m_AmbientIntensity: 1
+  m_AmbientMode: 3
+  m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
+  m_SkyboxMaterial: {fileID: 0}
+  m_HaloStrength: 0.5
+  m_FlareStrength: 1
+  m_FlareFadeSpeed: 3
+  m_HaloTexture: {fileID: 0}
+  m_SpotCookie: {fileID: 10001, guid: 0000000000000000e000000000000000, type: 0}
+  m_DefaultReflectionMode: 0
+  m_DefaultReflectionResolution: 128
+  m_ReflectionBounces: 1
+  m_ReflectionIntensity: 1
+  m_CustomReflection: {fileID: 0}
+  m_Sun: {fileID: 0}
+  m_UseRadianceAmbientProbe: 0
+--- !u!157 &3
+LightmapSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 13
+  m_BakeOnSceneLoad: 0
+  m_GISettings:
+    serializedVersion: 2
+    m_BounceScale: 1
+    m_IndirectOutputScale: 1
+    m_AlbedoBoost: 1
+    m_EnvironmentLightingMode: 0
+    m_EnableBakedLightmaps: 0
+    m_EnableRealtimeLightmaps: 0
+  m_LightmapEditorSettings:
+    serializedVersion: 12
+    m_Resolution: 2
+    m_BakeResolution: 40
+    m_AtlasSize: 1024
+    m_AO: 0
+    m_AOMaxDistance: 1
+    m_CompAOExponent: 1
+    m_CompAOExponentDirect: 0
+    m_ExtractAmbientOcclusion: 0
+    m_Padding: 2
+    m_LightmapParameters: {fileID: 0}
+    m_LightmapsBakeMode: 1
+    m_TextureCompression: 1
+    m_ReflectionCompression: 2
+    m_MixedBakeMode: 2
+    m_BakeBackend: 2
+    m_PVRSampling: 1
+    m_PVRDirectSampleCount: 32
+    m_PVRSampleCount: 512
+    m_PVRBounces: 2
+    m_PVREnvironmentSampleCount: 256
+    m_PVREnvironmentReferencePointCount: 2048
+    m_PVRFilteringMode: 1
+    m_PVRDenoiserTypeDirect: 1
+    m_PVRDenoiserTypeIndirect: 1
+    m_PVRDenoiserTypeAO: 1
+    m_PVRFilterTypeDirect: 0
+    m_PVRFilterTypeIndirect: 0
+    m_PVRFilterTypeAO: 0
+    m_PVREnvironmentMIS: 1
+    m_PVRCulling: 1
+    m_PVRFilteringGaussRadiusDirect: 1
+    m_PVRFilteringGaussRadiusIndirect: 1
+    m_PVRFilteringGaussRadiusAO: 1
+    m_PVRFilteringAtrousPositionSigmaDirect: 0.5
+    m_PVRFilteringAtrousPositionSigmaIndirect: 2
+    m_PVRFilteringAtrousPositionSigmaAO: 1
+    m_ExportTrainingData: 0
+    m_TrainingDataDestination: TrainingData
+    m_LightProbeSampleCountMultiplier: 4
+  m_LightingDataAsset: {fileID: 20201, guid: 0000000000000000f000000000000000, type: 0}
+  m_LightingSettings: {fileID: 0}
+--- !u!196 &4
+NavMeshSettings:
+  serializedVersion: 2
+  m_ObjectHideFlags: 0
+  m_BuildSettings:
+    serializedVersion: 3
+    agentTypeID: 0
+    agentRadius: 0.5
+    agentHeight: 2
+    agentSlope: 45
+    agentClimb: 0.4
+    ledgeDropHeight: 0
+    maxJumpAcrossDistance: 0
+    minRegionArea: 2
+    manualCellSize: 0
+    cellSize: 0.16666667
+    manualTileSize: 0
+    tileSize: 256
+    buildHeightMesh: 0
+    maxJobWorkers: 0
+    preserveTilesOutsideBounds: 0
+    debug:
+      m_Flags: 0
+  m_NavMeshData: {fileID: 0}
+--- !u!1 &723499298
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 723499300}
+  - component: {fileID: 723499299}
+  m_Layer: 0
+  m_Name: Large-world preview camera
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!20 &723499299
+Camera:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 723499298}
+  m_Enabled: 1
+  serializedVersion: 2
+  m_ClearFlags: 2
+  m_BackGroundColor: {r: 0.025, g: 0.03, b: 0.035, a: 1}
+  m_projectionMatrixMode: 1
+  m_GateFitMode: 2
+  m_FOVAxisMode: 0
+  m_Iso: 200
+  m_ShutterSpeed: 0.005
+  m_Aperture: 16
+  m_FocusDistance: 10
+  m_FocalLength: 50
+  m_BladeCount: 5
+  m_Curvature: {x: 2, y: 11}
+  m_BarrelClipping: 0.25
+  m_Anamorphism: 0
+  m_SensorSize: {x: 36, y: 24}
+  m_LensShift: {x: 0, y: 0}
+  m_NormalizedViewPortRect:
+    serializedVersion: 2
+    x: 0
+    y: 0
+    width: 1
+    height: 1
+  near clip plane: 0.3
+  far clip plane: 1000
+  field of view: 60
+  orthographic: 1
+  orthographic size: 5
+  m_Depth: 0
+  m_CullingMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_RenderingPath: -1
+  m_TargetTexture: {fileID: 0}
+  m_TargetDisplay: 0
+  m_TargetEye: 3
+  m_HDR: 1
+  m_AllowMSAA: 1
+  m_AllowDynamicResolution: 0
+  m_ForceIntoRT: 0
+  m_OcclusionCulling: 1
+  m_StereoConvergence: 10
+  m_StereoSeparation: 0.022
+--- !u!4 &723499300
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 723499298}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: -10}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!115 &1253183858
+MonoScript:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  serializedVersion: 7
+  m_DefaultReferences: {}
+  m_Icon: {fileID: 0}
+  m_Type: 0
+  m_ExecutionOrder: 0
+  m_ClassName: Stage58Benchmark
+  m_Namespace: SporeGobbo.CampCandidate.Preview
+  m_AssemblyName: SporeGobbo.CampCandidate.Preview
+--- !u!1 &1999777684
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1999777691}
+  - component: {fileID: 1999777690}
+  - component: {fileID: 1999777689}
+  - component: {fileID: 1999777688}
+  - component: {fileID: 1999777687}
+  - component: {fileID: 1999777686}
+  - component: {fileID: 1999777694}
+  - component: {fileID: 1999777696}
+  - component: {fileID: 1999777697}
+  m_Layer: 0
+  m_Name: Stage 4.7 isolated streaming host
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1999777686
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1999777684}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ad60892dbf89534d8797cbad291c884, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SporeGobbo.Geometry.Preview::SporeGobbo.Geometry.Preview.Stage47Preview
+  stage48Optimized: 1
+  terrainArtShader: {fileID: 0}
+  terrainTextures: []
+  materials:
+  - {fileID: 2100000, guid: 5402cdf9bbb77e44aa32a9487ae3da73, type: 2}
+  - {fileID: 2100000, guid: 9f914e7dc7d1a294f9e4ab4ba4e13e22, type: 2}
+  - {fileID: 2100000, guid: 566747e8ee1548a43ab1994d65c156ba, type: 2}
+  - {fileID: 2100000, guid: 7cb19751df0f1f540b3a421b05a9990f, type: 2}
+  - {fileID: 2100000, guid: 528ba12ee0916fa478fb36e200ef9f96, type: 2}
+  - {fileID: 2100000, guid: 79307141c0c1bd44ebdb7df06fc8709e, type: 2}
+  - {fileID: 2100000, guid: 3671784e7b215674d89ad4849d838e9e, type: 2}
+  previewCamera: {fileID: 723499299}
+  settings:
+    centerWidth: 48
+    centerHeight: 28
+    coverage: 0.55
+    side: 0.25
+    top: 0.2
+    foreground: 1.9
+    distance: 24
+    anchor: 0.58
+    smoothing: 0.15
+    wallHeight: 2.15
+    uniform: 0
+    stage3Comparison: 0
+    heightPolicy: 1
+    actorMode: 0
+  worldSize: 192
+  footprint: 1
+  speed: 5
+  digRadius: 2.2
+  brush: 1
+  showGrid: 0
+  showContours: 1
+  showWalls: 1
+  showLips: 1
+  showUI: 0
+  automation: 0
+  Aim: {x: 1, y: 0}
+  CreationMs: 0
+  DisplayMs: 0
+--- !u!114 &1999777687
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1999777684}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bc446d9440a52334cacc05991f09145f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SporeGobbo.Geometry.Preview::SporeGobbo.Geometry.Preview.Stage45GpuProjection
+  projectionShader: {fileID: 4800000, guid: b7ae8b30fb0920246a203acc87b42bf1, type: 3}
+  parityShader: {fileID: 7200000, guid: 6e7e6ff49c535c24f9810f40a7372e0a, type: 3}
+  useGpu: 1
+  showStationaryReferences: 0
+  cacheMaterialBindings: 0
+  bufferPoolLimit: 0
+--- !u!114 &1999777688
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1999777684}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 151d45b8ba078ea49bb1e52a98a17837, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SporeGobbo.Geometry.Preview::SporeGobbo.Geometry.Preview.Stage4CameraPreview
+  settings:
+    centerWidth: 48
+    centerHeight: 28
+    coverage: 0.62
+    side: 0.45
+    top: 0.35
+    foreground: 1.5
+    distance: 24
+    anchor: 0.58
+    smoothing: 0.15
+    wallHeight: 2.15
+    uniform: 0
+    stage3Comparison: 0
+    heightPolicy: 1
+    actorMode: 0
+  FreezeCamera: 0
+  ShowDebug: 1
+--- !u!114 &1999777689
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1999777684}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 260900248e197e542b859a2c9d9e66bc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SporeGobbo.Geometry.Preview::SporeGobbo.Geometry.Preview.PlayableCavePreview
+  fixture: {fileID: 0}
+  layerMaterials: []
+  movementSpeed: 5
+  footprint: 1
+  digRadius: 2.2
+  digInterval: 0.1
+  patchSize: 16
+  brush: 1
+  followPlayer: 1
+  showPatchBoundaries: 0
+  showDirtyPatches: 1
+  directMouseEditing: 0
+  fullRebuildComparison: 0
+--- !u!114 &1999777690
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1999777684}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ffbfdc343ca7de942842571a36930a66, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SporeGobbo.Geometry.Preview::SporeGobbo.Geometry.Preview.CaveGeometryPreview
+  showGrid: 0
+  showContours: 1
+  showWallFaces: 1
+  showForegroundLips: 1
+  gridRenderers: []
+  contourRenderers: []
+  wallRenderers: []
+  lipRenderers: []
+  previewCamera: {fileID: 0}
+--- !u!4 &1999777691
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1999777684}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1999777694
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1999777684}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6c1854241c1c70c48be2fcbdda87ba4a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SporeGobbo.Geometry.Preview::SporeGobbo.Geometry.Preview.Stage49Preview
+  freezeActors: 0
+  profile: 0
+  freezeFocus: 0
+  normalOverlay: 1
+  combatOverlay: 0
+  rangeOverlay: 0
+  cellOverlay: 0
+  curveSoftness: 0
+  horizontalFocusOffset: 0
+  softness: 1
+  sideTransition: 1
+  topTransition: 1
+  foregroundTransition: 1
+  combatWidth: 20
+  combatHeight: 12
+  attackRadius: 6
+  bookmark: Junction
+  message: 
+  captureLabel: 0
+--- !u!114 &1999777696
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1999777684}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e8f359fcc220a7d47bcfbee480a0e3c9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: SporeGobbo.CampCandidate.Preview::SporeGobbo.CampCandidate.Preview.Stage57Preview
+  palette: {fileID: 11400000, guid: 82b3c484ad2b8094bb1c358188a86f06, type: 2}
+  terrainShader: {fileID: 4800000, guid: 61e4a3e2131d4304485721a52114797f, type: 3}
+  automation: 0
+  showPanel: 1
+  advanced: 0
+  categoryOverlay: 0
+  framing: 0
+  arrival: 0
+  snapshot: 0
+  shopOption: 0
+  speed: 10
+  returnBuddies: 2
+  returnMushrooms: 5
+  returnShinies: 2
+  DefinitionMs: 0
+  ResetMs: 0
+  MutationMs: 0
+  ConstructionMs: 0
+  DecorationMs: 0
+  Status: First arrival. Explore toward the Fire.
+  AcceptedBatches: 0
+  ChangedCells: 0
+  PauseSimulation: 0
+  PreviewInputContext: 0
+  showReservations: 0
+--- !u!114 &1999777697
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1999777684}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 1253183858}
+  m_Name: 
+  m_EditorClassIdentifier: SporeGobbo.CampCandidate.Preview::SporeGobbo.CampCandidate.Preview.Stage58Benchmark
+--- !u!1660057539 &9223372036854775807
+SceneRoots:
+  m_ObjectHideFlags: 0
+  m_Roots:
+  - {fileID: 1999777691}
+  - {fileID: 723499300}

@@ -3,7 +3,8 @@
   "rootNamespace": "SporeGobbo.Geometry.Preview",
   "references": [
     "SporeGobbo.Geometry",
-    "Unity.InputSystem"
+    "Unity.InputSystem",
+    "SporeGobbo.Safety"
   ],
   "autoReferenced": true
 }

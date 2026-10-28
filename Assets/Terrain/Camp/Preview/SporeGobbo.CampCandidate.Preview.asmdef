@@ -1,0 +1,11 @@
+{
+  "name": "SporeGobbo.CampCandidate.Preview",
+  "references": [
+    "SporeGobbo.CampCandidate",
+    "SporeGobbo.Geometry",
+    "SporeGobbo.Geometry.Preview",
+    "Unity.InputSystem",
+    "SporeGobbo.Input"
+  ],
+  "autoReferenced": true
+}

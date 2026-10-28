@@ -15,7 +15,7 @@ namespace SporeGobbo.Geometry.Preview
   readonly PreviewMeshData[] data=new PreviewMeshData[13];readonly MeshFilter[] filters=new MeshFilter[13];readonly MeshRenderer[] renderers=new MeshRenderer[13];
   readonly HashSet<DiscoveryRegion> visibleRegions=new HashSet<DiscoveryRegion>();readonly List<Point2> route=new List<Point2>();readonly List<DualTile> rubble=new List<DualTile>();
   MaterialPropertyBlock block;bool initialized,labPanel;int observerX=int.MinValue,observerY=int.MinValue;Vector2 scroll;
-  public int OwnedMeshes=>initialized?filters.Length:0;public string SavePath=>Path.Combine(Application.persistentDataPath,"Stage52Experiment","discovery.sg52");
+  public int OwnedMeshes=>initialized?filters.Length:0;public string SavePath=>SporeGobbo.Safety.Persistence.ExperimentPath("Stage52Experiment","discovery.sg52");
   Point2 Player=>new Point2(Live.Position.x,Live.Position.y);static Vector2 V(Point2 p)=>new Vector2((float)p.X,(float)p.Y);
   void Start()=>Initialize();
   public void Initialize()

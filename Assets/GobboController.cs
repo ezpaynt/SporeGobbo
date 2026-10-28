@@ -178,10 +178,10 @@ public class GobboController : MonoBehaviour
         if (inputReader == null)
             Debug.LogError("GobboController requires the persistent SporeInputReader.", this);
 
-        StartCoroutine(EnsureWorldInteractionAuthority());
+        if (GetComponent<ActorTerrainBinding>() == null) StartCoroutine(EnsureWorldInteractionAuthority());
         commandWheel = GetComponent<BuddyCommandWheelController>();
-        if (commandWheel == null) commandWheel = gameObject.AddComponent<BuddyCommandWheelController>();
-        commandWheel.Configure(this);
+        if (commandWheel == null && GetComponent<ActorTerrainBinding>() == null) commandWheel = gameObject.AddComponent<BuddyCommandWheelController>();
+        if (commandWheel != null) commandWheel.Configure(this);
 
         if (spriteRenderer == null)
             spriteRenderer = GetComponentInChildren<SpriteRenderer>();
@@ -249,14 +249,20 @@ public class GobboController : MonoBehaviour
 
     void ReadInput()
     {
+        using (new ActorTerrainBinding.Scope("SG59.GobboController.ReadInput", gameObject.GetComponent<ActorTerrainBinding>() != null))
+        {
         moveInput = inputReader != null &&
                     (inputReader.Context == SporeInputContext.Gameplay || inputReader.Context == SporeInputContext.Wheel)
             ? Vector2.ClampMagnitude(inputReader.Move, 1f)
             : Vector2.zero;
-    }
+    
+        }
+}
 
     void UpdateAimDirection()
     {
+        using (new ActorTerrainBinding.Scope("SG59.GobboController.UpdateAimDirection", gameObject.GetComponent<ActorTerrainBinding>() != null))
+        {
         if (inputReader == null || inputReader.Context != SporeInputContext.Gameplay)
             return;
 
@@ -277,7 +283,7 @@ public class GobboController : MonoBehaviour
             if (Camera.main == null)
                 return;
 
-            if (!inputReader.TryGetPointerWorldPosition(Camera.main, out Vector2 mouseWorld))
+            if (!ActorTerrainBinding.TryPointer(gameObject, inputReader, Camera.main, out Vector2 mouseWorld))
                 return;
 
             Vector2 direction = mouseWorld - (Vector2)transform.position;
@@ -301,7 +307,9 @@ public class GobboController : MonoBehaviour
             aimDirection = moveInput.normalized;
             UpdateDirectionalSprite();
         }
-    }
+    
+        }
+}
 
     void UpdateDirectionalSprite()
     {
@@ -373,6 +381,8 @@ public class GobboController : MonoBehaviour
 
     void Move()
     {
+        using (new ActorTerrainBinding.Scope("SG59.GobboController.Move", gameObject.GetComponent<ActorTerrainBinding>() != null))
+        {
         if (isKnockedBack)
         {
             TileMover.Move(rb, knockbackVelocity, GetCollisionBodyRadius());
@@ -390,7 +400,9 @@ public class GobboController : MonoBehaviour
         }
 
         TileMover.Move(rb, desiredVelocity, GetCollisionBodyRadius());
-    }
+    
+        }
+}
 
     void HandleActions()
     {
@@ -455,6 +467,9 @@ public class GobboController : MonoBehaviour
 
     void Dig()
     {
+        using (new ActorTerrainBinding.Scope("SG59.GobboController.Dig", gameObject.GetComponent<ActorTerrainBinding>() != null))
+        {
+        GetComponent<ActorTerrainBinding>()?.ObserveDig();
         if (visualController != null)
             visualController.SetAnimationState(GobboAnimationState.Dig);
 
@@ -462,7 +477,7 @@ public class GobboController : MonoBehaviour
         Vector2 digPoint = digStart + aimDirection.normalized * digRange;
         float effectiveDigRadius = GetEffectiveDigRadius();
 
-        IDiggableTerrain terrain = DiggableTerrainService.Active;
+        IDiggableTerrain terrain = ActorTerrainBinding.Resolve(gameObject);
         if (terrain != null)
             DigCapsule(terrain, digStart, digPoint, effectiveDigRadius);
 
@@ -477,7 +492,9 @@ public class GobboController : MonoBehaviour
             if (revealCover != null)
                 revealCover.Dig(digPower);
         }
-    }
+    
+        }
+}
 
     void DigCapsule(IDiggableTerrain terrain, Vector2 start, Vector2 end, float radius)
     {
@@ -533,7 +550,7 @@ public class GobboController : MonoBehaviour
         if (rings <= 0)
             return 0f;
 
-        IDiggableTerrain terrain = DiggableTerrainService.Active;
+        IDiggableTerrain terrain = ActorTerrainBinding.Resolve(gameObject);
         float cellSize = terrain != null ? terrain.CellSize : 1f;
         return cellSize * rings * Mathf.Sqrt(2f);
     }
@@ -578,7 +595,7 @@ public class GobboController : MonoBehaviour
             if (hit.gameObject == gameObject)
                 continue;
 
-            if (!MapPathfinder.HasLineOfWalkableSight(transform.position, hit.transform.position))
+            if (!ActorTerrainBinding.HasSight(gameObject, transform.position, hit.transform.position))
                 continue;
 
             DamageEnemyObject(hit.gameObject, damage);
@@ -634,7 +651,7 @@ public class GobboController : MonoBehaviour
         Vector2 toTarget = ((Vector2)target.position - (Vector2)transform.position).normalized;
         Vector2 desiredPosition = (Vector2)target.position - toTarget * dashBiteStopDistance;
 
-        if (MapGenerator.Instance == null || MapGenerator.Instance.IsWorldPositionClearForBody(desiredPosition, GetCollisionBodyRadius()))
+        if (GetComponent<ActorTerrainBinding>() != null ? TileMover.CanTraverseBox(ActorTerrainBinding.Resolve(gameObject), rb.position, desiredPosition, TileMover.GetMapClearanceExtents(rb, GetCollisionBodyRadius())) : (MapGenerator.Instance == null || MapGenerator.Instance.IsWorldPositionClearForBody(desiredPosition, GetCollisionBodyRadius())))
             rb.position = desiredPosition;
 
         aimDirection = toTarget;
@@ -657,7 +674,7 @@ public class GobboController : MonoBehaviour
 
         Vector2 pointerWorld = default;
         if (mode == AbilityTargetingMode.PrecisePointer &&
-            !inputReader.TryGetPointerWorldPosition(Camera.main, out pointerWorld))
+            !ActorTerrainBinding.TryPointer(gameObject, inputReader, Camera.main, out pointerWorld))
             return default;
 
         return AbilityTargetResolver.Resolve(new AbilityTargetRequest
@@ -672,7 +689,7 @@ public class GobboController : MonoBehaviour
             AlignmentWeight = dashBiteAlignmentWeight,
             DistanceWeight = dashBiteDistanceWeight,
             ResolveEligibleTarget = ResolveLivingEnemy,
-            HasLineOfSight = (from, to) => MapPathfinder.HasLineOfWalkableSight(from, to)
+            HasLineOfSight = (from, to) => ActorTerrainBinding.HasSight(gameObject, from, to)
         });
     }
 

@@ -4,7 +4,11 @@ public static class TileMover
 {
     public static void Move(Rigidbody2D rb, Vector2 desiredVelocity, float bodyRadius)
     {
-        IDiggableTerrain terrain = DiggableTerrainService.Active;
+        using (new ActorTerrainBinding.Scope("SG59.TileMover.Move", rb.gameObject.GetComponent<ActorTerrainBinding>() != null))
+        {
+        var actorBinding=rb.GetComponent<ActorTerrainBinding>();
+        if(actorBinding!=null&&(actorBinding.Terrain==null||(actorBinding.Ready!=null&&!actorBinding.Ready()))){rb.linearVelocity=Vector2.zero;return;}
+        IDiggableTerrain terrain = ActorTerrainBinding.Resolve(rb.gameObject);
         if (terrain == null)
         {
             rb.linearVelocity = desiredVelocity;
@@ -14,7 +18,7 @@ public static class TileMover
         Vector2 clearanceExtents = GetMapClearanceExtents(rb, bodyRadius);
         Vector2 nextPos = rb.position + desiredVelocity * Time.fixedDeltaTime;
 
-        if (IsTerrainPositionClearForBox(terrain, nextPos, clearanceExtents))
+        if ((rb.GetComponent<ActorTerrainBinding>() != null ? CanTraverseBox(terrain, rb.position, nextPos, clearanceExtents) : IsTerrainPositionClearForBox(terrain, nextPos, clearanceExtents)))
         {
             rb.linearVelocity = desiredVelocity;
             return;
@@ -23,7 +27,7 @@ public static class TileMover
         Vector2 xVel = new Vector2(desiredVelocity.x, 0f);
         Vector2 xPos = rb.position + xVel * Time.fixedDeltaTime;
 
-        if (IsTerrainPositionClearForBox(terrain, xPos, clearanceExtents))
+        if ((rb.GetComponent<ActorTerrainBinding>() != null ? CanTraverseBox(terrain, rb.position, xPos, clearanceExtents) : IsTerrainPositionClearForBox(terrain, xPos, clearanceExtents)))
         {
             rb.linearVelocity = xVel;
             return;
@@ -32,18 +36,22 @@ public static class TileMover
         Vector2 yVel = new Vector2(0f, desiredVelocity.y);
         Vector2 yPos = rb.position + yVel * Time.fixedDeltaTime;
 
-        if (IsTerrainPositionClearForBox(terrain, yPos, clearanceExtents))
+        if ((rb.GetComponent<ActorTerrainBinding>() != null ? CanTraverseBox(terrain, rb.position, yPos, clearanceExtents) : IsTerrainPositionClearForBox(terrain, yPos, clearanceExtents)))
         {
             rb.linearVelocity = yVel;
             return;
         }
 
         rb.linearVelocity = Vector2.zero;
-    }
+    
+        }
+}
 
     public static void KeepOutOfWalls(Rigidbody2D rb, float bodyRadius)
     {
-        IDiggableTerrain terrain = DiggableTerrainService.Active;
+        using (new ActorTerrainBinding.Scope("SG59.TileMover.KeepOutOfWalls", rb.gameObject.GetComponent<ActorTerrainBinding>() != null))
+        {
+        IDiggableTerrain terrain = ActorTerrainBinding.Resolve(rb.gameObject);
         if (terrain == null)
             return;
 
@@ -76,7 +84,9 @@ public static class TileMover
                 }
             }
         }
-    }
+    
+        }
+}
 
     public static float GetColliderBodyRadius(Rigidbody2D rb, float fallbackRadius)
     {

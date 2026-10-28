@@ -2,7 +2,8 @@
   "name": "SporeGobbo.Input",
   "rootNamespace": "SporeGobbo.Input",
   "references": [
-    "Unity.InputSystem"
+    "Unity.InputSystem",
+    "SporeGobbo.Safety"
   ],
   "autoReferenced": true
 }

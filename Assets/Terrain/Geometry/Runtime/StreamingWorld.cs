@@ -7,6 +7,8 @@ namespace SporeGobbo.Geometry
     /// <summary>One authoritative bit per cell. Derived geometry never owns or copies terrain state.</summary>
     public interface IStreamingTerrainDefinition
     { bool TrySolid(int x,int y,out bool solid); bool Protected(int x,int y); }
+    /// Complete authored definitions own every cell and protection rule; stress defaults never apply.
+    public interface ICompleteTerrainDefinition : IStreamingTerrainDefinition {}
     public interface IRefillableTerrainDefinition { bool Refillable(int x,int y); }
     public readonly struct TerrainCellChange
     {public readonly int X,Y,Revision;public readonly bool Solid;public TerrainCellChange(int x,int y,int revision,bool solid){X=x;Y=y;Revision=revision;Solid=solid;}}
@@ -30,11 +32,12 @@ namespace SporeGobbo.Geometry
             for(int y=0;y<height;y++)for(int x=0;x<width;x++)solid[y*width+x]=BaseSolid(x,y);
         }
         public bool Contains(int x,int y)=>x>=0&&y>=0&&x<Width&&y<Height;
-        public bool Locked(int x,int y)=>(Definition!=null&&Definition.Protected(x,y))||!Contains(x,y)||x==0||y==0||x==Width-1||y==Height-1||(x%127==63&&y%113==41);
+        public bool Locked(int x,int y)=>Definition is ICompleteTerrainDefinition ? !Contains(x,y)||Definition.Protected(x,y) : (Definition!=null&&Definition.Protected(x,y))||!Contains(x,y)||x==0||y==0||x==Width-1||y==Height-1||(x%127==63&&y%113==41);
         public bool BaseSolid(int x,int y)
         {
             if(Locked(x,y))return true;
             if(Definition!=null&&Definition.TrySolid(x,y,out bool authored))return authored;
+            if(Definition is ICompleteTerrainDefinition)throw new InvalidOperationException("Complete authored definition omitted a cell");
             // Guaranteed nine-cell horizontal/vertical travel axes, winding 3/9-cell branches and chambers.
             if(Math.Abs(y-Height/2)<=4||Math.Abs(x-Width/2)<=4)return false;
             if(x>Width/4&&x<Width*3/4&&Math.Abs(y-Height/4)<=1)return false;
@@ -49,10 +52,13 @@ namespace SporeGobbo.Geometry
             return true;
         }
         public bool IsSolid(int x,int y){Queries++;return !Contains(x,y)||solid[y*Width+x];}
-        public bool Excavate(int x,int y)
+        bool mutationControlTaken;
+        public Func<int,int,bool> TakeExcavationControl(){if(mutationControlTaken)throw new InvalidOperationException("Terrain mutation already has an owner");mutationControlTaken=true;return ExcavateCore;}
+        public bool Excavate(int x,int y){if(mutationControlTaken)throw new InvalidOperationException("Use the owning terrain transaction service");return ExcavateCore(x,y);}
+        bool ExcavateCore(int x,int y)
         {if(Locked(x,y)||!solid[y*Width+x])return false;solid[y*Width+x]=false;if(IsRefillable(x,y))temporaryOpen.Add(y*Width+x);else edits.Add(y*Width+x);Revision++;Changed?.Invoke(new TerrainCellChange(x,y,Revision,false));return true;}
         public bool Refill(int x,int y)
-        {if(!Contains(x,y)||Locked(x,y)||!IsRefillable(x,y)||solid[y*Width+x])return false;solid[y*Width+x]=true;temporaryOpen.Remove(y*Width+x);Revision++;Changed?.Invoke(new TerrainCellChange(x,y,Revision,true));return true;}
+        {if(mutationControlTaken)throw new InvalidOperationException("Refill is not authorized by the terrain owner");if(!Contains(x,y)||Locked(x,y)||!IsRefillable(x,y)||solid[y*Width+x])return false;solid[y*Width+x]=true;temporaryOpen.Remove(y*Width+x);Revision++;Changed?.Invoke(new TerrainCellChange(x,y,Revision,true));return true;}
         public void WriteDeltas(BinaryWriter writer)
         {var sorted=new List<int>(edits);sorted.Sort();writer.Write(sorted.Count);foreach(int i in sorted)writer.Write(i);}
         public void ReadDeltas(BinaryReader r)
@@ -114,4 +120,3 @@ namespace SporeGobbo.Geometry
         }
     }
 }
-

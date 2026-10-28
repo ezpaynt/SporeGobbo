@@ -13,7 +13,7 @@ public static class SporeSaveManager
     {
         get
         {
-            string folder = Path.Combine(Application.persistentDataPath, "Saves");
+            string folder = SporeGobbo.Safety.Persistence.CampaignFolder;
             if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
             return folder;
         }
@@ -22,7 +22,7 @@ public static class SporeSaveManager
     public static string GetSlotPath(int slotIndex)
     {
         slotIndex = ClampSlot(slotIndex);
-        return Path.Combine(SaveFolder, "slot_" + slotIndex + ".json");
+        return SporeGobbo.Safety.Persistence.SlotPath(SaveFolder, "slot_" + slotIndex + ".json");
     }
 
     public static bool HasSave(int slotIndex)
@@ -305,16 +305,16 @@ public static class SporeSaveManager
         slotIndex = ClampSlot(slotIndex);
         string path = GetSlotPath(slotIndex);
         if (File.Exists(path)) File.Delete(path);
-        if (GetLastPlayedSlot() == slotIndex) PlayerPrefs.DeleteKey(LastSlotKey);
-        if (GetCurrentSlot() == slotIndex) PlayerPrefs.DeleteKey(CurrentSlotKey);
-        PlayerPrefs.Save();
+        if (GetLastPlayedSlot() == slotIndex) SporeGobbo.Safety.Persistence.DeleteKey(LastSlotKey);
+        if (GetCurrentSlot() == slotIndex) SporeGobbo.Safety.Persistence.DeleteKey(CurrentSlotKey);
+        SporeGobbo.Safety.Persistence.Save();
         Debug.Log("[SporeSaveManager] Deleted slot " + slotIndex);
     }
 
-    public static int GetLastPlayedSlot() => PlayerPrefs.GetInt(LastSlotKey, 0);
-    public static void SetLastPlayedSlot(int slotIndex) { PlayerPrefs.SetInt(LastSlotKey, ClampSlot(slotIndex)); PlayerPrefs.Save(); }
-    public static int GetCurrentSlot() => PlayerPrefs.GetInt(CurrentSlotKey, 0);
-    public static void SetCurrentSlot(int slotIndex) { PlayerPrefs.SetInt(CurrentSlotKey, ClampSlot(slotIndex)); PlayerPrefs.Save(); }
+    public static int GetLastPlayedSlot() => SporeGobbo.Safety.Persistence.GetInt(LastSlotKey, 0);
+    public static void SetLastPlayedSlot(int slotIndex) { SporeGobbo.Safety.Persistence.SetInt(LastSlotKey, ClampSlot(slotIndex)); SporeGobbo.Safety.Persistence.Save(); }
+    public static int GetCurrentSlot() => SporeGobbo.Safety.Persistence.GetInt(CurrentSlotKey, 0);
+    public static void SetCurrentSlot(int slotIndex) { SporeGobbo.Safety.Persistence.SetInt(CurrentSlotKey, ClampSlot(slotIndex)); SporeGobbo.Safety.Persistence.Save(); }
 
     public static void Normalize(SporeSaveSlotData data)
     {

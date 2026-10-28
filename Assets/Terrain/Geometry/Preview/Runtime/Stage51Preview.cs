@@ -18,7 +18,7 @@ namespace SporeGobbo.Geometry.Preview
   readonly Color[] colors={new Color(.73f,.64f,.42f),new Color(.26f,.23f,.18f),new Color(.26f,.23f,.18f,.15f),new Color(.15f,.12f,.1f),new Color(.2f,.9f,.9f),new Color(1,.3f,.7f),new Color(.9f,.8f,.25f)};
   MaterialPropertyBlock tintBlock;
   bool initialized,previousFreeze;int edits;float coverBlend;Vector2 source,scroll;long preparingStart;
-  public string StatePath=>Path.Combine(Application.persistentDataPath,"Stage51Experiment","environment.sg51");public int OwnedMeshes=>initialized?filters.Length:0;
+  public string StatePath=>SporeGobbo.Safety.Persistence.ExperimentPath("Stage51Experiment","environment.sg51");public int OwnedMeshes=>initialized?filters.Length:0;
   void Start()=>Initialize();
   public void Initialize()
   {
