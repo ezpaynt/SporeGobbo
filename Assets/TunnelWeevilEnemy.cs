@@ -516,10 +516,9 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
             return;
         }
 
-        lastMeleeHitConnected = true;
-        targetCollider.SendMessage("TakeDamage", attackDamage, SendMessageOptions.DontRequireReceiver);
-
-        timeSinceSuccessfulAttack = 0f;
+        var result=new MeleeAttackExecution(gameObject).Commit(targetCollider.gameObject,attackDamage);
+        lastMeleeHitConnected=result.Accepted;
+        if(result.Accepted)timeSinceSuccessfulAttack=0f;
     }
 
     Vector2 GetMeleeHitCenter()
@@ -540,7 +539,7 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
 
         foreach (Collider2D hit in hits)
         {
-            if (hit == null || !hit.enabled || !hit.gameObject.activeInHierarchy)
+            if (hit == null || !hit.enabled || !EnemyDamage.Eligible(gameObject,EnemyDamage.Resolve(hit.gameObject)))
                 continue;
 
             if (currentTarget != null && (hit.transform == currentTarget || hit.transform.IsChildOf(currentTarget)))
@@ -689,12 +688,14 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
         ReceiveEnemyDamage(new EnemyDamageRequest(amount));
     }
 
-    public void ReceiveEnemyDamage(EnemyDamageRequest request)
+    public EnemyDamageResult ReceiveEnemyDamage(EnemyDamageRequest request)
     {
-        if (isDead || request == null)
-            return;
+        if (isDead || request == null || request.amount<=0)
+            return EnemyDamageResult.Reject(this,EnemyDamageFailure.Dead);
 
-        health -= Mathf.Max(1, request.amount);
+        int before=health; int applied=EnemyDamage.Constrain(this,request,Mathf.Max(1,request.amount));
+        if(applied<=0)return EnemyDamageResult.Reject(this,EnemyDamageFailure.Protected);
+        health -= applied;
 
         if (spriteRenderer != null)
         {
@@ -705,7 +706,8 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
         if (health <= 0)
             Die(request.gobboSourceId);
         else
-            ApplyKnockback(GetKnockbackDirectionFromNearestAttacker());
+            ApplyKnockback(request.source!=null?((Vector2)transform.position-(Vector2)request.source.transform.position).normalized:GetKnockbackDirectionFromNearestAttacker());
+        return EnemyDamage.Receipt(this,before,health,request);
     }
 
     Vector2 GetKnockbackDirectionFromNearestAttacker()

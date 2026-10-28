@@ -421,12 +421,14 @@ public class BlobSpitterEnemy : MonoBehaviour, IEnemyDamageReceiver
         ReceiveEnemyDamage(new EnemyDamageRequest(amount));
     }
 
-    public void ReceiveEnemyDamage(EnemyDamageRequest request)
+    public EnemyDamageResult ReceiveEnemyDamage(EnemyDamageRequest request)
     {
-        if (isDead || request == null)
-            return;
+        if (isDead || request == null || request.amount<=0)
+            return EnemyDamageResult.Reject(this,EnemyDamageFailure.Dead);
 
-        health -= Mathf.Max(1, request.amount);
+        int before=health; int applied=EnemyDamage.Constrain(this,request,Mathf.Max(1,request.amount));
+        if(applied<=0)return EnemyDamageResult.Reject(this,EnemyDamageFailure.Protected);
+        health -= applied;
 
         if (spriteRenderer != null)
         {
@@ -436,6 +438,7 @@ public class BlobSpitterEnemy : MonoBehaviour, IEnemyDamageReceiver
 
         if (health <= 0)
             Die(request.gobboSourceId);
+        return EnemyDamage.Receipt(this,before,health,request);
     }
 
     System.Collections.IEnumerator FlashRoutine()

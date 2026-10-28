@@ -569,9 +569,10 @@ public class GobboController : MonoBehaviour
         return Mathf.Max(0.1f, cellSize * 0.5f);
     }
 
+    public int LastAcceptedBasicHits {get;private set;}
     bool TryBasicAttack()
     {
-        if (attackCooldownTimer > 0f)
+        if (attackCooldownTimer > 0f || !CombatSessionBinding.AllowsActions(gameObject) || !EnemyDamage.Ready(gameObject))
             return false;
 
         attackCooldownTimer = GetEffectiveAttackInterval();
@@ -592,27 +593,19 @@ public class GobboController : MonoBehaviour
             Destroy(marker, 0.15f);
         }
 
-        Collider2D[] hits = enemyLayers.value == 0
-            ? Physics2D.OverlapCircleAll(attackPoint, attackRadius)
-            : Physics2D.OverlapCircleAll(attackPoint, attackRadius, enemyLayers);
-
-        int damage = CalculateAttackDamage(1f);
-        int hitCount = 0;
-
-        foreach (Collider2D hit in hits)
+        var action=new MeleeAttackExecution(gameObject);
+        int damage=CalculateAttackDamage(1f);
+        int hitCount=0;
+        string sourceId=GameState.Instance?.GetLeader()?.uniqueId??"";
+        foreach(var hit in MeleeAttackExecution.Footprint(attackPoint,attackRadius,enemyLayers))
         {
-            if (hit.gameObject == gameObject)
-                continue;
-
-            if (!ActorTerrainBinding.HasSight(gameObject, transform.position, hit.transform.position))
-                continue;
-
-            DamageEnemyObject(hit.gameObject, damage);
-            currentAttackTarget = hit.transform;
+            var result=action.Commit(hit.gameObject,damage,sourceId);
+            if(!result.Accepted)continue;
+            currentAttackTarget=result.Target!=null?result.Target.transform:null;
             TellBuddiesToAttack(currentAttackTarget);
             hitCount++;
         }
-
+        LastAcceptedBasicHits=hitCount;
         Debug.Log("Gobbo attack checked. Enemies hit: " + hitCount);
         return true;
     }
@@ -635,17 +628,17 @@ public class GobboController : MonoBehaviour
         return damage;
     }
 
-    void DamageEnemyObject(GameObject target, int damage)
+    EnemyDamageResult DamageEnemyObject(GameObject target, int damage)
     {
         string sourceId = GameState.Instance != null && GameState.Instance.GetLeader() != null
             ? GameState.Instance.GetLeader().uniqueId
             : "";
-        EnemyDamage.Apply(target, damage, sourceId);
+        return new MeleeAttackExecution(gameObject).Commit(target,damage,sourceId);
     }
 
     void TryDashBite()
     {
-        if (!hasDashBite || dashBiteCooldownTimer > 0f)
+        if (!hasDashBite || dashBiteCooldownTimer > 0f || !EnemyDamage.Ready(gameObject) || !CombatSessionBinding.AllowsActions(gameObject))
             return;
 
         AbilityTargetResult resolvedTarget = ResolveDashBiteTarget();
@@ -654,20 +647,22 @@ public class GobboController : MonoBehaviour
         if (target == null)
             return;
 
-        dashBiteCooldownTimer = dashBiteCooldown;
-        attackCooldownTimer = GetEffectiveAttackInterval();
 
         Vector2 toTarget = ((Vector2)target.position - (Vector2)transform.position).normalized;
         Vector2 desiredPosition = (Vector2)target.position - toTarget * dashBiteStopDistance;
 
         if (GetComponent<ActorTerrainBinding>() != null ? TileMover.CanTraverseBox(ActorTerrainBinding.Resolve(gameObject), rb.position, desiredPosition, TileMover.GetMapClearanceExtents(rb, GetCollisionBodyRadius())) : (MapGenerator.Instance == null || MapGenerator.Instance.IsWorldPositionClearForBody(desiredPosition, GetCollisionBodyRadius())))
             rb.position = desiredPosition;
+        else return;
+        dashBiteCooldownTimer=dashBiteCooldown;
+        attackCooldownTimer=GetEffectiveAttackInterval();
 
         aimDirection = toTarget;
         UpdateDirectionalSprite();
 
         int damage = CalculateAttackDamage(dashBiteDamageMultiplier);
-        DamageEnemyObject(target.gameObject, damage);
+        var hit=DamageEnemyObject(target.gameObject, damage);
+        if(!hit.Accepted)return;
 
         currentAttackTarget = target;
         TellBuddiesToAttack(target);
@@ -704,10 +699,8 @@ public class GobboController : MonoBehaviour
 
     static Transform ResolveLivingEnemy(Collider2D hit)
     {
-        EnemyHealth enemy = hit != null ? hit.GetComponentInParent<EnemyHealth>() : null;
-        return enemy != null && enemy.isActiveAndEnabled && enemy.health > 0
-            ? enemy.transform
-            : null;
+        Component enemy=EnemyDamage.Resolve(hit!=null?hit.gameObject:null);
+        return enemy is IEnemyDamageReceiver&&EnemyDamage.Alive(enemy)?enemy.transform:null;
     }
 
     void TellBuddiesToAttack(Transform target)
@@ -728,7 +721,7 @@ public class GobboController : MonoBehaviour
 
     bool TryDash()
     {
-        if (dashCooldownTimer > 0f)
+        if (dashCooldownTimer > 0f || !CombatSessionBinding.AllowsActions(gameObject))
             return false;
 
         dashDirection = CorePlayerControlMath.ResolveDashDirection(moveInput, aimDirection, Vector2.down);
@@ -1011,19 +1004,20 @@ public class GobboController : MonoBehaviour
         Debug.Log("Healed: " + amount);
     }
 
-    public void TakeDamage(int amount)
+    public bool CombatAlive=>!isDead&&health>0;
+    public void TakeDamage(int amount)=>ReceiveCombatDamage(new EnemyDamageRequest(amount));
+    public EnemyDamageResult ReceiveCombatDamage(EnemyDamageRequest request)
     {
-        if (isDead)
-            return;
-
-        int damageTaken = Mathf.Max(1, amount - defense);
+        if(!CombatAlive||request==null||request.amount<=0)return EnemyDamageResult.Reject(this,EnemyDamageFailure.Dead);
+        int damageTaken=Mathf.Max(1,request.amount-defense);
         if(RegionQueries.Current!=null)ExpeditionDevelopmentControls.Observe(damageTaken);
-        health = ExpeditionDevelopmentControls.Protects(this)||GetComponent<IntroNonlethalProtection>()!=null?Mathf.Max(1,health-damageTaken):health-damageTaken;
+        damageTaken=EnemyDamage.Constrain(this,request,damageTaken);
+        if(damageTaken<=0)return EnemyDamageResult.Reject(this,EnemyDamageFailure.Protected);
+        int before=health;
+        health=ExpeditionDevelopmentControls.Protects(this)||GetComponent<IntroNonlethalProtection>()!=null?Mathf.Max(1,health-damageTaken):health-damageTaken;
         FlashHurtColor();
-        Debug.Log("Gobbo took damage: " + damageTaken);
-
-        if (health <= 0)
-            Die();
+        if(health<=0)Die();
+        return EnemyDamage.Receipt(this,before,health,request);
     }
 
     public void ApplyPoison(int damagePerTick, float duration, float tickRate)

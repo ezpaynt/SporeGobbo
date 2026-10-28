@@ -5,6 +5,11 @@ public interface IWorldRegion:IDiggableTerrain,IRegionActorBinding,IProjectedAct
 public static class RegionQueries
 {
  public static IWorldRegion Current=>DiggableTerrainService.Active as IWorldRegion;
+ public static IProjectedActorContext Projected=>DiggableTerrainService.Active as IProjectedActorContext;
+ public static bool CombatReady=>DiggableTerrainService.Active is IWorldRegion r?r.LogicalReady:DiggableTerrainService.Active is SettlementCampRegion camp&&camp.LogicalReady;
+ public static bool ProjectileClear(IDiggableTerrain terrain,Vector2 a,Vector2 b,float radius)
+ =>terrain!=null&&object.ReferenceEquals(terrain,DiggableTerrainService.Active)&&CombatReady&&TileMover.CanTraverseBox(terrain,a,b,Vector2.one*Mathf.Max(.005f,radius));
+ public static bool TerrainCollider(Collider2D c)=>DiggableTerrainService.Active is ExpeditionRegion r?r.DerivedCollider(c):DiggableTerrainService.Active is SettlementCampRegion camp&&camp.IsDerivedTerrainCollider(c);
  public static bool Clear(GameObject actor,Vector2 p,float radius){var r=Current;if(r!=null)return r.LogicalReady&&TileMover.CanOccupyBox(r,p,TileMover.GetMapClearanceExtents(actor.GetComponent<Rigidbody2D>(),radius));return MapGenerator.Instance!=null&&MapGenerator.Instance.IsWorldPositionClearForBody(p,radius);}
  public static bool Sight(GameObject actor,Vector2 a,Vector2 b){var binding=actor.GetComponent<ActorTerrainBinding>();return binding!=null?binding.Sight(a,b):MapPathfinder.HasLineOfWalkableSight(a,b);}
  public static bool Vision(GameObject actor,Vector2 a,Vector2 b){var r=Current;return r!=null?r.LogicalReady&&r.RayClear(a,b):Sight(actor,a,b);}

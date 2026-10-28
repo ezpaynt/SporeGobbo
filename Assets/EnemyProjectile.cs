@@ -18,6 +18,10 @@ public class EnemyProjectile : MonoBehaviour
     private Rigidbody2D rb;
     private Vector2 direction = Vector2.right;
     private Transform ownerRoot;
+    private GameObject sourceActor;
+    private bool hadOwner;
+    private IDiggableTerrain launchTerrain;
+    readonly System.Collections.Generic.HashSet<int> recipientContacts=new System.Collections.Generic.HashSet<int>();
 
     void Awake()
     {
@@ -41,7 +45,7 @@ public class EnemyProjectile : MonoBehaviour
 
     void Start()
     {
-        if(RegionQueries.Current!=null)gameObject.AddComponent<ProjectedProjectileView>();
+        if(RegionQueries.Projected!=null)gameObject.AddComponent<ProjectedProjectileView>();
         Destroy(gameObject, Mathf.Max(0.01f, lifetime));
     }
 
@@ -50,19 +54,18 @@ public class EnemyProjectile : MonoBehaviour
         using var profile=new Unity.Profiling.ProfilerMarker("Spore.Projectile.TerrainSweep").Auto();
         if(spent)return;
         Vector2 position=rb!=null?rb.position:(Vector2)transform.position;
-        var region=RegionQueries.Current;
-        if(GameSceneCatalog.IsExpedition(UnityEngine.SceneManagement.SceneManager.GetActiveScene())&&region==null){StopAtTerrain();return;}
+        var terrain=launchTerrain??DiggableTerrainService.Active;
+        if(!CanContinue()){StopAtTerrain();return;}
         float distance=speed*Time.fixedDeltaTime;
-        if(region!=null){
-            if(!region.LogicalReady){StopAtTerrain();return;}
+        if(terrain!=null){
+            if(!RegionQueries.CombatReady){StopAtTerrain();return;}
             float radius=Mathf.Max(.01f,Mathf.Max(GetComponent<Collider2D>().bounds.extents.x,GetComponent<Collider2D>().bounds.extents.y));
             float wall=1.01f;
-            if(!region.RayClear(position,position+direction*distance,radius)){
-                float lo=0,hi=1;for(int i=0;i<10;i++){float mid=(lo+hi)*.5f;if(region.RayClear(position,position+direction*distance*mid,radius))lo=mid;else hi=mid;}wall=hi;
+            if(!RegionQueries.ProjectileClear(terrain,position,position+direction*distance,radius)){
+                float lo=0,hi=1;for(int i=0;i<10;i++){float mid=(lo+hi)*.5f;if(RegionQueries.ProjectileClear(terrain,position,position+direction*distance*mid,radius))lo=mid;else hi=mid;}wall=hi;
             }
             var filter=new ContactFilter2D();filter.SetLayerMask(hitLayers);filter.useTriggers=true;
-            int count=Physics2D.CircleCast(position,radius,direction,filter,sweepHits,distance);Collider2D first=null;float nearest=float.PositiveInfinity;
-            for(int i=0;i<count;i++){var hit=sweepHits[i];if(hit.collider==null||IsOwnerCollider(hit.collider)||contacts.Contains(hit.collider.GetInstanceID()))continue;if(hit.distance<nearest){nearest=hit.distance;first=hit.collider;}}
+            int count=Physics2D.CircleCast(position,radius,direction,filter,sweepHits,distance);Collider2D first=SelectSweptRecipient(count,out float nearest);
             if(first!=null&&nearest<=wall*distance){HandleHit(first);if(spent)return;}
             if(wall<=1){StopAtTerrain();return;}
         }
@@ -72,6 +75,29 @@ public class EnemyProjectile : MonoBehaviour
             rb.linearVelocity = velocity;
         else
             transform.position += (Vector3)(velocity * Time.fixedDeltaTime);
+    }
+
+    bool CanContinue()
+    {
+        if(hadOwner&&(sourceActor==null||!EnemyDamage.Alive(EnemyDamage.Resolve(sourceActor))||!EnemyDamage.Ready(sourceActor)||!CombatSessionBinding.AllowsActions(sourceActor)))return false;
+        if(launchTerrain!=null&&!object.ReferenceEquals(launchTerrain,DiggableTerrainService.Active))return false;
+        var scene=UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+        bool regionRequired=GameSceneCatalog.IsExpedition(scene)||GameSceneCatalog.IsCamp(scene);
+        return DiggableTerrainService.Active!=null?RegionQueries.CombatReady:!regionRequired;
+    }
+
+    Collider2D SelectSweptRecipient(int count,out float nearest)
+    {
+        Collider2D first=null;nearest=float.PositiveInfinity;
+        for(int i=0;i<count;i++)
+        {
+            var hit=sweepHits[i];var collider=hit.collider;
+            if(collider==null||IsOwnerCollider(collider)||contacts.Contains(collider.GetInstanceID()))continue;
+            var receiver=EnemyDamage.Resolve(collider.gameObject);
+            if(receiver==null||recipientContacts.Contains(receiver.GetInstanceID())||!EnemyDamage.Eligible(sourceActor,receiver))continue;
+            if(hit.distance<nearest){nearest=hit.distance;first=collider;}
+        }
+        return first;
     }
 
     public void Launch(Vector2 launchDirection)
@@ -85,7 +111,10 @@ public class EnemyProjectile : MonoBehaviour
 
     public void Launch(Vector2 launchDirection, Transform owner)
     {
-        ownerRoot = owner != null ? owner.root : null;
+        hadOwner=owner!=null;
+        sourceActor=EnemyDamage.Resolve(owner!=null?owner.gameObject:null)?.gameObject;
+        ownerRoot=sourceActor!=null?sourceActor.transform:null;
+        launchTerrain=sourceActor!=null?ActorTerrainBinding.Resolve(sourceActor):DiggableTerrainService.Active;
         IgnoreOwnerCollisions();
         Launch(launchDirection);
     }
@@ -129,7 +158,8 @@ public class EnemyProjectile : MonoBehaviour
             return;
 
         if(spent)return;
-        if(RegionQueries.Current is ExpeditionRegion region && region.DerivedCollider(other)){StopAtTerrain();return;}
+        if(!CanContinue()){StopAtTerrain();return;}
+        if(RegionQueries.TerrainCollider(other)){StopAtTerrain();return;}
         if (IsOwnerCollider(other))
             return;
 
@@ -137,7 +167,12 @@ public class EnemyProjectile : MonoBehaviour
             return;
 
         if(!contacts.Add(other.GetInstanceID()))return;
-        other.SendMessage("TakeDamage", damage, SendMessageOptions.DontRequireReceiver);
+        var receiver=EnemyDamage.Resolve(other.gameObject);
+        if(receiver==null||recipientContacts.Contains(receiver.GetInstanceID()))return;
+        GameObject source=sourceActor;
+        var result=EnemyDamage.TryApply(receiver.gameObject,new EnemyDamageRequest(damage,"",source));
+        if(!result.Accepted)return;
+        recipientContacts.Add(receiver.GetInstanceID());
 
         if (destroyOnHit){spent=true;Destroy(gameObject);}
     }

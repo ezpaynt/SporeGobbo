@@ -103,14 +103,16 @@ public class BuddyUnit : MonoBehaviour
         return new Vector3(stageBonus, stageBonus, 1f);
     }
 
-    public void TakeDamage(int amount)
+    public bool CombatAlive=>initialized&&!dead&&unitData!=null&&unitData.health>0;
+    public void TakeDamage(int amount)=>ReceiveCombatDamage(new EnemyDamageRequest(amount));
+    public EnemyDamageResult ReceiveCombatDamage(EnemyDamageRequest request)
     {
-        if (!initialized || dead || unitData == null) return;
-        int finalDamage = Mathf.Max(1, amount - unitData.defense);
-        unitData.health -= finalDamage;
-        unitData.hasBeenHit = true;
-        Flash(hurtColor);
-        if (unitData.health <= 0) Die();
+        if(!CombatAlive||request==null||request.amount<=0)return EnemyDamageResult.Reject(this,EnemyDamageFailure.Dead);
+        int finalDamage=EnemyDamage.Constrain(this,request,Mathf.Max(1,request.amount-unitData.defense));
+        if(finalDamage<=0)return EnemyDamageResult.Reject(this,EnemyDamageFailure.Protected);
+        int before=unitData.health;unitData.health-=finalDamage;unitData.hasBeenHit=true;Flash(hurtColor);
+        if(unitData.health<=0)Die();
+        return EnemyDamage.Receipt(this,before,unitData.health,request);
     }
 
     public void HealFlat(int amount)
@@ -128,7 +130,7 @@ public class BuddyUnit : MonoBehaviour
 
     public void ApplyPoison(int damagePerTick, float duration, float tickRate)
     {
-        if (!initialized || dead || unitData == null) return;
+        if (!initialized || dead || unitData == null || GetComponent<CombatSessionBinding>()?.Rules!=null) return;
         StartCoroutine(PoisonRoutine(damagePerTick, duration, tickRate));
     }
 
@@ -142,6 +144,7 @@ public class BuddyUnit : MonoBehaviour
         float timer = 0f;
         while (timer < duration && !dead && unitData != null)
         {
+            if(GetComponent<CombatSessionBinding>()?.Rules!=null)yield break;
             unitData.health -= Mathf.Max(1, damagePerTick);
             unitData.hasBeenHit = true;
             Flash(poisonColor);

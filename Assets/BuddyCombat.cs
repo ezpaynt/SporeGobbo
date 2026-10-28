@@ -105,6 +105,7 @@ public class BuddyCombat : MonoBehaviour
 
     bool AllowedToFight()
     {
+        if(!CombatSessionBinding.AllowsActions(gameObject)||!EnemyDamage.Ready(gameObject))return false;
         if (unit == null || unit.unitData == null) return true;
         if (unit.unitData.onlyFightsAfterHit && !unit.unitData.hasBeenHit) return false;
         return true;
@@ -124,7 +125,9 @@ public class BuddyCombat : MonoBehaviour
         {
             if (!hit.gameObject.activeInHierarchy) continue;
 
-            Transform possibleTarget = hit.transform;
+            Component recipient=EnemyDamage.Resolve(hit.gameObject);
+            if(!EnemyDamage.Eligible(gameObject,recipient))continue;
+            Transform possibleTarget = recipient.transform;
             if (!IsTargetAllowedByPlayerDistance(possibleTarget)) continue;
             if (!CanSeeOrPathTo(possibleTarget.position)) continue;
 
@@ -142,7 +145,7 @@ public class BuddyCombat : MonoBehaviour
 
     bool IsStillValidTarget(Transform target)
     {
-        if (target == null || !target.gameObject.activeInHierarchy) return false;
+        if (target == null || !EnemyDamage.Eligible(gameObject,EnemyDamage.Resolve(target.gameObject))) return false;
         if (Vector2.Distance(transform.position, target.position) > aggroRange + 1.5f) return false;
         if (!IsTargetAllowedByPlayerDistance(target)) return false;
         return CanSeeOrPathTo(target.position);
@@ -186,7 +189,8 @@ public class BuddyCombat : MonoBehaviour
             return (targetPos - rb.position).normalized;
         }
 
-        if(RegionQueries.Current is IWorldRegion region && regionPathRevision!=region.Revision){currentPath.Clear();pathIndex=0;regionPathRevision=region.Revision;}
+        var binding=GetComponent<ActorTerrainBinding>();int revision=binding!=null?binding.Revision:RegionQueries.Current?.Revision??-1;
+        if(regionPathRevision!=revision){currentPath.Clear();pathIndex=0;regionPathRevision=revision;}
         repathTimer -= Time.fixedDeltaTime;
         bool needsNewPath = currentPath.Count == 0 ||
                             pathIndex >= currentPath.Count ||
@@ -235,15 +239,13 @@ public class BuddyCombat : MonoBehaviour
         Vector2 directionToEnemy = ((Vector2)currentTarget.position - rb.position).normalized;
         FaceDirection(directionToEnemy, GobboAnimationState.Attack);
 
-        DamageEnemy(currentTarget.gameObject);
-        KnockEnemy(currentTarget.gameObject, directionToEnemy);
-        StartSelfBounce(-directionToEnemy);
-    }
-
-    void DamageEnemy(GameObject enemy)
-    {
-        string sourceId = unit != null && unit.unitData != null ? unit.unitData.uniqueId : "";
-        EnemyDamage.Apply(enemy, damage, sourceId);
+        string id=unit?.unitData?.uniqueId??"";
+        var result=new MeleeAttackExecution(gameObject).Commit(currentTarget.gameObject,damage,id);
+        if(result.Accepted)
+        {
+            KnockEnemy(result.Target.gameObject,directionToEnemy);
+            StartSelfBounce(-directionToEnemy);
+        }
     }
 
     void KnockEnemy(GameObject enemy, Vector2 direction)
@@ -300,7 +302,8 @@ public class BuddyCombat : MonoBehaviour
 
     public void SetTarget(Transform target)
     {
-        currentTarget = target;
+        var receiver=EnemyDamage.Resolve(target!=null?target.gameObject:null);
+        currentTarget=EnemyDamage.Eligible(gameObject,receiver)?receiver.transform:null;
         ClearPath();
     }
 }
