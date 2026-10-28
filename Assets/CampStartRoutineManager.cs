@@ -81,10 +81,20 @@ public class CampStartRoutineManager : MonoBehaviour
         ownedTransientTargets.Remove(target);
         if (target != null) Destroy(target);
     }
+    UnityEngine.Object temporaryActivityOwner;
+    public bool CombatActivitySuspended=>temporaryActivityOwner!=null;
+    public bool TrySuspendForCombat(UnityEngine.Object owner)
+    {if(owner==null||DeparturePending||temporaryActivityOwner!=null)return false;temporaryActivityOwner=owner;CancelCurrentActivities();return true;}
+    public void ResumeAfterCombat(UnityEngine.Object owner,bool restart=true)
+    {if(!object.ReferenceEquals(temporaryActivityOwner,owner))return;temporaryActivityOwner=null;if(!DeparturePending){if(restart)ResumeSuspendedActivities();else departureWanderStates.Clear();}}
     public void SuspendForDeparture()
     {
         if (DeparturePending) return;
         DeparturePending = true; // Publish before cancelling any callback/iterator.
+        CancelCurrentActivities();
+    }
+    void CancelCurrentActivities()
+    {
         StopAllCoroutines();
         (activeBedPreparation as System.IDisposable)?.Dispose();
         activeBedPreparation = null;
@@ -123,6 +133,10 @@ public class CampStartRoutineManager : MonoBehaviour
     {
         if (!DeparturePending) return;
         DeparturePending = false;
+        if(temporaryActivityOwner==null)ResumeSuspendedActivities();
+    }
+    void ResumeSuspendedActivities()
+    {
         foreach (var pair in departureWanderStates) if (pair.Key != null) pair.Key.enabled = pair.Value;
         departureWanderStates.Clear();
         routineStarted = false;
@@ -186,6 +200,7 @@ public class CampStartRoutineManager : MonoBehaviour
 
     public void BeginCampVisit()
     {
+        if(temporaryActivityOwner!=null)return;
         if (DeparturePending || !runRoutineOnCampOpen || routineStarted) return;
         routineStarted = true;
         ApplyUnlockedAreaVisibility();
@@ -204,6 +219,7 @@ public class CampStartRoutineManager : MonoBehaviour
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
     public bool RestartCampVisitForDevelopment()
     {
+        if(temporaryActivityOwner!=null)return false;
         if (DeparturePending) return false;
         if (routineRunning) return false;
         routineStarted = false;

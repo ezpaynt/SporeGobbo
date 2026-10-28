@@ -57,7 +57,7 @@ namespace SporeGobbo.Geometry
         public Func<int,int,bool> TakeExcavationControl(){if(mutationControlTaken)throw new InvalidOperationException("Terrain mutation already has an owner");mutationControlTaken=true;return ExcavateCore;}
         public bool Excavate(int x,int y){if(mutationControlTaken)throw new InvalidOperationException("Use the owning terrain transaction service");return ExcavateCore(x,y);}
         bool ExcavateCore(int x,int y)
-        {if(Locked(x,y)||!solid[y*Width+x])return false;solid[y*Width+x]=false;if(IsRefillable(x,y))temporaryOpen.Add(y*Width+x);else edits.Add(y*Width+x);Revision++;Changed?.Invoke(new TerrainCellChange(x,y,Revision,false));return true;}
+        {if(Locked(x,y)||!solid[y*Width+x])return false;solid[y*Width+x]=false;if(IsRefillable(x,y))temporaryOpen.Add(y*Width+x);else if(BaseSolid(x,y))edits.Add(y*Width+x);else edits.Remove(y*Width+x);Revision++;Changed?.Invoke(new TerrainCellChange(x,y,Revision,false));return true;}
         bool placementControlTaken;
         internal Func<int,int,bool> TakePlacementControl(){if(!mutationControlTaken||placementControlTaken)throw new InvalidOperationException("Placement requires the existing terrain owner");placementControlTaken=true;return PlaceOwned;}
         bool PlaceOwned(int x,int y){if(Locked(x,y)||solid[y*Width+x])return false;solid[y*Width+x]=true;temporaryOpen.Remove(y*Width+x);edits.Remove(y*Width+x);Revision++;Changed?.Invoke(new TerrainCellChange(x,y,Revision,true));return true;}

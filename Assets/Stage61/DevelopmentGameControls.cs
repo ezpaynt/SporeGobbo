@@ -60,7 +60,7 @@ public sealed class DevelopmentGameControls : MonoBehaviour
    GUILayout.Label("Use real Continue after reset; previous owned A is archived.");
   }
   var controller=UnityEngine.Object.FindAnyObjectByType<CampSceneController>();if(controller!=null&&!controller.WorldInputReady&&GUILayout.Button("Retry ready Camp arrival"))Command(controller.RetryDevelopmentArrival);
-  if(!menu&&GUILayout.Button("Recover last committed campaign to Main Menu"))Command(()=>{int slot=SporeSaveManager.GetCurrentSlot();if(!SporeSaveManager.LoadSlotIntoGameState(slot))throw new InvalidOperationException("No validated campaign to recover");SporePauseService.ResetAll();SceneManager.LoadScene("MainMenu");});
+  if(!menu&&GUILayout.Button("Recover last committed campaign to Main Menu"))Command(()=>{var lab=UnityEngine.Object.FindAnyObjectByType<CampFightPitLab>();int slot=SporeSaveManager.GetCurrentSlot();if(!(lab!=null?lab.RecoverCommittedCampaign(slot):SporeSaveManager.LoadSlotIntoGameState(slot)))throw new InvalidOperationException("No validated campaign to recover");SporePauseService.ResetAll();SceneManager.LoadScene("MainMenu");});
  }
  void OnDestroy(){ReleaseModal();if(Instance==this)Instance=null;}
 }

@@ -9,7 +9,7 @@ using SporeGobbo.CampLifecycle;
 using SporeGobbo.Input;
 /// <summary>Camp authored-region adapter. Campaign/visit/job ownership stays in existing services.</summary>
 [DefaultExecutionOrder(-1800)]
-public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProjectedActorContext,IRegionActorBinding,IRegionVisualBinding,ICampRegionSnapshotSource,ICampDepartureState
+public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProjectedActorContext,IRegionActorBinding,IRegionVisualBinding,ICampRegionSnapshotSource,ICampDepartureState,ICampaignTransientActivity
 {
  static readonly Unity.Profiling.ProfilerMarker stage61SortingProfile=new Unity.Profiling.ProfilerMarker("Spore.Stage61.Sorting");
  static readonly Unity.Profiling.ProfilerMarker stage61InitializeProfile = new Unity.Profiling.ProfilerMarker("Spore.Stage61.RegionInitialize");
@@ -17,7 +17,8 @@ public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProj
  static readonly Unity.Profiling.ProfilerMarker stage61NavigationProfile = new Unity.Profiling.ProfilerMarker("Spore.Stage61.Navigation");
  static readonly Unity.Profiling.ProfilerMarker stage61DiggingProfile = new Unity.Profiling.ProfilerMarker("Spore.Stage61.Digging");
 
- public Shader terrainShader,spriteShader;
+ public Shader terrainShader,spriteShader;public GameObject fightPitWeevil,fightPitBlob;
+ Texture2D surfaceTexture;int persistentRevision;object arenaOwner;string arenaPreset="Open";readonly List<DualTile> arenaCells=new List<DualTile>();Func<TerrainPlacementRequest,Func<IReadOnlyList<DualTile>,bool>,TerrainPlacementResult> place;
  public RegionTerrainState State{get;private set;}public AuthoredCamp Definition{get;private set;}
  public WorldRegionPresentation Presentation{get;private set;}public Camera RegionCamera{get;private set;}
  public int TotalResidentialCapacity=>catalog.TotalCapacity;public float CellSize=>.6f;
@@ -48,16 +49,17 @@ public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProj
   Definition=SettlementCampLayout.Shared;catalog=SettlementCampLayout.Catalog(Definition);
   var restored=campaign.campTerrainState?.regionSnapshot;
   if(restored==null)throw new InvalidOperationException("Candidate campaign has no compatible region snapshot");
-  restored.ValidatePhysical();State=restored.RestoreTerrain();establishedBeds.UnionWith(restored.establishedBeds);commit=State.TakeMutationControl();
+  restored.ValidatePhysical();State=restored.RestoreTerrain();establishedBeds.UnionWith(restored.establishedBeds);commit=State.TakeMutationControl();place=State.TakePlacementControl();persistentRevision=restored.terrainRevision;
   if(campaign.campTerrainState.residentialSlotsEstablished!=establishedBeds.Count)throw new InvalidOperationException("Physical beds and campaign compatibility count disagree");
   long start=System.Diagnostics.Stopwatch.GetTimestamp();physics=new RegionTerrainPhysics(State,transform);CollisionMs=StreamingGeometry.Elapsed(start);publishedRevision=Revision;
   RegionCamera=new GameObject("Camp projected camera").AddComponent<Camera>();RegionCamera.gameObject.AddComponent<AudioListener>();RegionCamera.tag="MainCamera";RegionCamera.orthographic=true;RegionCamera.clearFlags=CameraClearFlags.SolidColor;RegionCamera.transform.position=new Vector3(0,0,-10);
   var palette=ScriptableObject.CreateInstance<Stage55Palette>();owned.Add(palette);RegionCamera.backgroundColor=palette.Color("VoidBlackGreen");
-  var surface=new Texture2D(192,192,TextureFormat.RGBA32,false,true){filterMode=FilterMode.Point,wrapMode=TextureWrapMode.Clamp};owned.Add(surface);var pixels=new Color[192*192];for(int y=0;y<192;y++)for(int x=0;x<192;x++)pixels[y*192+x]=Definition.Protected(x,y)?Color.white:Color.black;surface.SetPixels(pixels);surface.Apply();
+  var surface=new Texture2D(192,192,TextureFormat.RGBA32,false,true){filterMode=FilterMode.Point,wrapMode=TextureWrapMode.Clamp};owned.Add(surface);surfaceTexture=surface;var pixels=new Color[192*192];for(int y=0;y<192;y++)for(int x=0;x<192;x++)pixels[y*192+x]=Definition.Protected(x,y)?Color.white:Color.black;surface.SetPixels(pixels);surface.Apply();
   string[] names={"FloorSlateBlue","UndugDirtMass","DigWallUpper","FreshFractureEdge","PermanentMossBlack","FloorPlumShadow","SicklyLichen"};var layers=new Material[names.Length];
   for(int i=0;i<layers.Length;i++){var m=new Material(terrainShader);owned.Add(m);m.SetColor("_Color",palette.Color(names[i]));m.SetFloat("_Layer",i);m.SetTexture("_CampSurface",surface);m.SetColor("_Permanent",palette.Color("PermanentMossBlack"));m.SetColor("_PermanentFace",palette.Color("PermanentWallFace"));m.SetColor("_WallUpper",palette.Color("DigWallUpper"));m.SetColor("_WallLower",palette.Color("DigWallLower"));m.SetColor("_Foot",palette.Color("WallFootOcclusion"));layers[i]=m;}
   focus=new Vector2((float)Definition.Marker("arrival.first").Interaction.X,(float)Definition.Marker("arrival.first").Interaction.Y);Presentation=gameObject.AddComponent<WorldRegionPresentation>();Presentation.PhysicalToLogical=physical=>{var logical=LogicalPosition(physical);return new Vector2((float)logical.X,(float)logical.Y);};Presentation.Initialize(State.World,layers,terrainShader,RegionCamera,focus);
   State.Committed+=Publish;DiggableTerrainService.Register(this);
+  if(V1RuntimeProfile.DevelopmentToolsEnabled)gameObject.AddComponent<CampFightPitLab>();
  }
  public Point2 LogicalPosition(Vector2 physical)=>grid.ToLogical(new Point2(physical.x,physical.y));
  public Vector2 World(Point2 logical){var p=grid.ToWorld(logical);return new Vector2((float)p.X,(float)p.Y);}
@@ -65,7 +67,7 @@ public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProj
  public Vector2 CellToWorld(Vector2Int c)=>World(new Point2(c.x+.5,c.y+.5));
  public Vector3 Render(Vector2 physical)=>Presentation.Project(LogicalPosition(physical));
  public bool IsBlocked(Vector2Int c)=>disposed||State.World.IsSolid(c.x,c.y);
- public bool IsDiggable(Vector2Int c){var k=Definition.Category(c.x,c.y);return !disposed&&IsBlocked(c)&&(k==CampCell.Expansion||k==CampCell.Residential);}
+ public bool IsDiggable(Vector2Int c){if(arenaOwner!=null&&arenaCells.Contains(new DualTile(c.x,c.y)))return arenaPreset=="Dirt"&&IsBlocked(c);var k=Definition.Category(c.x,c.y);return !disposed&&IsBlocked(c)&&(k==CampCell.Expansion||k==CampCell.Residential);}
  public bool IsDerivedTerrainCollider(Collider2D c)=>physics!=null&&physics.Owns(c);
  public CampDigCategory GetSpatialDigCategory(Vector2Int c)=>Definition.Category(c.x,c.y)==CampCell.Residential?CampDigCategory.ResidentialReserved:CampDigCategory.NormalCampDiggable;
  public CampResidentialCatalog GetResidentialCatalog()=>catalog;
@@ -94,7 +96,7 @@ public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProj
  public void BindStaticVisual(GameObject visual,Transform anchor)
  {var projected=visual.AddComponent<ProjectedWorldSprite>();projected.Initialize(this,anchor);}
  public bool DeparturePending{get;private set;}
- public void BeginDeparture(){DeparturePending=true;}
+ public void BeginDeparture(){FinishForCampaignCapture(campaign);DeparturePending=true;}
  public void CancelDeparture(){DeparturePending=false;}
  bool CanAct=>!DeparturePending&&LogicalReady&&(lifecycle?.WorldInputReady??false)&&Time.timeScale>0&&SporeInputReader.Instance!=null&&SporeInputReader.Instance.Context==SporeInputContext.Gameplay;
  public void DigCircle(Vector2 point,float radius)=>DigCircle(point,radius,TerrainDigAuthority.Player,0,null);
@@ -132,7 +134,7 @@ public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProj
  public CampRegionSnapshot CaptureRegionSnapshot(GameState expectedCampaign)
  {
   if(!ReferenceEquals(expectedCampaign,campaign)||!LogicalReady)throw new InvalidOperationException("Region snapshot requires its ready canonical campaign");
-  var snapshot=CampRegionSnapshot.Pristine();snapshot.terrainRevision=Revision;snapshot.rootOpened=ResidentialEntranceOpen;snapshot.excavatedCells=State.ExportDeltas();snapshot.establishedBeds=establishedBeds.OrderBy(id=>id).ToArray();return snapshot;
+  var snapshot=CampRegionSnapshot.Pristine();snapshot.terrainRevision=persistentRevision;snapshot.rootOpened=ResidentialEntranceOpen;snapshot.excavatedCells=State.ExportDeltas();snapshot.establishedBeds=establishedBeds.OrderBy(id=>id).ToArray();return snapshot;
  }
  public List<Vector2> Route(Vector2 start,Vector2 goal,Vector2 extents)
  {
@@ -173,10 +175,37 @@ public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProj
   var view=actor.GetComponent<Stage59ActorView>()??actor.AddComponent<Stage59ActorView>();view.Context=this;view.Outline=false;view.Initialize();views.Add(view);
   Physics2D.SyncTransforms();if(!TileMover.CanOccupyBox(this,body.position,TileMover.GetMapClearanceExtents(body,.25f)))throw new InvalidOperationException("Spawned actor lacks logical clearance: "+actor.name);
  }
+ public void FinishForCampaignCapture(GameState expected)
+ {if(!ReferenceEquals(expected,campaign))throw new InvalidOperationException("Transient cleanup requires canonical campaign");var lab=GetComponent<CampFightPitLab>();lab?.StopSession("Campaign capture or departure");if(lab!=null&&lab.Active)throw new InvalidOperationException("Fight Pit cleanup incomplete; campaign commit blocked: "+lab.Outcome);}
+ public void FinishForCampaignRestore(GameState expected)
+ {if(!ReferenceEquals(expected,campaign))throw new InvalidOperationException("Restore requires canonical campaign");var lab=GetComponent<CampFightPitLab>();lab?.StopSession("Campaign restore");if(lab!=null&&lab.Active&&!lab.RestoringCommittedCampaign)throw new InvalidOperationException("Use explicit committed recovery after failed Pit cleanup");}
+ public bool OpenPitDevelopmentEntrance()
+ {if(!V1RuntimeProfile.DevelopmentToolsEnabled||!LogicalReady||arenaOwner!=null)return false;_ = SporeGobbo.Safety.Persistence.ExperimentRoot;if(ResidentialEntranceOpen)return true;return commit(SettlementCampLayout.RootCells(),Revision,c=>true)>0;}
+ public bool AcquireArenaTerrain(object owner)
+ {if(owner==null||arenaOwner!=null||!V1RuntimeProfile.DevelopmentToolsEnabled||!LogicalReady)return false;_ = SporeGobbo.Safety.Persistence.ExperimentRoot;arenaOwner=owner;return true;}
+ public void ReleaseArenaTerrain(object owner)
+ {if(!ReferenceEquals(owner,arenaOwner))return;ClearArenaTerrain(owner);arenaOwner=null;arenaPreset="Open";}
+ public void ClearArenaTerrain(object owner)
+ {
+  if(!ReferenceEquals(owner,arenaOwner))throw new InvalidOperationException("Wrong arena owner");
+  if(arenaCells.Any(c=>!Definition.PlacementAllowed(c.X,c.Y)||State.World.BaseSolid(c.X,c.Y)))throw new InvalidOperationException("Arena ownership escaped authored floor");
+  commit(arenaCells,Revision,c=>true);foreach(var c in arenaCells)surfaceTexture.SetPixel(c.X,c.Y,Color.black);surfaceTexture.Apply();arenaCells.Clear();
+ }
+ public void ApplyArenaTerrain(object owner,string preset)
+ {
+  if(!ReferenceEquals(owner,arenaOwner))throw new InvalidOperationException("Wrong arena owner");if(preset!="Open"&&preset!="Rock"&&preset!="Roots"&&preset!="Dirt")throw new ArgumentException("Unknown authored preset");ClearArenaTerrain(owner);arenaPreset=preset;if(preset=="Open")return;
+  var cells=new List<DualTile>();
+  if(preset=="Rock"){for(int y=78;y<=81;y++)for(int x=148;x<=150;x++)cells.Add(new DualTile(x,y));for(int y=85;y<=87;y++)for(int x=154;x<=157;x++)cells.Add(new DualTile(x,y));}
+  else {for(int y=76;y<=86;y++)for(int x=151;x<=153;x++)cells.Add(new DualTile(x,y));}
+  var result=place(new TerrainPlacementRequest(State.InstanceId,Revision,"pit-"+Guid.NewGuid().ToString("N"),cells),requested=>
+  {foreach(var actor in views){if(actor==null)continue;var body=actor.GetComponent<Rigidbody2D>();if(body==null||!body.simulated)continue;var ext=TileMover.GetMapClearanceExtents(body,.25f);foreach(var cell in requested){Vector2 center=CellToWorld(new Vector2Int(cell.X,cell.Y));if(Math.Abs(center.x-body.position.x)<ext.x+.3f&&Math.Abs(center.y-body.position.y)<ext.y+.3f)return false;}}return true;});
+  if(!result.Accepted)throw new InvalidOperationException("Arena preset refused: "+result.Rejection);arenaCells.AddRange(cells);foreach(var c in cells)surfaceTexture.SetPixel(c.X,c.Y,preset=="Rock"?Color.white:preset=="Roots"?new Color(0,1,0):Color.black);surfaceTexture.Apply();
+ }
  void Publish(IReadOnlyList<DualTile> changed,int revision)
  {
  using var _stage61Profile = stage61CollisionProfile.Auto();
 
+  if(changed.Any(c=>State.World.BaseSolid(c.X,c.Y)))persistentRevision++;
   long start=System.Diagnostics.Stopwatch.GetTimestamp();physics.Publish(changed);CollisionMs=StreamingGeometry.Elapsed(start);Presentation.Stream.RefreshPhysicalCells(changed);publishedRevision=revision;
  }
  void LateUpdate()
@@ -184,6 +213,6 @@ public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProj
   if(Presentation==null)return;var player=spawner?.SpawnedPlayer;if(player!=null){var p=LogicalPosition(player.transform.position);focus=new Vector2((float)p.X,(float)p.Y);}Presentation.Refresh(focus,Time.deltaTime);
   using(stage61SortingProfile.Auto()){views.RemoveAll(v=>v==null);views.Sort((a,b)=>b.PhysicalFoot.y.CompareTo(a.PhysicalFoot.y));}for(int i=0;i<views.Count;i++)views[i].Draw(20+i);
  }
- void OnDisable(){DiggableTerrainService.Unregister(this);}
+ void OnDisable(){try{FinishForCampaignCapture(campaign);}finally{DiggableTerrainService.Unregister(this);}}
  void OnDestroy(){disposed=true;DiggableTerrainService.Unregister(this);if(State!=null)State.Committed-=Publish;foreach(var v in views)if(v!=null)v.Release();views.Clear();physics?.Dispose();if(RegionCamera!=null)Destroy(RegionCamera.gameObject);foreach(var o in owned)if(o!=null)Destroy(o);}
 }

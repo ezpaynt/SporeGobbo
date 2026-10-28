@@ -135,6 +135,7 @@ public class GobboController : MonoBehaviour
     private SporeInputReader inputReader;
     private BuddyCommandWheelController commandWheel;
     private Color originalColor;
+    private Coroutine hurtFlashRoutine;
 
     private Vector2 moveInput;
     private Vector2 aimDirection = Vector2.down;
@@ -156,6 +157,11 @@ public class GobboController : MonoBehaviour
 
     private Vector2 knockbackVelocity;
 
+    public bool SuppressTemporaryInput;
+    public void CancelTemporaryCombatMotion()
+    {isDashing=isKnockedBack=false;dashTimer=knockbackTimer=digTimer=attackVisualLockTimer=0;moveInput=knockbackVelocity=Vector2.zero;currentAttackTarget=null;if(rb!=null)rb.linearVelocity=Vector2.zero;}
+    public System.Action CaptureTemporaryCombatRestoration()
+    {float attack=attackCooldownTimer,dash=dashCooldownTimer,bite=dashBiteCooldownTimer,mend=sporeMendCooldownTimer;bool suppressed=SuppressTemporaryInput;return ()=>{CancelTemporaryCombatMotion();attackCooldownTimer=attack;dashCooldownTimer=dash;dashBiteCooldownTimer=bite;sporeMendCooldownTimer=mend;SuppressTemporaryInput=suppressed;};}
     public Vector2 CurrentAimDirection => aimDirection;
     public bool IsDead => isDead;
 
@@ -256,6 +262,7 @@ public class GobboController : MonoBehaviour
 
     void ReadInput()
     {
+        if(SuppressTemporaryInput){moveInput=Vector2.zero;return;}
  using var _stage61Profile = stage61InputProfile.Auto();
 
         using (new ActorTerrainBinding.Scope("SG59.GobboController.ReadInput", gameObject.GetComponent<ActorTerrainBinding>() != null))
@@ -415,7 +422,7 @@ public class GobboController : MonoBehaviour
 
     void HandleActions()
     {
-        if (inputReader == null || inputReader.Context != SporeInputContext.Gameplay)
+        if (SuppressTemporaryInput || inputReader == null || inputReader.Context != SporeInputContext.Gameplay)
         {
             digTimer = 0f;
             return;
@@ -434,7 +441,7 @@ public class GobboController : MonoBehaviour
 
         HandleDashInput();
 
-        if (inputReader.PlantSpore.StartedThisFrame)
+        if (inputReader.PlantSpore.StartedThisFrame && GetComponent<CombatSessionBinding>()?.Rules==null)
             PlaceSpore();
 
         if (inputReader.Ultimate.StartedThisFrame)
@@ -589,7 +596,7 @@ public class GobboController : MonoBehaviour
         if (attackDebugPrefab != null)
         {
             GameObject marker = Instantiate(attackDebugPrefab, attackPoint, Quaternion.identity);
-            RegionQueries.Current?.BindVisual(marker);
+            RegionQueries.BindVisual(marker);
             marker.transform.localScale = Vector3.one * attackRadius * 2f;
             Destroy(marker, 0.15f);
         }
@@ -663,7 +670,7 @@ public class GobboController : MonoBehaviour
 
         int damage = CalculateAttackDamage(dashBiteDamageMultiplier);
         var hit=DamageEnemyObject(target.gameObject, damage);
-        if(!hit.Accepted)return;
+        if(!hit.Accepted||!CombatSessionBinding.AllowsActions(gameObject))return;
 
         currentAttackTarget = target;
         TellBuddiesToAttack(target);
@@ -698,10 +705,10 @@ public class GobboController : MonoBehaviour
         });
     }
 
-    static Transform ResolveLivingEnemy(Collider2D hit)
+    Transform ResolveLivingEnemy(Collider2D hit)
     {
         Component enemy=EnemyDamage.Resolve(hit!=null?hit.gameObject:null);
-        return enemy is IEnemyDamageReceiver&&EnemyDamage.Alive(enemy)?enemy.transform:null;
+        return EnemyDamage.Eligible(gameObject,enemy)?enemy.transform:null;
     }
 
     void TellBuddiesToAttack(Transform target)
@@ -709,7 +716,7 @@ public class GobboController : MonoBehaviour
         if (target == null)
             return;
 
-        foreach(var brain in squadRecipients)
+        foreach(var brain in CommandRecipients())
             if(CanControlBuddy(brain)&&brain.CombatPermitted)brain.GetComponent<BuddyCombat>()?.SetTarget(target);
     }
 
@@ -888,7 +895,9 @@ public class GobboController : MonoBehaviour
         var scene=gameObject.scene;
         return GameSceneCatalog.IsExpedition(scene)&&terrain is ExpeditionRegion expedition&&expedition.Player==this&&brain.gameObject.scene==scene&&terrain!=null&&object.ReferenceEquals(terrain,DiggableTerrainService.Active)&&object.ReferenceEquals(terrain,ActorTerrainBinding.Resolve(brain.gameObject));
     }
-    public bool CanControlBuddy(BuddyBrain brain)=>ValidSquadIdentity(brain)&&squadRecipients.Contains(brain)&&brain.SquadLeader==this;
+    ICombatCommandSession CommandSession=>GetComponent<CombatSessionBinding>()?.Rules as ICombatCommandSession;
+    System.Collections.Generic.IEnumerable<BuddyBrain> CommandRecipients()=>CommandSession!=null?CommandSession.Recipients(this):squadRecipients;
+    public bool CanControlBuddy(BuddyBrain brain)=>CommandSession!=null?CommandSession.CanControl(this,brain):ValidSquadIdentity(brain)&&squadRecipients.Contains(brain)&&brain.SquadLeader==this;
     public bool RegisterSquadBuddy(BuddyUnit unit)
     {
         var brain=unit!=null?unit.GetComponent<BuddyBrain>():null;
@@ -902,12 +911,13 @@ public class GobboController : MonoBehaviour
     void ApplyBuddyModes()
     {
         squadRecipients.RemoveAll(b=>b==null);
-        foreach(var brain in squadRecipients)
+        foreach(var brain in CommandRecipients())
             if(CanControlBuddy(brain))brain.ApplyModes(followersFollowing,followersAggressive);
     }
 
     void SpecialAbility()
     {
+        if(!CombatSessionBinding.AllowsActions(gameObject)||!EnemyDamage.Ready(gameObject))return;
         if (hasSporeMend)
         {
             TrySporeMend();
@@ -929,6 +939,7 @@ public class GobboController : MonoBehaviour
 
     public void EatFood(int value, int healAmount = 0, int foodValue = 0)
     {
+        if(GetComponent<CombatSessionBinding>()?.Rules!=null)return;
         AddXP(value);
 
         if (foodValue > 0 && GameState.Instance != null)
@@ -940,6 +951,7 @@ public class GobboController : MonoBehaviour
 
     public void AddXP(int amount)
     {
+        if(GetComponent<CombatSessionBinding>()?.Rules!=null)return;
         if (amount <= 0)
             return;
 
@@ -1031,7 +1043,7 @@ public class GobboController : MonoBehaviour
 
     public void TakePoison(int damagePerTick, float duration, float tickRate)
     {
-        if (!isActiveAndEnabled || isDead) return;
+        if (!isActiveAndEnabled || isDead || GetComponent<CombatSessionBinding>()?.Rules!=null) return;
         StartCoroutine(PoisonRoutine(damagePerTick, duration, tickRate));
     }
 
@@ -1064,14 +1076,24 @@ public class GobboController : MonoBehaviour
         if (visualController != null)
             visualController.SetAnimationState(GobboAnimationState.Hurt);
 
-        StopCoroutine(nameof(FlashRoutine));
-        StartCoroutine(FlashRoutine(color));
+        if (hurtFlashRoutine != null) StopCoroutine(hurtFlashRoutine);
+        hurtFlashRoutine = StartCoroutine(FlashRoutine(color));
+    }
+
+    public void ClearTemporaryCombatFeedback()
+    {
+        if (hurtFlashRoutine != null) StopCoroutine(hurtFlashRoutine);
+        hurtFlashRoutine = null;
+        if (!(health > 0)) return;
+        if (spriteRenderer != null) spriteRenderer.color = originalColor;
+        if (visualController != null) visualController.SetAnimationState(GobboAnimationState.Idle);
     }
 
     IEnumerator FlashRoutine(Color color)
     {
         spriteRenderer.color = color;
         yield return new WaitForSeconds(hurtFlashTime);
+        hurtFlashRoutine = null;
         if (spriteRenderer != null) spriteRenderer.color = originalColor;
         if (visualController != null) visualController.SetAnimationState(GobboAnimationState.Idle);
     }

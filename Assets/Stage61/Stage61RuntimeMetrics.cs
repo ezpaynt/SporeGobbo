@@ -16,6 +16,7 @@ public sealed class Stage61RuntimeMetrics : MonoBehaviour
     const int MaximumFrames=72000;
     static Stage61RuntimeMetrics instance;
     static readonly string[] Names={
+        "Spore.Pit.Prepare","Spore.Pit.Cleanup","Spore.Pit.Presentation",
         "Spore.Intro.Initialize","Spore.Intro.Sequence","Spore.Intro.TerrainPlacement","Spore.Intro.FallingRock","Spore.Intro.Discovery",
         "Spore.Region.Initialize","Spore.Region.Navigation","Spore.Region.Collision","Spore.Expedition.Discovery","Spore.Expedition.Landmarks",
         "Spore.AI.Weevil","Spore.AI.Blob","Spore.AI.BuddyCombat","Spore.AI.BuddyScavenger","Spore.Projectile.TerrainSweep",

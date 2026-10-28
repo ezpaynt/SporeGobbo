@@ -264,6 +264,7 @@ public static class SporeSaveManager
     public static SporeSaveSlotData BuildSlotFromCampaign(int slotIndex, GameState gs, SporeSaveSlotData existing = null)
     {
         if (gs == null) throw new InvalidOperationException("Save capture requires the canonical campaign");
+        if(DiggableTerrainService.Active is ICampaignTransientActivity activity)activity.FinishForCampaignCapture(gs);
         slotIndex = ClampSlot(slotIndex);
         existing = existing != null && existing.hasSave
             ? JsonUtility.FromJson<SporeSaveSlotData>(JsonUtility.ToJson(existing))
@@ -302,6 +303,7 @@ public static class SporeSaveManager
 
     public static bool ApplySlotToGameState(SporeSaveSlotData data)
     {
+        if(GameState.Instance!=null&&DiggableTerrainService.Active is ICampaignTransientActivity activity)activity.FinishForCampaignRestore(GameState.Instance);
         if (data == null || !data.hasSave) return false;
         Normalize(data);
         EnsureGameState();

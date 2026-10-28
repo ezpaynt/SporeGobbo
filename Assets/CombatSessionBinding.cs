@@ -17,3 +17,12 @@ public sealed class CombatSessionBinding:MonoBehaviour
     {var b=actor!=null?actor.GetComponent<CombatSessionBinding>():null;return b==null||b.Rules==null||b.ActionsAllowed;}
     void OnDestroy(){Rules=null;}
 }
+
+/// <summary>Transient match recipients, preserving the real wheel and Buddy command executor.</summary>
+public interface ICombatCommandSession
+{
+ System.Collections.Generic.IEnumerable<BuddyBrain> Recipients(GobboController leader);
+ bool CanControl(GobboController leader,BuddyBrain buddy);
+}
+/// <summary>Cancel transient activity before the existing campaign authority captures facts.</summary>
+public interface ICampaignTransientActivity { void FinishForCampaignCapture(GameState campaign);void FinishForCampaignRestore(GameState campaign); }

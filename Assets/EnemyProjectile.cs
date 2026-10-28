@@ -3,6 +3,8 @@ using UnityEngine;
 [RequireComponent(typeof(Collider2D))]
 public class EnemyProjectile : MonoBehaviour
 {
+    public static int LaunchCount{get;private set;}
+    public ICombatSessionRules SessionRules{get;private set;}
     [Header("Projectile")]
     public float speed = 5f;
     public int damage = 12;
@@ -111,8 +113,10 @@ public class EnemyProjectile : MonoBehaviour
 
     public void Launch(Vector2 launchDirection, Transform owner)
     {
+        LaunchCount++;
         hadOwner=owner!=null;
         sourceActor=EnemyDamage.Resolve(owner!=null?owner.gameObject:null)?.gameObject;
+        SessionRules=sourceActor!=null?sourceActor.GetComponent<CombatSessionBinding>()?.Rules:null;
         ownerRoot=sourceActor!=null?sourceActor.transform:null;
         launchTerrain=sourceActor!=null?ActorTerrainBinding.Resolve(sourceActor):DiggableTerrainService.Active;
         IgnoreOwnerCollisions();

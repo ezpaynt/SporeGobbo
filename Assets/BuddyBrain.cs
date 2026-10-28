@@ -49,6 +49,8 @@ public class BuddyBrain : MonoBehaviour
         Vector2 next=position+velocity*delta-StayAnchor;
         return (Vector2.ClampMagnitude(next,StayRadius)+StayAnchor-position)/delta;
     }
+    public void ReleaseTemporarySquad(GobboController owner)
+    {if(SquadLeader!=owner)return;SquadScoped=false;SquadLeader=null;Following=true;Aggressive=true;SuspendCommandMotion();}
     public void SuspendCommandMotion(){combat?.CancelEngagement();follow?.ResetCommandMotion();SetMovementPermissions(false,false,false);}
 
     void Awake()

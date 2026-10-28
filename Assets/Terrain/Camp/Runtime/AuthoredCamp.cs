@@ -17,7 +17,7 @@ namespace SporeGobbo.CampCandidate
   public CampBedroom(string id,Point2 entrance,List<DualTile> cells,List<Point2> beds,int first){Id=id;Entrance=entrance;Cells=new List<DualTile>(cells).AsReadOnly();Beds=new List<Point2>(beds).AsReadOnly();FirstSlot=first;}
  }
  /// Immutable full-coverage authored base; no mutable occupancy or camera state lives here.
- public sealed class AuthoredCamp:IAuthoredRegionDefinition
+ public sealed class AuthoredCamp:IAuthoredRegionDefinition,IBlockingTerrainDefinition
  {
   public const string RegionId="camp.candidate.5.6.v1";public const int Size=192;public const double CellSize=.6;
   readonly string identity;readonly CampCell[] cells;public IReadOnlyList<CampMarker> Markers{get;}public IReadOnlyList<CampBedroom> Bedrooms{get;}public IReadOnlyList<RegionLandmarkStamp> Landmarks{get;}
@@ -26,6 +26,7 @@ namespace SporeGobbo.CampCandidate
   public RegionCellInfo CellAt(int x,int y){var c=Category(x,y);string material=c==CampCell.Open?"terrain.floor":c==CampCell.Permanent?"terrain.stone":"terrain.earth";if(c==CampCell.Permanent)foreach(var l in Landmarks)foreach(var p in l.ProtectedCells)if(p.X==x&&p.Y==y)material=l.MaterialId;return new RegionCellInfo(c!=CampCell.Open,c==CampCell.Permanent,material,c.ToString());}
   public CampCell Category(int x,int y)=>x<0||y<0||x>=Size||y>=Size?CampCell.Permanent:cells[y*Size+x];
   public bool TrySolid(int x,int y,out bool solid){solid=Category(x,y)!=CampCell.Open;return x>=0&&y>=0&&x<Size&&y<Size;}
+  public bool PlacementAllowed(int x,int y)=>Id==SettlementCampLayout.LayoutId&&CampFightPitLayout.ArenaCell(x,y)&&Category(x,y)==CampCell.Open;
   public bool Protected(int x,int y)=>Category(x,y)==CampCell.Permanent;
   public CampMarker Marker(string id){foreach(var m in Markers)if(m.Id==id)return m;throw new ArgumentException(id);}
   public int Capacity{get{int n=0;foreach(var r in Bedrooms)n+=r.Beds.Count;return n;}}

@@ -34,11 +34,12 @@ public sealed class DevelopmentCampControls : MonoBehaviour
  void OnGUI(){if(!V1RuntimeProfile.DevelopmentToolsEnabled||DevelopmentGameControls.HasHub||!Visible)return;GUILayout.BeginArea(new Rect(8,8,330,Mathf.Min(650,Screen.height-30)),GUI.skin.box);DrawDevelopmentControls();GUILayout.EndArea();}
  public void DrawDevelopmentControls()
  {
-  if(!V1RuntimeProfile.DevelopmentToolsEnabled)return;GUILayout.Label("Camp: real roster, resources and construction");
+  if(!V1RuntimeProfile.DevelopmentToolsEnabled)return;var activeLab=UnityEngine.Object.FindAnyObjectByType<CampFightPitLab>();if(activeLab!=null&&activeLab.Active){activeLab.DrawControls();return;}GUILayout.Label("Camp: real roster, resources and construction");
   if(GUILayout.Button("Fire observation point"))Act(()=>Warp("fire.watch"));if(GUILayout.Button("Optional root approach"))Act(()=>Warp(SporeGobbo.CampCandidate.SettlementCampLayout.RootId));
   if(GUILayout.Button("Add a real owned Buddy"))Act(AddBuddy);
   if(GUILayout.Button("Add resources through real inventory"))Act(()=>{CampResourceService.Add(GameState.Instance,CampResourceType.Mushrooms,5);CampResourceService.Add(GameState.Instance,CampResourceType.Shinies,5);});
   if(GUILayout.Button("Restart existing Camp routine"))Act(()=>CampStartRoutineManager.Instance.RestartCampVisitForDevelopment());
+  UnityEngine.Object.FindAnyObjectByType<CampFightPitLab>()?.DrawControls();
   GUILayout.Space(10);GUILayout.Label("Fake completed run: explicit synthetic setup");participants=CountField("Existing Buddies who went",participants);deaths=CountField("Existing Buddies who died",deaths);recruits=CountField("New Buddies acquired",recruits);
   var input=new FakeCompletedRunInput(participants,deaths,recruits);bool valid=FakeCompletedRunBuilder.Validate(GameState.Instance,input,out string reason);GUILayout.Label(reason);
   bool previous=GUI.enabled;GUI.enabled=previous&&(valid||RunReturnService.HasPreparedCampSimulation);

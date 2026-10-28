@@ -19,8 +19,10 @@ public class BuddyUnit : MonoBehaviour
     public float flashTime = 0.08f;
 
     private Color originalColor;
+    private Coroutine hurtFlashRoutine;
     private bool initialized = false;
     private bool dead = false;
+    int activePoisons;public bool IsPoisoned=>activePoisons>0;
 
     void Awake()
     {
@@ -141,6 +143,7 @@ public class BuddyUnit : MonoBehaviour
 
     IEnumerator PoisonRoutine(int damagePerTick, float duration, float tickRate)
     {
+        activePoisons++;try{
         float timer = 0f;
         while (timer < duration && !dead && unitData != null)
         {
@@ -156,20 +159,31 @@ public class BuddyUnit : MonoBehaviour
             yield return new WaitForSeconds(tickRate);
             timer += tickRate;
         }
+        }finally{activePoisons--;}
     }
 
     void Flash(Color color)
     {
         if (spriteRenderer == null) return;
         if (visualController != null) visualController.SetAnimationState(GobboAnimationState.Hurt);
-        StopCoroutine(nameof(FlashRoutine));
-        StartCoroutine(FlashRoutine(color));
+        if (hurtFlashRoutine != null) StopCoroutine(hurtFlashRoutine);
+        hurtFlashRoutine = StartCoroutine(FlashRoutine(color));
+    }
+
+    public void ClearTemporaryCombatFeedback()
+    {
+        if (hurtFlashRoutine != null) StopCoroutine(hurtFlashRoutine);
+        hurtFlashRoutine = null;
+        if (!(CombatAlive)) return;
+        if (spriteRenderer != null) spriteRenderer.color = originalColor;
+        if (visualController != null) visualController.SetAnimationState(GobboAnimationState.Idle);
     }
 
     IEnumerator FlashRoutine(Color color)
     {
         spriteRenderer.color = color;
         yield return new WaitForSeconds(flashTime);
+        hurtFlashRoutine = null;
         if (spriteRenderer != null) spriteRenderer.color = originalColor;
         if (visualController != null) visualController.SetAnimationState(GobboAnimationState.Idle);
     }

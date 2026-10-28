@@ -46,7 +46,7 @@ public class WorldItemPickup : MonoBehaviour, ICampInteractable, IWorldInteracti
 
     public void Interact(GobboController player)
     {
-        TryCollect();
+        if(player!=null&&player.GetComponent<CombatSessionBinding>()?.Rules==null)TryCollect();
     }
 
     public bool TryCollect()

@@ -167,6 +167,7 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
 
     void Update()
     {
+        if(!EnemyDamage.Ready(gameObject)||!CombatSessionBinding.AllowsActions(gameObject)){if(rb!=null)rb.linearVelocity=Vector2.zero;return;}
         if (isDead)
             return;
 
@@ -193,6 +194,7 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
 
     void FixedUpdate()
     {
+        if(!EnemyDamage.Ready(gameObject)||!CombatSessionBinding.AllowsActions(gameObject)){if(rb!=null)rb.linearVelocity=Vector2.zero;return;}
         using var profile=new Unity.Profiling.ProfilerMarker("Spore.AI.Weevil").Auto();
         if (isDead)
             return;
@@ -339,7 +341,9 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
             if (hit == null || !hit.gameObject.activeInHierarchy)
                 continue;
 
-            Transform candidate = hit.transform;
+            var receiver=EnemyDamage.Resolve(hit.gameObject);
+            if(!EnemyDamage.Eligible(gameObject,receiver))continue;
+            Transform candidate = receiver.transform;
 
             if (!CanNoticeTarget(candidate))
                 continue;
@@ -399,7 +403,7 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
 
     bool CanNoticeTarget(Transform target)
     {
-        if (target == null)
+        if (target == null || !EnemyDamage.Eligible(gameObject,EnemyDamage.Resolve(target.gameObject)))
             return false;
 
         bool hasSight = !requireLineOfSightToNotice ||
@@ -441,7 +445,7 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
             return (targetPos - rb.position).normalized;
         }
 
-        if(RegionQueries.Current is IWorldRegion region && regionPathRevision!=region.Revision){currentPath.Clear();pathIndex=0;regionPathRevision=region.Revision;}
+        int revision=GetComponent<ActorTerrainBinding>()?.Revision??RegionQueries.Current?.Revision??-1;if(regionPathRevision!=revision){currentPath.Clear();pathIndex=0;regionPathRevision=revision;}
         repathTimer -= Time.fixedDeltaTime;
 
         bool needsNewPath =

@@ -32,7 +32,7 @@ public class FoodItem : MonoBehaviour, ICampInteractable, IWorldInteractionMetad
 
     public void Eat(GobboController gobbo)
     {
-        if (gobbo == null) return;
+        if (gobbo == null || gobbo.GetComponent<CombatSessionBinding>()?.Rules!=null) return;
         int heal = healsPlayer ? Mathf.Max(0, healAmount) : 0;
         gobbo.EatFood(xpValue, heal, foodValue);
         RegisterConsumptionFact(gobbo);

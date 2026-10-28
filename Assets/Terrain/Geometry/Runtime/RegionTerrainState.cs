@@ -28,7 +28,7 @@ namespace SporeGobbo.Geometry
    // Materialize and authorize before any mutation: malformed/protected batches fail as a whole.
    var accepted=new List<DualTile>();var unique=new HashSet<int>();
    foreach(var c in requested){if(!World.Contains(c.X,c.Y)||World.Locked(c.X,c.Y)||!permitted(c))return 0;int i=c.Y*World.Width+c.X;if(unique.Add(i)&&World.IsSolid(c.X,c.Y))accepted.Add(c);}
-   foreach(var c in accepted){if(!excavate(c.X,c.Y))throw new InvalidOperationException("Single-owner terrain changed during commit");deltas.Add(c.Y*World.Width+c.X);filled.Remove(c.Y*World.Width+c.X);}
+   foreach(var c in accepted){if(!excavate(c.X,c.Y))throw new InvalidOperationException("Single-owner terrain changed during commit");if(World.BaseSolid(c.X,c.Y))deltas.Add(c.Y*World.Width+c.X);else deltas.Remove(c.Y*World.Width+c.X);filled.Remove(c.Y*World.Width+c.X);}
    if(accepted.Count>0){Revision++;Committed?.Invoke(accepted.AsReadOnly(),Revision);}return accepted.Count;
   }
   public Func<TerrainPlacementRequest,Func<IReadOnlyList<DualTile>,bool>,TerrainPlacementResult> TakePlacementControl()

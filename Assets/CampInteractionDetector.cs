@@ -1,293 +1,586 @@
-using System.Collections.Generic;
-using SporeGobbo.Input;
-using TMPro;
-using UnityEngine;
-
-/// <summary>Single authority for world interaction selection, prompts, and execution.</summary>
-[DefaultExecutionOrder(2800)]
-public class CampInteractionDetector : MonoBehaviour
-{
-    private const string RuntimePromptResourcePath = "UI/CampInteractionPrompt";
-
-    [Header("Player")]
-    public Transform playerTransform;
-
-    [Header("Discovery")]
-    public float interactRadius = 1.2f;
-    public LayerMask interactableLayers = ~0;
-    [Range(0f, 0.5f)] public float facingTieDistance = 0.2f;
-    [Range(0f, 0.5f)] public float switchDistanceAdvantage = 0.1f;
-
-    [Header("Prompt UI")]
-    public GameObject promptPanel;
-    public TMP_Text promptText;
-
-    [Header("Debug")]
-    public bool drawDebugRadius = true;
-    public bool logInteractions = true;
-
-    private readonly List<Candidate> candidates = new();
-    private readonly List<InteractionCandidateData> rankingData = new();
-    private readonly HashSet<ulong> seenOwners = new();
-    private Candidate current;
-    private GobboController player;
-    private SporeInputReader inputReader;
-    private SporeUiCoordinator uiCoordinator;
-    private string currentPrompt;
-    private bool promptResolutionAttempted;
-    private SettlementCampRegion promptRegion;
-    private RectTransform promptRect;
-    private Canvas promptCanvas;
-    readonly List<Collider2D> overlapHits = new List<Collider2D>(16);
-    readonly List<MonoBehaviour> ownerComponents = new List<MonoBehaviour>(16);
-    readonly Dictionary<MonoBehaviour,Candidate> candidateCache = new Dictionary<MonoBehaviour,Candidate>();
-    string cachedBinding,cachedAction;MonoBehaviour promptOwner;
-
-    private sealed class Candidate
-    {
-        public MonoBehaviour Owner;
-        public ICampInteractable Interactable;
-        public IWorldInteractionMetadata Metadata;
-        public int Priority;
-        public float Distance;
-    }
-
-    void Awake()
-    {
-        inputReader = SporeInputReader.Instance;
-        EnsurePromptPresentation();
-        HidePrompt();
-    }
-
-    void OnEnable()
-    {
-        if (inputReader == null) inputReader = SporeInputReader.Instance;
-        uiCoordinator = SporeUiCoordinator.Instance;
-        uiCoordinator.PresentationChanged += HandlePresentationChanged;
-    }
-
-    void OnDisable()
-    {
-        if (uiCoordinator != null)
-            uiCoordinator.PresentationChanged -= HandlePresentationChanged;
-        uiCoordinator = null;
-    }
-
-    void HandlePresentationChanged(){cachedBinding=null;UpdatePrompt();}
-
-    void Update()
-    {
-        if (inputReader == null) inputReader = SporeInputReader.Instance;
-        if (playerTransform == null) FindPlayer();
-        else if (player == null) player = playerTransform.GetComponent<GobboController>();
-
-        if (CampMenuModal.IsOpen)
-        {
-            ClearCurrent();
-            HidePrompt();
-            return;
-        }
-
-        if (playerTransform == null || player == null || inputReader == null || Time.timeScale <= 0f ||
-            inputReader.Context != SporeInputContext.Gameplay)
-        {
-            ClearCurrent();
-            HidePrompt();
-            return;
-        }
-
-        SelectCurrent();
-        UpdatePrompt();
-
-        if (inputReader.Interact.StartedThisFrame && IsUsable(current))
-        {
-            Candidate target = current;
-            if (logInteractions) Debug.Log("[WorldInteraction] Interact with " + target.Owner.name, target.Owner);
-            target.Interactable.Interact(player);
-        }
-    }
-
-    public void SetPlayer(Transform target)
-    {
-        EnsurePromptPresentation();
-        playerTransform = target;
-        player = target != null ? target.GetComponent<GobboController>() : null;
-        ClearCurrent();
-    }
-
-    void FindPlayer()
-    {
-        GameObject found = GameObject.FindGameObjectWithTag("Player");
-        if (found != null) SetPlayer(found.transform);
-    }
-
-    void SelectCurrent()
-    {
-        ulong currentId = IsUsable(current) ? EntityId.ToULong(current.Owner.GetEntityId()) : ulong.MaxValue;
-        candidates.Clear();
-        rankingData.Clear();
-        seenOwners.Clear();
-
-        var filter=new ContactFilter2D{useLayerMask=true,layerMask=interactableLayers,useTriggers=Physics2D.queriesHitTriggers};
-        overlapHits.Clear();Physics2D.OverlapCircle(playerTransform.position,interactRadius,filter,overlapHits);
-        foreach (Collider2D hit in overlapHits) AddCandidate(hit);
-
-        int selectedIndex = InteractionSelectionMath.Select(
-            rankingData, currentId, facingTieDistance, switchDistanceAdvantage);
-        current = selectedIndex >= 0 ? candidates[selectedIndex] : null;
-    }
-
-    void AddCandidate(Collider2D hit)
-    {
-        if (hit == null) return;
-
-        MonoBehaviour owner = null;
-        ICampInteractable interactable = null;
-        ownerComponents.Clear();hit.GetComponentsInParent(true,ownerComponents);
-        foreach (MonoBehaviour behaviour in ownerComponents)
-        {
-            if (behaviour is ICampInteractable found)
-            {
-                owner = behaviour;
-                interactable = found;
-                break;
-            }
-        }
-
-        if (owner == null || !owner.isActiveAndEnabled || !seenOwners.Add(EntityId.ToULong(owner.GetEntityId()))) return;
-
-        IWorldInteractionMetadata metadata = owner as IWorldInteractionMetadata;
-        if (metadata != null && !metadata.CanInteract(player)) return;
-        if (string.IsNullOrWhiteSpace(interactable.GetInteractPrompt())) return;
-
-        Vector2 point = metadata != null ? metadata.GetInteractionPoint() : owner.transform.position;
-        var logicalAnchor=owner.GetComponent<IWorldInteractionAnchor>();
-        if(logicalAnchor!=null)point=logicalAnchor.InteractionPoint;
-        var binding=player.GetComponent<ActorTerrainBinding>();
-        if(binding!=null && !binding.InteractionSight(playerTransform.position,point))return;
-        float distance = Vector2.Distance(playerTransform.position, point);
-        float allowedRange = metadata != null ? metadata.InteractionRange : interactRadius;
-        if (distance > Mathf.Min(interactRadius, Mathf.Max(0.1f, allowedRange))) return;
-
-        Vector2 direction = point - (Vector2)playerTransform.position;
-        float alignment = direction.sqrMagnitude > 0.0001f
-            ? Vector2.Dot(player.CurrentAimDirection, direction.normalized)
-            : 1f;
-        if(!candidateCache.TryGetValue(owner,out var candidate))
-        {candidate=new Candidate();candidateCache.Add(owner,candidate);}
-        candidate.Owner=owner;candidate.Interactable=interactable;candidate.Metadata=metadata;candidate.Priority=metadata?.InteractionPriority??0;candidate.Distance=distance;
-        candidates.Add(candidate);
-        rankingData.Add(new InteractionCandidateData(EntityId.ToULong(owner.GetEntityId()), candidate.Priority, distance, alignment));
-    }
-
-    bool IsUsable(Candidate candidate)
-    {
-        return candidate != null && candidate.Owner != null && candidate.Owner.isActiveAndEnabled &&
-               candidate.Interactable != null &&
-               (candidate.Metadata == null || candidate.Metadata.CanInteract(player)) &&
-               !string.IsNullOrWhiteSpace(candidate.Interactable.GetInteractPrompt());
-    }
-
-    void UpdatePrompt()
-    {
-        if (!IsUsable(current))
-        {
-            HidePrompt();
-            return;
-        }
-
-        string action=current.Interactable.GetInteractPrompt();
-        if(promptOwner!=current.Owner||cachedAction!=action||cachedBinding==null||currentPrompt==null)
-        {
-            cachedBinding??=inputReader.GetInteractBindingDisplay();if(cachedBinding.StartsWith("Press ",System.StringComparison.Ordinal))cachedBinding=cachedBinding.Substring(6);cachedAction=action;promptOwner=current.Owner;
-            currentPrompt=cachedBinding+" · "+action;if(promptText!=null)promptText.text=currentPrompt;
-        }
-        if (promptPanel != null) promptPanel.SetActive(true);
-    }
-
-    void LateUpdate()
-    {
-        if (!GameSceneCatalog.IsCamp(gameObject.scene) || !IsUsable(current) || promptPanel == null || !promptPanel.activeSelf) return;
-        if (promptRegion == null) promptRegion = Object.FindAnyObjectByType<SettlementCampRegion>();
-        if (promptRegion == null || !promptRegion.PresentationReady) return;
-        if (promptRect == null)
-        {
-            promptRect = promptPanel.GetComponent<RectTransform>();promptCanvas = promptPanel.GetComponentInParent<Canvas>();
-            promptRect.sizeDelta = new Vector2(280,40);promptRect.localScale=Vector3.one;
-            if(promptText!=null){promptText.fontSize=22;promptText.enableAutoSizing=false;promptText.textWrappingMode=TextWrappingModes.NoWrap;promptText.overflowMode=TextOverflowModes.Ellipsis;promptText.margin=Vector4.zero;var textRect=promptText.rectTransform;textRect.anchorMin=Vector2.zero;textRect.anchorMax=Vector2.one;textRect.offsetMin=new Vector2(8,3);textRect.offsetMax=new Vector2(-8,-3);textRect.localScale=Vector3.one;promptText.alignment=TextAlignmentOptions.Center;}
-        }
-        var station = current.Owner.GetComponent<CampStationMarker>();
-        Vector2 physical = station != null ? station.PromptPoint : (Vector2)current.Owner.transform.position;
-        if(current.Owner is CampRootEntrance)physical=promptRegion.World(promptRegion.Definition.Marker(SporeGobbo.CampCandidate.SettlementCampLayout.RootId).Anchor);
-        var projectedAnchor=current.Owner.GetComponent<IProjectedInteractionAnchor>();
-        Vector2 screen=promptRegion.RegionCamera.WorldToScreenPoint(projectedAnchor!=null?projectedAnchor.ProjectedPromptAnchor:promptRegion.Render(physical));
-        // Caption bottom sits six pixels above the actual rendered visual, independently of interaction range.
-        screen.y += 26f * Screen.height / 1080f;
-        var parent=promptRect.parent as RectTransform;
-        if(parent!=null&&promptCanvas!=null&&RectTransformUtility.ScreenPointToLocalPointInRectangle(parent,screen,promptCanvas.renderMode==RenderMode.ScreenSpaceOverlay?null:promptCanvas.worldCamera,out var local))
-        {promptRect.anchorMin=promptRect.anchorMax=parent.pivot;promptRect.anchoredPosition=local;}
-    }
-
-    void EnsurePromptPresentation()
-    {
-        if (promptPanel != null && promptText != null) return;
-
-        if (promptPanel != null && promptText == null)
-            promptText = promptPanel.GetComponentInChildren<TMP_Text>(true);
-        if (promptPanel != null && promptText != null) return;
-        if (promptResolutionAttempted) return;
-
-        using var _v1InitProfile = new Unity.Profiling.ProfilerMarker("Spore.V1.WorldInteractorInit").Auto();
-        promptResolutionAttempted = true;
-        Canvas canvas = FindPromptCanvas();
-        GameObject prefab = Resources.Load<GameObject>(RuntimePromptResourcePath);
-        if (canvas == null || prefab == null)
-        {
-            Debug.LogError("CampInteractionDetector could not resolve the shared interaction prompt presentation.", this);
-            return;
-        }
-
-        promptPanel = Object.Instantiate(prefab, canvas.transform, false);
-        promptPanel.name = "WorldInteractionPrompt";
-        promptText = promptPanel.GetComponentInChildren<TMP_Text>(true);
-        if (promptText == null)
-        {
-            Debug.LogError("Shared interaction prompt prefab has no TMP_Text child.", promptPanel);
-            Object.Destroy(promptPanel);
-            promptPanel = null;
-        }
-    }
-
-    static Canvas FindPromptCanvas()
-    {
-        Canvas[] canvases = Object.FindObjectsByType<Canvas>();
-        Canvas best = null;
-        foreach (Canvas candidate in canvases)
-        {
-            if (candidate == null || !candidate.isActiveAndEnabled || candidate.renderMode == RenderMode.WorldSpace)
-                continue;
-            if (best == null || candidate.sortingOrder > best.sortingOrder)
-                best = candidate;
-        }
-        return best;
-    }
-
-    void ClearCurrent()
-    {
-        current = null;
-        currentPrompt = null;
-    }
-
-    void HidePrompt()
-    {
-        currentPrompt = null;
-        if (promptPanel != null) promptPanel.SetActive(false);
-    }
-
-    void OnDrawGizmosSelected()
-    {
-        if (!drawDebugRadius || playerTransform == null) return;
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(playerTransform.position, interactRadius);
-    }
-}
+using System.Collections.Generic;
+
+using SporeGobbo.Input;
+
+using TMPro;
+
+using UnityEngine;
+
+
+
+/// <summary>Single authority for world interaction selection, prompts, and execution.</summary>
+
+[DefaultExecutionOrder(2800)]
+
+public class CampInteractionDetector : MonoBehaviour
+
+{
+
+    private const string RuntimePromptResourcePath = "UI/CampInteractionPrompt";
+
+
+
+    [Header("Player")]
+
+    public Transform playerTransform;
+
+
+
+    [Header("Discovery")]
+
+    public float interactRadius = 1.2f;
+
+    public LayerMask interactableLayers = ~0;
+
+    [Range(0f, 0.5f)] public float facingTieDistance = 0.2f;
+
+    [Range(0f, 0.5f)] public float switchDistanceAdvantage = 0.1f;
+
+
+
+    [Header("Prompt UI")]
+
+    public GameObject promptPanel;
+
+    public TMP_Text promptText;
+
+
+
+    [Header("Debug")]
+
+    public bool drawDebugRadius = true;
+
+    public bool logInteractions = true;
+
+
+
+    private readonly List<Candidate> candidates = new();
+
+    private readonly List<InteractionCandidateData> rankingData = new();
+
+    private readonly HashSet<ulong> seenOwners = new();
+
+    private Candidate current;
+
+    private GobboController player;
+
+    private SporeInputReader inputReader;
+
+    private SporeUiCoordinator uiCoordinator;
+
+    private string currentPrompt;
+
+    private bool promptResolutionAttempted;
+
+    private SettlementCampRegion promptRegion;
+
+    private RectTransform promptRect;
+
+    private Canvas promptCanvas;
+
+    readonly List<Collider2D> overlapHits = new List<Collider2D>(16);
+
+    readonly List<MonoBehaviour> ownerComponents = new List<MonoBehaviour>(16);
+
+    readonly Dictionary<MonoBehaviour,Candidate> candidateCache = new Dictionary<MonoBehaviour,Candidate>();
+
+    string cachedBinding,cachedAction;MonoBehaviour promptOwner;
+
+
+
+    private sealed class Candidate
+
+    {
+
+        public MonoBehaviour Owner;
+
+        public ICampInteractable Interactable;
+
+        public IWorldInteractionMetadata Metadata;
+
+        public int Priority;
+
+        public float Distance;
+
+    }
+
+
+
+    void Awake()
+
+    {
+
+        inputReader = SporeInputReader.Instance;
+
+        EnsurePromptPresentation();
+
+        HidePrompt();
+
+    }
+
+
+
+    void OnEnable()
+
+    {
+
+        if (inputReader == null) inputReader = SporeInputReader.Instance;
+
+        uiCoordinator = SporeUiCoordinator.Instance;
+
+        uiCoordinator.PresentationChanged += HandlePresentationChanged;
+
+    }
+
+
+
+    void OnDisable()
+
+    {
+
+        if (uiCoordinator != null)
+
+            uiCoordinator.PresentationChanged -= HandlePresentationChanged;
+
+        uiCoordinator = null;
+
+    }
+
+
+
+    void HandlePresentationChanged(){cachedBinding=null;UpdatePrompt();}
+
+
+
+    void Update()
+
+    {
+
+        if (inputReader == null) inputReader = SporeInputReader.Instance;
+
+        if (playerTransform == null) FindPlayer();
+
+        else if (player == null) player = playerTransform.GetComponent<GobboController>();
+
+
+
+        if (CampMenuModal.IsOpen)
+
+        {
+
+            ClearCurrent();
+
+            HidePrompt();
+
+            return;
+
+        }
+
+
+
+        if (playerTransform == null || player == null || player.GetComponent<CombatSessionBinding>()?.Rules!=null || inputReader == null || Time.timeScale <= 0f ||
+
+            inputReader.Context != SporeInputContext.Gameplay)
+
+        {
+
+            ClearCurrent();
+
+            HidePrompt();
+
+            return;
+
+        }
+
+
+
+        SelectCurrent();
+
+        UpdatePrompt();
+
+
+
+        if (inputReader.Interact.StartedThisFrame && IsUsable(current))
+
+        {
+
+            Candidate target = current;
+
+            if (logInteractions) Debug.Log("[WorldInteraction] Interact with " + target.Owner.name, target.Owner);
+
+            target.Interactable.Interact(player);
+
+        }
+
+    }
+
+
+
+    public void SetPlayer(Transform target)
+
+    {
+
+        EnsurePromptPresentation();
+
+        playerTransform = target;
+
+        player = target != null ? target.GetComponent<GobboController>() : null;
+
+        ClearCurrent();
+
+    }
+
+
+
+    void FindPlayer()
+
+    {
+
+        GameObject found = GameObject.FindGameObjectWithTag("Player");
+
+        if (found != null) SetPlayer(found.transform);
+
+    }
+
+
+
+    void SelectCurrent()
+
+    {
+
+        ulong currentId = IsUsable(current) ? EntityId.ToULong(current.Owner.GetEntityId()) : ulong.MaxValue;
+
+        candidates.Clear();
+
+        rankingData.Clear();
+
+        seenOwners.Clear();
+
+
+
+        var filter=new ContactFilter2D{useLayerMask=true,layerMask=interactableLayers,useTriggers=Physics2D.queriesHitTriggers};
+
+        overlapHits.Clear();Physics2D.OverlapCircle(playerTransform.position,interactRadius,filter,overlapHits);
+
+        foreach (Collider2D hit in overlapHits) AddCandidate(hit);
+
+
+
+        int selectedIndex = InteractionSelectionMath.Select(
+
+            rankingData, currentId, facingTieDistance, switchDistanceAdvantage);
+
+        current = selectedIndex >= 0 ? candidates[selectedIndex] : null;
+
+    }
+
+
+
+    void AddCandidate(Collider2D hit)
+
+    {
+
+        if (hit == null) return;
+
+
+
+        MonoBehaviour owner = null;
+
+        ICampInteractable interactable = null;
+
+        ownerComponents.Clear();hit.GetComponentsInParent(true,ownerComponents);
+
+        foreach (MonoBehaviour behaviour in ownerComponents)
+
+        {
+
+            if (behaviour is ICampInteractable found)
+
+            {
+
+                owner = behaviour;
+
+                interactable = found;
+
+                break;
+
+            }
+
+        }
+
+
+
+        if (owner == null || !owner.isActiveAndEnabled || !seenOwners.Add(EntityId.ToULong(owner.GetEntityId()))) return;
+
+
+
+        IWorldInteractionMetadata metadata = owner as IWorldInteractionMetadata;
+
+        if (metadata != null && !metadata.CanInteract(player)) return;
+
+        if (string.IsNullOrWhiteSpace(interactable.GetInteractPrompt())) return;
+
+
+
+        Vector2 point = metadata != null ? metadata.GetInteractionPoint() : owner.transform.position;
+
+        var logicalAnchor=owner.GetComponent<IWorldInteractionAnchor>();
+
+        if(logicalAnchor!=null)point=logicalAnchor.InteractionPoint;
+
+        var binding=player.GetComponent<ActorTerrainBinding>();
+
+        if(binding!=null && !binding.InteractionSight(playerTransform.position,point))return;
+
+        float distance = Vector2.Distance(playerTransform.position, point);
+
+        float allowedRange = metadata != null ? metadata.InteractionRange : interactRadius;
+
+        if (distance > Mathf.Min(interactRadius, Mathf.Max(0.1f, allowedRange))) return;
+
+
+
+        Vector2 direction = point - (Vector2)playerTransform.position;
+
+        float alignment = direction.sqrMagnitude > 0.0001f
+
+            ? Vector2.Dot(player.CurrentAimDirection, direction.normalized)
+
+            : 1f;
+
+        if(!candidateCache.TryGetValue(owner,out var candidate))
+
+        {candidate=new Candidate();candidateCache.Add(owner,candidate);}
+
+        candidate.Owner=owner;candidate.Interactable=interactable;candidate.Metadata=metadata;candidate.Priority=metadata?.InteractionPriority??0;candidate.Distance=distance;
+
+        candidates.Add(candidate);
+
+        rankingData.Add(new InteractionCandidateData(EntityId.ToULong(owner.GetEntityId()), candidate.Priority, distance, alignment));
+
+    }
+
+
+
+    bool IsUsable(Candidate candidate)
+
+    {
+
+        return candidate != null && candidate.Owner != null && candidate.Owner.isActiveAndEnabled &&
+
+               candidate.Interactable != null &&
+
+               (candidate.Metadata == null || candidate.Metadata.CanInteract(player)) &&
+
+               !string.IsNullOrWhiteSpace(candidate.Interactable.GetInteractPrompt());
+
+    }
+
+
+
+    void UpdatePrompt()
+
+    {
+
+        if (!IsUsable(current))
+
+        {
+
+            HidePrompt();
+
+            return;
+
+        }
+
+
+
+        string action=current.Interactable.GetInteractPrompt();
+
+        if(promptOwner!=current.Owner||cachedAction!=action||cachedBinding==null||currentPrompt==null)
+
+        {
+
+            cachedBinding??=inputReader.GetInteractBindingDisplay();if(cachedBinding.StartsWith("Press ",System.StringComparison.Ordinal))cachedBinding=cachedBinding.Substring(6);cachedAction=action;promptOwner=current.Owner;
+
+            currentPrompt=cachedBinding+" · "+action;if(promptText!=null)promptText.text=currentPrompt;
+
+        }
+
+        if (promptPanel != null) promptPanel.SetActive(true);
+
+    }
+
+
+
+    void LateUpdate()
+
+    {
+
+        if (!GameSceneCatalog.IsCamp(gameObject.scene) || !IsUsable(current) || promptPanel == null || !promptPanel.activeSelf) return;
+
+        if (promptRegion == null) promptRegion = Object.FindAnyObjectByType<SettlementCampRegion>();
+
+        if (promptRegion == null || !promptRegion.PresentationReady) return;
+
+        if (promptRect == null)
+
+        {
+
+            promptRect = promptPanel.GetComponent<RectTransform>();promptCanvas = promptPanel.GetComponentInParent<Canvas>();
+
+            promptRect.sizeDelta = new Vector2(280,40);promptRect.localScale=Vector3.one;
+
+            if(promptText!=null){promptText.fontSize=22;promptText.enableAutoSizing=false;promptText.textWrappingMode=TextWrappingModes.NoWrap;promptText.overflowMode=TextOverflowModes.Ellipsis;promptText.margin=Vector4.zero;var textRect=promptText.rectTransform;textRect.anchorMin=Vector2.zero;textRect.anchorMax=Vector2.one;textRect.offsetMin=new Vector2(8,3);textRect.offsetMax=new Vector2(-8,-3);textRect.localScale=Vector3.one;promptText.alignment=TextAlignmentOptions.Center;}
+
+        }
+
+        var station = current.Owner.GetComponent<CampStationMarker>();
+
+        Vector2 physical = station != null ? station.PromptPoint : (Vector2)current.Owner.transform.position;
+
+        if(current.Owner is CampRootEntrance)physical=promptRegion.World(promptRegion.Definition.Marker(SporeGobbo.CampCandidate.SettlementCampLayout.RootId).Anchor);
+
+        var projectedAnchor=current.Owner.GetComponent<IProjectedInteractionAnchor>();
+
+        Vector2 screen=promptRegion.RegionCamera.WorldToScreenPoint(projectedAnchor!=null?projectedAnchor.ProjectedPromptAnchor:promptRegion.Render(physical));
+
+        // Caption bottom sits six pixels above the actual rendered visual, independently of interaction range.
+
+        screen.y += 26f * Screen.height / 1080f;
+
+        var parent=promptRect.parent as RectTransform;
+
+        if(parent!=null&&promptCanvas!=null&&RectTransformUtility.ScreenPointToLocalPointInRectangle(parent,screen,promptCanvas.renderMode==RenderMode.ScreenSpaceOverlay?null:promptCanvas.worldCamera,out var local))
+
+        {promptRect.anchorMin=promptRect.anchorMax=parent.pivot;promptRect.anchoredPosition=local;}
+
+    }
+
+
+
+    void EnsurePromptPresentation()
+
+    {
+
+        if (promptPanel != null && promptText != null) return;
+
+
+
+        if (promptPanel != null && promptText == null)
+
+            promptText = promptPanel.GetComponentInChildren<TMP_Text>(true);
+
+        if (promptPanel != null && promptText != null) return;
+
+        if (promptResolutionAttempted) return;
+
+
+
+        using var _v1InitProfile = new Unity.Profiling.ProfilerMarker("Spore.V1.WorldInteractorInit").Auto();
+
+        promptResolutionAttempted = true;
+
+        Canvas canvas = FindPromptCanvas();
+
+        GameObject prefab = Resources.Load<GameObject>(RuntimePromptResourcePath);
+
+        if (canvas == null || prefab == null)
+
+        {
+
+            Debug.LogError("CampInteractionDetector could not resolve the shared interaction prompt presentation.", this);
+
+            return;
+
+        }
+
+
+
+        promptPanel = Object.Instantiate(prefab, canvas.transform, false);
+
+        promptPanel.name = "WorldInteractionPrompt";
+
+        promptText = promptPanel.GetComponentInChildren<TMP_Text>(true);
+
+        if (promptText == null)
+
+        {
+
+            Debug.LogError("Shared interaction prompt prefab has no TMP_Text child.", promptPanel);
+
+            Object.Destroy(promptPanel);
+
+            promptPanel = null;
+
+        }
+
+    }
+
+
+
+    static Canvas FindPromptCanvas()
+
+    {
+
+        Canvas[] canvases = Object.FindObjectsByType<Canvas>();
+
+        Canvas best = null;
+
+        foreach (Canvas candidate in canvases)
+
+        {
+
+            if (candidate == null || !candidate.isActiveAndEnabled || candidate.renderMode == RenderMode.WorldSpace)
+
+                continue;
+
+            if (best == null || candidate.sortingOrder > best.sortingOrder)
+
+                best = candidate;
+
+        }
+
+        return best;
+
+    }
+
+
+
+    void ClearCurrent()
+
+    {
+
+        current = null;
+
+        currentPrompt = null;
+
+    }
+
+
+
+    void HidePrompt()
+
+    {
+
+        currentPrompt = null;
+
+        if (promptPanel != null) promptPanel.SetActive(false);
+
+    }
+
+
+
+    void OnDrawGizmosSelected()
+
+    {
+
+        if (!drawDebugRadius || playerTransform == null) return;
+
+        Gizmos.color = Color.yellow;
+
+        Gizmos.DrawWireSphere(playerTransform.position, interactRadius);
+
+    }
+
+}
+

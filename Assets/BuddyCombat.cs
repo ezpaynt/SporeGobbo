@@ -255,7 +255,7 @@ public class BuddyCombat : MonoBehaviour
 
         string id=unit?.unitData?.uniqueId??"";
         var result=new MeleeAttackExecution(gameObject).Commit(currentTarget.gameObject,damage,id);
-        if(result.Accepted)
+        if(result.Accepted&&CombatSessionBinding.AllowsActions(gameObject))
         {
             KnockEnemy(result.Target.gameObject,directionToEnemy);
             StartSelfBounce(-directionToEnemy);
@@ -290,6 +290,8 @@ public class BuddyCombat : MonoBehaviour
             directionalSprite.SetDirection(direction);
     }
 
+    public System.Action BeginTemporaryCombat()
+    {float prior=attackTimer;CancelEngagement();attackTimer=0;return ()=>{CancelEngagement();attackTimer=prior;};}
     public void InvalidateReachability()=>hasReachability=false;
     public void CancelEngagement()
     {ClearTarget();hasReachability=false;bounceTimer=0;bounceVelocity=Vector2.zero;brainAllowsMovement=false;if(rb!=null)rb.linearVelocity=Vector2.zero;}
