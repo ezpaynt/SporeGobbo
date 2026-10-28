@@ -33,6 +33,7 @@ public sealed class V1EvidenceSession:MonoBehaviour
   else if(scenario=="performance"||scenario=="startup")gameObject.AddComponent<V1PerformanceEvidence>();
   else if(scenario=="occlusion")gameObject.AddComponent<V1VisualEvidence>();
   else if(scenario=="commands"){if(!Persistence.Isolated||!V1RuntimeProfile.DevelopmentToolsEnabled||!V1RuntimeProfile.EvidenceEnabled)throw new InvalidOperationException("Command proof requires owned development evidence");gameObject.AddComponent<Stage64BCommandEvidence>();}
+  else if(scenario=="layout"){if(!Persistence.Isolated||!V1RuntimeProfile.DevelopmentToolsEnabled||!V1RuntimeProfile.EvidenceEnabled)throw new InvalidOperationException("Layout proof requires owned development evidence");gameObject.AddComponent<Stage64BLayoutEvidence>();}
   else if(scenario=="tools")gameObject.AddComponent<V1ToolsEvidence>();
   else throw new InvalidOperationException("Unreviewed V1 evidence scenario");
  }

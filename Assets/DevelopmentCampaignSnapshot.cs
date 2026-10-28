@@ -32,6 +32,7 @@ public sealed class DevelopmentCampaignSnapshot
             throw new InvalidDataException("Campaign checksum/identity validation failed");
         campaign = JsonUtility.FromJson<SporeSaveSlotData>(envelope.payload);
         if (campaign == null || campaign.slotIndex != expectedSlot) throw new InvalidDataException("Campaign slot identity mismatch");
+        campaign=CampLayoutCompatibility.Prepare(campaign,true);
         ValidateCampaign(campaign);
         return envelope;
     }

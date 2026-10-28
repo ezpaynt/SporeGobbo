@@ -47,9 +47,11 @@ public sealed class CampRegionSnapshot
         return new RegionTerrainState(regionId, width, height, SettlementCampLayout.Shared,
             excavatedCells.Select(id => new DualTile(id % width, id / width)).ToArray(), terrainRevision);
     }
-    public void ValidatePhysical()
+    public void ValidatePhysical()=>ValidatePhysical(SettlementCampLayout.Shared);
+    internal void ValidatePhysical(AuthoredCamp definition)
     {
-        if (schemaVersion != 1 || regionId != "camp" || layoutId != SettlementCampLayout.LayoutId ||
+        if(!object.ReferenceEquals(definition,SettlementCampLayout.Shared)&&!object.ReferenceEquals(definition,LegacyCamp61CLayout.Shared))throw new InvalidDataException("Unrecognized authored layout definition");
+        if (schemaVersion != 1 || regionId != "camp" || layoutId != definition.Id ||
             rootId != SettlementCampLayout.RootId || width != 192 || height != 192 || cellSize != .6f)
             throw new InvalidDataException("Unsupported Camp region schema/layout");
         if (excavatedCells == null || establishedBeds == null || excavatedCells.Length > width * height ||
@@ -59,7 +61,6 @@ public sealed class CampRegionSnapshot
         // roster or assignment is cached; campaign references are checked separately.
         string validationKey = CampaignSnapshotStorage.Hash(UnityEngine.JsonUtility.ToJson(this));
         lock(validationLock)if (validatedPhysical.Contains(validationKey)) return;
-        var definition = SettlementCampLayout.Shared;
         var cuts = new HashSet<int>(); int prior = -1;
         foreach (int id in excavatedCells)
         {
@@ -76,7 +77,7 @@ public sealed class CampRegionSnapshot
         if (establishedBeds.Length == 0) { RememberValidated(validationKey); return; }
         var terrain = new RegionTerrainState(regionId, width, height, definition,
             excavatedCells.Select(id => new DualTile(id % width, id / width)).ToArray(), terrainRevision);
-        var catalog = SettlementCampLayout.Catalog(definition);
+        var catalog = definition.Id==LegacyCamp61CLayout.LayoutId?LegacyCamp61CLayout.Catalog(definition):SettlementCampLayout.Catalog(definition);
         foreach (int bed in establishedBeds)
         {
             var slot = catalog.GetSlot(bed);
@@ -86,9 +87,10 @@ public sealed class CampRegionSnapshot
         }
         RememberValidated(validationKey);
     }
-    public void ValidateCampaign(SporeSaveSlotData campaign)
+    public void ValidateCampaign(SporeSaveSlotData campaign)=>ValidateCampaign(campaign,SettlementCampLayout.Shared);
+    internal void ValidateCampaign(SporeSaveSlotData campaign,AuthoredCamp definition)
     {
-        ValidatePhysical();
+        ValidatePhysical(definition);
         if (campaign?.campTerrainState == null || campaign.campTerrainState.residentialSlotsEstablished != establishedBeds.Length)
             throw new InvalidDataException("Campaign and physical bed capacity disagree");
         var assigned = new HashSet<int>();

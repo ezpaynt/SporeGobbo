@@ -1,4 +1,5 @@
 using System;
+using SporeGobbo.CampCandidate;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
@@ -6,7 +7,8 @@ using System.Collections.Generic;
 /// <summary>One strict detached campaign/region validator shared by V1 and retained fixture decoding.</summary>
 public static class CampaignSnapshotValidator
 {
-    public static void Validate(SporeSaveSlotData campaign)
+    public static void Validate(SporeSaveSlotData campaign)=>ValidateForLayout(campaign,SettlementCampLayout.Shared);
+    internal static void ValidateForLayout(SporeSaveSlotData campaign,AuthoredCamp definition)
     {
         if (campaign == null || !campaign.hasSave || campaign.saveVersion != SporeSaveSlotData.CurrentSaveVersion ||
             campaign.slotIndex < 1 || campaign.slotIndex > SporeSaveManager.SlotCount || campaign.leader == null ||
@@ -35,6 +37,6 @@ public static class CampaignSnapshotValidator
                 throw new InvalidDataException("Living identity reuses a deceased Gobbo identity");
         if (!string.IsNullOrEmpty(campaign.markedSuccessorId) && !living.Contains(campaign.markedSuccessorId))
             throw new InvalidDataException("Marked successor is not a living roster member");
-        campaign.campTerrainState.regionSnapshot.ValidateCampaign(campaign);
+        campaign.campTerrainState.regionSnapshot.ValidateCampaign(campaign,definition);
     }
 }
