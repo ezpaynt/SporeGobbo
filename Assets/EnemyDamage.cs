@@ -80,7 +80,20 @@ public static class EnemyDamage
         if(a!=null&&b!=null&&!ReferenceEquals(a.Terrain,b.Terrain))return false;
         return ActorTerrainBinding.HasSight(source,source.transform.position,target.transform.position);
     }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    // Read-only bounded evidence hook; actual owners still determine every receipt.
+    public static event System.Action<EnemyDamageRequest,EnemyDamageResult> EvidenceReceipt;
+#endif
     public static EnemyDamageResult TryApply(GameObject target,EnemyDamageRequest request,bool checkObstruction=false)
+    {
+        var result=TryApplyCore(target,request,checkObstruction);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if(EvidenceReceipt!=null&&V1RuntimeProfile.EvidenceEnabled)
+        {try{EvidenceReceipt(request,result);}catch(System.Exception error){Debug.LogException(error);}}
+#endif
+        return result;
+    }
+    static EnemyDamageResult TryApplyCore(GameObject target,EnemyDamageRequest request,bool checkObstruction)
     {
         Component owner=Resolve(target);
         if(request!=null&&request.hadSource&&request.source==null)return EnemyDamageResult.Reject(owner,EnemyDamageFailure.Cancelled);

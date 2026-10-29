@@ -80,6 +80,7 @@ public class BuddyFollow : MonoBehaviour
 
     void FixedUpdate()
     {
+        using var decisionProfile=new Unity.Profiling.ProfilerMarker("Spore.AI.BuddyFollow").Auto();
         using (new ActorTerrainBinding.Scope("SG59.BuddyFollow.FixedUpdate", gameObject.GetComponent<ActorTerrainBinding>() != null))
         {
         FindPlayerIfMissing();

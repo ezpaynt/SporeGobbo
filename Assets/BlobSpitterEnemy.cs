@@ -108,6 +108,7 @@ public class BlobSpitterEnemy : MonoBehaviour, IEnemyDamageReceiver
 
     void Update()
     {
+        using var decisionProfile=new Unity.Profiling.ProfilerMarker("Spore.AI.BlobDecision").Auto();
         if(!EnemyDamage.Ready(gameObject)||!CombatSessionBinding.AllowsActions(gameObject)){if(rb!=null)rb.linearVelocity=Vector2.zero;return;}
         if (isDead)
             return;

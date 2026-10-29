@@ -14,7 +14,7 @@ public sealed class CampFightPitLab:MonoBehaviour,ICombatSessionRules,ICombatCom
  Mesh rim;Material rimMaterial;GameObject rimObject,interactionObject;Vector3[] rimVertices;int[] rimIndices;readonly List<(Vector2 position,Vector2 extents)> used=new List<(Vector2,Vector2)>();
  sealed class ActorLease
  {
-  public GameObject Actor;public Vector2 Position;public bool Simulated;public int Health;public Action CombatRestore;public bool Hit,PlayerEnabled,FaceCursor,FaceMovement;public GobboUnitSaveData Data;public CombatSessionBinding Binding;public bool AddedBinding;public LayerMask EnemyLayer;public bool NearPlayer;public bool AllowCombat,AllowFollowing,AllowScavenging;
+  public GameObject Actor;public Vector2 Position;public bool Simulated;public int Health;public Action CombatRestore;public bool Hit,PlayerEnabled,FaceCursor,FaceMovement;public GobboUnitSaveData Data,LeaderData;public string LeaderId;public CombatSessionBinding Binding;public bool AddedBinding;public LayerMask EnemyLayer;public bool NearPlayer;public bool AllowCombat,AllowFollowing,AllowScavenging;
   public readonly Dictionary<Behaviour,bool> Enabled=new Dictionary<Behaviour,bool>();
  }
  bool Authorized=>V1RuntimeProfile.DevelopmentToolsEnabled&&V1RuntimeProfile.DevelopmentStorage&&SporeGobbo.Safety.Persistence.Isolated;
@@ -28,21 +28,38 @@ public sealed class CampFightPitLab:MonoBehaviour,ICombatSessionRules,ICombatCom
  {if(result.Accepted){AcceptedHits++;if(request.source!=null&&teams.TryGetValue(request.source,out int team)){if(team==0)FriendlyHits++;else if(team==1)OpponentHits++;}}if(Fighting&&Health(target)<=1)Resolve(target.name+" reached protected 1 HP");}
  public IEnumerable<BuddyBrain> Recipients(GobboController leader)=>leader==player?commanded:Array.Empty<BuddyBrain>();
  public bool CanControl(GobboController leader,BuddyBrain brain)
- {var unit=brain!=null?brain.GetComponent<BuddyUnit>():null;return Active&&Phase!=MatchPhase.CleaningUp&&leader==player&&leader!=null&&leader.isActiveAndEnabled&&commanded.Contains(brain)&&unit!=null&&unit.CombatAlive&&campaign==GameState.Instance&&campaign.ownedGobbos.Contains(unit.unitData)&&brain.gameObject.scene==gameObject.scene&&object.ReferenceEquals(ActorTerrainBinding.Resolve(brain.gameObject),region)&&object.ReferenceEquals(DiggableTerrainService.Active,region)&&brain.GetComponent<CombatSessionBinding>()?.Rules==this;}
- public void StartSession()
+ {var unit=brain!=null?brain.GetComponent<BuddyUnit>():null;return Active&&Phase!=MatchPhase.CleaningUp&&leader==player&&leader!=null&&leader.isActiveAndEnabled&&commanded.Contains(brain)&&unit!=null&&unit.CombatAlive&&campaign!=null&&campaign==GameState.Instance&&campaign.ownedGobbos.Contains(unit.unitData)&&brain.gameObject.scene==gameObject.scene&&object.ReferenceEquals(ActorTerrainBinding.Resolve(brain.gameObject),region)&&object.ReferenceEquals(DiggableTerrainService.Active,region)&&brain.GetComponent<CombatSessionBinding>()?.Rules==this;}
+ public void StartSession()=>StartSessionCore(null);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+ // Reviewed composition fixture only. Same coordinator, real AI, bindings and cleanup;
+ // no additional menu/game mode or alternate spawn/health authority.
+ public void StartEvidenceSession(params string[] opponents)
+ {
+  string scenario=Environment.GetEnvironmentVariable("SPORE_STAGE61_CAPTURE");
+  if(!Authorized||!V1RuntimeProfile.EvidenceEnabled||(scenario!="audit-mixed"&&scenario!="audit-resets"))throw new InvalidOperationException("Owned reviewed audit evidence required");
+  if(opponents==null||opponents.Length<1||opponents.Length>3||opponents.Any(id=>id!="Weevil"&&id!="Blob"))throw new ArgumentException("Only bounded existing enemy composition supported");
+  StartSessionCore((string[])opponents.Clone());
+ }
+#endif
+ void StartSessionCore(string[] evidenceOpponents)
  {
   using var profile=new Unity.Profiling.ProfilerMarker("Spore.Pit.Prepare").Auto();
   if(!Authorized||Active||!region.Ready||!region.ResidentialEntranceOpen)throw new InvalidOperationException("Open the owned development Pit entrance, then start from ready Camp.");
   if(SporeUiCoordinator.Instance==null||Time.timeScale<=0)throw new InvalidOperationException("Resume Camp before starting a match.");
+  UnityEngine.Object permittedHub=null;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+  permittedHub=DevelopmentGameControls.Instance;
+#endif
+  if(SporeUiCoordinator.Instance.HasModalOtherThan(permittedHub)||SporeInputReader.Instance.Context==SporeInputContext.Wheel)throw new InvalidOperationException("Close other Camp interactions and the command wheel before starting a match.");
   _ = SporeGobbo.Safety.Persistence.ExperimentRoot;campaign=GameState.Instance;player=FindAnyObjectByType<CampPlayableSpawner>()?.SpawnedPlayer;routines=CampStartRoutineManager.Instance;
   if(campaign==null||player==null||player.isPoisoned||!player.CombatAlive||routines==null||routines.DeparturePending)throw new InvalidOperationException("Ready living Camp actors without active poison are required.");
-  var catalog=CampFightPitCatalog.Get(Opponent);if(OpponentCount<1||OpponentCount>3)throw new ArgumentException("One to three opponents supported");
+  if(evidenceOpponents==null&&(OpponentCount<1||OpponentCount>3))throw new ArgumentException("One to three opponents supported");bool buddyOpponent=evidenceOpponents==null&&Opponent=="Buddy";var planned=evidenceOpponents??Enumerable.Repeat(Opponent,OpponentCount).ToArray();if(planned.Length<1||planned.Length>3)throw new ArgumentException("One to three opponents supported");
   var residents=FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None).Where(b=>b.gameObject.scene==gameObject.scene&&b.CombatAlive&&campaign.ownedGobbos.Contains(b.unitData)).OrderBy(b=>b.unitData.uniqueId,StringComparer.Ordinal).ToArray();
   if(residents.Any(b=>b.IsPoisoned)||residents.Any(b=>b.GetComponent<BuddyBrain>()?.SquadScoped==true))throw new InvalidOperationException("Wait for poison to end; Camp workers must not own expedition commands.");
   var friends=residents.Where(b=>SelectedBuddies.Contains(b.unitData.uniqueId)).ToArray();if(friends.Length!=SelectedBuddies.Count||friends.Length>5||Watch&&friends.Length==0)throw new InvalidOperationException("Select up to five eligible real Buddies; Watch requires at least one.");
-  var enemies=Opponent=="Buddy"?residents.Where(b=>!SelectedBuddies.Contains(b.unitData.uniqueId)).Take(OpponentCount).ToArray():Array.Empty<BuddyUnit>();if(Opponent=="Buddy"&&enemies.Length!=OpponentCount)throw new InvalidOperationException("Not enough unselected eligible Buddies for opponents.");
+  var enemies=buddyOpponent?residents.Where(b=>!SelectedBuddies.Contains(b.unitData.uniqueId)).Take(OpponentCount).ToArray():Array.Empty<BuddyUnit>();if(buddyOpponent&&enemies.Length!=OpponentCount)throw new InvalidOperationException("Not enough unselected eligible Buddies for opponents.");
   if(!Watch&&player.health<=1||friends.Concat(enemies).Any(b=>b.unitData.health<=1))throw new InvalidOperationException("Fighters must start above protected 1 HP");
-  if(!catalog.ExistingBuddy&&catalog.Prefab(region)==null)throw new InvalidOperationException("Missing real enemy prefab");
+  if(!buddyOpponent&&planned.Any(id=>CampFightPitCatalog.Get(id).Prefab(region)==null))throw new InvalidOperationException("Missing real enemy prefab");
   Phase=MatchPhase.Preparing;Outcome="Preparing";AcceptedHits=DamageAttempts=FriendlyHits=OpponentHits=0;GodMode=false;started=Time.realtimeSinceStartup;used.Clear();
   try
   {
@@ -58,10 +75,10 @@ public sealed class CampFightPitLab:MonoBehaviour,ICombatSessionRules,ICombatCom
    if(!Watch){MoveTo(player.gameObject,new Point2(145.5,82.5),false);fighters.Add(player.gameObject);player.SuppressTemporaryInput=false;}
    else {spectators.Add(player.gameObject);player.SuppressTemporaryInput=true;}
    foreach(var buddy in friends){PrepareBuddy(buddy,0,true);MoveTo(buddy.gameObject,new Point2(143.5,77.5+commanded.Count*2),false);}
-   if(Opponent=="Buddy")foreach(var buddy in enemies){PrepareBuddy(buddy,1,false);MoveTo(buddy.gameObject,new Point2(160.5,77.5+fighters.Count),false);}
-   else for(int i=0;i<OpponentCount;i++)
+   if(buddyOpponent)foreach(var buddy in enemies){PrepareBuddy(buddy,1,false);MoveTo(buddy.gameObject,new Point2(160.5,77.5+fighters.Count),false);}
+   else for(int i=0;i<planned.Length;i++)
    {
-    var prefab=catalog.Prefab(region);var go=Instantiate(prefab,region.World(new Point2(159.5,77.5+i*3)),Quaternion.identity);spawned.Add(go);go.name="Pit "+Opponent+" "+(i+1);Bind(go,1);region.BindActor(go);MoveTo(go,new Point2(159.5,77.5+i*3),false);fighters.Add(go);
+    var prefab=CampFightPitCatalog.Get(planned[i]).Prefab(region);var go=Instantiate(prefab,region.World(new Point2(159.5,77.5+i*3)),Quaternion.identity);spawned.Add(go);go.name="Pit "+planned[i]+" "+(i+1);Bind(go,1);region.BindActor(go);MoveTo(go,new Point2(159.5,77.5+i*3),false);fighters.Add(go);
     var weevil=go.GetComponent<TunnelWeevilEnemy>();if(weevil!=null)weevil.targetLayers=~0;var blob=go.GetComponent<BlobSpitterEnemy>();if(blob!=null)blob.targetLayers=~0;
    }
    foreach(var lease in leases)if(!fighters.Contains(lease.Actor)&&lease.Actor!=player.gameObject){Bind(lease.Actor,-1);spectators.Add(lease.Actor);}
@@ -90,7 +107,7 @@ public sealed class CampFightPitLab:MonoBehaviour,ICombatSessionRules,ICombatCom
  }
  ActorLease Capture(GameObject actor)
  {
-  if(actor.GetComponent<CombatSessionBinding>()?.Rules!=null)throw new InvalidOperationException("Actor already owns a combat session");var body=actor.GetComponent<Rigidbody2D>();var unit=actor.GetComponent<BuddyUnit>();var p=actor.GetComponent<GobboController>();var lease=new ActorLease{Actor=actor,Position=body.position,Simulated=body.simulated,Health=Health(actor),Data=unit?.unitData,Hit=unit?.unitData?.hasBeenHit??false,PlayerEnabled=p!=null&&p.enabled,FaceCursor=p!=null&&p.faceCursor,FaceMovement=p!=null&&p.faceMovementWhenNotFacingCursor};
+  if(actor.GetComponent<CombatSessionBinding>()?.Rules!=null)throw new InvalidOperationException("Actor already owns a combat session");var body=actor.GetComponent<Rigidbody2D>();var unit=actor.GetComponent<BuddyUnit>();var p=actor.GetComponent<GobboController>();var lease=new ActorLease{Actor=actor,Position=body.position,Simulated=body.simulated,Health=Health(actor),Data=unit?.unitData,LeaderData=p!=null?campaign?.leader:null,LeaderId=p!=null?campaign?.leader?.uniqueId:null,Hit=unit?.unitData?.hasBeenHit??false,PlayerEnabled=p!=null&&p.enabled,FaceCursor=p!=null&&p.faceCursor,FaceMovement=p!=null&&p.faceMovementWhenNotFacingCursor};
   foreach(var b in actor.GetComponents<Behaviour>())if(b is BuddyBrain||b is BuddyFollow||b is BuddyCombat||b is BuddyScavenger||b is CampWander||b is CampDirectedWalk)lease.Enabled.Add(b,b.enabled);
   var combat=actor.GetComponent<BuddyCombat>();if(combat!=null){lease.EnemyLayer=combat.enemyLayer;lease.NearPlayer=combat.onlyFightNearPlayer;}var brain=actor.GetComponent<BuddyBrain>();if(brain!=null){lease.AllowCombat=brain.allowCombat;lease.AllowFollowing=brain.allowFollowing;lease.AllowScavenging=brain.allowScavenging;}
   return lease;
@@ -112,7 +129,7 @@ public sealed class CampFightPitLab:MonoBehaviour,ICombatSessionRules,ICombatCom
  public void StopSession(string reason="Stopped")
  {
   using var profile=new Unity.Profiling.ProfilerMarker("Spore.Pit.Cleanup").Auto();
-  if(!Active||cleaning||cleanupFailure!=null)return;cleaning=true;Phase=MatchPhase.CleaningUp;var failures=new List<string>();
+  if(!Active||cleaning||cleanupFailure!=null)return;cleaning=true;Phase=MatchPhase.CleaningUp;var failures=new List<string>();bool leaderRestorable=true;
   void Attempt(Action action){try{action();}catch(Exception error){failures.Add(error.Message);}}
   try
   {
@@ -123,10 +140,32 @@ public sealed class CampFightPitLab:MonoBehaviour,ICombatSessionRules,ICombatCom
    foreach(var lease in leases)
    {
     // Restore only the exact still-owned identity. Removal/death is never undone.
-    if(lease.Data!=null&&campaign==GameState.Instance&&campaign.ownedGobbos.Contains(lease.Data)&&!lease.Data.isDead){lease.Data.health=lease.Health;lease.Data.hasBeenHit=lease.Hit;}
+    if(lease.Data!=null)
+    {
+     var buddy=lease.Actor!=null?lease.Actor.GetComponent<BuddyUnit>():null;
+     if(campaign==null||campaign!=GameState.Instance||!campaign.ownedGobbos.Contains(lease.Data)||lease.Data.isDead||buddy==null||!object.ReferenceEquals(buddy.unitData,lease.Data)||!buddy.CombatAlive)
+     {
+      failures.Add("Buddy died, was removed or changed identity; old state not restored");
+      // Only release this activity's capabilities; never heal/recreate the absent identity.
+      if(lease.Binding!=null&&object.ReferenceEquals(lease.Binding.Rules,this))
+      {
+       Attempt(()=>{if(lease.Actor!=null){lease.Actor.GetComponent<BuddyBrain>()?.ReleaseTemporarySquad(player);lease.Actor.GetComponent<BuddyCombat>()?.CancelEngagement();lease.Actor.GetComponent<BuddyFollow>()?.ResetCommandMotion();foreach(var b in lease.Actor.GetComponents<Behaviour>())if(b is BuddyBrain||b is BuddyCombat||b is BuddyFollow||b is BuddyScavenger||b is CampWander||b is CampDirectedWalk)b.enabled=false;var body=lease.Actor.GetComponent<Rigidbody2D>();if(body!=null)body.linearVelocity=Vector2.zero;}});
+       lease.Binding.Rules=null;lease.Binding.Team=0;
+      }
+      continue;
+     }
+     lease.Data.health=lease.Health;lease.Data.hasBeenHit=lease.Hit;
+    }
+    if(lease.LeaderData!=null&&(lease.Actor==null||campaign==null||campaign!=GameState.Instance||!object.ReferenceEquals(campaign?.leader,lease.LeaderData)||lease.LeaderData.uniqueId!=lease.LeaderId||lease.LeaderData.isDead||lease.Actor.GetComponent<GobboController>()?.CombatAlive!=true))
+    {
+     leaderRestorable=false;failures.Add("Leader died or identity changed; old actor health and simulation not restored");
+     if(lease.Actor!=null&&lease.Actor.TryGetComponent<GobboController>(out var invalidLeader))invalidLeader.SuppressTemporaryInput=true;
+     if(lease.Binding!=null){lease.Binding.Rules=null;lease.Binding.Team=0;}
+     continue;
+    }
     if(lease.Actor==null)continue;var actor=lease.Actor;
     Attempt(()=>{var unit=actor.GetComponent<BuddyUnit>();if(unit!=null&&unit.unitData!=lease.Data)throw new InvalidOperationException("Actor identity replaced; foreign identity not changed");});
-    Attempt(()=>{var unit=actor.GetComponent<BuddyUnit>();if(unit!=null&&unit.unitData==lease.Data&&campaign==GameState.Instance&&campaign.ownedGobbos.Contains(lease.Data)&&unit.CombatAlive)unit.ClearTemporaryCombatFeedback();var p=actor.GetComponent<GobboController>();if(p!=null&&campaign==GameState.Instance&&p.health>0)p.ClearTemporaryCombatFeedback();});
+    Attempt(()=>{var unit=actor.GetComponent<BuddyUnit>();if(unit!=null&&unit.unitData==lease.Data&&campaign==GameState.Instance&&campaign.ownedGobbos.Contains(lease.Data)&&unit.CombatAlive)unit.ClearTemporaryCombatFeedback();var p=actor.GetComponent<GobboController>();if(p!=null&&campaign==GameState.Instance&&p.CombatAlive)p.ClearTemporaryCombatFeedback();});
     Attempt(()=>{var brain=actor.GetComponent<BuddyBrain>();brain?.ReleaseTemporarySquad(player);var combat=actor.GetComponent<BuddyCombat>();if(combat!=null){lease.CombatRestore?.Invoke();combat.CancelEngagement();combat.enemyLayer=lease.EnemyLayer;combat.onlyFightNearPlayer=lease.NearPlayer;combat.SetPlayer(player!=null?player.transform:null);}actor.GetComponent<BuddyFollow>()?.SetPlayer(player!=null?player.transform:null);if(brain!=null){brain.allowCombat=lease.AllowCombat;brain.allowFollowing=lease.AllowFollowing;brain.allowScavenging=lease.AllowScavenging;}});
     Attempt(()=>{var body=actor.GetComponent<Rigidbody2D>();body.linearVelocity=Vector2.zero;body.simulated=lease.Simulated;if(!TileMover.CanOccupyBox(region,lease.Position,TileMover.GetMapClearanceExtents(body,.25f)))throw new InvalidOperationException("Owned actor return position blocked; left at current cleared floor");body.position=lease.Position;actor.transform.position=lease.Position;});
     // Keep one inert reusable binding per actor: destroying/readding during a same-frame Reset would lose the new binding at end of frame.
@@ -134,7 +173,7 @@ public sealed class CampFightPitLab:MonoBehaviour,ICombatSessionRules,ICombatCom
     foreach(var pair in lease.Enabled)if(pair.Key!=null)Attempt(()=>pair.Key.enabled=pair.Value);
     Attempt(()=>{var p=actor.GetComponent<GobboController>();if(p!=null){if(campaign!=GameState.Instance)throw new InvalidOperationException("Campaign identity changed; leader not overwritten");p.health=lease.Health;p.enabled=lease.PlayerEnabled;p.faceCursor=lease.FaceCursor;p.faceMovementWhenNotFacingCursor=lease.FaceMovement;}});
    }
-   Attempt(()=>{restorePlayerCombat?.Invoke();restorePlayerCombat=null;if(player!=null){player.enemyLayers=oldEnemyMask;player.followersFollowing=oldFollowing;player.followersAggressive=oldAggressive;}});
+   Attempt(()=>{if(leaderRestorable)restorePlayerCombat?.Invoke();restorePlayerCombat=null;if(leaderRestorable&&player!=null){player.enemyLayers=oldEnemyMask;player.followersFollowing=oldFollowing;player.followersAggressive=oldAggressive;}});
    Attempt(()=>{if(region!=null&&region.Presentation!=null)region.Presentation.EndStory(this);if(cameraAnchor!=null)Destroy(cameraAnchor);cameraAnchor=null;if(followAnchor!=null)Destroy(followAnchor);followAnchor=null;});
    if(routineLease)Attempt(()=>{if(routines!=null)routines.ResumeAfterCombat(this,region!=null&&region.isActiveAndEnabled&&campaign==GameState.Instance&&failures.Count==0);routineLease=false;});
    Physics2D.SyncTransforms();
@@ -162,7 +201,7 @@ public sealed class CampFightPitLab:MonoBehaviour,ICombatSessionRules,ICombatCom
 
  void Update()
  {
-  if(!Active)return;if(!Authorized||campaign!=GameState.Instance||DiggableTerrainService.Active!=region||player==null){StopSession("Ownership changed");return;}
+  if(!Active)return;if(!Authorized||campaign==null||campaign!=GameState.Instance||DiggableTerrainService.Active!=region||player==null){StopSession("Ownership changed");return;}
   if(Fighting&&fighters.Any(a=>a==null||!EnemyDamage.Alive(EnemyDamage.Resolve(a)))){StopSession("Actor removed or disabled");return;}
   if(Fighting&&Time.timeScale>0&&SporeInputReader.Instance?.Context==SporeInputContext.Gameplay)
    foreach(var actor in fighters){var p=region.LogicalPosition(actor.transform.position);if(!CampFightPitLayout.InnerCell((int)p.X,(int)p.Y)){Resolve("Fighter left the inner floor");break;}}

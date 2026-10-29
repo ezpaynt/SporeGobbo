@@ -13,10 +13,11 @@ using SporeGobbo.Safety;
 [DefaultExecutionOrder(32000)]
 public sealed class Stage61RuntimeMetrics : MonoBehaviour
 {
+    ProfilerRecorder physicsRecorder;string physicsMarker="unavailable";readonly List<string> physicsAvailability=new List<string>();
     const int MaximumFrames=72000;
     static Stage61RuntimeMetrics instance;
     static readonly string[] Names={
-        "Spore.Pit.Prepare","Spore.Pit.Cleanup","Spore.Pit.Presentation",
+        "Spore.Pit.Prepare","Spore.Pit.Cleanup","Spore.Pit.Presentation","Spore.AI.WeevilDecision","Spore.AI.BlobDecision","Spore.AI.BuddyDecision","Spore.AI.BuddyFollow",
         "Spore.Intro.Initialize","Spore.Intro.Sequence","Spore.Intro.TerrainPlacement","Spore.Intro.FallingRock","Spore.Intro.Discovery",
         "Spore.Region.Initialize","Spore.Region.Navigation","Spore.Region.Collision","Spore.Expedition.Discovery","Spore.Expedition.Landmarks",
         "Spore.AI.Weevil","Spore.AI.Blob","Spore.AI.BuddyCombat","Spore.AI.BuddyScavenger","Spore.Projectile.TerrainSweep",
@@ -34,7 +35,7 @@ public sealed class Stage61RuntimeMetrics : MonoBehaviour
         public float wall;
         public string phase,category,scene,region;
         public long mono,allocated,reserved,gcBytes,mainNs,waitNs,collectorNs,presentWaitNs,renderThreadWaitNs,playerLoopNs;
-        public ulong operationSamples;
+        public long physicsNs;public ulong operationSamples;
         public bool excluded;
     }
     // Operations are drained every completed frame, not retained in a shorter native ring.
@@ -70,6 +71,16 @@ public sealed class Stage61RuntimeMetrics : MonoBehaviour
         presentWaitRecorder=ProfilerRecorder.StartNew(ProfilerCategory.Render,"Gfx.WaitForPresentOnGfxThread",1,options);
         renderThreadWaitRecorder=ProfilerRecorder.StartNew(ProfilerCategory.Render,"Gfx.WaitForRenderThread",1,options);
         playerLoopRecorder=ProfilerRecorder.StartNew(ProfilerCategory.Internal,"PlayerLoop",1,options);
+        var available=new List<Unity.Profiling.LowLevel.Unsafe.ProfilerRecorderHandle>();
+        Unity.Profiling.LowLevel.Unsafe.ProfilerRecorderHandle.GetAvailable(available);
+        foreach(var handle in available)
+        {
+            var d=Unity.Profiling.LowLevel.Unsafe.ProfilerRecorderHandle.GetDescription(handle);
+            if(d.Name.IndexOf("Physics2D",StringComparison.OrdinalIgnoreCase)<0)continue;
+            physicsAvailability.Add(d.Name+","+d.Category.Name+","+d.UnitType);
+            if(d.Name=="Physics2D.Simulate"){physicsMarker=d.Name;physicsRecorder=ProfilerRecorder.StartNew(d.Category,d.Name,2,options);}
+        }
+
         SetScene(SceneManager.GetActiveScene());completedScene=scene;completedRegion=region;
         SceneManager.activeSceneChanged+=SceneChanged;Application.logMessageReceived+=Observe;
         CampaignSnapshotStorage.BeginTimingCapture();
@@ -97,7 +108,7 @@ public sealed class Stage61RuntimeMetrics : MonoBehaviour
         if(count>=frames.Length){droppedFrames++;return;}
         if(count%60==0){mono=Profiler.GetMonoUsedSizeLong();allocated=Profiler.GetTotalAllocatedMemoryLong();reserved=Profiler.GetTotalReservedMemoryLong();}
         int counterFrame=Time.frameCount-1;
-        var f=new Frame{index=Time.frameCount,counterFrame=counterFrame,wall=Time.unscaledDeltaTime*1000,phase=completedPhase,category=completedCategory,scene=completedScene,region=completedRegion,mono=mono,allocated=allocated,reserved=reserved,gcBytes=Last(gcRecorder),mainNs=Last(mainRecorder),waitNs=Last(waitRecorder),presentWaitNs=Last(presentWaitRecorder),renderThreadWaitNs=Last(renderThreadWaitRecorder),playerLoopNs=Last(playerLoopRecorder),gc0=GC.CollectionCount(0),gc1=GC.CollectionCount(1),gc2=GC.CollectionCount(2),excluded=counterFrame<=excludeThroughFrame};
+        var f=new Frame{index=Time.frameCount,counterFrame=counterFrame,wall=Time.unscaledDeltaTime*1000,phase=completedPhase,category=completedCategory,scene=completedScene,region=completedRegion,mono=mono,allocated=allocated,reserved=reserved,gcBytes=Last(gcRecorder),mainNs=Last(mainRecorder),waitNs=Last(waitRecorder),presentWaitNs=Last(presentWaitRecorder),renderThreadWaitNs=Last(renderThreadWaitRecorder),playerLoopNs=Last(playerLoopRecorder),physicsNs=Last(physicsRecorder),gc0=GC.CollectionCount(0),gc1=GC.CollectionCount(1),gc2=GC.CollectionCount(2),excluded=counterFrame<=excludeThroughFrame};
         for(int i=0;i<recorders.Length;i++)
         {
             var recorder=recorders[i];int n=count*Names.Length+i;
@@ -123,6 +134,9 @@ public sealed class Stage61RuntimeMetrics : MonoBehaviour
             file.WriteLine("frame,counterFrame,scene,region,phase,category,excluded,operationSamplesMask,collectorNs,gc0Delta,gc1Delta,gc2Delta,presentWaitNs,presentWaitAvailable,renderThreadWaitNs,renderThreadWaitAvailable,playerLoopNs,playerLoopAvailable");
             for(int i=0;i<count;i++){var f=frames[i];var prior=i>0?frames[i-1]:f;file.WriteLine(f.index+","+f.counterFrame+","+Csv(f.scene)+","+Csv(f.region)+","+Csv(f.phase)+","+Csv(f.category)+","+(f.excluded?1:0)+","+f.operationSamples.ToString("X16",CultureInfo.InvariantCulture)+","+f.collectorNs+","+(f.gc0-prior.gc0)+","+(f.gc1-prior.gc1)+","+(f.gc2-prior.gc2)+","+f.presentWaitNs+","+(f.presentWaitNs>=0?1:0)+","+f.renderThreadWaitNs+","+(f.renderThreadWaitNs>=0?1:0)+","+f.playerLoopNs+","+(f.playerLoopNs>=0?1:0));}
         }
+        using(var file=new StreamWriter(Path.Combine(directory,"frame-physics2d.csv")))
+        {file.WriteLine("frame,counterFrame,marker,available,inclusiveNanoseconds");for(int i=0;i<count;i++){var f=frames[i];file.WriteLine(f.index+","+f.counterFrame+","+physicsMarker+","+(f.physicsNs>=0?1:0)+","+f.physicsNs);}}
+        File.WriteAllLines(Path.Combine(directory,"physics2d-availability.csv"),physicsAvailability);
         using(var file=new StreamWriter(Path.Combine(directory,"frame-profiler-counters.csv")))
         {
             file.WriteLine("name,requestedCategory,registeredAtExport,unit");
@@ -156,6 +170,6 @@ public sealed class Stage61RuntimeMetrics : MonoBehaviour
     }
     void OnApplicationQuit()=>Export();
     static void CounterMetadata(TextWriter file,string name,string requested,ProfilerRecorder recorder){file.WriteLine(name+","+requested+","+(recorder.Valid?1:0)+","+(recorder.Valid?recorder.UnitType.ToString():"unavailable"));}
-    void OnDestroy(){Export();SceneManager.activeSceneChanged-=SceneChanged;Application.logMessageReceived-=Observe;if(recorders!=null)for(int i=0;i<recorders.Length;i++)recorders[i].Dispose();gcRecorder.Dispose();mainRecorder.Dispose();waitRecorder.Dispose();presentWaitRecorder.Dispose();renderThreadWaitRecorder.Dispose();playerLoopRecorder.Dispose();CampaignSnapshotStorage.TimingEnabled=false;if(instance==this)instance=null;}
+    void OnDestroy(){Export();SceneManager.activeSceneChanged-=SceneChanged;Application.logMessageReceived-=Observe;if(recorders!=null)for(int i=0;i<recorders.Length;i++)recorders[i].Dispose();gcRecorder.Dispose();mainRecorder.Dispose();waitRecorder.Dispose();presentWaitRecorder.Dispose();renderThreadWaitRecorder.Dispose();playerLoopRecorder.Dispose();if(physicsRecorder.Valid)physicsRecorder.Dispose();CampaignSnapshotStorage.TimingEnabled=false;if(instance==this)instance=null;}
 }
 #endif

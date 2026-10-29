@@ -32,6 +32,7 @@ public class BuddyCombat : MonoBehaviour
     public float repathDistance = 0.8f;
     public float waypointReachDistance = 0.75f;
 
+    private readonly List<Collider2D> contactSource=new List<Collider2D>(),contactTarget=new List<Collider2D>();
     private Rigidbody2D rb;
     private Transform player;
     private Transform currentTarget;
@@ -63,6 +64,7 @@ public class BuddyCombat : MonoBehaviour
 
     void Update()
     {
+        using var decisionProfile=new Unity.Profiling.ProfilerMarker("Spore.AI.BuddyDecision").Auto();
         attackTimer -= Time.deltaTime;
         FindPlayerIfMissing();
 
@@ -95,8 +97,7 @@ public class BuddyCombat : MonoBehaviour
             return;
         }
 
-        float distanceToTarget = Vector2.Distance(transform.position, currentTarget.position);
-        if (distanceToTarget > attackRange) MoveTowardTarget();
+        if (!IsInAttackRange()) MoveTowardTarget();
         else TryAttack();
     }
 
@@ -243,10 +244,31 @@ public class BuddyCombat : MonoBehaviour
         }
     }
 
+    // Preserve nominal centre reach. Larger physical bodies must also be able to bite
+    // at contact; sensors, nested actors and detached bodies cannot extend that reach.
+    bool IsInAttackRange()
+    {
+        if(currentTarget==null)return false;
+        if(Vector2.Distance(transform.position,currentTarget.position)<=attackRange)return true;
+        var owner=EnemyDamage.Resolve(currentTarget.gameObject);if(owner==null)return false;
+        GetComponentsInChildren<Collider2D>(false,contactSource);owner.GetComponentsInChildren<Collider2D>(false,contactTarget);
+        var targetBody=owner.GetComponent<Rigidbody2D>();float tolerance=Physics2D.defaultContactOffset*2f+.001f;
+        foreach(var a in contactSource)
+        {
+            if(!a.enabled||a.isTrigger||a.attachedRigidbody!=rb||EnemyDamage.Resolve(a.gameObject)?.gameObject!=gameObject)continue;
+            foreach(var b in contactTarget)
+            {
+                if(!b.enabled||b.isTrigger||b.attachedRigidbody!=targetBody||EnemyDamage.Resolve(b.gameObject)!=owner)continue;
+                var distance=a.Distance(b);if(distance.isValid&&distance.distance<=tolerance)return true;
+            }
+        }
+        return false;
+    }
+
     void TryAttack()
     {
         rb.linearVelocity = Vector2.zero;
-        if (!AllowedToFight()||attackTimer > 0f || currentTarget == null||!IsStillValidTarget(currentTarget)) return;
+        if (!AllowedToFight()||attackTimer > 0f || currentTarget == null||!IsStillValidTarget(currentTarget)||!IsInAttackRange()) return;
         if (!RegionQueries.Sight(gameObject,rb.position, currentTarget.position)) return;
 
         attackTimer = attackCooldown;

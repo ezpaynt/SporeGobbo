@@ -141,6 +141,15 @@ public sealed class SporeUiCoordinator : MonoBehaviour
 
     public static SporeUiCoordinator Instance => EnsureInstance();
     public static bool HasModal => instance != null && instance.modals.Count > 0;
+    // Query the existing modal ownership; a permitted development hub does not
+    // authorize preemption of any other UI owner underneath it.
+    public bool HasModalOtherThan(UnityEngine.Object permitted)
+    {
+        foreach(var registration in modals)
+            if(registration.Owner==null||registration.Owner!=permitted)return true;
+        return false;
+    }
+
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Bootstrap() => EnsureInstance();
