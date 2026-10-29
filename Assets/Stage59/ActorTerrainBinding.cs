@@ -21,6 +21,8 @@ public sealed class ActorTerrainBinding : MonoBehaviour
     public Func<int,bool> AcceptCachedRoute;
     public Func<int,Vector2,Vector2,ActorRouteResult> RequestProbe;
     public Func<int,Vector2,Vector2,bool,Vector2> ChooseDestination;
+    public Func<bool> HasMovementDestination;
+    public bool MovementDestinationAvailable=>HasMovementDestination?.Invoke()??true;
     public GridRouteStatus ProbeStatus {get;private set;}=GridRouteStatus.Canceled;
     public Vector2 CurrentMovementGoal {get;private set;}
     public Vector2 MovementGoal(int key,Vector2 center,Vector2 targetExtents,bool contact=false){CurrentMovementGoal=ChooseDestination?.Invoke(key,center,targetExtents,contact)??center;return CurrentMovementGoal;}
@@ -33,10 +35,12 @@ public sealed class ActorTerrainBinding : MonoBehaviour
     }
 
     public Action CancelRoute;
+    public Action CancelMovementRoute;
     public GridRouteStatus RouteStatus {get;private set;}=GridRouteStatus.Canceled;
     public float LastRouteDistance {get;private set;}
     public bool AcceptsMovementRoute(int revision)=>Terrain!=null&&(Ready==null||Ready())&&(AcceptCachedRoute?.Invoke(revision)??revision==Revision);
     public void CancelNavigation(){CancelRoute?.Invoke();RouteStatus=ProbeStatus=GridRouteStatus.Canceled;}
+    public void CancelMovementNavigation(){CancelMovementRoute?.Invoke();RouteStatus=GridRouteStatus.Canceled;}
 
     public Func<Vector2,Vector2> PointerToWorld;
     public int DigAttempts {get;private set;}
@@ -85,5 +89,5 @@ public sealed class ActorTerrainBinding : MonoBehaviour
         public void Dispose(){if(active)UnityEngine.Profiling.Profiler.EndSample();}
     }
     void OnDisable()=>CancelNavigation();
-    void OnDestroy(){CancelNavigation();RequestRoute=null;RequestProbe=null;ChooseDestination=null;AcceptCachedRoute=null;CancelRoute=null;Terrain=null;Ready=null;ReadRevision=null;FindRoute=null;PointerToWorld=null;}
+    void OnDestroy(){CancelNavigation();RequestRoute=null;RequestProbe=null;ChooseDestination=null;HasMovementDestination=null;AcceptCachedRoute=null;CancelRoute=null;CancelMovementRoute=null;Terrain=null;Ready=null;ReadRevision=null;FindRoute=null;PointerToWorld=null;}
 }

@@ -77,7 +77,7 @@ public class BuddyBrain : MonoBehaviour
 
     void UpdateTaskPermissions()
     {
-        if(!SquadAuthorized||!CombatSessionBinding.AllowsActions(gameObject)){SuspendCommandMotion();currentTask="Idle";return;}
+        if(!SquadAuthorized||!CombatSessionBinding.AllowsActions(gameObject)){SuspendCommandMotion();SetTask("Idle");return;}
         bool canCombat = CombatPermitted && combat != null && combat.enabled && combat.WantsControl();
         bool canScavenge = allowScavenging && scavenger != null && scavenger.enabled && scavenger.WantsControl();
         bool canFollow = allowFollowing && follow != null && follow.enabled;
@@ -85,27 +85,34 @@ public class BuddyBrain : MonoBehaviour
         // Priority: Combat > Scavenge > Follow.
         if (canCombat)
         {
-            currentTask = "Combat";
+            SetTask("Combat");
             SetMovementPermissions(false, true, false);
             return;
         }
 
         if (canScavenge)
         {
-            currentTask = "Scavenge";
+            SetTask("Scavenge");
             SetMovementPermissions(false, false, true);
             return;
         }
 
         if (canFollow)
         {
-            currentTask = "Follow";
+            SetTask("Follow");
             SetMovementPermissions(true, false, false);
             return;
         }
 
-        currentTask = "Idle";
+        SetTask("Idle");
         SetMovementPermissions(false, false, false);
+    }
+
+    void SetTask(string task)
+    {
+        if(currentTask==task)return;
+        GetComponent<ActorTerrainBinding>()?.CancelNavigation();ActorMotionIntent.Cancel(gameObject);
+        combat?.InvalidateReachability();scavenger?.InvalidateReachability();currentTask=task;
     }
 
     void SetMovementPermissions(bool followCanMove, bool combatCanMove, bool scavengerCanMove)

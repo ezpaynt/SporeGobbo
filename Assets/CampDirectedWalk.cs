@@ -22,6 +22,8 @@ public class CampDirectedWalk : MonoBehaviour
     public float reachDistance = 0.18f;
     public bool destroyWhenDone = true;
     public bool enableWanderWhenDone = true;
+    // Gathering may choose a nearby standing place. Construction waypoints remain exact.
+    public bool useArrivalSlot;
 
     private Rigidbody2D rb;
     private BuddyDirectionalSprite directionalSprite;
@@ -29,7 +31,10 @@ public class CampDirectedWalk : MonoBehaviour
     private CampWander wander;
     private bool activeWalk = false;
     private float elapsed;
+    private float friendlyWait;
+    private double initialFriendlyDelay;
     private float timeout;
+    private int budgetedPublication;
     public float TimeoutSeconds => timeout;
     public float PlannedRouteDistance { get; private set; }
     private float noProgressElapsed;
@@ -67,7 +72,8 @@ public class CampDirectedWalk : MonoBehaviour
     {
         if(rb==null)CachePhysicsReferences();
         RestoreBuddyCollisions();
-        regionRoute.Reset();
+        GetComponent<ActorTerrainBinding>()?.CancelNavigation();ActorMotionIntent.Cancel(gameObject);
+        regionRoute.Reset();budgetedPublication=0;
         target = newTarget;
         moveSpeed = Mathf.Max(0.2f, speed);
         if (arrivalDistance >= 0f) reachDistance = Mathf.Max(0.01f, arrivalDistance);
@@ -82,7 +88,7 @@ public class CampDirectedWalk : MonoBehaviour
             // A winding cave route takes longer than its straight-line displacement.
             timeout=Mathf.Max(timeout,SporeGobbo.CampLifecycle.CampBuddyPhysicalPolicy.GetDirectedWalkTimeout(length,moveSpeed,0));
         }
-        elapsed = 0f;
+        elapsed = 0f;friendlyWait=0;initialFriendlyDelay=GetComponent<ActorMotionIntent>()?.FriendlyDelaySeconds??0;
         noProgressElapsed = 0f;
         BlockingColliderDescription = "none detected";
         lastPhysicsPosition = PhysicsPosition;
@@ -110,9 +116,14 @@ public class CampDirectedWalk : MonoBehaviour
         var binding=GetComponent<ActorTerrainBinding>();
         if(binding!=null && (binding.Ready!=null&&!binding.Ready() || SporeGobbo.Input.SporeInputReader.Instance==null || SporeGobbo.Input.SporeInputReader.Instance.Context!=SporeGobbo.Input.SporeInputContext.Gameplay)){rb.linearVelocity=Vector2.zero;return;}
         elapsed += Time.fixedDeltaTime;
+        friendlyWait=(float)System.Math.Max(0,(GetComponent<ActorMotionIntent>()?.FriendlyDelaySeconds??0)-initialFriendlyDelay);
         Vector2 physicsPosition = rb.position;
-        Vector2 toTarget = (Vector2)target.position - physicsPosition;
-        if (toTarget.magnitude <= EffectiveReachDistance)
+        Vector2 destination=target.position;
+        bool destinationAvailable=true;
+        if(useArrivalSlot&&binding!=null&&binding.ChooseDestination!=null)
+        {destination=binding.MovementGoal(target.GetInstanceID(),destination,Vector2.zero);destinationAvailable=binding.MovementDestinationAvailable;}
+        Vector2 toTarget = destination - physicsPosition;
+        if (destinationAvailable&&toTarget.magnitude <= EffectiveReachDistance)
         {
             Finish(CampDirectedWalkResult.Arrived);
             return;
@@ -122,31 +133,48 @@ public class CampDirectedWalk : MonoBehaviour
         else
             noProgressElapsed += Time.fixedDeltaTime;
         lastPhysicsPosition = physicsPosition;
-        if (elapsed >= timeout)
-        {
-            Finish(CampDirectedWalkResult.TimedOut);
-            return;
-        }
+        if(!destinationAvailable){noProgressElapsed=0;rb.linearVelocity=Vector2.zero;if(WalkDeadlineExpired(elapsed,timeout,friendlyWait)){BlockingColliderDescription="No standing destination became available before finite deadline";Finish(CampDirectedWalkResult.TimedOut);}return;}
         if (noProgressElapsed >= 0.5f && !(GetComponent<ActorMotionIntent>()?.WaitingForFriendlySpace??false) && !(binding!=null&&binding.RouteStatus==SporeGobbo.Geometry.GridRouteStatus.Pending))
         {
-            BlockingColliderDescription = DescribePhysicalBlocker(toTarget);
+            BlockingColliderDescription = "no-progress routeStatus="+binding?.RouteStatus+" standingGoal="+destination+" target="+target.position+" currentTask="+GetComponent<ActorMotionIntent>()?.ActiveTaskName+" requested="+GetComponent<ActorMotionIntent>()?.RequestedVelocity+" applications="+GetComponent<ActorMotionIntent>()?.Applications+" "+DescribePhysicalBlocker(toTarget);
             Finish(CampDirectedWalkResult.Blocked);
             return;
         }
 
-        if(!regionRoute.Direction(binding,physicsPosition,target.position,out Vector2 moveDir,moveSpeed*Time.fixedDeltaTime)){rb.linearVelocity=Vector2.zero;if(binding!=null&&binding.RouteStatus==SporeGobbo.Geometry.GridRouteStatus.Pending){noProgressElapsed=0;return;}Finish(CampDirectedWalkResult.Blocked);return;}
-        if(binding!=null&&binding.LastRouteDistance>0)
-        {PlannedRouteDistance=Mathf.Max(PlannedRouteDistance,binding.LastRouteDistance);timeout=Mathf.Max(timeout,SporeGobbo.CampLifecycle.CampBuddyPhysicalPolicy.GetDirectedWalkTimeout(PlannedRouteDistance,moveSpeed,0));}
+        bool hasDirection=regionRoute.Direction(binding,physicsPosition,destination,out Vector2 moveDir,moveSpeed*Time.fixedDeltaTime);
+        // A queued publication describes the remaining path from its request position,
+        // not a total distance from BeginWalk. Give that path its finite travel budget
+        // when first received; never renew the deadline merely by following it.
+        if(regionRoute.Publication!=budgetedPublication)
+        {
+            budgetedPublication=regionRoute.Publication;
+            PlannedRouteDistance=Mathf.Max(PlannedRouteDistance,regionRoute.PublishedDistance);
+            timeout=Mathf.Max(timeout,elapsed+SporeGobbo.CampLifecycle.CampBuddyPhysicalPolicy.GetDirectedWalkTimeout(regionRoute.PublishedDistance,moveSpeed,0));
+        }
+        if (WalkDeadlineExpired(elapsed,timeout,friendlyWait))
+        {
+            BlockingColliderDescription=DescribePhysicalBlocker(toTarget)+" target="+target.position+" standingGoal="+destination+" directTerrainClear="+(binding?.Sight(physicsPosition,destination)) +" destinationAvailable="+destinationAvailable+" routePublication="+regionRoute.Publication+" publishedDistance="+regionRoute.PublishedDistance+" plannedDistance="+PlannedRouteDistance+" elapsed="+elapsed+" timeout="+timeout+" friendlyWait="+friendlyWait;
+            Finish(CampDirectedWalkResult.TimedOut);
+            return;
+        }
+        if(!hasDirection){rb.linearVelocity=Vector2.zero;if(binding!=null&&binding.RouteStatus==SporeGobbo.Geometry.GridRouteStatus.Pending){noProgressElapsed=0;return;}BlockingColliderDescription="route request failed status="+binding?.RouteStatus+" standingGoal="+destination+" target="+target.position+" "+DescribePhysicalBlocker(toTarget);Finish(CampDirectedWalkResult.Blocked);return;}
         ActorMotionIntent.Submit(this,rb,moveDir*moveSpeed,bodyRadius,50);
 
         SetVisualState(GobboAnimationState.Walk, moveDir);
     }
+
+    // Waiting caused by firm friendly collision consumes a separate bounded
+    // allowance. Its cap equals one travel budget, so even perpetual crowding
+    // cannot extend a finite directed walk indefinitely.
+    public static bool WalkDeadlineExpired(float elapsed,float travelBudget,float observedFriendlyWait)
+        =>elapsed>=travelBudget+Mathf.Min(Mathf.Max(0,observedFriendlyWait),travelBudget);
 
     void Finish(CampDirectedWalkResult result)
     {
         ActorMotionIntent.Cancel(gameObject);GetComponent<ActorTerrainBinding>()?.CancelNavigation();
         if (rb != null) rb.linearVelocity = Vector2.zero;
         activeWalk = false;
+        useArrivalSlot=false;
         Result = result;
         RestoreBuddyCollisions();
         SetVisualState(GobboAnimationState.Idle, Vector2.zero);
@@ -197,8 +225,11 @@ public class CampDirectedWalk : MonoBehaviour
             bodyCollider.bounds.size * 0.98f, 0f, direction, 0.08f, Physics2D.AllLayers);
         foreach (RaycastHit2D hit in hits)
             if (hit.collider != null && hit.collider != bodyCollider && !hit.collider.isTrigger && !Physics2D.GetIgnoreCollision(bodyCollider,hit.collider))
+            {
+                var other=hit.collider.attachedRigidbody;var motion=other!=null?other.GetComponent<ActorMotionIntent>():null;
                 return hit.collider.name + " layer=" + LayerMask.LayerToName(hit.collider.gameObject.layer) +
-                       " point=" + hit.point + " normal=" + hit.normal + context;
+                       " point=" + hit.point + " normal=" + hit.normal + " otherPosition="+other?.position+" otherVelocity="+other?.linearVelocity+" otherTask="+motion?.ActiveTaskName+" otherRequested="+motion?.RequestedVelocity+" otherGoal="+other?.GetComponent<ActorTerrainBinding>()?.CurrentMovementGoal+context;
+            }
         return "no non-trigger non-ignored collider found by body sweep"+context;
     }
 

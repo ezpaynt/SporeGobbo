@@ -15,53 +15,75 @@ public sealed class RegionMovementSlots : IDisposable
     }
     readonly IDiggableTerrain terrain;
     readonly Dictionary<int,Lease> leases=new Dictionary<int,Lease>();
+    readonly Collider2D[] occupants=new Collider2D[32];
     public int Count=>leases.Count;
+    public bool HasDestination(ActorTerrainBinding actor)=>actor!=null&&leases.ContainsKey(actor.GetInstanceID());
     public RegionMovementSlots(IDiggableTerrain terrain){this.terrain=terrain;}
     public Vector2 Choose(ActorTerrainBinding actor,int key,Vector2 center,Vector2 targetExtents,bool contact=false)
     {
         var body=actor.GetComponent<Rigidbody2D>();if(body==null)return center;
         Vector2 extents=TileMover.GetMapClearanceExtents(body,actor.MinimumBodyRadius);
+        bool pointDestination=!contact&&targetExtents.sqrMagnitude<.000001f;
         int id=actor.GetInstanceID();
         if(leases.TryGetValue(id,out var old)&&old.Key==key&&old.Contact==contact&&(old.Extents-extents).sqrMagnitude<.000001f&&(old.TargetExtents-targetExtents).sqrMagnitude<.000001f)
         {
             Vector2 translated=old.Point+center-old.Center;
-            if(actor.RouteStatus!=SporeGobbo.Geometry.GridRouteStatus.Unreachable&&Free(id,key,contact,translated,extents))
+            if(actor.RouteStatus!=SporeGobbo.Geometry.GridRouteStatus.Unreachable&&(!pointDestination||TileMover.CanTraverseBox(terrain,center,translated,extents))&&Free(id,key,contact,translated,extents))
             {old.Center=center;old.Point=translated;old.Until=Time.time+2;return translated;}
         }
         float best=float.PositiveInfinity;Vector2 chosen=body.position;int selected=-1;
-        bool pointDestination=!contact&&targetExtents.sqrMagnitude<.000001f;
-        if(pointDestination&&Free(id,key,contact,center,extents))
-        {leases[id]=new Lease{Key=key,Index=8,Contact=false,Center=center,Point=center,Extents=extents,TargetExtents=targetExtents,Until=Time.time+2};return center;}
+        if(pointDestination&&Free(id,key,contact,center,extents,body))
+        {leases[id]=new Lease{Key=key,Index=24,Contact=false,Center=center,Point=center,Extents=extents,TargetExtents=targetExtents,Until=Time.time+2};return center;}
         Vector2 centreBody=targetExtents;
         if(pointDestination)
         {
             centreBody=extents;
-            foreach(var pair in leases)if(pair.Key!=id&&pair.Value.Key==key&&pair.Value.Index==8&&pair.Value.Until>=Time.time){centreBody=pair.Value.Extents;break;}
+            foreach(var pair in leases)if(pair.Key!=id&&pair.Value.Key==key&&pair.Value.Index==24&&pair.Value.Until>=Time.time){centreBody=pair.Value.Extents;break;}
+            int count=Physics2D.OverlapBoxNonAlloc(center,extents*2+Vector2.one*.04f,0,occupants);
+            for(int i=0;i<count;i++)
+            {
+                var c=occupants[i];var other=c!=null&&!c.isTrigger?c.attachedRigidbody:null;
+                if(other==null||other==body||other.bodyType==RigidbodyType2D.Static)continue;
+                var delta=(Vector2)c.bounds.center-center;var occupied=(Vector2)c.bounds.extents+new Vector2(Mathf.Abs(delta.x),Mathf.Abs(delta.y));
+                centreBody=Vector2.Max(centreBody,occupied);
+            }
         }
         int start=(id&int.MaxValue)%8;
-        for(int n=0;n<8;n++)
+        for(int n=0;n<(pointDestination?24:8);n++)
         {
-            int index=(start+n)%8;
+            int ring=n/8;int directionIndex=(start+n)%8;int index=ring*8+directionIndex;
             // A diagonal AABB corner is not contact with a rounded body. Conservative
             // cardinal approaches preserve the real collider contact/attack contract.
             if(contact&&(index&1)!=0)continue;
             if(old!=null&&actor.RouteStatus==SporeGobbo.Geometry.GridRouteStatus.Unreachable&&old.Key==key&&index==old.Index)continue;
-            float angle=index*Mathf.PI*.25f;Vector2 direction=new Vector2(Mathf.Cos(angle),Mathf.Sin(angle));
+            float angle=directionIndex*Mathf.PI*.25f;Vector2 direction=new Vector2(Mathf.Cos(angle),Mathf.Sin(angle));
             // Contact-adjacent position only; the existing melee checks still authorize hits.
             Vector2 combined=centreBody+extents+Vector2.one*(pointDestination ? .05f : .01f);
             float distance=Mathf.Min(Mathf.Abs(direction.x)>.001f?combined.x/Mathf.Abs(direction.x):float.PositiveInfinity,Mathf.Abs(direction.y)>.001f?combined.y/Mathf.Abs(direction.y):float.PositiveInfinity);
+            if(pointDestination)distance+=ring*(2*Mathf.Max(extents.x,extents.y)+.08f);
             Vector2 point=center+direction*distance;
             var brain=actor.GetComponent<BuddyBrain>();if(brain!=null&&!brain.AllowsDestination(point))continue;
-            if(!Free(id,key,contact,point,extents))continue;
+            if(pointDestination&&!TileMover.CanTraverseBox(terrain,center,point,extents))continue;
+            if(!Free(id,key,contact,point,extents,pointDestination?body:null))continue;
             float cost=(point-body.position).sqrMagnitude;
             if(cost<best){best=cost;chosen=point;selected=index;}
         }
         if(selected<0){Release(actor);return body.position;}
         leases[id]=new Lease{Key=key,Index=selected,Contact=contact,Center=center,Point=chosen,Extents=extents,TargetExtents=targetExtents,Until=Time.time+2};return chosen;
     }
-    bool Free(int actor,int key,bool contact,Vector2 point,Vector2 extents)
+    bool Free(int actor,int key,bool contact,Vector2 point,Vector2 extents,Rigidbody2D body=null)
     {
         if(!TileMover.CanOccupyBox(terrain,point,extents))return false;
+        if(body!=null)
+        {
+            int count=Physics2D.OverlapBoxNonAlloc(point,extents*2+Vector2.one*.04f,0,occupants);
+            if(count==occupants.Length)return false;
+            for(int i=0;i<count;i++)
+            {
+                var c=occupants[i];var other=c!=null&&!c.isTrigger?c.attachedRigidbody:null;
+                if(other!=null&&other!=body&&other.bodyType!=RigidbodyType2D.Static)return false;
+            }
+        }
         foreach(var pair in leases)
         {
             if(pair.Key==actor||pair.Value.Until<Time.time)continue;

@@ -13,7 +13,9 @@ public sealed class RegionTerrainPhysics:IDisposable
   binding.AcceptCachedRoute=revision=>navigation.Accepts(binding,revision);
   binding.RequestProbe=(key,from,goal)=>{var status=navigation.RequestPath(binding,from,goal,TileMover.GetMapClearanceExtents(binding.GetComponent<Rigidbody2D>(),binding.MinimumBodyRadius),out var path,key);return new ActorRouteResult(status,path,navigation.RouteRevision(binding,key));};
   binding.ChooseDestination=(key,center,size,contact)=>slots.Choose(binding,key,center,size,contact);
+  binding.HasMovementDestination=()=>slots.HasDestination(binding);
   binding.CancelRoute=()=>{navigation.CancelAll(binding);slots.Release(binding);};
+  binding.CancelMovementRoute=()=>navigation.Cancel(binding);
  }
  readonly HashSet<DualTile> dirty=new HashSet<DualTile>();
  public int PatchCount=>patches.Count;public int RejectedRoutes{get;private set;}

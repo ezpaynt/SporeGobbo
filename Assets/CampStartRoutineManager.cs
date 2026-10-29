@@ -299,7 +299,7 @@ public class CampStartRoutineManager : MonoBehaviour
                     {
                         var arrivalMove = new FirstHomeMoveOperation();
                         fireArrivals.Add(arrivalMove);
-                        StartCoroutine(MoveFirstHomeBuddy(buddy, GetFireWaitingPoint(fireIndex++).position, arrivalMove));
+                        StartCoroutine(MoveFirstHomeBuddy(buddy, GetFireWaitingPoint(fireIndex++).position, arrivalMove,true));
                     }
                 foreach (var arrivalMove in fireArrivals)
                 {
@@ -474,7 +474,7 @@ public class CampStartRoutineManager : MonoBehaviour
         operation.Complete = true;
     }
 
-    IEnumerator MoveFirstHomeBuddy(BuddyUnit buddy, Vector2 worldTarget, FirstHomeMoveOperation operation)
+    IEnumerator MoveFirstHomeBuddy(BuddyUnit buddy, Vector2 worldTarget, FirstHomeMoveOperation operation,bool gathering=false)
     {
         GameObject targetObject = CreateTransientTarget("FirstHomeMoveTarget_RUNTIME");
         targetObject.transform.position = worldTarget;
@@ -492,14 +492,17 @@ public class CampStartRoutineManager : MonoBehaviour
         if (wander != null) wander.enabled = false;
         walker.destroyWhenDone = false;
         walker.enableWanderWhenDone = false;
-        walker.bodyRadius = TileMover.GetColliderBodyRadius(body, walker.bodyRadius);
+        walker.useArrivalSlot=gathering;
+        // New bindings retain rectangular physical extents; legacy walking keeps its policy.
+        if(buddy.GetComponent<ActorTerrainBinding>()?.RequestRoute==null)
+            walker.bodyRadius = TileMover.GetColliderBodyRadius(body, walker.bodyRadius);
         float speed = GetFirstHomeSpeed(buddy);
         float distance = Vector2.Distance(body.position, worldTarget);
         walker.BeginWalk(targetObject.transform, speed, 0.18f,
             CampBuddyPhysicalPolicy.GetDirectedWalkTimeout(distance, speed, constructionMoveTimeout));
         while (buddy != null && walker.IsWalking) yield return null;
         operation.Succeeded = buddy != null && walker.Result == CampDirectedWalkResult.Arrived;
-        operation.Failure = buddy != null ? walker.Result + " / " + walker.BlockingColliderDescription : "Buddy destroyed";
+        operation.Failure = buddy != null ? buddy.unitData?.uniqueId+" / "+walker.Result + " / " + walker.BlockingColliderDescription : "Buddy destroyed";
         operation.Complete = true;
         DestroyTransientTarget(targetObject);
     }
@@ -988,7 +991,9 @@ public class CampStartRoutineManager : MonoBehaviour
         if (walker == null) walker = buddy.gameObject.AddComponent<CampDirectedWalk>();
         walker.destroyWhenDone = false;
         walker.enableWanderWhenDone = false;
-        walker.bodyRadius = TileMover.GetColliderBodyRadius(body, walker.bodyRadius);
+        walker.useArrivalSlot=false;
+        if(buddy.GetComponent<ActorTerrainBinding>()?.RequestRoute==null)
+            walker.bodyRadius = TileMover.GetColliderBodyRadius(body, walker.bodyRadius);
         float speed = GetFirstHomeSpeed(buddy);
         float distance = Vector2.Distance(GetMovementPosition(body, buddy), target.position);
         float timeout = CampBuddyPhysicalPolicy.GetDirectedWalkTimeout(distance, speed, constructionMoveTimeout);
@@ -1215,6 +1220,7 @@ public class CampStartRoutineManager : MonoBehaviour
             if (walker == null) walker = buddy.gameObject.AddComponent<CampDirectedWalk>();
             walker.destroyWhenDone = false;
             walker.enableWanderWhenDone = false;
+            walker.useArrivalSlot=true;
             walker.BeginWalk(GetFireWaitingPoint(i), GetCampSpeed(buddy));
         }
     }
