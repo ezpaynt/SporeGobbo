@@ -49,6 +49,8 @@ public class BuddyFollow : MonoBehaviour
 
     private List<Vector2> currentPath = new List<Vector2>();
     private int pathIndex = 0;
+    public int RouteNodeCount=>currentPath.Count;
+    public Vector2 RouteWaypoint=>pathIndex>=0&&pathIndex<currentPath.Count?currentPath[pathIndex]:rb!=null?rb.position:(Vector2)transform.position;
     private float repathTimer = 0f;
     private Vector2 lastPathGoal;
 
@@ -111,7 +113,12 @@ public class BuddyFollow : MonoBehaviour
         var brain=GetComponent<BuddyBrain>();
         Vector2 targetPosition = brain!=null&&brain.SquadScoped&&!brain.Following?brain.StayAnchor:(Vector2)player.position + formationOffset * offsetStrength;
 
-        if (Vector2.Distance(rb.position, targetPosition) <= stopDistance)
+        var terrainBinding=GetComponent<ActorTerrainBinding>();
+        bool pointDestination=false;
+        if(terrainBinding!=null&&terrainBinding.ChooseDestination!=null)
+        {bool staying=brain!=null&&brain.SquadScoped&&!brain.Following;var targetBody=staying?null:player.GetComponent<Rigidbody2D>();pointDestination=targetBody==null;targetPosition=terrainBinding.MovementGoal(staying?0:player.GetInstanceID(),targetPosition,pointDestination?Vector2.zero:TileMover.GetMapClearanceExtents(targetBody,.25f));}
+        float destinationTolerance=pointDestination?Mathf.Min(stopDistance,terrainBinding.Terrain.CellSize*.12f):stopDistance;
+        if (Vector2.Distance(rb.position, targetPosition) <= destinationTolerance)
         {
             rb.linearVelocity = Vector2.zero;
             ClearPath();
@@ -122,11 +129,11 @@ public class BuddyFollow : MonoBehaviour
         CheckIfStuck(distanceToPlayer);
 
         Vector2 moveDir = GetFollowDirection(targetPosition);
-        moveDir = ApplyGobboDance(moveDir, targetPosition);
+        if(binding==null||binding.RequestRoute==null)moveDir = ApplyGobboDance(moveDir, targetPosition);
 
         Vector2 velocity=moveDir*followSpeed;
         if(brain!=null)velocity=brain.BoundVelocity(rb.position,velocity,Time.fixedDeltaTime);
-        TileMover.Move(rb, velocity, physicalBodyRadius);
+        ActorMotionIntent.Submit(this,rb,velocity,physicalBodyRadius,10);
         FaceDirection(moveDir);
     
         }
@@ -159,7 +166,7 @@ public class BuddyFollow : MonoBehaviour
         bool needsNewPath =
             (currentPath.Count == 0 && repathTimer <= 0f) ||
             (currentPath.Count > 0 && pathIndex >= currentPath.Count) ||
-            repathTimer <= 0f ||
+            (repathTimer <= 0f && (binding==null||binding.RequestRoute==null||!binding.AcceptsMovementRoute(boundRouteRevision))) ||
             Vector2.Distance(targetPosition, lastPathGoal) > repathDistance;
 
         if (needsNewPath)
@@ -168,9 +175,12 @@ public class BuddyFollow : MonoBehaviour
         if (currentPath.Count == 0 || pathIndex >= currentPath.Count)
             return Vector2.zero;
 
+        pathIndex=RouteWaypointPolicy.Advance(currentPath,pathIndex,rb.position,binding,physicalBodyRadius);
+        if(pathIndex>=currentPath.Count)return Vector2.zero;
         Vector2 waypoint = currentPath[pathIndex];
 
-        if (Vector2.Distance(rb.position, waypoint) <= waypointReachDistance)
+        float waypointTolerance=binding!=null&&binding.RequestRoute!=null?Mathf.Min(waypointReachDistance,binding.Terrain.CellSize*.12f):waypointReachDistance;
+        if (Vector2.Distance(rb.position, waypoint) <= waypointTolerance)
         {
             pathIndex++;
 
@@ -183,7 +193,7 @@ public class BuddyFollow : MonoBehaviour
         currentlyUsingPath = true;
 
         Vector2 pathDir = (waypoint - rb.position).normalized;
-        return (pathDir + GetSeparation() * 0.2f).normalized;
+        return binding!=null&&binding.RequestRoute!=null?pathDir*Mathf.Clamp01(Vector2.Distance(waypoint,rb.position)/Mathf.Max(.001f,followSpeed*Time.fixedDeltaTime)):(pathDir+GetSeparation()*.2f).normalized;
     }
 
     void RebuildPath(Vector2 targetPosition)

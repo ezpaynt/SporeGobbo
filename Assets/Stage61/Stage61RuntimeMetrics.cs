@@ -19,7 +19,7 @@ public sealed class Stage61RuntimeMetrics : MonoBehaviour
     static readonly string[] Names={
         "Spore.Pit.Prepare","Spore.Pit.Cleanup","Spore.Pit.Presentation","Spore.AI.WeevilDecision","Spore.AI.BlobDecision","Spore.AI.BuddyDecision","Spore.AI.BuddyFollow",
         "Spore.Intro.Initialize","Spore.Intro.Sequence","Spore.Intro.TerrainPlacement","Spore.Intro.FallingRock","Spore.Intro.Discovery",
-        "Spore.Region.Initialize","Spore.Region.Navigation","Spore.Region.Collision","Spore.Expedition.Discovery","Spore.Expedition.Landmarks",
+        "Spore.Region.Initialize","Spore.Region.Navigation","Spore.Region.Collision","Spore.Expedition.Discovery","Spore.Expedition.Landmarks","Spore.Navigation.Queue","Spore.AI.Movement",
         "Spore.AI.Weevil","Spore.AI.Blob","Spore.AI.BuddyCombat","Spore.AI.BuddyScavenger","Spore.Projectile.TerrainSweep",
         "Spore.Stage61.Input","Spore.Stage61.Animation","Spore.Stage61.ActorPresentation","Spore.Stage61.LandmarkPresentation","Spore.Stage61.Sorting",
         "Spore.Stage61.Camera","Spore.Stage61.RegionInitialize","Spore.Stage61.CollisionPublish","Spore.Stage61.Navigation","Spore.Stage61.Digging",

@@ -93,7 +93,7 @@ public class BuddyScavenger : MonoBehaviour
         {
             Vector2 moveDir = GetPathDirection(targetFood.position);
             var brain=GetComponent<BuddyBrain>();var velocity=moveDir*unit.unitData.moveSpeed;
-            TileMover.Move(rb, brain!=null?brain.BoundVelocity(rb.position,velocity,Time.fixedDeltaTime):velocity, bodyRadius);
+            ActorMotionIntent.Submit(this,rb,brain!=null?brain.BoundVelocity(rb.position,velocity,Time.fixedDeltaTime):velocity,bodyRadius,20);
             FaceDirection(moveDir, GobboAnimationState.Walk);
         }
         else
@@ -156,7 +156,7 @@ public class BuddyScavenger : MonoBehaviour
         cachedReachability=RegionQueries.Sight(gameObject,rb.position,food.position);
         if(!cachedReachability)
         {
-            cachedReachability=RegionQueries.Path(gameObject,rb.position,food.position,out List<Vector2> route)&&route.Count>0;
+            cachedReachability=RegionQueries.Probe(gameObject,rb.position,food.position,out List<Vector2> route)&&route.Count>0;
             if(cachedReachability&&brain!=null&&brain.SquadScoped&&!brain.Following)
                 foreach(var point in route)if(!brain.AllowsDestination(point)){cachedReachability=false;break;}
         }
@@ -172,26 +172,30 @@ public class BuddyScavenger : MonoBehaviour
         }
 
         var binding=GetComponent<ActorTerrainBinding>();int revision=binding!=null?binding.Revision:RegionQueries.Current?.Revision??-1;
-        if(regionPathRevision!=revision){currentPath.Clear();pathIndex=0;regionPathRevision=revision;}
+        if(regionPathRevision!=revision&&!(binding!=null&&binding.AcceptsMovementRoute(regionPathRevision))){currentPath.Clear();pathIndex=0;regionPathRevision=revision;}
         repathTimer -= Time.fixedDeltaTime;
-        bool needsNewPath = currentPath.Count == 0 ||
-                            pathIndex >= currentPath.Count ||
-                            repathTimer <= 0f ||
+        bool needsNewPath = (currentPath.Count == 0 && repathTimer <= 0f) ||
+                            (currentPath.Count>0&&pathIndex>=currentPath.Count) ||
+                            (repathTimer <= 0f && (binding==null||binding.RequestRoute==null||!binding.AcceptsMovementRoute(regionPathRevision))) ||
                             Vector2.Distance(targetPos, lastPathGoal) > repathDistance;
 
         if (needsNewPath) RebuildPath(targetPos);
 
         if (currentPath.Count == 0 || pathIndex >= currentPath.Count) return Vector2.zero;
 
+        pathIndex=RouteWaypointPolicy.Advance(currentPath,pathIndex,rb.position,binding,bodyRadius);
+        if(pathIndex>=currentPath.Count)return Vector2.zero;
         Vector2 waypoint = currentPath[pathIndex];
-        if (Vector2.Distance(rb.position, waypoint) <= waypointReachDistance)
+        float waypointTolerance=binding!=null&&binding.RequestRoute!=null?Mathf.Min(waypointReachDistance,binding.Terrain.CellSize*.12f):waypointReachDistance;
+        if (Vector2.Distance(rb.position, waypoint) <= waypointTolerance)
         {
             pathIndex++;
             if (pathIndex >= currentPath.Count) return Vector2.zero;
             waypoint = currentPath[pathIndex];
         }
 
-        return (waypoint - rb.position).normalized;
+        var pathDirection=(waypoint-rb.position).normalized;
+        return binding!=null&&binding.RequestRoute!=null?pathDirection*Mathf.Clamp01(Vector2.Distance(waypoint,rb.position)/Mathf.Max(.001f,unit.unitData.moveSpeed*Time.fixedDeltaTime)):pathDirection;
     }
 
     void RebuildPath(Vector2 targetPos)

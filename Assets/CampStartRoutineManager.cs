@@ -155,7 +155,11 @@ public class CampStartRoutineManager : MonoBehaviour
             if(!CampResidentialOccupancyResolver.IsLivingBuddy(b.unitData))continue;
             if(b.unitData.uniqueId==currentResidentialConstructorId || firstHomeApproaches.TryGetValue(b.unitData.uniqueId,out var firstHome)&&!firstHome.Complete)continue;
             var currentWalk=b.GetComponent<CampDirectedWalk>();if(currentWalk!=null&&currentWalk.IsWalking)continue;
-            var binding=b.GetComponent<ActorTerrainBinding>();if(binding==null||!binding.TryPath(b.transform.position,terrain.ResidentialEntranceWorld,out var route))continue;
+            var binding=b.GetComponent<ActorTerrainBinding>();if(binding==null)continue;
+            bool reachable=binding.TryProbe(b.transform.position,terrain.ResidentialEntranceWorld,out var route);
+            while(!reachable&&binding!=null&&binding.ProbeStatus==SporeGobbo.Geometry.GridRouteStatus.Pending&&!DeparturePending&&b!=null&&CampResidentialOccupancyResolver.IsLivingBuddy(b.unitData))
+            {yield return null;if(binding==null||b==null||DeparturePending)break;reachable=binding.TryProbe(b.transform.position,terrain.ResidentialEntranceWorld,out route);}
+            if(!reachable||DeparturePending)continue;
             float distance=Vector2.Distance(b.transform.position,terrain.ResidentialEntranceWorld);if(distance<nearest){nearest=distance;helper=b;}
         }
         if(helper!=null)

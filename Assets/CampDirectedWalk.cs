@@ -74,7 +74,7 @@ public class CampDirectedWalk : MonoBehaviour
         timeout = Mathf.Max(0.01f, timeoutSeconds);
         PlannedRouteDistance=target!=null?Vector2.Distance(PhysicsPosition,target.position):0;
         var binding=GetComponent<ActorTerrainBinding>();
-        if(binding!=null&&target!=null&&binding.TryPath(PhysicsPosition,target.position,out var route))
+        if(binding!=null&&binding.RequestRoute==null&&target!=null&&binding.TryPath(PhysicsPosition,target.position,out var route))
         {
             float length=0;Vector2 prior=PhysicsPosition;
             foreach(var waypoint in route){length+=Vector2.Distance(prior,waypoint);prior=waypoint;}
@@ -91,7 +91,7 @@ public class CampDirectedWalk : MonoBehaviour
 
         if (wander != null)
             wander.enabled = false;
-        if (activeWalk) IgnoreOtherBuddyBodies();
+        if (activeWalk) {if(binding==null||binding.RequestRoute==null)IgnoreOtherBuddyBodies();}
         else if (wander != null) wander.enabled = enableWanderWhenDone;
     }
 
@@ -127,21 +127,24 @@ public class CampDirectedWalk : MonoBehaviour
             Finish(CampDirectedWalkResult.TimedOut);
             return;
         }
-        if (noProgressElapsed >= 0.5f && !(binding!=null&&binding.RouteStatus==SporeGobbo.Geometry.GridRouteStatus.Pending))
+        if (noProgressElapsed >= 0.5f && !(GetComponent<ActorMotionIntent>()?.WaitingForFriendlySpace??false) && !(binding!=null&&binding.RouteStatus==SporeGobbo.Geometry.GridRouteStatus.Pending))
         {
             BlockingColliderDescription = DescribePhysicalBlocker(toTarget);
             Finish(CampDirectedWalkResult.Blocked);
             return;
         }
 
-        if(!regionRoute.Direction(binding,physicsPosition,target.position,out Vector2 moveDir)){rb.linearVelocity=Vector2.zero;if(binding!=null&&binding.RouteStatus==SporeGobbo.Geometry.GridRouteStatus.Pending){noProgressElapsed=0;return;}Finish(CampDirectedWalkResult.Blocked);return;}
-        TileMover.Move(rb, moveDir * moveSpeed, bodyRadius);
+        if(!regionRoute.Direction(binding,physicsPosition,target.position,out Vector2 moveDir,moveSpeed*Time.fixedDeltaTime)){rb.linearVelocity=Vector2.zero;if(binding!=null&&binding.RouteStatus==SporeGobbo.Geometry.GridRouteStatus.Pending){noProgressElapsed=0;return;}Finish(CampDirectedWalkResult.Blocked);return;}
+        if(binding!=null&&binding.LastRouteDistance>0)
+        {PlannedRouteDistance=Mathf.Max(PlannedRouteDistance,binding.LastRouteDistance);timeout=Mathf.Max(timeout,SporeGobbo.CampLifecycle.CampBuddyPhysicalPolicy.GetDirectedWalkTimeout(PlannedRouteDistance,moveSpeed,0));}
+        ActorMotionIntent.Submit(this,rb,moveDir*moveSpeed,bodyRadius,50);
 
         SetVisualState(GobboAnimationState.Walk, moveDir);
     }
 
     void Finish(CampDirectedWalkResult result)
     {
+        ActorMotionIntent.Cancel(gameObject);GetComponent<ActorTerrainBinding>()?.CancelNavigation();
         if (rb != null) rb.linearVelocity = Vector2.zero;
         activeWalk = false;
         Result = result;

@@ -86,7 +86,7 @@ public class BuddyCombat : MonoBehaviour
         if (bounceTimer > 0f)
         {
             bounceTimer -= Time.fixedDeltaTime;
-            TileMover.Move(rb, BoundMotion(bounceVelocity), bodyRadius);
+            ActorMotionIntent.Submit(this,rb,BoundMotion(bounceVelocity),bodyRadius,100);
             FaceDirection(bounceVelocity, GobboAnimationState.Walk);
             return;
         }
@@ -178,8 +178,8 @@ public class BuddyCombat : MonoBehaviour
         if(!cachedReachability&&!requireReachableTarget)cachedReachability=!requireLineOfSightToTarget;
         if(!cachedReachability&&requireReachableTarget)
         {
-            cachedReachability=RegionQueries.Path(gameObject,rb.position,targetPos,out List<Vector2> route)&&route.Count>0;
-            if(binding!=null&&binding.RouteStatus==SporeGobbo.Geometry.GridRouteStatus.Pending){cachedReachability=true;return true;}
+            cachedReachability=RegionQueries.Probe(gameObject,rb.position,targetPos,out List<Vector2> route)&&route.Count>0;
+            if(binding!=null&&binding.ProbeStatus==SporeGobbo.Geometry.GridRouteStatus.Pending){cachedReachability=true;return true;}
             var brain=GetComponent<BuddyBrain>();
             if(cachedReachability&&brain!=null&&brain.SquadScoped&&!brain.Following)
                 foreach(var point in route)if(!brain.AllowsDestination(point)){cachedReachability=false;break;}
@@ -192,8 +192,10 @@ public class BuddyCombat : MonoBehaviour
         if (currentTarget == null) return;
 
         Vector2 targetPos = currentTarget.position;
+        var binding=GetComponent<ActorTerrainBinding>();
+        if(binding!=null&&binding.ChooseDestination!=null){var targetBody=EnemyDamage.Resolve(currentTarget.gameObject)?.GetComponent<Rigidbody2D>();targetPos=binding.MovementGoal(currentTarget.GetInstanceID(),targetPos,TileMover.GetMapClearanceExtents(targetBody,.25f),true);}
         Vector2 moveDir = GetPathDirection(targetPos);
-        TileMover.Move(rb, BoundMotion(moveDir * chaseSpeed), bodyRadius);
+        ActorMotionIntent.Submit(this,rb,BoundMotion(moveDir*chaseSpeed),bodyRadius,30);
         FaceDirection(moveDir, GobboAnimationState.Walk);
     }
 
@@ -211,22 +213,26 @@ public class BuddyCombat : MonoBehaviour
         bool needsNewPath =
             (currentPath.Count == 0 && repathTimer <= 0f) ||
                             (currentPath.Count > 0 && pathIndex >= currentPath.Count) ||
-                            repathTimer <= 0f ||
+                            (repathTimer <= 0f && (binding==null||binding.RequestRoute==null||!binding.AcceptsMovementRoute(regionPathRevision))) ||
                             Vector2.Distance(targetPos, lastPathGoal) > repathDistance;
 
         if (needsNewPath) RebuildPath(targetPos);
 
         if (currentPath.Count == 0 || pathIndex >= currentPath.Count) return Vector2.zero;
 
+        pathIndex=RouteWaypointPolicy.Advance(currentPath,pathIndex,rb.position,binding,bodyRadius);
+        if(pathIndex>=currentPath.Count)return Vector2.zero;
         Vector2 waypoint = currentPath[pathIndex];
-        if (Vector2.Distance(rb.position, waypoint) <= waypointReachDistance)
+        float waypointTolerance=binding!=null&&binding.RequestRoute!=null?Mathf.Min(waypointReachDistance,binding.Terrain.CellSize*.12f):waypointReachDistance;
+        if (Vector2.Distance(rb.position, waypoint) <= waypointTolerance)
         {
             pathIndex++;
             if (pathIndex >= currentPath.Count) return Vector2.zero;
             waypoint = currentPath[pathIndex];
         }
 
-        return (waypoint - rb.position).normalized;
+        var pathDirection=(waypoint-rb.position).normalized;
+        return binding!=null&&binding.RequestRoute!=null?pathDirection*Mathf.Clamp01(Vector2.Distance(waypoint,rb.position)/Mathf.Max(.001f,chaseSpeed*Time.fixedDeltaTime)):pathDirection;
     }
 
     void RebuildPath(Vector2 targetPos)

@@ -30,6 +30,7 @@ public sealed class V1EvidenceSession:MonoBehaviour
   if(scenario=="lifecycle")gameObject.AddComponent<Stage62CIntroEvidence>();
   else if(scenario.StartsWith("continue-",StringComparison.Ordinal))gameObject.AddComponent<Stage61ContinueEvidence>();
   else if(scenario=="normal")gameObject.AddComponent<V1NormalEvidence>();
+  else if(scenario=="movement")gameObject.AddComponent<Stage64DMovementEvidence>();
   else if(scenario=="performance"||scenario=="startup")gameObject.AddComponent<V1PerformanceEvidence>();
   else if(scenario=="occlusion")gameObject.AddComponent<V1VisualEvidence>();
   else if(scenario=="commands"){if(!Persistence.Isolated||!V1RuntimeProfile.DevelopmentToolsEnabled||!V1RuntimeProfile.EvidenceEnabled)throw new InvalidOperationException("Command proof requires owned development evidence");gameObject.AddComponent<Stage64BCommandEvidence>();}

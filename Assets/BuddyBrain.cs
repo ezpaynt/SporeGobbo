@@ -1,6 +1,7 @@
 using UnityEngine;
 
 [RequireComponent(typeof(BuddyFollow))]
+[DefaultExecutionOrder(-500)]
 public class BuddyBrain : MonoBehaviour
 {
     [Header("Task Priority")]
@@ -33,9 +34,11 @@ public class BuddyBrain : MonoBehaviour
     {
         if(Following&&!following)StayAnchor=transform.position;
         bool changed=Following!=following;
+        bool modesChanged=changed||Aggressive!=aggressive;
         Following=following;Aggressive=aggressive;
         if(changed){follow?.ResetCommandMotion();combat?.InvalidateReachability();scavenger?.InvalidateReachability();}
         if(!aggressive)combat?.CancelEngagement();
+        if(modesChanged){GetComponent<ActorTerrainBinding>()?.CancelNavigation();ActorMotionIntent.Cancel(gameObject);}
         UpdateTaskPermissions();
     }
     public bool AllowsDestination(Vector2 position)=>SquadAuthorized&&(!SquadScoped||Following||Vector2.Distance(position,StayAnchor)<=StayRadius);
@@ -51,7 +54,7 @@ public class BuddyBrain : MonoBehaviour
     }
     public void ReleaseTemporarySquad(GobboController owner)
     {if(SquadLeader!=owner)return;SquadScoped=false;SquadLeader=null;Following=true;Aggressive=true;SuspendCommandMotion();}
-    public void SuspendCommandMotion(){combat?.CancelEngagement();follow?.ResetCommandMotion();SetMovementPermissions(false,false,false);}
+    public void SuspendCommandMotion(){GetComponent<ActorTerrainBinding>()?.CancelNavigation();ActorMotionIntent.Cancel(gameObject);combat?.CancelEngagement();follow?.ResetCommandMotion();SetMovementPermissions(false,false,false);}
 
     void Awake()
     {

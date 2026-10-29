@@ -287,7 +287,7 @@ public class BlobSpitterEnemy : MonoBehaviour, IEnemyDamageReceiver
             return true;
 
         return RegionQueries.Sight(gameObject,transform.position, target.position) ||
-               RegionQueries.Path(gameObject,transform.position, target.position, out List<Vector2> path) && path.Count > 0;
+               RegionQueries.Probe(gameObject,transform.position, target.position, out List<Vector2> path) && path.Count > 0;
     }
 
     bool IsInAttackRange()

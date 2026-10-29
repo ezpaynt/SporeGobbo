@@ -10,7 +10,9 @@ namespace SporeGobbo.Geometry
     public sealed class GridRouteSearch
     {
         readonly RegionTerrainState terrain;
-        readonly int revision, width, goal;
+        int revision;
+        readonly int width,goal;
+        int minX=int.MaxValue,minY=int.MaxValue,maxX=int.MinValue,maxY=int.MinValue;
         readonly double halfX, halfY, offsetX, offsetY;
         readonly List<Entry> heap = new List<Entry>();
         sealed class Page { public readonly int[] Costs=new int[256],Parents=new int[256]; }
@@ -18,7 +20,7 @@ namespace SporeGobbo.Geometry
         bool Cost(int index,out int value)
         {if(records.TryGetValue(index>>8,out var p)&&p.Costs[index&255]>0){value=p.Costs[index&255]-1;return true;}value=0;return false;}
         void Record(int index,int cost,int parent)
-        {if(!records.TryGetValue(index>>8,out var p)){p=new Page();records.Add(index>>8,p);}p.Costs[index&255]=cost+1;p.Parents[index&255]=parent;}
+        {if(!records.TryGetValue(index>>8,out var p)){p=new Page();records.Add(index>>8,p);}p.Costs[index&255]=cost+1;p.Parents[index&255]=parent;int x=index%width,y=index/width;minX=Math.Min(minX,x);maxX=Math.Max(maxX,x);minY=Math.Min(minY,y);maxY=Math.Max(maxY,y);}
         int Parent(int index)=>records[index>>8].Parents[index&255];
         readonly List<Point2> result = new List<Point2>();
         int trace = -1, reverse;
@@ -67,7 +69,23 @@ namespace SporeGobbo.Geometry
             return true;
         }
         int Heuristic(int index)=>Math.Abs(index%width-goal%width)+Math.Abs(index/width-goal/width);
-        public void Cancel() { if(Status==GridRouteStatus.Pending) { Status=GridRouteStatus.Canceled;result.Clear(); } }
+        void ReleaseScratch(){heap.Clear();records.Clear();}
+        public void Cancel() { if(Status==GridRouteStatus.Pending) { Status=GridRouteStatus.Canceled;result.Clear();ReleaseScratch(); } }
+        /// <summary>Accept only the next observed commit when no previously considered footprint changed.
+        /// Newly reached nodes read current occupancy. Relevant edits restart conservatively.</summary>
+        public bool ObserveCommit(IReadOnlyList<DualTile> cells,int nextRevision)
+        {
+            if(nextRevision!=terrain.Revision||nextRevision!=revision+1||Status==GridRouteStatus.Canceled||Status==GridRouteStatus.Unreachable){Cancel();return false;}
+            int rx=(int)Math.Ceiling(halfX)+1,ry=(int)Math.Ceiling(halfY)+1;
+            foreach(var c in cells)
+            {
+                if(c.X+rx<minX||c.X-rx>maxX||c.Y+ry<minY||c.Y-ry>maxY)continue;
+                for(int y=Math.Max(0,c.Y-ry);y<=Math.Min(terrain.World.Height-1,c.Y+ry);y++)
+                    for(int x=Math.Max(0,c.X-rx);x<=Math.Min(width-1,c.X+rx);x++)
+                        if(Cost(y*width+x,out _)){Cancel();return false;}
+            }
+            revision=nextRevision;return true;
+        }
         public GridRouteStatus Step(int budget)
         {
             if(budget<1)throw new ArgumentOutOfRangeException(nameof(budget));
@@ -79,7 +97,7 @@ namespace SporeGobbo.Geometry
                 if(reversing)
                 {
                     int opposite=result.Count-1-reverse;
-                    if(reverse>=opposite) { Status=GridRouteStatus.Succeeded;continue; }
+                    if(reverse>=opposite) { Status=GridRouteStatus.Succeeded;ReleaseScratch();continue; }
                     var p=result[reverse];result[reverse]=result[opposite];result[opposite]=p;reverse++;continue;
                 }
                 if(reconstructing)
@@ -87,7 +105,7 @@ namespace SporeGobbo.Geometry
                     if(trace<0) { reversing=true;continue; }
                     result.Add(Center(trace));trace=Parent(trace);continue;
                 }
-                if(heap.Count==0) { Status=GridRouteStatus.Unreachable;continue; }
+                if(heap.Count==0) { Status=GridRouteStatus.Unreachable;ReleaseScratch();continue; }
                 Entry item=Pop();
                 if(!Cost(item.Index,out int known)||known!=item.G)continue;
                 Visited++;

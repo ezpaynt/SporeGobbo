@@ -16,6 +16,7 @@ public static class RegionQueries
 
  public static bool Sight(GameObject actor,Vector2 a,Vector2 b){var binding=actor.GetComponent<ActorTerrainBinding>();return binding!=null?binding.Sight(a,b):MapPathfinder.HasLineOfWalkableSight(a,b);}
  public static bool Vision(GameObject actor,Vector2 a,Vector2 b){var r=Current;return r!=null?r.LogicalReady&&r.RayClear(a,b):Sight(actor,a,b);}
+ public static bool Probe(GameObject actor,Vector2 a,Vector2 b,out List<Vector2> path){var binding=actor.GetComponent<ActorTerrainBinding>();if(binding!=null)return binding.TryProbe(a,b,out path);return MapPathfinder.TryFindPath(a,b,out path);}
  public static bool Path(GameObject actor,Vector2 a,Vector2 b,out List<Vector2> path){var binding=actor.GetComponent<ActorTerrainBinding>();if(binding!=null)return binding.TryPath(a,b,out path);return MapPathfinder.TryFindPath(a,b,out path);}
  public static void Bind(GameObject actor){Current?.BindActor(actor);}
 }

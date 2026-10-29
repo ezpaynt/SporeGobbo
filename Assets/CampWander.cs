@@ -96,8 +96,8 @@ public class CampWander : MonoBehaviour
         if (!semanticDestinations && Vector2.Distance(rb.position, anchorPos) > wanderRadius * 1.75f)
             target = anchorPos;
 
-        if(!regionRoute.Direction(binding,rb.position,target,out Vector2 moveDir)){rb.linearVelocity=Vector2.zero;stuckTimer+=Time.fixedDeltaTime;if(stuckTimer>=repickIfStuckTime){stuckTimer=0;PickNewTarget();}return;}
-        TileMover.Move(rb, moveDir * moveSpeed, bodyRadius);
+        if(!regionRoute.Direction(binding,rb.position,target,out Vector2 moveDir,moveSpeed*Time.fixedDeltaTime)){rb.linearVelocity=Vector2.zero;stuckTimer+=Time.fixedDeltaTime;if(stuckTimer>=repickIfStuckTime){stuckTimer=0;PickNewTarget();}return;}
+        ActorMotionIntent.Submit(this,rb,moveDir*moveSpeed,bodyRadius,5);
         SetVisualState(GobboAnimationState.Walk, moveDir);
 
         float moved = Vector2.Distance(rb.position, lastPosition);
@@ -134,7 +134,8 @@ public class CampWander : MonoBehaviour
             CampActivityPoint[] points = CampActivityPoint.GetValidFor(buddy != null ? buddy.unitData : null);
             if (points.Length > 0)
             {
-                target = points[Random.Range(0, points.Length)].transform.position;
+                var point=points[Random.Range(0,points.Length)];target=point.transform.position;
+                var binding=GetComponent<ActorTerrainBinding>();if(binding!=null)target=binding.MovementGoal(point.GetInstanceID(),target,Vector2.one*.25f);
                 return;
             }
         }

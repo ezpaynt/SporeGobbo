@@ -5,7 +5,7 @@ using SporeGobbo.Input;
 using SporeGobbo.Geometry;
 
 public readonly struct ActorRouteResult
-{public readonly GridRouteStatus Status;public readonly List<Vector2> Path;public readonly int Revision;public ActorRouteResult(GridRouteStatus status,List<Vector2> path,int revision){Status=status;Path=path;Revision=revision;}}
+{public readonly GridRouteStatus Status;public readonly List<Vector2> Path;public readonly int Revision;public readonly float Distance;public ActorRouteResult(GridRouteStatus status,List<Vector2> path,int revision,float distance=0){Status=status;Path=path;Revision=revision;Distance=distance;}}
 
 /// <summary>Explicit per-actor dependency. No registry, singleton or production scene installation.</summary>
 public sealed class ActorTerrainBinding : MonoBehaviour
@@ -19,10 +19,24 @@ public sealed class ActorTerrainBinding : MonoBehaviour
     public Func<Vector2,Vector2,List<Vector2>> FindRoute;
     public Func<Vector2,Vector2,ActorRouteResult> RequestRoute;
     public Func<int,bool> AcceptCachedRoute;
+    public Func<int,Vector2,Vector2,ActorRouteResult> RequestProbe;
+    public Func<int,Vector2,Vector2,bool,Vector2> ChooseDestination;
+    public GridRouteStatus ProbeStatus {get;private set;}=GridRouteStatus.Canceled;
+    public Vector2 CurrentMovementGoal {get;private set;}
+    public Vector2 MovementGoal(int key,Vector2 center,Vector2 targetExtents,bool contact=false){CurrentMovementGoal=ChooseDestination?.Invoke(key,center,targetExtents,contact)??center;return CurrentMovementGoal;}
+    public bool TryProbe(Vector2 from,Vector2 goal,out List<Vector2> path)
+    {
+        if(RequestProbe==null)return TryPath(from,goal,out path);
+        if(Terrain==null||Ready!=null&&!Ready()){path=new List<Vector2>();ProbeStatus=GridRouteStatus.Canceled;return false;}
+        int key=Terrain.WorldToCell(goal).GetHashCode()|1;
+        var answer=RequestProbe(key,from,goal);ProbeStatus=answer.Status;path=answer.Path??new List<Vector2>();return answer.Status==GridRouteStatus.Succeeded&&path.Count>0;
+    }
+
     public Action CancelRoute;
     public GridRouteStatus RouteStatus {get;private set;}=GridRouteStatus.Canceled;
+    public float LastRouteDistance {get;private set;}
     public bool AcceptsMovementRoute(int revision)=>Terrain!=null&&(Ready==null||Ready())&&(AcceptCachedRoute?.Invoke(revision)??revision==Revision);
-    public void CancelNavigation(){CancelRoute?.Invoke();RouteStatus=GridRouteStatus.Canceled;}
+    public void CancelNavigation(){CancelRoute?.Invoke();RouteStatus=ProbeStatus=GridRouteStatus.Canceled;}
 
     public Func<Vector2,Vector2> PointerToWorld;
     public int DigAttempts {get;private set;}
@@ -48,7 +62,7 @@ public sealed class ActorTerrainBinding : MonoBehaviour
         using(new Scope("SG59.Navigation"))
         {
             if(RequestRoute!=null&&(Terrain==null||Ready!=null&&!Ready())){path=new List<Vector2>();CancelNavigation();return false;}
-            if(RequestRoute!=null){var answer=RequestRoute(a,b);RouteStatus=answer.Status;LastRouteRevision=answer.Revision;path=answer.Path??new List<Vector2>();return answer.Status==GridRouteStatus.Succeeded&&path.Count>0;}
+            if(RequestRoute!=null){var answer=RequestRoute(a,b);RouteStatus=answer.Status;LastRouteRevision=answer.Revision;LastRouteDistance=answer.Distance;path=answer.Path??new List<Vector2>();return answer.Status==GridRouteStatus.Succeeded&&path.Count>0;}
             int revision=Revision;path=FindRoute?.Invoke(a,b)??new List<Vector2>();
             RouteStatus=path.Count>0?GridRouteStatus.Succeeded:GridRouteStatus.Unreachable;
             if(revision!=Revision){path.Clear();return false;}
@@ -71,5 +85,5 @@ public sealed class ActorTerrainBinding : MonoBehaviour
         public void Dispose(){if(active)UnityEngine.Profiling.Profiler.EndSample();}
     }
     void OnDisable()=>CancelNavigation();
-    void OnDestroy(){CancelNavigation();RequestRoute=null;AcceptCachedRoute=null;CancelRoute=null;Terrain=null;Ready=null;ReadRevision=null;FindRoute=null;PointerToWorld=null;}
+    void OnDestroy(){CancelNavigation();RequestRoute=null;RequestProbe=null;ChooseDestination=null;AcceptCachedRoute=null;CancelRoute=null;Terrain=null;Ready=null;ReadRevision=null;FindRoute=null;PointerToWorld=null;}
 }

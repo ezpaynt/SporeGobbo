@@ -417,7 +417,7 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
             return true;
 
         List<Vector2> testPath;
-        return RegionQueries.Path(gameObject,transform.position, target.position, out testPath) && testPath.Count > 0;
+        return RegionQueries.Probe(gameObject,transform.position, target.position, out testPath) && testPath.Count > 0;
     }
 
     void MoveTowardTarget(float speed)
