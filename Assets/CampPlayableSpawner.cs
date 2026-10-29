@@ -144,6 +144,8 @@ public class CampPlayableSpawner : MonoBehaviour
 
         ForceVisible(playerObject, playerSortingOrder);
         (DiggableTerrainService.Active as IRegionActorBinding)?.BindActor(playerObject);
+        var playerBinding=playerObject.GetComponent<ActorTerrainBinding>();
+        playerBinding?.Movement?.Configure(playerBinding,"camp.leader",1,true,true,false);
         AssignCamera(playerObject.transform);
         AssignInteractionDetector(playerObject.transform);
         return controller;
@@ -217,6 +219,8 @@ public class CampPlayableSpawner : MonoBehaviour
 
         ForceVisible(buddyObject, sortingOrder);
         (DiggableTerrainService.Active as IRegionActorBinding)?.BindActor(buddyObject);
+        var movementBinding=buddyObject.GetComponent<ActorTerrainBinding>();
+        movementBinding?.Movement?.Configure(movementBinding,unitData.uniqueId,1,true,false,true);
     }
 
     public bool SpawnAdditionalOwnedBuddy(string id, Vector2 center)

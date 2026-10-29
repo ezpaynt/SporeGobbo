@@ -181,7 +181,7 @@ public class CampStartRoutineManager : MonoBehaviour
                 if(player==null||Vector2.Distance(player.transform.position,terrain.ResidentialEntranceWorld)>4)break;
                 yield return null;
             }
-            if(helper!=null){var wander=helper.GetComponent<CampWander>();if(wander!=null)wander.enabled=priorWander;}
+            if(helper!=null){helper.GetComponent<ActorTerrainBinding>()?.ReleaseActivitySpace();var wander=helper.GetComponent<CampWander>();if(wander!=null)wander.enabled=priorWander;}
             DestroyTransientTarget(target);
         }
         rootAssistanceRunning=false;
@@ -1087,6 +1087,7 @@ public class CampStartRoutineManager : MonoBehaviour
     void CompleteFirstHomeMovement(BuddyUnit buddy)
     {
         if (buddy == null) return;
+        buddy.GetComponent<ActorTerrainBinding>()?.ReleaseActivitySpace();
         if (buddy.unitData != null) firstHomeBuddyIds.Remove(buddy.unitData.uniqueId);
         CampDirectedWalk walker = buddy.GetComponent<CampDirectedWalk>();
         if (walker != null) Destroy(walker);

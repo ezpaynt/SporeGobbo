@@ -1,6 +1,6 @@
 using System;using System.Linq;using System.Collections.Generic;using UnityEngine;using SporeGobbo.Geometry;using SporeGobbo.CampCandidate;using SporeGobbo.Input;
 /// <summary>Temporary Camp match orchestration. Existing actors own AI, HP, attacks, damage and campaign identity.</summary>
-public sealed class CampFightPitLab:MonoBehaviour,ICombatSessionRules,ICombatCommandSession
+public sealed class CampFightPitLab:MonoBehaviour,ICombatSessionRules,ICombatCommandSession,IMovementContactSession
 {
  public enum MatchPhase{Idle,Preparing,Fighting,Resolved,CleaningUp}
  public MatchPhase Phase{get;private set;}public string Outcome{get;private set;}="";public int AcceptedHits{get;private set;}public int DamageAttempts{get;private set;}public int FriendlyHits{get;private set;}public int OpponentHits{get;private set;}public bool GodMode;
@@ -19,6 +19,7 @@ public sealed class CampFightPitLab:MonoBehaviour,ICombatSessionRules,ICombatCom
  }
  bool Authorized=>V1RuntimeProfile.DevelopmentToolsEnabled&&V1RuntimeProfile.DevelopmentStorage&&SporeGobbo.Safety.Persistence.Isolated;
  void Awake(){region=GetComponent<SettlementCampRegion>();if(!Authorized||region==null){enabled=false;return;}_ = SporeGobbo.Safety.Persistence.ExperimentRoot;CreateRim();interactionObject=new GameObject("Fight Pit development entrance");interactionObject.transform.SetParent(transform,false);interactionObject.transform.position=region.World(CampFightPitLayout.Entry);interactionObject.AddComponent<CircleCollider2D>().isTrigger=true;interactionObject.AddComponent<CampFightPitInteraction>().Initialize(region,this);}
+ public bool IsMovementParticipant(GameObject actor)=>fighters.Contains(actor);
  public bool Allows(GameObject source,GameObject target)=>Fighting&&source!=null&&target!=null&&teams.TryGetValue(source,out int a)&&teams.TryGetValue(target,out int b)&&a>=0&&b>=0&&a!=b;
  public bool ActionsAllowed(GameObject actor)=>Fighting&&teams.TryGetValue(actor,out int team)&&team>=0;
  static int Health(GameObject actor)=>actor.GetComponent<GobboController>() is GobboController p?p.health:actor.GetComponent<BuddyUnit>() is BuddyUnit b?b.unitData.health:actor.GetComponent<TunnelWeevilEnemy>() is TunnelWeevilEnemy w?w.health:actor.GetComponent<BlobSpitterEnemy>() is BlobSpitterEnemy blob?blob.health:0;
@@ -100,6 +101,7 @@ public sealed class CampFightPitLab:MonoBehaviour,ICombatSessionRules,ICombatCom
     followAnchor=new GameObject("Owned Pit reachable rally");followAnchor.transform.SetParent(transform,false);followAnchor.transform.position=rally;
     foreach(var brain in commanded){brain.GetComponent<BuddyFollow>().SetPlayer(followAnchor.transform);brain.GetComponent<BuddyCombat>().SetPlayer(followAnchor.transform);}
    }
+   foreach(var fighter in fighters){var b=fighter.GetComponent<ActorTerrainBinding>();b?.ReleaseActivitySpace();if(b?.Movement==null||!b.Movement.VerifyStrict(fighter))throw new InvalidOperationException("Pit participant contact policy is not strict");}
    player.followersFollowing=true;player.followersAggressive=true;Phase=MatchPhase.Fighting;
    foreach(var brain in commanded)brain.BindSquad(player,true,true);Outcome="Fighting — nonlethal, no rewards";
   }
@@ -177,6 +179,7 @@ public sealed class CampFightPitLab:MonoBehaviour,ICombatSessionRules,ICombatCom
    Attempt(()=>{if(region!=null&&region.Presentation!=null)region.Presentation.EndStory(this);if(cameraAnchor!=null)Destroy(cameraAnchor);cameraAnchor=null;if(followAnchor!=null)Destroy(followAnchor);followAnchor=null;});
    if(routineLease)Attempt(()=>{if(routines!=null)routines.ResumeAfterCombat(this,region!=null&&region.isActiveAndEnabled&&campaign==GameState.Instance&&failures.Count==0);routineLease=false;});
    Physics2D.SyncTransforms();
+   player?.GetComponent<ActorTerrainBinding>()?.Movement?.RefreshContacts();
   }
   finally{cleaning=false;GodMode=false;}
   if(failures.Count>0){cleanupFailure=string.Join("; ",failures);Outcome="Cleanup blocked: "+cleanupFailure;return;}

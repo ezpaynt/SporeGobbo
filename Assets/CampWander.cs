@@ -76,6 +76,7 @@ public class CampWander : MonoBehaviour
         if (idleTimer > 0f)
         {
             idleTimer -= Time.fixedDeltaTime;
+            if(idleTimer<=0)PickNewTarget();
             rb.linearVelocity = Vector2.zero;
             SetVisualState(GobboAnimationState.Idle, Vector2.zero);
             return;
@@ -83,11 +84,10 @@ public class CampWander : MonoBehaviour
 
         Vector2 toTarget = target - rb.position;
 
-        if (toTarget.magnitude <= reachDistance)
+        if (toTarget.magnitude <= reachDistance&&(binding?.Movement==null||binding.Movement.MarkArrived(binding)))
         {
             rb.linearVelocity = Vector2.zero;
             idleTimer = Random.Range(idleMinTime, idleMaxTime);
-            PickNewTarget();
             SetVisualState(GobboAnimationState.Idle, Vector2.zero);
             return;
         }
@@ -128,20 +128,23 @@ public class CampWander : MonoBehaviour
 
     void PickNewTarget()
     {
-        regionRoute.Reset();
+        regionRoute.Reset();GetComponent<ActorTerrainBinding>()?.CancelNavigation();
         if (semanticDestinations)
         {
             CampActivityPoint[] points = CampActivityPoint.GetValidFor(buddy != null ? buddy.unitData : null);
             if (points.Length > 0)
             {
                 var point=points[Random.Range(0,points.Length)];target=point.transform.position;
-                var binding=GetComponent<ActorTerrainBinding>();if(binding!=null)target=binding.MovementGoal(point.GetInstanceID(),target,Vector2.one*.25f);
+                var binding=GetComponent<ActorTerrainBinding>();if(binding!=null)target=binding.MovementGoal(point.GetInstanceID(),target,Vector2.zero);
                 return;
             }
         }
         Vector2 anchorPos = GetAnchorPosition();
         target = anchorPos + Random.insideUnitCircle * wanderRadius;
+        var bound=GetComponent<ActorTerrainBinding>();if(bound?.Movement!=null)target=bound.MovementGoal(GetInstanceID(),target,Vector2.zero);
     }
+
+    void OnDisable(){ActorMotionIntent.Cancel(gameObject);GetComponent<ActorTerrainBinding>()?.Movement?.Park(GetComponent<ActorTerrainBinding>());}
 
     void SetVisualState(GobboAnimationState state, Vector2 direction)
     {

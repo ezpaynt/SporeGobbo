@@ -30,6 +30,46 @@ public sealed class Stage64DNavigationTests
     {
         int n=0;while(search.Status==GridRouteStatus.Pending){long prior=search.Work;search.Step(7);Assert.That(search.Work-prior,Is.LessThanOrEqualTo(7));Assert.That(++n,Is.LessThan(2000));}
     }
+    // Owned geometry/intent adapters. Manual integration is not a real player physics proof.
+    sealed class MovementFixture:IDisposable
+    {
+        public readonly Fixture Terrain;
+        public readonly RegionMovementCoordinator Coordinator;
+        public readonly List<ActorTerrainBinding> Actors=new List<ActorTerrainBinding>();
+        public MovementFixture(bool camp=false,Fixture terrain=null){Terrain=terrain??new Fixture();Coordinator=new RegionMovementCoordinator(Terrain,camp);}
+        public ActorTerrainBinding Add(string key,Vector2 position,float half=.375f,bool camp=false,bool human=false,int group=1)
+        {
+            var go=new GameObject("owned coordinated "+key);var body=go.AddComponent<Rigidbody2D>();body.gravityScale=0;body.freezeRotation=true;
+            go.AddComponent<BoxCollider2D>().size=Vector2.one*half*2;body.position=position;go.transform.position=position;
+            var b=go.AddComponent<ActorTerrainBinding>();b.Bind(Terrain);b.Ready=()=>true;b.MinimumBodyRadius=.1f;b.RequestRoute=(a,c)=>new ActorRouteResult(GridRouteStatus.Pending,null,0);
+            Coordinator.Configure(b,key,group,camp,human,camp&&!human);Actors.Add(b);Physics2D.SyncTransforms();return b;
+        }
+        public void Intent(ActorTerrainBinding actor,Vector2 velocity,double tick,int priority=10)
+        {
+            var motion=actor.GetComponent<ActorMotionIntent>()??actor.gameObject.AddComponent<ActorMotionIntent>();
+            ActorMotionIntent.Submit(motion,actor.GetComponent<Rigidbody2D>(),velocity,.1f,priority);
+            typeof(ActorMotionIntent).GetField("stamp",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).SetValue(motion,tick);
+        }
+        public void Tick(double tick,bool integrate=false)
+        {
+            Coordinator.Resolve(tick,.02f);
+            if(integrate)
+            {
+                var next=new Vector2[Actors.Count];for(int i=0;i<Actors.Count;i++){var body=Actors[i].GetComponent<Rigidbody2D>();next[i]=body.position+body.linearVelocity*.02f;}
+                for(int i=0;i<Actors.Count;i++){Actors[i].GetComponent<Rigidbody2D>().position=next[i];Actors[i].transform.position=next[i];}Physics2D.SyncTransforms();
+            }
+        }
+        public void Dispose(){Coordinator.Dispose();foreach(var actor in Actors)if(actor!=null)UnityEngine.Object.DestroyImmediate(actor.gameObject);}
+    }
+    sealed class MovementSession:ICombatSessionRules,IMovementContactSession
+    {
+        public readonly HashSet<GameObject> Fighters=new HashSet<GameObject>();
+        public bool IsMovementParticipant(GameObject a)=>Fighters.Contains(a);
+        public bool Allows(GameObject a,GameObject b)=>false;
+        public int LimitDamage(GameObject target,EnemyDamageRequest request,int proposedDamage)=>proposedDamage;
+        public void AfterDamage(GameObject target,EnemyDamageRequest request,EnemyDamageResult result){}
+        public bool ActionsAllowed(GameObject actor)=>false;
+    }
     [TestCase(1)][TestCase(7)][TestCase(32)]
     public void SmallFixtureShortestPathsAgreeWithRetainedBreadthFirstOracle(int seed)
     {
@@ -113,18 +153,11 @@ public sealed class Stage64DNavigationTests
     }
     [Test]public void OnlyHighestPriorityIntentionAppliesOncePerPhysicsTick()
     {
-        var f=new Fixture();var go=new GameObject("owned movement-intent adapter");
-        try
-        {
-            var body=go.AddComponent<Rigidbody2D>();go.transform.position=new Vector2(3.9f,3.9f);body.position=go.transform.position;
-            var binding=go.AddComponent<ActorTerrainBinding>();binding.Bind(f);binding.Ready=()=>true;binding.RequestRoute=(a,b)=>new ActorRouteResult(GridRouteStatus.Pending,null,0);
-            var follow=go.AddComponent<BuddyFollow>();var wander=go.AddComponent<CampWander>();
-            ActorMotionIntent.Submit(follow,body,Vector2.right,.2f,10);ActorMotionIntent.Submit(wander,body,Vector2.left,.2f,5);
-            var motion=go.GetComponent<ActorMotionIntent>();var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
-            typeof(ActorMotionIntent).GetMethod("Awake",flags).Invoke(motion,null);typeof(ActorMotionIntent).GetMethod("FixedUpdate",flags).Invoke(motion,null);typeof(ActorMotionIntent).GetMethod("FixedUpdate",flags).Invoke(motion,null);
-            Assert.That(motion.Applications,Is.EqualTo(1));Assert.That(body.linearVelocity.x,Is.GreaterThan(0));Assert.That(motion.ContestedIntents,Is.EqualTo(1));
-        }
-        finally{UnityEngine.Object.DestroyImmediate(go);}
+        using var f=new MovementFixture();var b=f.Add("intent",new Vector2(3.9f,3.9f));var body=b.GetComponent<Rigidbody2D>();
+        var high=b.GetComponent<ActorMotionIntent>();var low=b.gameObject.AddComponent<CampWander>();
+        ActorMotionIntent.Submit(high,body,Vector2.right,.2f,10);ActorMotionIntent.Submit(low,body,Vector2.left,.2f,5);
+        f.Tick(Time.fixedTimeAsDouble);f.Tick(Time.fixedTimeAsDouble);
+        Assert.That(high.Applications,Is.EqualTo(1));Assert.That(body.linearVelocity.x,Is.GreaterThan(0));Assert.That(high.ContestedIntents,Is.EqualTo(1));
     }
     [Test]public void CombatApproachReachesRoundedColliderContactWithoutChangingAttackRange()
     {
@@ -221,38 +254,26 @@ public sealed class Stage64DNavigationTests
         }
         finally{UnityEngine.Object.DestroyImmediate(actor);}
     }
-    [TestCase(false)][TestCase(true)]public void FriendlyBlockerGetsACommittedClearSideWithoutIgnoringCollision(bool counterflow)
+    [TestCase(false)][TestCase(true)]public void CoordinatedStrictPassingRetainsFullClearanceAndStableDirection(bool counterflow)
     {
-        var f=new Fixture();var actor=new GameObject("owned local detour");var standing=new GameObject("owned standing friend");
-        try
+        using var f=new MovementFixture();var a=f.Add("moving",new Vector2(3.9f,3.9f));var b=f.Add("blocking",new Vector2(3.9f,3),.5f);
+        float side=0;
+        for(int tick=1;tick<=12;tick++)
         {
-            var body=actor.AddComponent<Rigidbody2D>();var a=actor.AddComponent<BoxCollider2D>();a.size=Vector2.one*.75f;actor.AddComponent<BuddyUnit>();
-            var other=standing.AddComponent<Rigidbody2D>();var b=standing.AddComponent<BoxCollider2D>();b.size=Vector2.one;standing.AddComponent<BuddyUnit>();
-            actor.transform.position=new Vector2(3.9f,3.9f);body.position=actor.transform.position;standing.transform.position=new Vector2(3.9f,3);other.position=standing.transform.position;Physics2D.SyncTransforms();
-            var binding=actor.AddComponent<ActorTerrainBinding>();binding.Bind(f);var motion=actor.AddComponent<ActorMotionIntent>();var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;typeof(ActorMotionIntent).GetMethod("Awake",flags).Invoke(motion,null);var refine=typeof(ActorMotionIntent).GetMethod("Yield",flags);
-            if(counterflow){var otherBinding=standing.AddComponent<ActorTerrainBinding>();otherBinding.Bind(f);otherBinding.RequestRoute=(x,y)=>new ActorRouteResult(GridRouteStatus.Pending,null,0);var task=standing.AddComponent<BuddyFollow>();ActorMotionIntent.Submit(task,other,Vector2.up*1.6f,.25f,10);}
-            float side=0;
-            for(int i=0;i<12;i++)
-            {
-                var velocity=(Vector2)refine.Invoke(motion,new object[]{Vector2.down*1.6f});if(i==0){Assert.That(Mathf.Abs(velocity.x),Is.GreaterThan(1));side=Mathf.Sign(velocity.x);}Assert.That(velocity.x*side,Is.GreaterThan(0),"do not reverse the chosen passing side each tick");
-                var next=body.position+velocity*Time.fixedDeltaTime;body.position=next;actor.transform.position=next;Physics2D.SyncTransforms();Assert.That(a.Distance(b).distance,Is.GreaterThanOrEqualTo(-.001f));Assert.That(TileMover.CanOccupyBox(f,body.position,Vector2.one*.375f),Is.True);
-            }
-            Assert.That(Mathf.Abs(body.position.x-3.9f),Is.GreaterThan(.25f));Assert.That(Physics2D.GetIgnoreCollision(a,b),Is.False);ActorMotionIntent.Cancel(actor);Assert.That(typeof(ActorMotionIntent).GetField("detourBody",flags).GetValue(motion),Is.Null);
+            f.Intent(a,Vector2.down*1.6f,tick);if(counterflow)f.Intent(b,Vector2.up*1.6f,tick);f.Tick(tick,true);
+            var v=a.GetComponent<Rigidbody2D>().linearVelocity;if(tick==1)side=Mathf.Sign(v.x);
+            Assert.That(v.x*side,Is.GreaterThanOrEqualTo(0),"one committed region directive must not oscillate passing sides");
+            Assert.That(a.GetComponent<Collider2D>().Distance(b.GetComponent<Collider2D>()).distance,Is.GreaterThanOrEqualTo(-.001f));
+            Assert.That(TileMover.CanOccupyBox(f.Terrain,a.transform.position,Vector2.one*.375f),Is.True);
         }
-        finally{UnityEngine.Object.DestroyImmediate(actor);UnityEngine.Object.DestroyImmediate(standing);}
+        Assert.That(Physics2D.GetIgnoreCollision(a.GetComponent<Collider2D>(),b.GetComponent<Collider2D>()),Is.False);
     }
-    [Test]public void LocalPassingRejectsASideAlreadyOccupiedByAnotherPhysicalBody()
+    [Test]public void CoordinatedPassingRejectsOccupiedYieldSpace()
     {
-        var f=new Fixture();var actor=new GameObject("owned side choice");var front=new GameObject("owned front friend");var side=new GameObject("owned occupied side");
-        try
-        {
-            var body=actor.AddComponent<Rigidbody2D>();actor.AddComponent<BoxCollider2D>().size=Vector2.one*.75f;actor.AddComponent<BuddyUnit>();actor.transform.position=new Vector2(3.9f,3.9f);body.position=actor.transform.position;
-            var other=front.AddComponent<Rigidbody2D>();front.AddComponent<BoxCollider2D>();front.AddComponent<BuddyUnit>();front.transform.position=new Vector2(3.9f,3);other.position=front.transform.position;
-            var binding=actor.AddComponent<ActorTerrainBinding>();binding.Bind(f);var motion=actor.AddComponent<ActorMotionIntent>();var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;typeof(ActorMotionIntent).GetMethod("Awake",flags).Invoke(motion,null);
-            int preferred=(motion.GetInstanceID()&1)==0?1:-1;var third=side.AddComponent<Rigidbody2D>();side.AddComponent<BoxCollider2D>().size=Vector2.one*.75f;side.AddComponent<BuddyUnit>();side.transform.position=new Vector2(3.9f+preferred*.935f,3.935f);third.position=side.transform.position;Physics2D.SyncTransforms();
-            var velocity=(Vector2)typeof(ActorMotionIntent).GetMethod("Yield",flags).Invoke(motion,new object[]{Vector2.down*1.6f});Assert.That(velocity.x*preferred,Is.LessThan(-.5f),"choose the physically clear alternative, not the occupied detour");
-        }
-        finally{UnityEngine.Object.DestroyImmediate(actor);UnityEngine.Object.DestroyImmediate(front);UnityEngine.Object.DestroyImmediate(side);}
+        using var f=new MovementFixture();var a=f.Add("moving",new Vector2(3.9f,3.9f));var b=f.Add("front",new Vector2(3.9f,3),.5f);var side=f.Add("uncooperative obstacle",new Vector2(4.835f,3.935f),.375f,false,false,0);
+        f.Intent(a,Vector2.down*1.6f,1);f.Tick(1,true);
+        Assert.That(a.GetComponent<Collider2D>().Distance(side.GetComponent<Collider2D>()).distance,Is.GreaterThanOrEqualTo(-.001f));
+        Assert.That(a.GetComponent<Rigidbody2D>().linearVelocity.magnitude,Is.GreaterThan(.1f));
     }
     [Test]public void ObservedDistantExcavationPreservesInFlightSearchProgress()
     {
@@ -269,19 +290,9 @@ public sealed class Stage64DNavigationTests
     }
     [Test]public void FollowingMovingFriendDoesNotForceSidewaysMotionAtContactHeadway()
     {
-        var f=new Fixture();var go=new GameObject("owned following adapter");var front=new GameObject("owned moving friend");
-        try
-        {
-            var body=go.AddComponent<Rigidbody2D>();go.AddComponent<BoxCollider2D>().size=Vector2.one*.75f;go.AddComponent<BuddyUnit>();
-            var ahead=front.AddComponent<Rigidbody2D>();front.AddComponent<BoxCollider2D>().size=Vector2.one*.75f;front.AddComponent<BuddyUnit>();
-            go.transform.position=new Vector2(3.9f,3.9f);body.position=go.transform.position;front.transform.position=new Vector2(3.9f,4.66f);ahead.position=front.transform.position;ahead.linearVelocity=Vector2.up;Physics2D.SyncTransforms();
-            var binding=go.AddComponent<ActorTerrainBinding>();binding.Bind(f);binding.Ready=()=>true;binding.RequestRoute=(a,b)=>new ActorRouteResult(GridRouteStatus.Pending,null,0);
-            var follow=go.AddComponent<BuddyFollow>();ActorMotionIntent.Submit(follow,body,Vector2.up,.28f,10);
-            var motion=go.GetComponent<ActorMotionIntent>();var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
-            typeof(ActorMotionIntent).GetMethod("Awake",flags).Invoke(motion,null);typeof(ActorMotionIntent).GetMethod("FixedUpdate",flags).Invoke(motion,null);
-            Assert.That(body.linearVelocity.y,Is.GreaterThan(0));Assert.That(Mathf.Abs(body.linearVelocity.x),Is.LessThan(.00001f));Assert.That(motion.WaitingForFriendlySpace,Is.False);
-        }
-        finally{UnityEngine.Object.DestroyImmediate(go);UnityEngine.Object.DestroyImmediate(front);}
+        using var f=new MovementFixture();var a=f.Add("following",new Vector2(3.9f,3.9f));var b=f.Add("ahead",new Vector2(3.9f,4.66f));
+        f.Intent(a,Vector2.up,1);f.Intent(b,Vector2.up,1);f.Tick(1);
+        Assert.That(a.GetComponent<Rigidbody2D>().linearVelocity.y,Is.GreaterThan(0));Assert.That(Mathf.Abs(a.GetComponent<Rigidbody2D>().linearVelocity.x),Is.LessThan(.00001f));
     }
     [Test]public void ResumingPastAnchorAdvancesOnlyWhenFullBodySweepIsClear()
     {
@@ -295,34 +306,18 @@ public sealed class Stage64DNavigationTests
         }
         finally{UnityEngine.Object.DestroyImmediate(go);}
     }
-    [Test]public void NearlyHorizontalFriendlyBlockUsesDetourInsteadOfTinyAxisCreep()
+    [Test]public void NearHorizontalRecordedFailureDoesNotBecomeTinyAxisCreep()
     {
-        var f=new Fixture();var go=new GameObject("owned near-horizontal walker");var friend=new GameObject("owned large idle blocker");
-        try
-        {
-            var body=go.AddComponent<Rigidbody2D>();go.AddComponent<BoxCollider2D>().size=Vector2.one*.75f;go.AddComponent<BuddyUnit>();var other=friend.AddComponent<Rigidbody2D>();friend.AddComponent<BoxCollider2D>().size=Vector2.one;friend.AddComponent<BuddyUnit>();
-            body.position=new Vector2(5.24f,5.42f);go.transform.position=body.position;other.position=new Vector2(4.3f,5.1f);friend.transform.position=other.position;Physics2D.SyncTransforms();
-            var binding=go.AddComponent<ActorTerrainBinding>();binding.Bind(f);binding.Ready=()=>true;binding.RequestRoute=(a,b)=>new ActorRouteResult(GridRouteStatus.Pending,null,0);
-            var follow=go.AddComponent<BuddyFollow>();ActorMotionIntent.Submit(follow,body,new Vector2(-3.15f,-.03f),.28f,10);var motion=go.GetComponent<ActorMotionIntent>();var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
-            typeof(ActorMotionIntent).GetMethod("Awake",flags).Invoke(motion,null);typeof(ActorMotionIntent).GetMethod("FixedUpdate",flags).Invoke(motion,null);
-            Assert.That(body.linearVelocity.magnitude,Is.GreaterThan(1),"a tiny goal-axis component is not a useful avoidance direction");
-        }
-        finally{UnityEngine.Object.DestroyImmediate(go);UnityEngine.Object.DestroyImmediate(friend);}
+        using var f=new MovementFixture();var a=f.Add("near-horizontal",new Vector2(5.24f,5.42f));var b=f.Add("large standing",new Vector2(4.3f,5.1f),.5f);
+        for(int tick=1;tick<=8;tick++){f.Intent(a,new Vector2(-3.15f,-.03f),tick);f.Tick(tick,true);Assert.That(a.GetComponent<Collider2D>().Distance(b.GetComponent<Collider2D>()).distance,Is.GreaterThanOrEqualTo(-.001f));}
+        Assert.That(a.GetComponent<Rigidbody2D>().linearVelocity.magnitude,Is.GreaterThan(.1f));
     }
-    [Test]public void DiagonalFriendlyCornerSlidesAlongClearAxisWithoutCollisionException()
+    [Test]public void RecordedCornerUsesOneCoordinatedDirectiveWithoutCollisionException()
     {
-        var f=new Fixture();var go=new GameObject("owned corner walker");var friend=new GameObject("owned corner friend");
-        try
-        {
-            var body=go.AddComponent<Rigidbody2D>();go.AddComponent<BoxCollider2D>().size=Vector2.one*.75f;go.AddComponent<BuddyUnit>();var other=friend.AddComponent<Rigidbody2D>();friend.AddComponent<BoxCollider2D>().size=Vector2.one*.75f;friend.AddComponent<BuddyUnit>();
-            body.position=new Vector2(5.03f,5.56f);go.transform.position=body.position;other.position=new Vector2(4.25f,4.97f);friend.transform.position=other.position;Physics2D.SyncTransforms();
-            var binding=go.AddComponent<ActorTerrainBinding>();binding.Bind(f);binding.Ready=()=>true;binding.RequestRoute=(a,b)=>new ActorRouteResult(GridRouteStatus.Pending,null,0);
-            var follow=go.AddComponent<BuddyFollow>();ActorMotionIntent.Submit(follow,body,new Vector2(-2.2f,2.2f),.28f,10);var motion=go.GetComponent<ActorMotionIntent>();var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
-            typeof(ActorMotionIntent).GetMethod("Awake",flags).Invoke(motion,null);typeof(ActorMotionIntent).GetMethod("FixedUpdate",flags).Invoke(motion,null);
-            Assert.That(body.linearVelocity.y,Is.GreaterThan(0));Assert.That(Mathf.Abs(body.linearVelocity.x),Is.LessThan(.0001f));Assert.That(motion.WaitingForFriendlySpace,Is.False);
-            Assert.That(Physics2D.GetIgnoreCollision(go.GetComponent<Collider2D>(),friend.GetComponent<Collider2D>()),Is.False);
-        }
-        finally{UnityEngine.Object.DestroyImmediate(go);UnityEngine.Object.DestroyImmediate(friend);}
+        using var f=new MovementFixture();var a=f.Add("corner",new Vector2(5.03f,5.56f));var b=f.Add("standing",new Vector2(4.25f,4.97f));
+        for(int tick=1;tick<=8;tick++){f.Intent(a,new Vector2(-2.2f,2.2f),tick);f.Tick(tick,true);Assert.That(a.GetComponent<Collider2D>().Distance(b.GetComponent<Collider2D>()).distance,Is.GreaterThanOrEqualTo(-.001f));}
+        Assert.That(Physics2D.GetIgnoreCollision(a.GetComponent<Collider2D>(),b.GetComponent<Collider2D>()),Is.False);
+        Assert.That(a.GetComponent<Rigidbody2D>().linearVelocity.magnitude,Is.GreaterThan(.1f));
     }
     [Test]public void FriendlyDelayMeasuresWaitingSlowingAndSidewaysDetours()
     {
@@ -347,20 +342,13 @@ public sealed class Stage64DNavigationTests
         }
         finally{foreach(var go in actors)UnityEngine.Object.DestroyImmediate(go);}
     }
-    [Test]public void IdleFriendlyCanYieldForwardWhenTunnelHasNoLateralRoom()
+    [Test]public void WorkAdmissionDirectsIdleYieldIntoClearTunnelSpace()
     {
-        var f=new Fixture();for(int y=1;y<31;y++){f.Walls.Add(y*32+6);f.Walls.Add(y*32+9);}f.Rebuild();
-        var idle=new GameObject("owned narrow idle");var walker=new GameObject("owned narrow requester");
-        try
-        {
-            var b=idle.AddComponent<Rigidbody2D>();idle.AddComponent<BoxCollider2D>().size=Vector2.one*.75f;idle.AddComponent<BuddyUnit>();var request=walker.AddComponent<Rigidbody2D>();walker.AddComponent<BoxCollider2D>().size=Vector2.one*.75f;walker.AddComponent<BuddyUnit>();
-            b.position=new Vector2(4.8f,4.5f);idle.transform.position=b.position;request.position=new Vector2(4.8f,3.74f);walker.transform.position=request.position;Physics2D.SyncTransforms();
-            var binding=idle.AddComponent<ActorTerrainBinding>();binding.Bind(f);binding.Ready=()=>true;binding.RequestRoute=(a,c)=>new ActorRouteResult(GridRouteStatus.Pending,null,0);
-            var motion=idle.AddComponent<ActorMotionIntent>();var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;typeof(ActorMotionIntent).GetMethod("Awake",flags).Invoke(motion,null);
-            Assert.That((bool)typeof(ActorMotionIntent).GetMethod("RequestIdleYield",flags).Invoke(motion,new object[]{request,Vector2.up}),Is.True);
-            Assert.That((bool)typeof(ActorMotionIntent).GetMethod("ApplyIdleYield",flags).Invoke(motion,null),Is.True);Assert.That(b.linearVelocity.y,Is.GreaterThan(0));Assert.That(Mathf.Abs(b.linearVelocity.x),Is.LessThan(.0001f));
-        }
-        finally{UnityEngine.Object.DestroyImmediate(idle);UnityEngine.Object.DestroyImmediate(walker);}
+        var terrain=new Fixture();for(int y=1;y<31;y++){terrain.Walls.Add(y*32+6);terrain.Walls.Add(y*32+9);}terrain.Rebuild();
+        using var f=new MovementFixture(true,terrain);var a=f.Add("constructor",new Vector2(4.8f,3.74f),.375f,true);var b=f.Add("idle",new Vector2(4.8f,4.5f),.375f,true);
+        Assert.That(f.Coordinator.RequestAccess(a,1,new Vector2(4.8f,4.5f)),Is.False);f.Tick(1);
+        Assert.That(b.GetComponent<Rigidbody2D>().linearVelocity.y,Is.GreaterThan(0));Assert.That(Mathf.Abs(b.GetComponent<Rigidbody2D>().linearVelocity.x),Is.LessThan(.0001f));
+        Assert.That(TileMover.CanTraverseBox(terrain,b.transform.position,(Vector2)b.transform.position+b.GetComponent<Rigidbody2D>().linearVelocity*.02f,Vector2.one*.375f),Is.True);
     }
     [Test]public void CampGatheringSupportsTenBodiesAndKeepsReservationDuringPassing()
     {
@@ -380,30 +368,18 @@ public sealed class Stage64DNavigationTests
         }
         finally{foreach(var go in actors)UnityEngine.Object.DestroyImmediate(go);}
     }
-    [Test]public void DirectedWalkQueueWaitHasSeparateFiniteDeadline()
+    [Test]public void DirectedWalkQueueingNeverRenewsFiniteDeadline()
     {
-        Assert.That(CampDirectedWalk.WalkDeadlineExpired(10.1f,10,0),Is.True,"clear travel retains original deadline");
-        Assert.That(CampDirectedWalk.WalkDeadlineExpired(10.1f,10,2),Is.False,"observed friendly queue may clear");
-        Assert.That(CampDirectedWalk.WalkDeadlineExpired(12.1f,10,2),Is.True,"waiting is not an unlimited renewal");
-        Assert.That(CampDirectedWalk.WalkDeadlineExpired(20.1f,10,100),Is.True,"permanent obstruction still terminates");
+        Assert.That(CampDirectedWalk.WalkDeadlineExpired(9.9f,10),Is.False);
+        Assert.That(CampDirectedWalk.WalkDeadlineExpired(10.1f,10),Is.True,"queueing does not reset or lengthen the finite end-to-end deadline");
     }
-    [Test]public void IdleFriendlyYieldsThroughNormalMovementAndCancellationClearsRequest()
+    [Test]public void RegionYieldCancellationDoesNotResumeAStaleDirective()
     {
-        var f=new Fixture();var idle=new GameObject("owned idle friend");var walker=new GameObject("owned exact approach");
-        try
-        {
-            var b=idle.AddComponent<Rigidbody2D>();idle.AddComponent<BoxCollider2D>().size=Vector2.one*.75f;idle.AddComponent<BuddyUnit>();
-            var request=walker.AddComponent<Rigidbody2D>();walker.AddComponent<BoxCollider2D>().size=Vector2.one*.75f;walker.AddComponent<BuddyUnit>();
-            b.position=new Vector2(4.5f,4.5f);idle.transform.position=b.position;request.position=new Vector2(4.5f,3.74f);walker.transform.position=request.position;Physics2D.SyncTransforms();
-            var binding=idle.AddComponent<ActorTerrainBinding>();binding.Bind(f);binding.Ready=()=>true;binding.RequestRoute=(a,c)=>new ActorRouteResult(GridRouteStatus.Pending,null,0);
-            var motion=idle.AddComponent<ActorMotionIntent>();var flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
-            typeof(ActorMotionIntent).GetMethod("Awake",flags).Invoke(motion,null);
-            Assert.That((bool)typeof(ActorMotionIntent).GetMethod("RequestIdleYield",flags).Invoke(motion,new object[]{request,Vector2.up}),Is.True);
-            Assert.That((bool)typeof(ActorMotionIntent).GetMethod("ApplyIdleYield",flags).Invoke(motion,null),Is.True);Assert.That(Mathf.Abs(b.linearVelocity.x),Is.GreaterThan(0));
-            Assert.That(Physics2D.GetIgnoreCollision(idle.GetComponent<Collider2D>(),walker.GetComponent<Collider2D>()),Is.False);
-            ActorMotionIntent.Cancel(idle);Assert.That((bool)typeof(ActorMotionIntent).GetMethod("ApplyIdleYield",flags).Invoke(motion,null),Is.False);
-        }
-        finally{UnityEngine.Object.DestroyImmediate(idle);UnityEngine.Object.DestroyImmediate(walker);}
+        using var f=new MovementFixture(true);var a=f.Add("requester",new Vector2(4.5f,3.74f),.375f,true);var b=f.Add("idle",new Vector2(4.5f,4.5f),.375f,true);
+        f.Coordinator.RequestAccess(a,1,new Vector2(4.5f,4.5f));f.Tick(1);
+        Assert.That(b.GetComponent<Rigidbody2D>().linearVelocity.magnitude,Is.GreaterThan(.1f));Assert.That(b.GetComponent<BoxCollider2D>().size,Is.EqualTo(Vector2.one*.75f));
+        f.Coordinator.ReleaseDuty(a);ActorMotionIntent.Cancel(b.gameObject);f.Tick(2);
+        Assert.That(f.Coordinator.State(b),Is.Not.EqualTo(MovementResolutionState.Yielding));
     }
     [Test]public void QueuedRoutePublishesTravelBudgetOnlyOnceWhileFollowing()
     {
@@ -420,6 +396,57 @@ public sealed class Stage64DNavigationTests
             follower.Reset();Assert.That(follower.Publication,Is.Zero);
         }
         finally{UnityEngine.Object.DestroyImmediate(go);}
+    }
+    [Test]public void CampAllowanceCannotPermitSweptFullBodyPhasing()
+    {
+        var sum=Vector2.one*.75f;float tolerance=MovementContactPolicy.Allowance(Vector2.one*.375f,Vector2.one*.375f,true);
+        Assert.That(tolerance,Is.EqualTo(.06f).Within(.00001f));
+        Assert.That(MovementContactPolicy.SweepClear(new Vector2(1,0),new Vector2(-2,0),sum,tolerance),Is.False,"clear endpoints cannot bypass another body");
+        Assert.That(MovementContactPolicy.SweepClear(new Vector2(.71f,0),Vector2.up*.02f,sum,tolerance),Is.True,"small tangential Camp contact is permitted");
+        Assert.That(MovementContactPolicy.SweepClear(new Vector2(.71f,0),Vector2.left*.03f,sum,tolerance),Is.False,"the overlap envelope is a bound, not phasing");
+    }
+    [Test]public void ArrivedStandingClaimSurvivesRouteCompletionUntilActivityRelease()
+    {
+        using var f=new MovementFixture(true);var a=f.Add("A",new Vector2(3,3),.375f,true);var goal=new Vector2(6,6);
+        f.Coordinator.Choose(a,17,goal,Vector2.zero,false);a.CancelRouteWork=()=>{};a.GetComponent<Rigidbody2D>().position=goal;a.transform.position=goal;Physics2D.SyncTransforms();
+        Assert.That(f.Coordinator.MarkArrived(a),Is.True);a.StopRouteWork();Assert.That(f.Coordinator.HasDestination(a),Is.True);
+        a.ReleaseActivitySpace();Assert.That(f.Coordinator.HasDestination(a),Is.False);
+    }
+    [Test]public void ExactAccessUsesStableOldestTicketAndDoesNotPromiseOccupiedWork()
+    {
+        using var f=new MovementFixture(true);var a=f.Add("A",new Vector2(3,3),.375f,true);var b=f.Add("B",new Vector2(3,5),.375f,true);var goal=new Vector2(8,8);
+        f.Coordinator.RequestAccess(b,2,goal);f.Coordinator.RequestAccess(a,1,goal);f.Tick(1);
+        Assert.That(f.Coordinator.Ticket(a),Is.LessThan(f.Coordinator.Ticket(b)));Assert.That(f.Coordinator.RequestAccess(a,1,goal),Is.True);Assert.That(f.Coordinator.RequestAccess(b,2,goal),Is.False);
+        a.GetComponent<Rigidbody2D>().position=goal;a.transform.position=goal;Physics2D.SyncTransforms();f.Coordinator.MarkArrived(a);f.Coordinator.ReleaseDuty(a);f.Tick(2);
+        Assert.That(f.Coordinator.RequestAccess(b,2,goal),Is.False,"logical release cannot make a physical worker vanish");
+    }
+    [Test]public void CampContactNeverLeaksIntoParticipantOrExpeditionRoles()
+    {
+        using var f=new MovementFixture(true);var a=f.Add("residentA",new Vector2(3,3),.375f,true);var b=f.Add("residentB",new Vector2(5,3),.375f,true);
+        f.Coordinator.RefreshContacts();var ca=a.GetComponent<Collider2D>();var cb=b.GetComponent<Collider2D>();Assert.That(Physics2D.GetIgnoreCollision(ca,cb),Is.True);
+        var session=new MovementSession();session.Fighters.Add(a.gameObject);a.gameObject.AddComponent<CombatSessionBinding>().Rules=session;
+        f.Coordinator.RefreshContacts();Assert.That(f.Coordinator.Role(a),Is.EqualTo(MovementContactRole.Strict));Assert.That(Physics2D.GetIgnoreCollision(ca,cb),Is.False);Assert.That(f.Coordinator.VerifyStrict(a.gameObject),Is.True);
+        session.Fighters.Clear();f.Coordinator.RefreshContacts();Assert.That(f.Coordinator.Role(a),Is.EqualTo(MovementContactRole.CampSpectator));
+        using var expedition=new MovementFixture();var c=expedition.Add("expeditionA",new Vector2(10,10),.375f,true);var d=expedition.Add("expeditionB",new Vector2(12,10),.375f,true);
+        expedition.Coordinator.RefreshContacts();Assert.That(expedition.Coordinator.Role(c),Is.EqualTo(MovementContactRole.Strict));Assert.That(Physics2D.GetIgnoreCollision(c.GetComponent<Collider2D>(),d.GetComponent<Collider2D>()),Is.False);
+    }
+    [Test]public void YieldDirectiveExpiresWhenItsPhysicalConflictHasGone()
+    {
+        using var f=new MovementFixture();var a=f.Add("mover",new Vector2(3,3));var b=f.Add("standing",new Vector2(3.78f,3));
+        f.Intent(a,Vector2.right*3,1);f.Tick(1);
+        Assert.That(a.GetComponent<ActorMotionIntent>().State,Is.EqualTo(MovementResolutionState.Yielding));
+        b.GetComponent<Rigidbody2D>().position=new Vector2(9,9);b.transform.position=new Vector2(9,9);Physics2D.SyncTransforms();
+        f.Intent(a,Vector2.right*3,2);f.Tick(2);
+        Assert.That(a.GetComponent<ActorMotionIntent>().State,Is.EqualTo(MovementResolutionState.Moving));
+        Assert.That(a.GetComponent<Rigidbody2D>().linearVelocity,Is.EqualTo(Vector2.right*3),"an unneeded old yield cannot hold a clear route hostage");
+    }
+    [Test]public void DisableAndTeardownReleaseEveryOwnedPairOverrideAndClaim()
+    {
+        using var f=new MovementFixture(true);var a=f.Add("A",new Vector2(3,3),.375f,true);var b=f.Add("B",new Vector2(5,3),.375f,true);
+        f.Coordinator.Choose(a,1,new Vector2(8,8),Vector2.zero,false);f.Coordinator.RefreshContacts();Assert.That(f.Coordinator.OwnedContactOverrides,Is.EqualTo(1));
+        a.gameObject.SetActive(false);Assert.That(a.Movement,Is.SameAs(f.Coordinator));typeof(ActorTerrainBinding).GetMethod("OnDisable",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).Invoke(a,null);Assert.That(f.Coordinator.HasDestination(a),Is.False,"activity claim released by binding disable");Assert.That(f.Coordinator.OwnedContactOverrides,Is.Zero);
+        a.gameObject.SetActive(true);f.Coordinator.RefreshContacts();Assert.That(f.Coordinator.OwnedContactOverrides,Is.EqualTo(1));
+        f.Coordinator.Dispose();Assert.That(f.Coordinator.ActorCount,Is.Zero);Assert.That(f.Coordinator.OwnedContactOverrides,Is.Zero);Assert.That(Physics2D.GetIgnoreCollision(a.GetComponent<Collider2D>(),b.GetComponent<Collider2D>()),Is.False);
     }
     [TestCase(256,false)][TestCase(256,true)][TestCase(1024,false)][TestCase(1024,true)]
     public void BoundedLargerSearchReportsMonoWorkAndOracleComparison(int size,bool blocked)
@@ -440,3 +467,6 @@ public sealed class Stage64DNavigationTests
     }
 }
 #endif
+
+
+

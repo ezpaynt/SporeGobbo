@@ -15,6 +15,7 @@ public static class TileMover
             return;
         }
 
+        if(actorBinding?.Movement!=null&&!actorBinding.Movement.Applying)desiredVelocity=actorBinding.Movement.ConstrainExternal(actorBinding,desiredVelocity,bodyRadius);
         Vector2 clearanceExtents = GetMapClearanceExtents(rb, bodyRadius);
         Vector2 nextPos = rb.position + desiredVelocity * Time.fixedDeltaTime;
 

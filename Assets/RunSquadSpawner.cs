@@ -157,6 +157,8 @@ public class RunSquadSpawner : MonoBehaviour
         RegionQueries.Bind(obj);
         var leader=player.GetComponent<GobboController>();
         if(leader==null||!leader.RegisterSquadBuddy(unit)){obj.SetActive(false);Destroy(obj);Debug.LogWarning("Rejected invalid squad spawn; canonical roster retained.");return;}
+        var movementBinding=obj.GetComponent<ActorTerrainBinding>();
+        movementBinding?.Movement?.Configure(movementBinding,gobbo.uniqueId,1,false);
         CampWander wander = obj.GetComponent<CampWander>();
         if (wander != null) wander.enabled = false;
 

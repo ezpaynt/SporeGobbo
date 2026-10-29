@@ -5,17 +5,19 @@ public sealed class RegionTerrainPhysics:IDisposable
  readonly RegionTerrainState state;readonly LogicalGridTransform grid;readonly GameObject root;
  readonly Dictionary<DualTile,PolygonCollider2D> patches=new Dictionary<DualTile,PolygonCollider2D>();
  RegionRouteQueue navigation;
- RegionMovementSlots slots;
+ RegionMovementCoordinator movement;
  public void BindNavigation(ActorTerrainBinding binding,IDiggableTerrain terrain)
  {
-  if(navigation==null){navigation=new RegionRouteQueue(state,terrain,Logical,World);slots=new RegionMovementSlots(terrain);root.AddComponent<RegionRoutePump>().Queue=navigation;}
+  if(navigation==null){navigation=new RegionRouteQueue(state,terrain,Logical,World);movement=new RegionMovementCoordinator(terrain,terrain is SettlementCampRegion);var pump=root.AddComponent<RegionRoutePump>();pump.Queue=navigation;pump.Movement=movement;}
   binding.RequestRoute=(from,goal)=>{var status=navigation.RequestPath(binding,from,goal,TileMover.GetMapClearanceExtents(binding.GetComponent<Rigidbody2D>(),binding.MinimumBodyRadius),out var path);return new ActorRouteResult(status,path,navigation.RouteRevision(binding),navigation.RouteDistance(binding));};
   binding.AcceptCachedRoute=revision=>navigation.Accepts(binding,revision);
   binding.RequestProbe=(key,from,goal)=>{var status=navigation.RequestPath(binding,from,goal,TileMover.GetMapClearanceExtents(binding.GetComponent<Rigidbody2D>(),binding.MinimumBodyRadius),out var path,key);return new ActorRouteResult(status,path,navigation.RouteRevision(binding,key));};
-  binding.ChooseDestination=(key,center,size,contact)=>slots.Choose(binding,key,center,size,contact);
-  binding.HasMovementDestination=()=>slots.HasDestination(binding);
-  binding.CancelRoute=()=>{navigation.CancelAll(binding);slots.Release(binding);};
+  movement.Register(binding);
+  binding.ChooseDestination=(key,center,size,contact)=>movement.Choose(binding,key,center,size,contact);
+  binding.HasMovementDestination=()=>movement.HasDestination(binding);
+  binding.CancelRoute=()=>{navigation.CancelAll(binding);movement.ReleaseDuty(binding);};
   binding.CancelMovementRoute=()=>navigation.Cancel(binding);
+  binding.CancelRouteWork=()=>navigation.CancelAll(binding);
  }
  readonly HashSet<DualTile> dirty=new HashSet<DualTile>();
  public int PatchCount=>patches.Count;public int RejectedRoutes{get;private set;}
@@ -33,5 +35,5 @@ public sealed class RegionTerrainPhysics:IDisposable
   if(!patches.TryGetValue(key,out var collider)){if(paths.Count==0)return;var go=new GameObject("Terrain boundary patch "+key.X+","+key.Y);go.transform.SetParent(root.transform,false);collider=go.AddComponent<PolygonCollider2D>();patches.Add(key,collider);}
   collider.enabled=paths.Count>0;collider.pathCount=paths.Count;for(int i=0;i<paths.Count;i++)collider.SetPath(i,paths[i]);
  }
-public void Dispose(){slots?.Dispose();navigation?.Dispose();if(root!=null)UnityEngine.Object.Destroy(root);patches.Clear();}
+public void Dispose(){movement?.Dispose();navigation?.Dispose();if(root!=null)UnityEngine.Object.Destroy(root);patches.Clear();}
 }

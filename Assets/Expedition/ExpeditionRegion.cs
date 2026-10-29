@@ -55,7 +55,7 @@ using System;using System.Linq;using System.Collections.Generic;using UnityEngin
  public void BindActor(GameObject actor)
  {
   RegionActorViews.Bind(this,RegionCamera,views,actor,()=>LogicalReady&&Projection!=null);
-  if(actor.TryGetComponent<GobboController>(out var player))Player=player;
+  if(actor.TryGetComponent<GobboController>(out var player)){Player=player;var movementBinding=actor.GetComponent<ActorTerrainBinding>();movementBinding?.Movement?.Configure(movementBinding,"expedition.leader",1,false,true);}
  }
  public void BindVisual(GameObject visual)
  =>RegionActorViews.BindVisual(this,views,visual);

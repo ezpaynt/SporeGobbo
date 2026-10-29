@@ -34,6 +34,10 @@ public sealed class ActorTerrainBinding : MonoBehaviour
         var answer=RequestProbe(key,from,goal);ProbeStatus=answer.Status;path=answer.Path??new List<Vector2>();return answer.Status==GridRouteStatus.Succeeded&&path.Count>0;
     }
 
+    public RegionMovementCoordinator Movement {get;internal set;}
+    public Action CancelRouteWork;
+    public void StopRouteWork(){CancelRouteWork?.Invoke();RouteStatus=ProbeStatus=GridRouteStatus.Canceled;}
+    public void ReleaseActivitySpace()=>Movement?.ReleaseDuty(this);
     public Action CancelRoute;
     public Action CancelMovementRoute;
     public GridRouteStatus RouteStatus {get;private set;}=GridRouteStatus.Canceled;
@@ -88,6 +92,7 @@ public sealed class ActorTerrainBinding : MonoBehaviour
         public Scope(string name,bool active=true){this.active=active;if(active)UnityEngine.Profiling.Profiler.BeginSample(name);}
         public void Dispose(){if(active)UnityEngine.Profiling.Profiler.EndSample();}
     }
-    void OnDisable()=>CancelNavigation();
-    void OnDestroy(){CancelNavigation();RequestRoute=null;RequestProbe=null;ChooseDestination=null;HasMovementDestination=null;AcceptCachedRoute=null;CancelRoute=null;CancelMovementRoute=null;Terrain=null;Ready=null;ReadRevision=null;FindRoute=null;PointerToWorld=null;}
+    void OnEnable()=>Movement?.RefreshContacts();
+    void OnDisable(){CancelNavigation();Movement?.Deactivate(this);ActorMotionIntent.Cancel(gameObject);}
+    void OnDestroy(){CancelNavigation();Movement?.Unregister(this);Movement=null;CancelRouteWork=null;RequestRoute=null;RequestProbe=null;ChooseDestination=null;HasMovementDestination=null;AcceptCachedRoute=null;CancelRoute=null;CancelMovementRoute=null;Terrain=null;Ready=null;ReadRevision=null;FindRoute=null;PointerToWorld=null;}
 }
