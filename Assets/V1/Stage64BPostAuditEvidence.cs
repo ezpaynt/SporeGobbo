@@ -151,12 +151,16 @@ if(Time.timeScale>0){active+=Time.unscaledDeltaTime;for(int i=0;i<actors.Length;
  }
  IEnumerator GroupMatrix()
  {
+  // Outcome correctness does not require the outnumbered opponent to land a hit.
+  // Both enemy damage paths remain mandatory in the unchanged singles/mixed gates.
   var rows=new List<string>{"friendlyBuddies,weevils,activeSeconds,terminal,friendlyHits,opponentHits"};
   foreach(var configuration in new[]{(2,1),(5,3)})
   {
+   yield return Wait(()=>Camp()&&region.Ready&&!lab.Active,"published Camp ready before homogeneous group / "+configuration);
+   if(!Camp()||!region.Ready||lab.Active){errors.Add("Group presentation never became ready");yield break;}
    Stage61RuntimeMetrics.Category("setup");Select(configuration.Item1,true,"Weevil",configuration.Item2,"Open");string facts=Facts(),physical=JsonUtility.ToJson(region.CaptureRegionSnapshot(GameState.Instance));lab.StartSession();round=100+configuration.Item1;BeginRound();float end=Time.realtimeSinceStartup+30;
    while(!ended&&lab.Fighting&&Time.realtimeSinceStartup<end){Stage61RuntimeMetrics.Category("ordinary");yield return null;}
-   Stage61RuntimeMetrics.Category("validation");Check("natural homogeneous group outcome / "+configuration,lab.Phase==CampFightPitLab.MatchPhase.Resolved&&lab.Outcome.Contains("protected 1 HP")&&lab.FriendlyHits>0&&lab.OpponentHits>0);rows.Add(configuration.Item1+","+configuration.Item2+","+N(Time.realtimeSinceStartup-roundStart)+","+Csv(lab.Outcome)+","+lab.FriendlyHits+","+lab.OpponentHits);yield return Shot("group-"+configuration.Item1+"-vs-"+configuration.Item2);lab.StopSession("homogeneous group proof");round=-1;Check("homogeneous group restores real Camp / "+configuration,!lab.Active&&Facts()==facts&&JsonUtility.ToJson(region.CaptureRegionSnapshot(GameState.Instance))==physical);yield return Frames(3);if(lab.Active){errors.Add("Group cleanup failed");yield break;}
+   Stage61RuntimeMetrics.Category("validation");Check("natural homogeneous group outcome / "+configuration,lab.Phase==CampFightPitLab.MatchPhase.Resolved&&lab.Outcome.Contains("protected 1 HP")&&lab.FriendlyHits>0);rows.Add(configuration.Item1+","+configuration.Item2+","+N(Time.realtimeSinceStartup-roundStart)+","+Csv(lab.Outcome)+","+lab.FriendlyHits+","+lab.OpponentHits);File.WriteAllLines(Path.Combine(directory,"homogeneous-groups.csv"),rows);yield return Shot("group-"+configuration.Item1+"-vs-"+configuration.Item2);lab.StopSession("homogeneous group proof");round=-1;Check("homogeneous group restores real Camp / "+configuration,!lab.Active&&Facts()==facts&&JsonUtility.ToJson(region.CaptureRegionSnapshot(GameState.Instance))==physical);yield return Frames(3);if(lab.Active){errors.Add("Group cleanup failed");yield break;}
   }
   Stage61RuntimeMetrics.Category("validation");File.WriteAllLines(Path.Combine(directory,"homogeneous-groups.csv"),rows);
  }

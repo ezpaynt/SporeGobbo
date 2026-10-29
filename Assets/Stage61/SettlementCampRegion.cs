@@ -199,8 +199,10 @@ public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProj
   var cells=new List<DualTile>();
   if(preset=="Rock"){for(int y=78;y<=81;y++)for(int x=148;x<=150;x++)cells.Add(new DualTile(x,y));for(int y=85;y<=87;y++)for(int x=154;x<=157;x++)cells.Add(new DualTile(x,y));}
   else {for(int y=76;y<=86;y++)for(int x=151;x<=153;x++)cells.Add(new DualTile(x,y));}
+  // A same-frame reset deactivates owned temporary actors before deferred Destroy.
+  // Their stale views are not physical occupants; every active body remains protected.
   var result=place(new TerrainPlacementRequest(State.InstanceId,Revision,"pit-"+Guid.NewGuid().ToString("N"),cells),requested=>
-  {foreach(var actor in views){if(actor==null)continue;var body=actor.GetComponent<Rigidbody2D>();if(body==null||!body.simulated)continue;var ext=TileMover.GetMapClearanceExtents(body,.25f);foreach(var cell in requested){Vector2 center=CellToWorld(new Vector2Int(cell.X,cell.Y));if(Math.Abs(center.x-body.position.x)<ext.x+.3f&&Math.Abs(center.y-body.position.y)<ext.y+.3f)return false;}}return true;});
+  {foreach(var actor in views){if(actor==null||!actor.gameObject.activeInHierarchy)continue;var body=actor.GetComponent<Rigidbody2D>();if(body==null||!body.simulated)continue;var ext=TileMover.GetMapClearanceExtents(body,.25f);foreach(var cell in requested){Vector2 center=CellToWorld(new Vector2Int(cell.X,cell.Y));if(Math.Abs(center.x-body.position.x)<ext.x+.3f&&Math.Abs(center.y-body.position.y)<ext.y+.3f)return false;}}return true;});
   if(!result.Accepted)throw new InvalidOperationException("Arena preset refused: "+result.Rejection);arenaCells.AddRange(cells);foreach(var c in cells)surfaceTexture.SetPixel(c.X,c.Y,preset=="Rock"?Color.white:preset=="Roots"?new Color(0,1,0):Color.black);surfaceTexture.Apply();
  }
  void Publish(IReadOnlyList<DualTile> changed,int revision)
