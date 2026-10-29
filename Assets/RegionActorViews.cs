@@ -6,6 +6,7 @@ public static class RegionActorViews
  {
   var body=actor.GetComponent<Rigidbody2D>();if(body==null)throw new InvalidOperationException("Actor lacks Rigidbody2D: "+actor.name);
   var binding=actor.GetComponent<ActorTerrainBinding>()??actor.AddComponent<ActorTerrainBinding>();binding.Bind(region);binding.SuppressCampaignBootstrap=false;binding.Ready=ready;binding.ReadRevision=()=>region.Revision;binding.FindRoute=(a,b)=>region.Route(a,b,TileMover.GetMapClearanceExtents(body,.22f));binding.PointerToWorld=s=>{if(region.Projection==null)return body.position;var p=camera.ScreenToWorldPoint(new Vector3(s.x,s.y,10));return region.World(region.Projection.Unproject(new Point2(p.x,-p.y)));};
+  if(region is IRegionNavigation navigation)navigation.BindNavigation(binding);
   var dig=actor.GetComponent<BuddyDigAbility>();if(dig!=null)dig.BindTerrain(region);
   Physics2D.SyncTransforms();var extent=TileMover.GetMapClearanceExtents(body,.22f);Vector2 origin=body.position;
   bool Fits(Vector2 p)=>TileMover.CanOccupyBox(region,p,extent)&&!views.Any(v=>v!=null&&v.gameObject!=actor&&v.GetComponent<Rigidbody2D>() is Rigidbody2D other&&(other.position-p).sqrMagnitude<Mathf.Pow(extent.magnitude+TileMover.GetMapClearanceExtents(other,.22f).magnitude,2));

@@ -85,7 +85,7 @@ public class BuddyFollow : MonoBehaviour
         {
         FindPlayerIfMissing();
         var binding = GetComponent<ActorTerrainBinding>();
-        if (binding != null && boundRouteRevision != binding.Revision) { ClearPath(); boundRouteRevision = binding.Revision; }
+        if (binding != null && boundRouteRevision != binding.Revision && !binding.AcceptsMovementRoute(boundRouteRevision)) { ClearPath(); boundRouteRevision = binding.Revision; }
 
         if (!brainAllowsMovement)
         {
@@ -157,8 +157,8 @@ public class BuddyFollow : MonoBehaviour
         repathTimer -= Time.fixedDeltaTime;
 
         bool needsNewPath =
-            currentPath.Count == 0 ||
-            pathIndex >= currentPath.Count ||
+            (currentPath.Count == 0 && repathTimer <= 0f) ||
+            (currentPath.Count > 0 && pathIndex >= currentPath.Count) ||
             repathTimer <= 0f ||
             Vector2.Distance(targetPosition, lastPathGoal) > repathDistance;
 

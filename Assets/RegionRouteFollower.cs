@@ -9,7 +9,7 @@ public sealed class RegionRouteFollower
  {
   direction=Vector2.zero;if(binding==null){direction=(destination-position).normalized;return true;}
   if(binding.Ready!=null&&!binding.Ready())return false;
-  if(path==null||!binding.AcceptsRoute(revision)||(destination-goal).sqrMagnitude>.0025f)
+  if(path==null||!binding.AcceptsMovementRoute(revision)||(destination-goal).sqrMagnitude>.0025f)
   {goal=destination;if(!binding.TryPath(position,destination,out path)){path=null;return false;}revision=binding.LastRouteRevision;cursor=0;}
   while(cursor<path.Count&&(path[cursor]-position).sqrMagnitude<.018f)cursor++;
   CurrentWaypoint=cursor<path.Count?path[cursor]:destination;direction=(CurrentWaypoint-position).normalized;return true;

@@ -9,7 +9,7 @@ using SporeGobbo.CampLifecycle;
 using SporeGobbo.Input;
 /// <summary>Camp authored-region adapter. Campaign/visit/job ownership stays in existing services.</summary>
 [DefaultExecutionOrder(-1800)]
-public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProjectedActorContext,IRegionActorBinding,IRegionVisualBinding,ICampRegionSnapshotSource,ICampDepartureState,ICampaignTransientActivity
+public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProjectedActorContext,IRegionActorBinding,IRegionVisualBinding,ICampRegionSnapshotSource,ICampDepartureState,ICampaignTransientActivity,IRegionNavigation
 {
  static readonly Unity.Profiling.ProfilerMarker stage61SortingProfile=new Unity.Profiling.ProfilerMarker("Spore.Stage61.Sorting");
  static readonly Unity.Profiling.ProfilerMarker stage61InitializeProfile = new Unity.Profiling.ProfilerMarker("Spore.Stage61.RegionInitialize");
@@ -142,9 +142,11 @@ public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProj
 
   return physics.Route(this,start,goal,extents);
  }
+ public void BindNavigation(ActorTerrainBinding binding)=>physics.BindNavigation(binding,this);
  public void BindActor(GameObject actor)
  {
   var body=actor.GetComponent<Rigidbody2D>();var binding=actor.GetComponent<ActorTerrainBinding>()??actor.AddComponent<ActorTerrainBinding>();binding.Bind(this);binding.SuppressCampaignBootstrap=false;binding.Ready=()=>LogicalReady&&(lifecycle?.WorldInputReady??false);binding.ReadRevision=()=>disposed?-1:Revision;binding.FindRoute=(a,b)=>Route(a,b,TileMover.GetMapClearanceExtents(body,.25f));binding.PointerToWorld=screen=>{var render=RegionCamera.ScreenToWorldPoint(new Vector3(screen.x,screen.y,10));return World(Projection.Unproject(new Point2(render.x,-render.y)));};
+  BindNavigation(binding);
   var dig=actor.GetComponent<BuddyDigAbility>();if(dig!=null)dig.BindTerrain(this);
   Physics2D.SyncTransforms();var extents=TileMover.GetMapClearanceExtents(body,.25f);
   bool SpawnFits(Vector2 position)

@@ -127,14 +127,14 @@ public class CampDirectedWalk : MonoBehaviour
             Finish(CampDirectedWalkResult.TimedOut);
             return;
         }
-        if (noProgressElapsed >= 0.5f)
+        if (noProgressElapsed >= 0.5f && !(binding!=null&&binding.RouteStatus==SporeGobbo.Geometry.GridRouteStatus.Pending))
         {
             BlockingColliderDescription = DescribePhysicalBlocker(toTarget);
             Finish(CampDirectedWalkResult.Blocked);
             return;
         }
 
-        if(!regionRoute.Direction(binding,physicsPosition,target.position,out Vector2 moveDir)){Finish(CampDirectedWalkResult.Blocked);return;}
+        if(!regionRoute.Direction(binding,physicsPosition,target.position,out Vector2 moveDir)){rb.linearVelocity=Vector2.zero;if(binding!=null&&binding.RouteStatus==SporeGobbo.Geometry.GridRouteStatus.Pending){noProgressElapsed=0;return;}Finish(CampDirectedWalkResult.Blocked);return;}
         TileMover.Move(rb, moveDir * moveSpeed, bodyRadius);
 
         SetVisualState(GobboAnimationState.Walk, moveDir);

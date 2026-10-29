@@ -179,6 +179,7 @@ public class BuddyCombat : MonoBehaviour
         if(!cachedReachability&&requireReachableTarget)
         {
             cachedReachability=RegionQueries.Path(gameObject,rb.position,targetPos,out List<Vector2> route)&&route.Count>0;
+            if(binding!=null&&binding.RouteStatus==SporeGobbo.Geometry.GridRouteStatus.Pending){cachedReachability=true;return true;}
             var brain=GetComponent<BuddyBrain>();
             if(cachedReachability&&brain!=null&&brain.SquadScoped&&!brain.Following)
                 foreach(var point in route)if(!brain.AllowsDestination(point)){cachedReachability=false;break;}
@@ -205,10 +206,11 @@ public class BuddyCombat : MonoBehaviour
         }
 
         var binding=GetComponent<ActorTerrainBinding>();int revision=binding!=null?binding.Revision:RegionQueries.Current?.Revision??-1;
-        if(regionPathRevision!=revision){currentPath.Clear();pathIndex=0;regionPathRevision=revision;}
+        if(regionPathRevision!=revision && !(binding!=null&&binding.AcceptsMovementRoute(regionPathRevision))){currentPath.Clear();pathIndex=0;regionPathRevision=revision;}
         repathTimer -= Time.fixedDeltaTime;
-        bool needsNewPath = currentPath.Count == 0 ||
-                            pathIndex >= currentPath.Count ||
+        bool needsNewPath =
+            (currentPath.Count == 0 && repathTimer <= 0f) ||
+                            (currentPath.Count > 0 && pathIndex >= currentPath.Count) ||
                             repathTimer <= 0f ||
                             Vector2.Distance(targetPos, lastPathGoal) > repathDistance;
 

@@ -2,6 +2,10 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using SporeGobbo.Input;
+using SporeGobbo.Geometry;
+
+public readonly struct ActorRouteResult
+{public readonly GridRouteStatus Status;public readonly List<Vector2> Path;public readonly int Revision;public ActorRouteResult(GridRouteStatus status,List<Vector2> path,int revision){Status=status;Path=path;Revision=revision;}}
 
 /// <summary>Explicit per-actor dependency. No registry, singleton or production scene installation.</summary>
 public sealed class ActorTerrainBinding : MonoBehaviour
@@ -13,6 +17,13 @@ public sealed class ActorTerrainBinding : MonoBehaviour
     public Func<bool> Ready;
     public Func<int> ReadRevision;
     public Func<Vector2,Vector2,List<Vector2>> FindRoute;
+    public Func<Vector2,Vector2,ActorRouteResult> RequestRoute;
+    public Func<int,bool> AcceptCachedRoute;
+    public Action CancelRoute;
+    public GridRouteStatus RouteStatus {get;private set;}=GridRouteStatus.Canceled;
+    public bool AcceptsMovementRoute(int revision)=>Terrain!=null&&(Ready==null||Ready())&&(AcceptCachedRoute?.Invoke(revision)??revision==Revision);
+    public void CancelNavigation(){CancelRoute?.Invoke();RouteStatus=GridRouteStatus.Canceled;}
+
     public Func<Vector2,Vector2> PointerToWorld;
     public int DigAttempts {get;private set;}
     public void ObserveDig()=>DigAttempts++;
@@ -36,7 +47,10 @@ public sealed class ActorTerrainBinding : MonoBehaviour
     {
         using(new Scope("SG59.Navigation"))
         {
+            if(RequestRoute!=null&&(Terrain==null||Ready!=null&&!Ready())){path=new List<Vector2>();CancelNavigation();return false;}
+            if(RequestRoute!=null){var answer=RequestRoute(a,b);RouteStatus=answer.Status;LastRouteRevision=answer.Revision;path=answer.Path??new List<Vector2>();return answer.Status==GridRouteStatus.Succeeded&&path.Count>0;}
             int revision=Revision;path=FindRoute?.Invoke(a,b)??new List<Vector2>();
+            RouteStatus=path.Count>0?GridRouteStatus.Succeeded:GridRouteStatus.Unreachable;
             if(revision!=Revision){path.Clear();return false;}
             LastRouteRevision=revision;return path.Count>0;
         }
@@ -56,5 +70,6 @@ public sealed class ActorTerrainBinding : MonoBehaviour
         public Scope(string name,bool active=true){this.active=active;if(active)UnityEngine.Profiling.Profiler.BeginSample(name);}
         public void Dispose(){if(active)UnityEngine.Profiling.Profiler.EndSample();}
     }
-    void OnDestroy(){Terrain=null;Ready=null;ReadRevision=null;FindRoute=null;PointerToWorld=null;}
+    void OnDisable()=>CancelNavigation();
+    void OnDestroy(){CancelNavigation();RequestRoute=null;AcceptCachedRoute=null;CancelRoute=null;Terrain=null;Ready=null;ReadRevision=null;FindRoute=null;PointerToWorld=null;}
 }

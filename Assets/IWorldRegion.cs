@@ -2,6 +2,7 @@ using System.Collections.Generic;using UnityEngine;using SporeGobbo.Geometry;
 /// <summary>Actual scene-region reads used by run lifecycle and existing combat. Occupancy lives in RegionTerrainState.</summary>
 public interface IWorldRegion:IDiggableTerrain,IRegionActorBinding,IProjectedActorContext
 { Vector2 World(Point2 logical);bool LogicalReady{get;}int Revision{get;}Vector2 Arrival{get;}List<Vector2> Route(Vector2 a,Vector2 b,Vector2 extents);bool RayClear(Vector2 a,Vector2 b,float radius=0);void BindVisual(GameObject visual); }
+public interface IRegionNavigation { void BindNavigation(ActorTerrainBinding binding); }
 public static class RegionQueries
 {
  public static IWorldRegion Current=>DiggableTerrainService.Active as IWorldRegion;

@@ -4,6 +4,14 @@ public sealed class RegionTerrainPhysics:IDisposable
 {
  readonly RegionTerrainState state;readonly LogicalGridTransform grid;readonly GameObject root;
  readonly Dictionary<DualTile,PolygonCollider2D> patches=new Dictionary<DualTile,PolygonCollider2D>();
+ RegionRouteQueue navigation;
+ public void BindNavigation(ActorTerrainBinding binding,IDiggableTerrain terrain)
+ {
+  if(navigation==null){navigation=new RegionRouteQueue(state,terrain,Logical,World);root.AddComponent<RegionRoutePump>().Queue=navigation;}
+  binding.RequestRoute=(from,goal)=>{var status=navigation.RequestPath(binding,from,goal,TileMover.GetMapClearanceExtents(binding.GetComponent<Rigidbody2D>(),binding.MinimumBodyRadius),out var path);return new ActorRouteResult(status,path,navigation.RouteRevision(binding));};
+  binding.AcceptCachedRoute=revision=>navigation.Accepts(binding,revision);
+  binding.CancelRoute=()=>navigation.Cancel(binding);
+ }
  readonly HashSet<DualTile> dirty=new HashSet<DualTile>();
  public int PatchCount=>patches.Count;public int RejectedRoutes{get;private set;}
  public RegionTerrainPhysics(RegionTerrainState state,Transform parent,float cell=.6f){this.state=state;grid=new LogicalGridTransform(default,cell,state.World.Height);root=new GameObject("Derived region collision");root.transform.SetParent(parent,false);root.AddComponent<Rigidbody2D>().bodyType=RigidbodyType2D.Static;for(int y=0;y<(state.World.Height+15)/16;y++)for(int x=0;x<(state.World.Width+15)/16;x++)RebuildCollision(new DualTile(x,y));Physics2D.SyncTransforms();}
@@ -20,5 +28,5 @@ public sealed class RegionTerrainPhysics:IDisposable
   if(!patches.TryGetValue(key,out var collider)){if(paths.Count==0)return;var go=new GameObject("Terrain boundary patch "+key.X+","+key.Y);go.transform.SetParent(root.transform,false);collider=go.AddComponent<PolygonCollider2D>();patches.Add(key,collider);}
   collider.enabled=paths.Count>0;collider.pathCount=paths.Count;for(int i=0;i<paths.Count;i++)collider.SetPath(i,paths[i]);
  }
-public void Dispose(){if(root!=null)UnityEngine.Object.Destroy(root);patches.Clear();}
+public void Dispose(){navigation?.Dispose();if(root!=null)UnityEngine.Object.Destroy(root);patches.Clear();}
 }

@@ -1,6 +1,6 @@
 using System;using System.Linq;using System.Collections.Generic;using UnityEngine;using SporeGobbo.Geometry;using SporeGobbo.Geometry.Preview;using SporeGobbo.Input;using SporeGobbo.CampLifecycle;
 /// <summary>Authored expedition policy over the same physical authority, collider publisher and presenter as Camp.</summary>
-[DefaultExecutionOrder(-1800)]public sealed class ExpeditionRegion:MonoBehaviour,IWorldRegion
+[DefaultExecutionOrder(-1800)]public sealed class ExpeditionRegion:MonoBehaviour,IWorldRegion,IRegionNavigation
 {
  public Shader terrainShader,spriteShader,landmarkShader;public GameObject playerPrefab,buddyPrefab,weevilPrefab,blobPrefab,sporePrefab,shinyPrefab,foodPrefab,retreatPrefab,exitPrefab;
  public ExpeditionLayout Definition{get;private set;}public RegionTerrainState State{get;private set;}public CaveDiscovery Discovery{get;private set;}public WorldRegionPresentation Presentation{get;private set;}
@@ -51,6 +51,7 @@ using System;using System.Linq;using System.Collections.Generic;using UnityEngin
   int n=commit(cells,Revision,c=>true);Excavations+=n;return new TerrainDigResult(evaluated,cells.Count,n,n>0?TerrainDigFailureReason.None:TerrainDigFailureReason.NoDirtRemoved);
  }
  void Publish(IReadOnlyList<DualTile> cells,int revision){long start=System.Diagnostics.Stopwatch.GetTimestamp();physics.Publish(cells);CollisionMs=StreamingGeometry.Elapsed(start);Presentation.Stream.RefreshPhysicalCells(cells);published=revision;}
+ public void BindNavigation(ActorTerrainBinding binding)=>physics.BindNavigation(binding,this);
  public void BindActor(GameObject actor)
  {
   RegionActorViews.Bind(this,RegionCamera,views,actor,()=>LogicalReady&&Projection!=null);
