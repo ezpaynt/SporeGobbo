@@ -101,8 +101,9 @@ public sealed class CampFightPitLab:MonoBehaviour,ICombatSessionRules,ICombatCom
     followAnchor=new GameObject("Owned Pit reachable rally");followAnchor.transform.SetParent(transform,false);followAnchor.transform.position=rally;
     foreach(var brain in commanded){brain.GetComponent<BuddyFollow>().SetPlayer(followAnchor.transform);brain.GetComponent<BuddyCombat>().SetPlayer(followAnchor.transform);}
    }
+   Phase=MatchPhase.Fighting; // Publish contact eligibility before strict native verification; preparation faults still clean up synchronously.
    foreach(var fighter in fighters){var b=fighter.GetComponent<ActorTerrainBinding>();b?.ReleaseActivitySpace();if(b?.Movement==null||!b.Movement.VerifyStrict(fighter))throw new InvalidOperationException("Pit participant contact policy is not strict");}
-   player.followersFollowing=true;player.followersAggressive=true;Phase=MatchPhase.Fighting;
+   player.followersFollowing=true;player.followersAggressive=true;
    foreach(var brain in commanded)brain.BindSquad(player,true,true);Outcome="Fighting — nonlethal, no rewards";
   }
   catch{StopSession("Preparation failed");throw;}
@@ -127,11 +128,11 @@ public sealed class CampFightPitLab:MonoBehaviour,ICombatSessionRules,ICombatCom
   if(float.IsPositiveInfinity(best))throw new InvalidOperationException("No actual collider clearance for "+actor.name);body.position=selected;body.linearVelocity=Vector2.zero;actor.transform.position=selected;Physics2D.SyncTransforms();used.Add((selected,ext));
  }
  public void Resolve(string outcome)
- {if(!Fighting)return;Phase=MatchPhase.Resolved;Outcome=outcome;foreach(var actor in fighters){if(actor==null)continue;actor.GetComponent<BuddyBrain>()?.SuspendCommandMotion();actor.GetComponent<BuddyCombat>()?.CancelEngagement();var body=actor.GetComponent<Rigidbody2D>();if(body!=null)body.linearVelocity=Vector2.zero;foreach(var ai in actor.GetComponents<Behaviour>())if(ai is TunnelWeevilEnemy||ai is BlobSpitterEnemy)ai.enabled=false;}player.CancelTemporaryCombatMotion();player.SuppressTemporaryInput=true;}
+ {if(!Fighting)return;Phase=MatchPhase.Resolved;Outcome=outcome;foreach(var actor in fighters){if(actor==null)continue;actor.GetComponent<BuddyBrain>()?.SuspendCommandMotion();actor.GetComponent<BuddyCombat>()?.CancelEngagement();var body=actor.GetComponent<Rigidbody2D>();if(body!=null)body.linearVelocity=Vector2.zero;foreach(var ai in actor.GetComponents<Behaviour>())if(ai is TunnelWeevilEnemy||ai is BlobSpitterEnemy)ai.enabled=false;}player.CancelTemporaryCombatMotion();player.SuppressTemporaryInput=true;player.GetComponent<ActorTerrainBinding>()?.Movement?.RefreshContacts();}
  public void StopSession(string reason="Stopped")
  {
   using var profile=new Unity.Profiling.ProfilerMarker("Spore.Pit.Cleanup").Auto();
-  if(!Active||cleaning||cleanupFailure!=null)return;cleaning=true;Phase=MatchPhase.CleaningUp;var failures=new List<string>();bool leaderRestorable=true;
+  if(!Active||cleaning||cleanupFailure!=null)return;cleaning=true;Phase=MatchPhase.CleaningUp;player?.GetComponent<ActorTerrainBinding>()?.Movement?.RefreshContacts();var failures=new List<string>();bool leaderRestorable=true;
   void Attempt(Action action){try{action();}catch(Exception error){failures.Add(error.Message);}}
   try
   {

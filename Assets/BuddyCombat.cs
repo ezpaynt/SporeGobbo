@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody2D))]
-public class BuddyCombat : MonoBehaviour
+public class BuddyCombat : MonoBehaviour, ITerrainMovementReserve
 {
     [Header("Brain")]
     public bool brainAllowsMovement = false;
@@ -28,6 +28,7 @@ public class BuddyCombat : MonoBehaviour
 
     [Header("Pathing")]
     public float bodyRadius = 0.28f;
+    public float TerrainMovementReserve => bodyRadius;
     public float repathTime = 0.25f;
     public float repathDistance = 0.8f;
     public float waypointReachDistance = 0.75f;
@@ -221,10 +222,12 @@ public class BuddyCombat : MonoBehaviour
         if (currentPath.Count == 0 || pathIndex >= currentPath.Count) return Vector2.zero;
 
         pathIndex=RouteWaypointPolicy.Advance(currentPath,pathIndex,rb.position,binding,bodyRadius);
+        if(!RouteWaypointPolicy.RecoverTerrainEntry(currentPath,ref pathIndex,ref regionPathRevision,rb.position,targetPos,binding,bodyRadius))return Vector2.zero;
         if(pathIndex>=currentPath.Count)return Vector2.zero;
         Vector2 waypoint = currentPath[pathIndex];
         float waypointTolerance=binding!=null&&binding.RequestRoute!=null?Mathf.Min(waypointReachDistance,binding.Terrain.CellSize*.12f):waypointReachDistance;
-        if (Vector2.Distance(rb.position, waypoint) <= waypointTolerance)
+        // Regional progression is owned by Advance; never discard a just-recovered entry here.
+        if ((binding==null||binding.RequestRoute==null)&&RouteWaypointPolicy.Reached(currentPath,pathIndex,rb.position,binding,bodyRadius,waypointTolerance))
         {
             pathIndex++;
             if (pathIndex >= currentPath.Count) return Vector2.zero;
@@ -259,18 +262,7 @@ public class BuddyCombat : MonoBehaviour
         if(currentTarget==null)return false;
         if(Vector2.Distance(transform.position,currentTarget.position)<=attackRange)return true;
         var owner=EnemyDamage.Resolve(currentTarget.gameObject);if(owner==null)return false;
-        GetComponentsInChildren<Collider2D>(false,contactSource);owner.GetComponentsInChildren<Collider2D>(false,contactTarget);
-        var targetBody=owner.GetComponent<Rigidbody2D>();float tolerance=Physics2D.defaultContactOffset*2f+.001f;
-        foreach(var a in contactSource)
-        {
-            if(!a.enabled||a.isTrigger||a.attachedRigidbody!=rb||EnemyDamage.Resolve(a.gameObject)?.gameObject!=gameObject)continue;
-            foreach(var b in contactTarget)
-            {
-                if(!b.enabled||b.isTrigger||b.attachedRigidbody!=targetBody||EnemyDamage.Resolve(b.gameObject)!=owner)continue;
-                var distance=a.Distance(b);if(distance.isValid&&distance.distance<=tolerance)return true;
-            }
-        }
-        return false;
+        return MeleeAttackExecution.AtBodyContact(gameObject,rb,owner,contactSource,contactTarget);
     }
 
     void TryAttack()

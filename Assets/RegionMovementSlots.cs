@@ -18,6 +18,13 @@ public sealed class RegionMovementSlots : IDisposable
     readonly Collider2D[] occupants=new Collider2D[32];
     public int Count=>leases.Count;
     public bool HasDestination(ActorTerrainBinding actor)=>actor!=null&&leases.ContainsKey(actor.GetInstanceID());
+    // Read-only diagnostics; never renews or creates a claim.
+    public bool Inspect(ActorTerrainBinding actor,out int key,out Vector2 point,out bool occupied)
+    {
+        key=0;point=default;occupied=false;
+        if(actor==null||!leases.TryGetValue(actor.GetInstanceID(),out var lease))return false;
+        key=lease.Key;point=lease.Point;occupied=lease.Occupied;return true;
+    }
     public RegionMovementSlots(IDiggableTerrain terrain){this.terrain=terrain;}
     public Vector2 Choose(ActorTerrainBinding actor,int key,Vector2 center,Vector2 targetExtents,bool contact=false)
     {
@@ -28,11 +35,11 @@ public sealed class RegionMovementSlots : IDisposable
         if(leases.TryGetValue(id,out var old)&&old.Key==key&&old.Contact==contact&&(old.Extents-extents).sqrMagnitude<.000001f&&(old.TargetExtents-targetExtents).sqrMagnitude<.000001f)
         {
             Vector2 translated=old.Point+center-old.Center;
-            if(actor.RouteStatus!=SporeGobbo.Geometry.GridRouteStatus.Unreachable&&(!pointDestination||TileMover.CanTraverseBox(terrain,center,translated,extents))&&Free(id,key,contact,translated,extents))
+            if(actor.RouteStatus!=SporeGobbo.Geometry.GridRouteStatus.Unreachable&&(!pointDestination||TileMover.CanTraverseActor(terrain,body,center,translated,actor.TerrainReserveRadius))&&Free(id,key,contact,translated,extents,null,body))
             {old.Center=center;old.Point=translated;return translated;}
         }
         float best=float.PositiveInfinity;Vector2 chosen=body.position;int selected=-1;
-        if(pointDestination&&Free(id,key,contact,center,extents,body))
+        if(pointDestination&&Free(id,key,contact,center,extents,body,body))
         {leases[id]=new Lease{Key=key,Index=24,Contact=false,Center=center,Point=center,Extents=extents,TargetExtents=targetExtents};return center;}
         Vector2 centreBody=targetExtents;
         if(pointDestination)
@@ -63,17 +70,17 @@ public sealed class RegionMovementSlots : IDisposable
             if(pointDestination)distance+=ring*(2*Mathf.Max(extents.x,extents.y)+.08f);
             Vector2 point=center+direction*distance;
             var brain=actor.GetComponent<BuddyBrain>();if(brain!=null&&!brain.AllowsDestination(point))continue;
-            if(pointDestination&&!TileMover.CanTraverseBox(terrain,center,point,extents))continue;
-            if(!Free(id,key,contact,point,extents,pointDestination?body:null))continue;
+            if(pointDestination&&!TileMover.CanTraverseActor(terrain,body,center,point,actor.TerrainReserveRadius))continue;
+            if(!Free(id,key,contact,point,extents,pointDestination?body:null,body))continue;
             float cost=(point-body.position).sqrMagnitude;
             if(cost<best){best=cost;chosen=point;selected=index;}
         }
         if(selected<0){Release(actor);return body.position;}
         leases[id]=new Lease{Key=key,Index=selected,Contact=contact,Center=center,Point=chosen,Extents=extents,TargetExtents=targetExtents};return chosen;
     }
-    bool Free(int actor,int key,bool contact,Vector2 point,Vector2 extents,Rigidbody2D body=null)
+    bool Free(int actor,int key,bool contact,Vector2 point,Vector2 extents,Rigidbody2D body=null,Rigidbody2D terrainBody=null)
     {
-        if(!TileMover.CanOccupyBox(terrain,point,extents))return false;
+        if(terrainBody!=null?!TileMover.CanOccupyActor(terrain,terrainBody,point):!TileMover.CanOccupyBox(terrain,point,extents))return false;
         if(body!=null)
         {
             int count=Physics2D.OverlapBoxNonAlloc(point,extents*2+Vector2.one*.04f,0,occupants);
@@ -97,17 +104,17 @@ public sealed class RegionMovementSlots : IDisposable
     }
     // Activity ownership survives arrival. Route cancellation and activity release are separate.
     public void MarkOccupied(ActorTerrainBinding actor){if(actor!=null&&leases.TryGetValue(actor.GetInstanceID(),out var lease))lease.Occupied=true;}
-    public bool CanPlace(ActorTerrainBinding actor,Vector2 point,Vector2 extents)=>Free(actor.GetInstanceID(),0,false,point,extents);
+    public bool CanPlace(ActorTerrainBinding actor,Vector2 point,Vector2 extents)=>Free(actor.GetInstanceID(),0,false,point,extents,null,actor.GetComponent<Rigidbody2D>());
     public bool ClaimExact(ActorTerrainBinding actor,int key,Vector2 point)
     {
         var body=actor.GetComponent<Rigidbody2D>();var extents=TileMover.GetMapClearanceExtents(body,actor.MinimumBodyRadius);
-        if(!Free(actor.GetInstanceID(),key,false,point,extents))return false;
+        if(!Free(actor.GetInstanceID(),key,false,point,extents,null,body))return false;
         leases[actor.GetInstanceID()]=new Lease{Key=key,Index=-1,Center=point,Point=point,Extents=extents};return true;
     }
     public bool RelocateStanding(ActorTerrainBinding actor,Vector2 point)
     {
         if(!leases.TryGetValue(actor.GetInstanceID(),out var lease))return true;
-        if(!Free(actor.GetInstanceID(),lease.Key,lease.Contact,point,lease.Extents))return false;
+        if(!Free(actor.GetInstanceID(),lease.Key,lease.Contact,point,lease.Extents,null,actor.GetComponent<Rigidbody2D>()))return false;
         lease.Point=point;lease.Occupied=false;return true;
     }
     public void Release(ActorTerrainBinding actor){if(actor!=null)leases.Remove(actor.GetInstanceID());}

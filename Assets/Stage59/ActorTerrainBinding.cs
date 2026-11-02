@@ -12,6 +12,12 @@ public sealed class ActorTerrainBinding : MonoBehaviour
 {
     public IDiggableTerrain Terrain { get; private set; }
     public float MinimumBodyRadius;
+    public Collider2D PhysicalTerrainCollider {get;private set;}
+    readonly System.Collections.Generic.List<ITerrainMovementReserve> terrainReserves=new System.Collections.Generic.List<ITerrainMovementReserve>();
+    // Physical peer extents remain separate: this reserve belongs only to terrain admission/planning.
+    public float TerrainReserveRadius {get {float value=MinimumBodyRadius;foreach(var source in terrainReserves)if(source is UnityEngine.Object o&&o!=null)value=Mathf.Max(value,source.TerrainMovementReserve);return value;}}
+    public void RefreshTerrainReserveSources(){PhysicalTerrainCollider=null;foreach(var c in GetComponents<Collider2D>())if(c.enabled&&!c.isTrigger){PhysicalTerrainCollider=c;break;}terrainReserves.Clear();foreach(var component in GetComponents<MonoBehaviour>())if(component is ITerrainMovementReserve source)terrainReserves.Add(source);}
+
     // Historical isolated actor proofs opt out; real regions retain campaign controls.
     public bool SuppressCampaignBootstrap = true;
     public Func<bool> Ready;
@@ -24,8 +30,9 @@ public sealed class ActorTerrainBinding : MonoBehaviour
     public Func<bool> HasMovementDestination;
     public bool MovementDestinationAvailable=>HasMovementDestination?.Invoke()??true;
     public GridRouteStatus ProbeStatus {get;private set;}=GridRouteStatus.Canceled;
+    public bool HasMovementGoal {get;private set;}
     public Vector2 CurrentMovementGoal {get;private set;}
-    public Vector2 MovementGoal(int key,Vector2 center,Vector2 targetExtents,bool contact=false){CurrentMovementGoal=ChooseDestination?.Invoke(key,center,targetExtents,contact)??center;return CurrentMovementGoal;}
+    public Vector2 MovementGoal(int key,Vector2 center,Vector2 targetExtents,bool contact=false){HasMovementGoal=true;CurrentMovementGoal=ChooseDestination?.Invoke(key,center,targetExtents,contact)??center;return CurrentMovementGoal;}
     public bool TryProbe(Vector2 from,Vector2 goal,out List<Vector2> path)
     {
         if(RequestProbe==null)return TryPath(from,goal,out path);
@@ -51,7 +58,7 @@ public sealed class ActorTerrainBinding : MonoBehaviour
     public void ObserveDig()=>DigAttempts++;
     public int Revision => ReadRevision?.Invoke() ?? -1;
     public int LastRouteRevision { get; private set; } = -1;
-    public void Bind(IDiggableTerrain terrain) { Terrain=terrain; }
+    public void Bind(IDiggableTerrain terrain) { Terrain=terrain;RefreshTerrainReserveSources(); }
     public static IDiggableTerrain Resolve(GameObject actor)
     {
         var binding=actor.GetComponent<ActorTerrainBinding>();
@@ -60,7 +67,7 @@ public sealed class ActorTerrainBinding : MonoBehaviour
     public bool Sight(Vector2 a,Vector2 b)
     {
         using(new Scope("SG59.NavigationLOS"))
-        return Terrain!=null && (Ready==null||Ready()) && TileMover.CanTraverseBox(Terrain,a,b,TileMover.GetMapClearanceExtents(GetComponent<Rigidbody2D>(),MinimumBodyRadius));
+        return Terrain!=null && (Ready==null||Ready()) && TileMover.CanTraverseActor(Terrain,GetComponent<Rigidbody2D>(),a,b,TerrainReserveRadius);
     }
     public bool InteractionSight(Vector2 a,Vector2 b)=>Terrain!=null&&(Ready==null||Ready())&&(Terrain is IWorldRegion region?region.RayClear(a,b):Sight(a,b));
     public static bool HasSight(GameObject actor,Vector2 a,Vector2 b)
@@ -94,5 +101,5 @@ public sealed class ActorTerrainBinding : MonoBehaviour
     }
     void OnEnable()=>Movement?.RefreshContacts();
     void OnDisable(){CancelNavigation();Movement?.Deactivate(this);ActorMotionIntent.Cancel(gameObject);}
-    void OnDestroy(){CancelNavigation();Movement?.Unregister(this);Movement=null;CancelRouteWork=null;RequestRoute=null;RequestProbe=null;ChooseDestination=null;HasMovementDestination=null;AcceptCachedRoute=null;CancelRoute=null;CancelMovementRoute=null;Terrain=null;Ready=null;ReadRevision=null;FindRoute=null;PointerToWorld=null;}
+    void OnDestroy(){CancelNavigation();Movement?.Unregister(this);Movement=null;CancelRouteWork=null;RequestRoute=null;RequestProbe=null;ChooseDestination=null;HasMovementDestination=null;AcceptCachedRoute=null;CancelRoute=null;CancelMovementRoute=null;Terrain=null;Ready=null;ReadRevision=null;FindRoute=null;PointerToWorld=null;terrainReserves.Clear();PhysicalTerrainCollider=null;}
 }

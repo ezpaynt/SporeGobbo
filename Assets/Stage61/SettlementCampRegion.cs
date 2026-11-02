@@ -9,7 +9,7 @@ using SporeGobbo.CampLifecycle;
 using SporeGobbo.Input;
 /// <summary>Camp authored-region adapter. Campaign/visit/job ownership stays in existing services.</summary>
 [DefaultExecutionOrder(-1800)]
-public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProjectedActorContext,IRegionActorBinding,IRegionVisualBinding,ICampRegionSnapshotSource,ICampDepartureState,ICampaignTransientActivity,IRegionNavigation
+public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IExecutableTerrainClearance,IProjectedActorContext,IRegionActorBinding,IRegionVisualBinding,ICampRegionSnapshotSource,ICampDepartureState,ICampaignTransientActivity,IRegionNavigation,IPlayerDigTerrain
 {
  static readonly Unity.Profiling.ProfilerMarker stage61SortingProfile=new Unity.Profiling.ProfilerMarker("Spore.Stage61.Sorting");
  static readonly Unity.Profiling.ProfilerMarker stage61InitializeProfile = new Unity.Profiling.ProfilerMarker("Spore.Stage61.RegionInitialize");
@@ -30,7 +30,7 @@ public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProj
  public string RegionId=>"camp";public string LayoutId=>Definition.Id;public int Revision=>State?.Revision??-1;
  public double CollisionMs{get;private set;}public int CollisionPatches=>physics?.PatchCount??0;public int RejectedRoutes=>physics?.RejectedRoutes??0;
  readonly LogicalGridTransform grid=new LogicalGridTransform(new Point2(0,0),.6,192);
- RegionTerrainPhysics physics;
+ RegionTerrainPhysics physics;public RegionTerrainPhysics TerrainPhysics=>physics;
  readonly List<Stage59ActorView> views=new List<Stage59ActorView>();readonly List<UnityEngine.Object> owned=new List<UnityEngine.Object>();
  readonly HashSet<int> establishedBeds=new HashSet<int>();
  readonly HashSet<DualTile> dirty=new HashSet<DualTile>();CampResidentialCatalog catalog;GameObject collisionRoot;int publishedRevision=-1;bool disposed;
@@ -101,18 +101,21 @@ public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProj
  bool CanAct=>!DeparturePending&&LogicalReady&&(lifecycle?.WorldInputReady??false)&&Time.timeScale>0&&SporeInputReader.Instance!=null&&SporeInputReader.Instance.Context==SporeInputContext.Gameplay;
  public void DigCircle(Vector2 point,float radius)=>DigCircle(point,radius,TerrainDigAuthority.Player,0,null);
  public TerrainDigResult DigCircle(Vector2 point,float radius,TerrainDigAuthority authority,int progression,IReadOnlyCollection<Vector2Int> authorized)
+ =>DigFootprint(new PlayerDigFootprint(point,radius),authority,progression,authorized);
+ public TerrainDigResult DigPlayerStroke(PlayerDigFootprint footprint)=>DigFootprint(footprint,TerrainDigAuthority.Player,0,null);
+ TerrainDigResult DigFootprint(PlayerDigFootprint footprint,TerrainDigAuthority authority,int progression,IReadOnlyCollection<Vector2Int> authorized)
  {
  using var _stage61Profile = stage61DiggingProfile.Auto();
 
-  if(!CanAct||!float.IsFinite(radius)||radius<=0)return new TerrainDigResult(0,0,0,TerrainDigFailureReason.AuthorizationRejected);
+  if(!CanAct||!footprint.Valid)return new TerrainDigResult(0,0,0,TerrainDigFailureReason.AuthorizationRejected);
   HashSet<Vector2Int> allowed=null;
   if(authority==TerrainDigAuthority.ResidentialProgression)
   {
    int next=establishedBeds.Count+1;if(authorized==null||next>10||GetResidentialProgressionIndexForSlot(next)!=progression)return new TerrainDigResult(0,0,0,TerrainDigFailureReason.AuthorizationRejected);
    allowed=new HashSet<Vector2Int>(GetResidentialSlotFootprint(next));if(authorized.Any(c=>!allowed.Contains(c)))return new TerrainDigResult(0,0,0,TerrainDigFailureReason.AuthorizationRejected);allowed.IntersectWith(authorized);
   }
-  var center=WorldToCell(point);int range=Mathf.CeilToInt(radius/CellSize)+1,evaluated=0;var cuts=new List<DualTile>();
-  for(int y=center.y-range;y<=center.y+range;y++)for(int x=center.x-range;x<=center.x+range;x++){var c=new Vector2Int(x,y);if((CellToWorld(c)-point).sqrMagnitude>radius*radius)continue;evaluated++;if(!IsDiggable(c))continue;if(authority==TerrainDigAuthority.Player||authority==TerrainDigAuthority.Buddy||authority==TerrainDigAuthority.ResidentialProgression&&allowed.Contains(c))cuts.Add(new DualTile(x,y));}
+  var selected=footprint.Cells(this);int evaluated=selected.Count;var cuts=new List<DualTile>();
+  foreach(var c in selected){if(!IsDiggable(c))continue;if(authority==TerrainDigAuthority.Player||authority==TerrainDigAuthority.Buddy||authority==TerrainDigAuthority.ResidentialProgression&&allowed.Contains(c))cuts.Add(new DualTile(c.x,c.y));}
   int changed=commit(cuts,Revision,c=>true);return new TerrainDigResult(evaluated,cuts.Count,changed,changed>0?TerrainDigFailureReason.None:TerrainDigFailureReason.NoDirtRemoved);
  }
  public bool TryOpenRoot(GobboController player)
@@ -145,20 +148,20 @@ public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProj
  public void BindNavigation(ActorTerrainBinding binding)=>physics.BindNavigation(binding,this);
  public void BindActor(GameObject actor)
  {
-  var body=actor.GetComponent<Rigidbody2D>();var binding=actor.GetComponent<ActorTerrainBinding>()??actor.AddComponent<ActorTerrainBinding>();binding.Bind(this);binding.SuppressCampaignBootstrap=false;binding.Ready=()=>LogicalReady&&(lifecycle?.WorldInputReady??false);binding.ReadRevision=()=>disposed?-1:Revision;binding.FindRoute=(a,b)=>Route(a,b,TileMover.GetMapClearanceExtents(body,.25f));binding.PointerToWorld=screen=>{var render=RegionCamera.ScreenToWorldPoint(new Vector3(screen.x,screen.y,10));return World(Projection.Unproject(new Point2(render.x,-render.y)));};
+  var body=actor.GetComponent<Rigidbody2D>();var binding=actor.GetComponent<ActorTerrainBinding>()??actor.AddComponent<ActorTerrainBinding>();binding.Bind(this);TileMover.RequirePhysicalTerrainBody(body);binding.SuppressCampaignBootstrap=false;binding.Ready=()=>LogicalReady&&(lifecycle?.WorldInputReady??false);binding.ReadRevision=()=>disposed?-1:Revision;binding.FindRoute=(a,b)=>Route(a,b,TileMover.TerrainFootprint(body,Vector2.one*.25f).BroadHalf);binding.PointerToWorld=screen=>{var render=RegionCamera.ScreenToWorldPoint(new Vector3(screen.x,screen.y,10));return World(Projection.Unproject(new Point2(render.x,-render.y)));};
   BindNavigation(binding);
   var dig=actor.GetComponent<BuddyDigAbility>();if(dig!=null)dig.BindTerrain(this);
   Physics2D.SyncTransforms();var extents=TileMover.GetMapClearanceExtents(body,.25f);
   bool SpawnFits(Vector2 position)
   {
-   if(!TileMover.CanOccupyBox(this,position,extents))return false;
+   if(!TileMover.CanOccupyActor(this,body,position))return false;
    foreach(var other in views)
    {
     if(other==null||other.GetComponent<BuddyUnit>()==null&&other.GetComponent<GobboController>()==null)continue;
     var otherBody=other.GetComponent<Rigidbody2D>();if(otherBody==null)continue;var otherExtents=TileMover.GetMapClearanceExtents(otherBody,.25f);var gap=position-otherBody.position;
-    if(Math.Abs(gap.x)<extents.x+otherExtents.x+.03f&&Math.Abs(gap.y)<extents.y+otherExtents.y+.03f)return false;
+    if(Math.Abs(gap.x)<extents.x+otherExtents.x+.03f&&Math.Abs(gap.y)<extents.y+otherExtents.y+.03f||TileMover.PhysicalBoxesOverlap(body,position,otherBody,otherBody.position))return false;
    }
-   return Route(position,World(Definition.Marker("fire").Interaction),extents).Count>0;
+   return Route(position,World(Definition.Marker("fire").Interaction),TileMover.TerrainFootprint(body,extents).BroadHalf).Count>0;
   }
   if(!SpawnFits(body.position))
   {
@@ -175,7 +178,7 @@ public sealed class SettlementCampRegion:MonoBehaviour,ICampSpatialTerrain,IProj
    body.position=selected;actor.transform.position=new Vector3(selected.x,selected.y,actor.transform.position.z);body.linearVelocity=Vector2.zero;Physics2D.SyncTransforms();
   }
   var view=actor.GetComponent<Stage59ActorView>()??actor.AddComponent<Stage59ActorView>();view.Context=this;view.Outline=false;view.Initialize();views.Add(view);
-  Physics2D.SyncTransforms();if(!TileMover.CanOccupyBox(this,body.position,TileMover.GetMapClearanceExtents(body,.25f)))throw new InvalidOperationException("Spawned actor lacks logical clearance: "+actor.name);
+  Physics2D.SyncTransforms();if(!TileMover.CanOccupyActor(this,body,body.position))throw new InvalidOperationException("Spawned actor lacks logical clearance: "+actor.name);
  }
  public void FinishForCampaignCapture(GameState expected)
  {if(!ReferenceEquals(expected,campaign))throw new InvalidOperationException("Transient cleanup requires canonical campaign");var lab=GetComponent<CampFightPitLab>();lab?.StopSession("Campaign capture or departure");if(lab!=null&&lab.Active)throw new InvalidOperationException("Fight Pit cleanup incomplete; campaign commit blocked: "+lab.Outcome);}

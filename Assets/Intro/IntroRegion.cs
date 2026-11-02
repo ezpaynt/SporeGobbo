@@ -1,6 +1,6 @@
 using System;using System.Linq;using System.Collections.Generic;using UnityEngine;using SporeGobbo.Geometry;using SporeGobbo.Geometry.Preview;using SporeGobbo.Input;using SporeGobbo.CampLifecycle;
 /// <summary>Intro policy over the shared region state/physics/presentation, not a terrain engine or campaign owner.</summary>
-[DefaultExecutionOrder(-1800)]public sealed class IntroRegion:MonoBehaviour,IWorldRegion
+[DefaultExecutionOrder(-1800)]public sealed class IntroRegion:MonoBehaviour,IWorldRegion,IExecutableTerrainClearance,IPlayerDigTerrain
 {
  public Shader terrainShader,spriteShader,landmarkShader;public GameObject playerPrefab;
  public IntroLayout Definition{get;private set;}public RegionTerrainState State{get;private set;}public CaveDiscovery Discovery{get;private set;}public WorldRegionPresentation Presentation{get;private set;}
@@ -12,7 +12,7 @@ using System;using System.Linq;using System.Collections.Generic;using UnityEngin
  public event Action<string,Vector2> SoundCue;public readonly List<string> Cues=new List<string>();
  public readonly List<Stage59ActorView> Views=new List<Stage59ActorView>();readonly List<UnityEngine.Object> owned=new List<UnityEngine.Object>();
  Material floorMaterial;Color floorBase;Texture2D surfaceTexture;
- RegionTerrainPhysics physics;Func<IEnumerable<DualTile>,int,Func<DualTile,bool>,int> dig;Func<TerrainPlacementRequest,Func<IReadOnlyList<DualTile>,bool>,TerrainPlacementResult> place;int published=-1;bool disposed;
+ RegionTerrainPhysics physics;public RegionTerrainPhysics TerrainPhysics=>physics;Func<IEnumerable<DualTile>,int,Func<DualTile,bool>,int> dig;Func<TerrainPlacementRequest,Func<IReadOnlyList<DualTile>,bool>,TerrainPlacementResult> place;int published=-1;bool disposed;
  void Awake()
  {
   if(!GameSceneCatalog.IsIntro(gameObject.scene))throw new InvalidOperationException("Intro scene role is invalid");
@@ -41,10 +41,13 @@ using System;using System.Linq;using System.Collections.Generic;using UnityEngin
  public void BindVisual(GameObject visual)=>RegionActorViews.BindVisual(this,Views,visual);
  public void DigCircle(Vector2 p,float radius)=>DigCircle(p,radius,TerrainDigAuthority.Player,0,null);
  public TerrainDigResult DigCircle(Vector2 p,float radius,TerrainDigAuthority authority,int stage,IReadOnlyCollection<Vector2Int> authorized)
+ =>DigFootprint(new PlayerDigFootprint(p,radius));
+ public TerrainDigResult DigPlayerStroke(PlayerDigFootprint footprint)=>DigFootprint(footprint);
+ TerrainDigResult DigFootprint(PlayerDigFootprint footprint)
  {
-  if(!LogicalReady||!ControlReady||Time.timeScale<=0||SporeInputReader.Instance==null||SporeInputReader.Instance.Context!=SporeInputContext.Gameplay||!float.IsFinite(radius)||radius<=0)return new TerrainDigResult(0,0,0,TerrainDigFailureReason.AuthorizationRejected);
-  var center=WorldToCell(p);int range=Mathf.CeilToInt(radius/CellSize)+1,count=0;var cells=new List<DualTile>();for(int y=center.y-range;y<=center.y+range;y++)for(int x=center.x-range;x<=center.x+range;x++){var c=new Vector2Int(x,y);if((CellToWorld(c)-p).sqrMagnitude>radius*radius)continue;count++;if(IsDiggable(c))cells.Add(new DualTile(x,y));}
-  int n=dig(cells,Revision,c=>true);Excavations+=n;if(n>0)Cue("dirt.excavation",p);return new TerrainDigResult(count,cells.Count,n,n>0?TerrainDigFailureReason.None:TerrainDigFailureReason.NoDirtRemoved);
+  if(!LogicalReady||!ControlReady||Time.timeScale<=0||SporeInputReader.Instance==null||SporeInputReader.Instance.Context!=SporeInputContext.Gameplay||!footprint.Valid)return new TerrainDigResult(0,0,0,TerrainDigFailureReason.AuthorizationRejected);
+  var selected=footprint.Cells(this);int count=selected.Count;var cells=new List<DualTile>();foreach(var c in selected)if(IsDiggable(c))cells.Add(new DualTile(c.x,c.y));
+  int n=dig(cells,Revision,c=>true);Excavations+=n;if(n>0)Cue("dirt.excavation",footprint.End);return new TerrainDigResult(count,cells.Count,n,n>0?TerrainDigFailureReason.None:TerrainDigFailureReason.NoDirtRemoved);
  }
  public TerrainPlacementResult Place(string id,IReadOnlyList<DualTile> cells,int expected)
  {

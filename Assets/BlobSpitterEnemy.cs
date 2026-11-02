@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody2D))]
-public class BlobSpitterEnemy : MonoBehaviour, IEnemyDamageReceiver
+public class BlobSpitterEnemy : MonoBehaviour, IEnemyDamageReceiver, ITerrainMovementReserve
 {
     private enum BlobState
     {
@@ -27,6 +27,7 @@ public class BlobSpitterEnemy : MonoBehaviour, IEnemyDamageReceiver
     [Header("Movement")]
     public float moveSpeed = 0.9f;
     public float bodyRadius = 0.38f;
+    public float TerrainMovementReserve => bodyRadius;
     public float repathTime = 0.35f;
     public float repathDistance = 0.8f;
     public float waypointReachDistance = 0.75f;

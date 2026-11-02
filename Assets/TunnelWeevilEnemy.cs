@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody2D))]
-public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
+public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver, ITerrainMovementReserve
 {
     private enum CombatState
     {
@@ -46,6 +46,7 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
     public float moveSpeed = 1.2f;
     public float chaseSpeed = 1.8f;
     public float bodyRadius = 0.38f;
+    public float TerrainMovementReserve => bodyRadius;
 
     [Header("Idle Wander")]
     public float idlePointRadius = 3.5f;
@@ -112,6 +113,7 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
     private bool lastMeleeHitConnected = false;
 
     private readonly List<Vector2> currentPath = new List<Vector2>();
+    private readonly List<Collider2D> contactSource=new List<Collider2D>(),contactTarget=new List<Collider2D>();
     private int pathIndex = 0;
     private int regionPathRevision = -1;
     private float repathTimer = 0f;
@@ -527,8 +529,10 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
     }
 
     Vector2 GetMeleeHitCenter()
+        => GetMeleeHitCenter(GetFacingDirection());
+
+    Vector2 GetMeleeHitCenter(Vector2 direction)
     {
-        Vector2 direction = GetFacingDirection();
         float offset = Mathf.Max(0f, meleeHitForwardOffset);
         return (Vector2)transform.position + direction * offset;
     }
@@ -570,7 +574,15 @@ public class TunnelWeevilEnemy : MonoBehaviour, IEnemyDamageReceiver
 
         Vector2 closestTargetPoint = GetClosestPointOnCurrentTarget();
         float biteReach = Mathf.Max(0f, attackRange) + Mathf.Max(0f, attackContactPadding);
-        return Vector2.Distance(transform.position, closestTargetPoint) <= biteReach;
+        var owner=EnemyDamage.Resolve(currentTarget.gameObject);if(owner==null)return false;
+        // Keep nominal reach; an offset body must also be able to bite at native contact.
+        if(Vector2.Distance(transform.position,closestTargetPoint)>biteReach&&
+           !MeleeAttackExecution.AtBodyContact(gameObject,rb,owner,contactSource,contactTarget))return false;
+        Vector2 direction=closestTargetPoint-(Vector2)transform.position;
+        if(direction.sqrMagnitude<=.001f)direction=GetFacingDirection();
+        else direction.Normalize();
+        // TickChase faces this same point before windup; initiation cannot exceed the hit shape.
+        return MeleeAttackExecution.TargetInsideCircle(owner,GetMeleeHitCenter(direction),meleeHitRadius,targetLayers,contactTarget);
     }
 
     Vector2 GetClosestPointOnCurrentTarget()

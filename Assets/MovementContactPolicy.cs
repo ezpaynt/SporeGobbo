@@ -1,7 +1,7 @@
 using UnityEngine;
 
 public enum MovementContactRole { Strict, CampResident, CampSpectator }
-public enum MovementResolutionState { Idle, Moving, QueuedForAccess, Yielding, Settling, Arrived, Blocked }
+public enum MovementResolutionState { Idle, Moving, QueuedForAccess, Yielding, Settling, Arrived, Blocked, WaitingForPeer, NoLocalYieldPlan }
 
 /// <summary>The existing session owns membership. Presence of a session is not a fighter role.</summary>
 public interface IMovementContactSession
@@ -23,6 +23,10 @@ public static class MovementContactPolicy
 
     public static float Penetration(Vector2 relative, Vector2 halfSum)
         => Mathf.Max(0, Mathf.Min(halfSum.x - Mathf.Abs(relative.x), halfSum.y - Mathf.Abs(relative.y)));
+
+    // All coordinator planning/retention/execution use this same physical margin.
+    public static bool PeerSweepClear(Vector2 relative,Vector2 delta,Vector2 a,Vector2 b,bool soft,float contactOffset)
+        => SweepClear(relative,delta,a+b+Vector2.one*(2*contactOffset),Allowance(a,b,soft));
 
     // Relative swept AABB test. Endpoint separation alone permits fast actors to phase through.
     public static bool SweepClear(Vector2 relative, Vector2 delta, Vector2 halfSum, float allowance)

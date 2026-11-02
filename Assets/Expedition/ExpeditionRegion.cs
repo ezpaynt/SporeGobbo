@@ -1,6 +1,6 @@
 using System;using System.Linq;using System.Collections.Generic;using UnityEngine;using SporeGobbo.Geometry;using SporeGobbo.Geometry.Preview;using SporeGobbo.Input;using SporeGobbo.CampLifecycle;
 /// <summary>Authored expedition policy over the same physical authority, collider publisher and presenter as Camp.</summary>
-[DefaultExecutionOrder(-1800)]public sealed class ExpeditionRegion:MonoBehaviour,IWorldRegion,IRegionNavigation
+[DefaultExecutionOrder(-1800)]public sealed class ExpeditionRegion:MonoBehaviour,IWorldRegion,IExecutableTerrainClearance,IRegionNavigation,IPlayerDigTerrain
 {
  public Shader terrainShader,spriteShader,landmarkShader;public GameObject playerPrefab,buddyPrefab,weevilPrefab,blobPrefab,sporePrefab,shinyPrefab,foodPrefab,retreatPrefab,exitPrefab;
  public ExpeditionLayout Definition{get;private set;}public RegionTerrainState State{get;private set;}public CaveDiscovery Discovery{get;private set;}public WorldRegionPresentation Presentation{get;private set;}
@@ -10,7 +10,7 @@ using System;using System.Linq;using System.Collections.Generic;using UnityEngin
  public Transform PresentationRoot=>transform;public Shader ActorShader=>spriteShader;public FocusProjection Projection=>Presentation?.Snapshot;public Stage4Settings PresentationSettings=>Presentation.settings;
  public Vector2 Arrival=>World(Definition.Anchors["arrival"]);public int TestDigPower{get;set;}=1;
  public int Excavations{get;private set;}public int RejectedResistance{get;private set;}public double InitMs,CollisionMs;public int ActiveEncounters{get;private set;}
- RegionTerrainPhysics physics;Func<IEnumerable<DualTile>,int,Func<DualTile,bool>,int> commit;int published=-1;bool disposed;
+ RegionTerrainPhysics physics;public RegionTerrainPhysics TerrainPhysics=>physics;Func<IEnumerable<DualTile>,int,Func<DualTile,bool>,int> commit;int published=-1;bool disposed;
  readonly List<Stage59ActorView> views=new List<Stage59ActorView>();readonly List<UnityEngine.Object> owned=new List<UnityEngine.Object>();
  readonly List<(string id,GameObject prefab,Point2 point)> waiting=new List<(string,GameObject,Point2)>();
  readonly HashSet<string> spawned=new HashSet<string>();
@@ -45,10 +45,27 @@ using System;using System.Linq;using System.Collections.Generic;using UnityEngin
  public bool DerivedCollider(Collider2D c)=>physics!=null&&physics.Owns(c);
  public void DigCircle(Vector2 p,float radius)=>DigCircle(p,radius,TerrainDigAuthority.Player,0,null);
  public TerrainDigResult DigCircle(Vector2 p,float radius,TerrainDigAuthority authority,int stage,IReadOnlyCollection<Vector2Int> authorized)
+ =>DigFootprint(new PlayerDigFootprint(p,radius));
+ public TerrainDigResult DigPlayerStroke(PlayerDigFootprint footprint)=>DigFootprint(footprint);
+ TerrainDigResult DigFootprint(PlayerDigFootprint footprint)
  {
-  if(!LogicalReady||Time.timeScale<=0||SporeInputReader.Instance==null||SporeInputReader.Instance.Context!=SporeInputContext.Gameplay||!float.IsFinite(radius)||radius<=0)return new TerrainDigResult(0,0,0,TerrainDigFailureReason.AuthorizationRejected);
-  var center=WorldToCell(p);int range=Mathf.CeilToInt(radius/CellSize)+1,evaluated=0;var cells=new List<DualTile>();for(int y=center.y-range;y<=center.y+range;y++)for(int x=center.x-range;x<=center.x+range;x++){var c=new Vector2Int(x,y);if((CellToWorld(c)-p).sqrMagnitude>radius*radius)continue;evaluated++;if(!IsDiggable(c))continue;if(Definition.Resistance(x,y)>TestDigPower){RejectedResistance++;continue;}cells.Add(new DualTile(x,y));}
-  int n=commit(cells,Revision,c=>true);Excavations+=n;return new TerrainDigResult(evaluated,cells.Count,n,n>0?TerrainDigFailureReason.None:TerrainDigFailureReason.NoDirtRemoved);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+  long diagonalQuery=Stage64DDiagonalEvidence.DigQuery(this,footprint);
+#endif
+  if(!LogicalReady||Time.timeScale<=0||SporeInputReader.Instance==null||SporeInputReader.Instance.Context!=SporeInputContext.Gameplay||!footprint.Valid)
+  {
+   var denied=new TerrainDigResult(0,0,0,TerrainDigFailureReason.AuthorizationRejected);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+   Stage64DDiagonalEvidence.DigResult(this,diagonalQuery,denied);
+#endif
+   return denied;
+  }
+  var selected=footprint.Cells(this);int evaluated=selected.Count;var cells=new List<DualTile>();foreach(var c in selected){if(!IsDiggable(c))continue;if(Definition.Resistance(c.x,c.y)>TestDigPower){RejectedResistance++;continue;}cells.Add(new DualTile(c.x,c.y));}
+  int n=commit(cells,Revision,c=>true);Excavations+=n;var result=new TerrainDigResult(evaluated,cells.Count,n,n>0?TerrainDigFailureReason.None:TerrainDigFailureReason.NoDirtRemoved);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+  Stage64DDiagonalEvidence.DigResult(this,diagonalQuery,result);
+#endif
+  return result;
  }
  void Publish(IReadOnlyList<DualTile> cells,int revision){long start=System.Diagnostics.Stopwatch.GetTimestamp();physics.Publish(cells);CollisionMs=StreamingGeometry.Elapsed(start);Presentation.Stream.RefreshPhysicalCells(cells);published=revision;}
  public void BindNavigation(ActorTerrainBinding binding)=>physics.BindNavigation(binding,this);

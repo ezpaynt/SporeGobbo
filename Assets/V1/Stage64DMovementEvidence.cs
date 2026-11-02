@@ -12,7 +12,10 @@ public sealed class Stage64DMovementEvidence:MonoBehaviour
     readonly NavigationRow[] navigation=new NavigationRow[6000];int navigationCount;RegionRoutePump routePump;
     struct PairRow{public float time,gap;public int a,b,phase;public bool ignored;}
     readonly BodyRow[] bodies=new BodyRow[30000];readonly PairRow[] pairs=new PairRow[100000];
+    struct DecisionRow { public RegionMovementCoordinator.DecisionTrace trace; public float time; public int phase; }
+    readonly DecisionRow[] decisions=new DecisionRow[400000];int decisionCount,decisionDropped;
     int bodyCount,pairCount,dropped,phase;float deadline,nextSample;bool finished;string directory;Keyboard keyboard;
+    Stage64DNativeMotionEvidence nativeEvidence;
     BuddyUnit[] sampled=Array.Empty<BuddyUnit>();
     static T Find<T>()where T:UnityEngine.Object=>UnityEngine.Object.FindAnyObjectByType<T>();
     static bool Camp()=>Find<CampSceneController>()?.WorldInputReady==true&&Find<SettlementCampRegion>()?.Ready==true;
@@ -20,6 +23,15 @@ public sealed class Stage64DMovementEvidence:MonoBehaviour
     {
         if(!Persistence.Isolated||!V1RuntimeProfile.DevelopmentStorage||!V1RuntimeProfile.DevelopmentToolsEnabled||Environment.GetEnvironmentVariable("SPORE_STAGE61_CAPTURE")!="movement")throw new InvalidOperationException("Owned movement evidence only");
         directory=Persistence.ExperimentPath("Evidence");Directory.CreateDirectory(directory);deadline=Time.realtimeSinceStartup+300;Application.logMessageReceived+=Observe;
+        nativeEvidence=gameObject.AddComponent<Stage64DNativeMotionEvidence>();
+        Stage64DRouteObservation.Begin();Stage64DReciprocalObservation.Begin();
+        RegionMovementCoordinator.DiagnosticObserver+=CaptureDecision;
+    }
+    void CaptureDecision(RegionMovementCoordinator.DecisionTrace trace)
+    {
+        if(finished)return;
+        nativeEvidence?.Applied(trace);
+        if(decisionCount<decisions.Length)decisions[decisionCount++]=new DecisionRow{trace=trace,time=Time.realtimeSinceStartup,phase=phase};else decisionDropped++;
     }
     void Observe(string message,string stack,LogType type){if(type==LogType.Error||type==LogType.Exception||type==LogType.Assert)errors.Add(message+"\n"+stack);}
     void Update()
@@ -59,7 +71,15 @@ public sealed class Stage64DMovementEvidence:MonoBehaviour
         Check("real squad capacity preserved",state.maxActiveSquad==5&&state.activeSquadIds.Count==5);if(finished)yield break;
         Stage61RuntimeMetrics.Category("lifecycle");var portal=Find<CampRunPortal>();portal.Interact(Find<CampPlayableSpawner>().SpawnedPlayer);yield return null;portal.goButton.onClick.Invoke();
         yield return Wait(()=>Find<ExpeditionRegion>()?.Player!=null&&Find<ExpeditionRegion>().PresentationReady&&UnityEngine.Object.FindObjectsByType<BuddyBrain>(FindObjectsSortMode.None).Count(b=>b.SquadScoped)==5,"real expedition with five Buddies ready");if(finished)yield break;
-        var region=Find<ExpeditionRegion>();var leader=region.Player;sampled=UnityEngine.Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None).Where(b=>b.GetComponent<BuddyBrain>()?.SquadScoped==true).ToArray();
+        var region=Find<ExpeditionRegion>();var leader=region.Player;
+        var comparison=Environment.GetEnvironmentVariable("SPORE_STAGE64D_CONTACT_COMPARISON");
+        if(!string.IsNullOrEmpty(comparison))
+        {
+            if(comparison!="strict"&&comparison!="cooperative")throw new InvalidOperationException("Unreviewed contact comparison");
+            leader.GetComponent<ActorTerrainBinding>().Movement.SetDiagnosticCooperativeContact(comparison=="cooperative");
+            File.WriteAllText(Path.Combine(directory,"contact-comparison-policy.txt"),comparison+"\nSame existing driver, deadlines, destination and body sizes. Temporary isolated policy only.\n");
+        }
+        sampled=UnityEngine.Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None).Where(b=>b.GetComponent<BuddyBrain>()?.SquadScoped==true).ToArray();
         leader.IssueBuddyCommand(BuddyCommand.Passive);leader.IssueBuddyCommand(BuddyCommand.Follow);yield return Frames(30);yield return Shot("movement-follow-start");
         // Automation plans outside the ordinary window. Player movement itself remains direct keyboard input.
         var playerBody=leader.GetComponent<Rigidbody2D>();var route=region.Route(playerBody.position,region.World(region.Definition.Anchors["nursery"]),TileMover.GetMapClearanceExtents(playerBody,.25f));
@@ -92,14 +112,103 @@ public sealed class Stage64DMovementEvidence:MonoBehaviour
     void Finish()
     {
         if(finished)return;finished=true;if(Time.realtimeSinceStartup>deadline)errors.Add("Movement watchdog expired");
+        Stage64DRouteObservation.Export(directory);Stage64DReciprocalObservation.Export(directory);
         if(keyboard!=null)InputSystem.QueueStateEvent(keyboard,new KeyboardState());Find<Stage61RuntimeMetrics>()?.Export();
         using(var file=new StreamWriter(Path.Combine(directory,"movement-bodies.csv"))){file.WriteLine("time,phase,actor,x,y,speed,waiting,type,age,halfX,halfY,desiredX,desiredY,goalX,goalY,waypointX,waypointY,nodes,id,task,status");for(int i=0;i<bodyCount;i++){var r=bodies[i];file.WriteLine(FormattableString.Invariant($"{r.time:R},{r.phase},{r.actor},{r.x:R},{r.y:R},{r.speed:R},{r.waiting},{r.type},{r.age},{r.halfX:R},{r.halfY:R},{r.desiredX:R},{r.desiredY:R},{r.goalX:R},{r.goalY:R},{r.waypointX:R},{r.waypointY:R},{r.nodes},{r.id},{r.task},{r.status}"));}}
         using(var file=new StreamWriter(Path.Combine(directory,"movement-pairs.csv"))){file.WriteLine("time,phase,a,b,gap,ignored");for(int i=0;i<pairCount;i++){var r=pairs[i];file.WriteLine(FormattableString.Invariant($"{r.time:R},{r.phase},{r.a},{r.b},{r.gap:R},{r.ignored}"));}}
         using(var file=new StreamWriter(Path.Combine(directory,"movement-navigation.csv"))){file.WriteLine("time,phase,queue,pending,requests,searches,coalesced,work,visited,completed,unreachable,latencySamples,latencyTotalMs,maximumLatencyMs");for(int i=0;i<navigationCount;i++){var r=navigation[i];file.WriteLine(FormattableString.Invariant($"{r.time:R},{r.phase},{r.queue},{r.pending},{r.requests},{r.searches},{r.coalesced},{r.work},{r.visited},{r.completed},{r.unreachable},{r.latencySamples},{r.latencyTotalMs:R},{r.maximumLatencyMs:R}"));}}
+        ExportDecisions();nativeEvidence?.Export(directory);
         File.WriteAllText(Path.Combine(directory,"result.json"),JsonUtility.ToJson(new Result{finished=true,error=errors.Count>0?"movement evidence error":"",checks=checks.ToArray(),runtimeErrors=errors.ToArray(),method="Real existing Camp and expedition, canonical five-Buddy squad, AI/physics/navigation and keyboard leader movement. Established synthetic fixture, direct production command API and preplanned automation route are explicit adapters.10Hz body/pair samples are not continuous collision bounds. No larger-world or natural recruitment claim."},true));
         Application.Quit(errors.Count==0&&checks.Count>0&&checks.All(c=>c.StartsWith("PASS "))?0:1);
     }
     [Serializable]sealed class Result{public bool finished;public string error,method;public string[] checks,runtimeErrors;}
-    void OnDestroy(){Application.logMessageReceived-=Observe;if(keyboard!=null)InputSystem.RemoveDevice(keyboard);}
+    void ExportDecisions()
+    {
+        using(var file=new StreamWriter(Path.Combine(directory,"movement-decisions.csv")))
+        {
+            file.WriteLine("sequence,time,phase,tick,region,stage,actor,key,peer,peerKey,detail,ticket,peerTicket,group,role,state,reason,task,routeStatus,x,y,halfX,halfY,preferredX,preferredY,resolvedX,resolvedY,actualX,actualY,yieldX,yieldY,candidateX,candidateY,goalX,goalY,accessX,accessY,leaseX,leaseY,accessKey,leaseKey,camp,human,ready,selected,yielding,yieldRequested,access,granted,occupied,hasLease,leaseOccupied,yieldOwner,yieldOwnerTicket,ownerOriginX,ownerOriginY,yieldHeadingX,yieldHeadingY,rejectedYield,rejectedX,rejectedY");
+            for(int i=0;i<decisionCount;i++)
+            {
+                var row=decisions[i];var r=row.trace;
+                file.WriteLine(FormattableString.Invariant($"{i},{row.time:R},{row.phase},{r.Tick:R},{r.Region},{r.Stage},{r.Actor},{r.Key},{r.Peer},{r.PeerKey},{r.Detail},{r.Ticket},{r.PeerTicket},{r.Group},{r.Role},{r.State},{r.Reason},{r.Task},{r.RouteStatus},{r.Position.x:R},{r.Position.y:R},{r.Extents.x:R},{r.Extents.y:R},{r.Preferred.x:R},{r.Preferred.y:R},{r.Resolved.x:R},{r.Resolved.y:R},{r.Actual.x:R},{r.Actual.y:R},{r.YieldGoal.x:R},{r.YieldGoal.y:R},{r.Candidate.x:R},{r.Candidate.y:R},{r.Goal.x:R},{r.Goal.y:R},{r.AccessGoal.x:R},{r.AccessGoal.y:R},{r.LeaseGoal.x:R},{r.LeaseGoal.y:R},{r.AccessKey},{r.LeaseKey},{r.Camp},{r.Human},{r.Ready},{r.Selected},{r.Yielding},{r.YieldRequested},{r.Access},{r.Granted},{r.Occupied},{r.HasLease},{r.LeaseOccupied},{r.YieldOwner},{r.YieldOwnerTicket},{r.YieldOwnerOrigin.x:R},{r.YieldOwnerOrigin.y:R},{r.YieldHeading.x:R},{r.YieldHeading.y:R},{r.HasRejectedYield},{r.RejectedYieldGoal.x:R},{r.RejectedYieldGoal.y:R}"));
+            }
+        }
+        File.WriteAllText(Path.Combine(directory,"movement-decisions-status.json"),JsonUtility.ToJson(new DecisionStatus{count=decisionCount,dropped=decisionDropped,capacity=decisions.Length,method="Observation only at original coordinator branches. Fixed buffer; no per-record I/O during replay. Unchanged movement scenario, deadlines and assertions. Diagnostic overhead is not a performance measurement."},true));
+    }
+    [Serializable]sealed class DecisionStatus{public int count,dropped,capacity;public string method;}
+    void OnDestroy(){RegionMovementCoordinator.DiagnosticObserver-=CaptureDecision;Application.logMessageReceived-=Observe;if(keyboard!=null)InputSystem.RemoveDevice(keyboard);}
+}
+// Separate bounded native replay: original five-Buddy Start workload above remains unchanged.
+public sealed class Stage64DCalmWaitEvidence:MonoBehaviour
+{
+    readonly List<string> checks=new List<string>(),errors=new List<string>(),rows=new List<string>();
+    string directory;Keyboard keyboard;bool finished;float deadline;BuddyUnit buddy;ActorTerrainBinding binding;GobboController observedPlayer;Stage64DNativeMotionEvidence observer;
+    void Awake(){if(!Persistence.Isolated||!V1RuntimeProfile.DevelopmentStorage||!V1RuntimeProfile.DevelopmentToolsEnabled)throw new InvalidOperationException("Owned calm-wait evidence only");directory=Persistence.ExperimentPath("Evidence");deadline=Time.realtimeSinceStartup+180;Application.logMessageReceived+=Observe;observer=gameObject.AddComponent<Stage64DNativeMotionEvidence>();RegionMovementCoordinator.DiagnosticObserver+=Native;rows.Add("time,x,y,vx,vy,state,reason,goalX,goalY,playerX,playerY,playerVx,playerVy,inputContext");}
+    void Native(RegionMovementCoordinator.DecisionTrace trace)=>observer?.Applied(trace);
+    void Observe(string text,string stack,LogType type){if(type==LogType.Error||type==LogType.Exception||type==LogType.Assert)errors.Add(text+"\n"+stack);}
+    void Update(){if(finished)return;if(errors.Count>0||Time.realtimeSinceStartup>deadline){Finish();return;}if(buddy==null)return;var body=buddy.GetComponent<Rigidbody2D>();rows.Add(FormattableString.Invariant($"{Time.realtimeSinceStartup:R},{body.position.x:R},{body.position.y:R},{body.linearVelocity.x:R},{body.linearVelocity.y:R},{binding.Movement.State(binding)},{binding.Movement.Reason(binding)},{binding.CurrentMovementGoal.x:R},{binding.CurrentMovementGoal.y:R},{observedPlayer?.GetComponent<Rigidbody2D>().position.x:R},{observedPlayer?.GetComponent<Rigidbody2D>().position.y:R},{observedPlayer?.GetComponent<Rigidbody2D>().linearVelocity.x:R},{observedPlayer?.GetComponent<Rigidbody2D>().linearVelocity.y:R},{SporeInputReader.Instance?.Context}"));}
+    bool Check(string label,bool pass){checks.Add((pass?"PASS ":"FAIL ")+label);if(!pass)Finish();return pass;}
+    IEnumerator Start()
+    {
+        yield return null;yield return null;
+        keyboard=InputSystem.AddDevice<Keyboard>("64D owned calm-wait keyboard");keyboard.MakeCurrent();
+        DevelopmentCampaignFixtures.Import(2);UnityEngine.Object.FindAnyObjectByType<MainMenuController>().LoadGame(2);
+        float end=Time.realtimeSinceStartup+60;
+        while(Time.realtimeSinceStartup<end&&UnityEngine.Object.FindAnyObjectByType<CampSceneController>()?.WorldInputReady!=true)yield return null;
+        var region=UnityEngine.Object.FindAnyObjectByType<SettlementCampRegion>();
+        if(!Check("real Camp ready for calm wait",region!=null&&region.Ready))yield break;
+        end=Time.realtimeSinceStartup+60;
+        while(Time.realtimeSinceStartup<end&&CampStartRoutineManager.Instance?.IsCampVisitRoutineRunning==true)yield return null;
+        if(!Check("real Camp arrival routines finish before isolated duty",CampStartRoutineManager.Instance!=null&&!CampStartRoutineManager.Instance.IsCampVisitRoutineRunning))yield break;
+        var player=UnityEngine.Object.FindAnyObjectByType<CampPlayableSpawner>().SpawnedPlayer;observedPlayer=player;
+        buddy=UnityEngine.Object.FindObjectsByType<BuddyUnit>(FindObjectsSortMode.None).First(b=>b.unitData.uniqueId=="development-b-buddy-1");binding=buddy.GetComponent<ActorTerrainBinding>();
+        // Explicit fixture positioning, then the real task's BeginWalk API establishes its complete lifecycle.
+        // Existing unused Camp floor isolates this two-actor contract from the separate crowded-Camp workload.
+        var origin=region.World(new SporeGobbo.Geometry.Point2(145.5,82.5));
+        var pb=player.GetComponent<Rigidbody2D>();var body=buddy.GetComponent<Rigidbody2D>();
+        var playerExtent=TileMover.GetMapClearanceExtents(pb,.25f);var buddyExtent=TileMover.GetMapClearanceExtents(body,.25f);
+        bool isolated=TileMover.CanTraverseBox(region,origin+new Vector2(.08f,.9f),origin+Vector2.down*3,buddyExtent);
+        foreach(var other in UnityEngine.Object.FindObjectsByType<ActorTerrainBinding>(FindObjectsSortMode.None))
+            if(other.gameObject!=buddy.gameObject&&other.gameObject!=player.gameObject&&Vector2.Distance(other.transform.position,origin)<5)isolated=false;
+        if(!Check("isolated ordinary Camp floor has terrain clearance and no unrelated actors",isolated))yield break;
+        pb.position=origin;player.transform.position=pb.position;pb.linearVelocity=Vector2.zero;
+        body.position=origin+new Vector2(.08f,.9f);buddy.transform.position=body.position;body.linearVelocity=Vector2.zero;
+        var marker=new GameObject("Owned calm-wait destination");marker.transform.position=origin+Vector2.down*3;
+        var walk=buddy.GetComponent<CampDirectedWalk>()??buddy.gameObject.AddComponent<CampDirectedWalk>();
+        walk.destroyWhenDone=false;walk.enableWanderWhenDone=false;walk.useArrivalSlot=true;
+        walk.BeginWalk(marker.transform,1.6f,.18f,30);
+        var goal=(Vector2)marker.transform.position;
+        Physics2D.SyncTransforms();end=Time.realtimeSinceStartup+8;
+        while(!finished&&Time.realtimeSinceStartup<end&&binding.Movement.State(binding)!=MovementResolutionState.WaitingForPeer)yield return null;
+        if(!Check("real Buddy enters owned peer wait",binding.Movement.State(binding)==MovementResolutionState.WaitingForPeer))yield break;
+        var start=body.position;bool calm=true;end=Time.realtimeSinceStartup+3;
+        while(!finished&&Time.realtimeSinceStartup<end){calm&=Vector2.Distance(start,body.position)<.025f&&body.linearVelocity.magnitude<.01f;yield return null;}
+        if(!Check("real stationary-player waiting is calm",calm&&binding.Movement.State(binding)==MovementResolutionState.WaitingForPeer))yield break;
+        var playerStart=pb.position;var extent=TileMover.GetMapClearanceExtents(pb,.25f);Vector2 direction=Vector2.zero;
+        foreach(var axis in new[]{Vector2.left,Vector2.right,Vector2.down})
+        {
+            if(!TileMover.CanTraverseBox(region,pb.position,pb.position+axis*2.2f,extent))continue;
+            bool clear=true;
+            foreach(var hit in Physics2D.BoxCastAll(pb.position,extent*2,0,axis,2.2f,Physics2D.AllLayers))
+                if(hit.collider!=null&&!hit.collider.isTrigger&&hit.collider.attachedRigidbody!=pb)clear=false;
+            if(clear){direction=axis;break;}
+        }
+        if(!Check("player has real terrain-clear release route",direction!=Vector2.zero))yield break;
+        Key key=direction.x<0?Key.A:direction.x>0?Key.D:Key.S;
+        InputSystem.QueueStateEvent(keyboard,new KeyboardState(key));end=Time.realtimeSinceStartup+8;
+        while(!finished&&Time.realtimeSinceStartup<end&&Vector2.Distance(pb.position,playerStart)<2)yield return null;
+        InputSystem.QueueStateEvent(keyboard,new KeyboardState());
+        if(!Check("real player movement releases wait",Vector2.Distance(pb.position,playerStart)>=2&&binding.Movement.State(binding)!=MovementResolutionState.WaitingForPeer))yield break;
+        float before=Vector2.Distance(start,goal);end=Time.realtimeSinceStartup+8;
+        while(!finished&&Time.realtimeSinceStartup<end&&Vector2.Distance(body.position,goal)>before-.5f)yield return null;
+        if(!Check("real duty resumes after player clears",Vector2.Distance(body.position,goal)<before-.5f))yield break;
+        buddy=null;UnityEngine.Object.FindAnyObjectByType<PauseMenuController>().OpenPause();UnityEngine.Object.FindAnyObjectByType<PauseMenuController>().QuitToMainMenu();
+        end=Time.realtimeSinceStartup+30;while(Time.realtimeSinceStartup<end&&SceneManager.GetActiveScene().name!="MainMenu")yield return null;
+        for(int i=0;i<5;i++)yield return null;
+        Check("calm wait cleanup",DiggableTerrainService.Active==null&&UnityEngine.Object.FindObjectsByType<RegionRoutePump>(FindObjectsSortMode.None).Length==0);Finish();
+    }
+    [Serializable]sealed class Result{public bool finished;public string error;public string[] checks,runtimeErrors;}
+    void Finish(){if(finished)return;finished=true;if(keyboard!=null)InputSystem.QueueStateEvent(keyboard,new KeyboardState());if(Time.realtimeSinceStartup>deadline)errors.Add("calm wait watchdog");observer?.Export(directory);File.WriteAllLines(Path.Combine(directory,"calm-wait-motion.csv"),rows);File.WriteAllText(Path.Combine(directory,"result.json"),JsonUtility.ToJson(new Result{finished=true,error=errors.Count>0?"calm wait error":"",checks=checks.ToArray(),runtimeErrors=errors.ToArray()},true));Application.Quit(errors.Count==0&&checks.All(c=>c.StartsWith("PASS "))?0:1);}
+    void OnDestroy(){RegionMovementCoordinator.DiagnosticObserver-=Native;Application.logMessageReceived-=Observe;if(keyboard!=null)InputSystem.RemoveDevice(keyboard);}
 }
 #endif

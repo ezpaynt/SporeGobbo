@@ -13,7 +13,8 @@ public sealed class RegionRouteQueue : IDisposable
         public int OwnerId,Channel;
         public float LastTouched;
         public float Started;
-        public Vector2 Start, Goal, Extents;
+        public Vector2 Start, Goal, Extents, TerrainExtents, RequestedExtents;
+        public TileMover.ActorFootprint Footprint;
         public GridRouteSearch Search;
         public GridRouteStatus Status;
         public List<Vector2> Path;
@@ -53,31 +54,36 @@ public sealed class RegionRouteQueue : IDisposable
     {
         path=null;if(disposed||owner==null)return GridRouteStatus.Canceled;
         if(extents.x<=0||extents.y<=0||float.IsNaN(extents.x)||float.IsNaN(extents.y)||float.IsInfinity(extents.x)||float.IsInfinity(extents.y))return GridRouteStatus.Unreachable;
+        var requestedExtents=extents;var footprint=TileMover.TerrainFootprint(owner.GetComponent<Rigidbody2D>(),extents);extents=footprint.ReserveHalf;
         Requests++;var id=(owner.GetInstanceID(),channel);
         if(Requests%32==0)Prune();
         if(owners.TryGetValue(id,out var r))
         {
             r.LastTouched=Time.unscaledTime;
-            bool same=(r.Goal-goal).sqrMagnitude<=.0025f&&(r.Extents-extents).sqrMagnitude<.000001f&&(r.Status!=GridRouteStatus.Pending||(r.Start-from).sqrMagnitude<.36f);
+            bool same=(r.Goal-goal).sqrMagnitude<=.0025f&&r.Footprint.Same(footprint)&&(r.Status!=GridRouteStatus.Pending||(r.Start-from).sqrMagnitude<.36f);
             if(same&&r.Status==GridRouteStatus.Succeeded)
-            {Coalesced++;path=Remaining(r.Path,from,extents);return path.Count>0?GridRouteStatus.Succeeded:Restart(owner,from,goal,extents,out path,channel);}
+            {Coalesced++;Stage64DRouteObservation.Trace("CacheFull",owner,Stage64DRouteObservation.Id(this),Stage64DRouteObservation.Id(r.Search),from,goal,extents,r.Revision,r.Path);path=Remaining(r.Path,from,footprint);Stage64DRouteObservation.Trace("CacheSuffix",owner,Stage64DRouteObservation.Id(this),Stage64DRouteObservation.Id(r.Search),from,goal,extents,r.Revision,path);return path.Count>0?GridRouteStatus.Succeeded:Restart(owner,from,goal,requestedExtents,out path,channel);}
             if(same&&r.Status==GridRouteStatus.Pending){Coalesced++;return r.Status;}
             // Terrain-only failure is still valid until topology, clearance, goal or start changes.
             if(same&&r.Status==GridRouteStatus.Unreachable&&(Time.unscaledTime<r.RetryAt||((r.Start-from).sqrMagnitude<.00000001f&&(r.Goal-goal).sqrMagnitude<.00000001f))){Coalesced++;return r.Status;}
             Cancel(owner,channel);
         }
-        return Restart(owner,from,goal,extents,out path,channel);
+        return Restart(owner,from,goal,requestedExtents,out path,channel);
     }
     GridRouteStatus Restart(ActorTerrainBinding owner,Vector2 from,Vector2 goal,Vector2 extents,out List<Vector2> path,int channel=0)
     {
         path=null;float cell=terrain.CellSize;
-        var search=new GridRouteSearch(state,logical(from),logical(goal),extents.x/cell,extents.y/cell);
+        var native=(terrain as IExecutableTerrainClearance)?.TerrainPhysics;
+        var requestedExtents=extents;var footprint=TileMover.TerrainFootprint(owner.GetComponent<Rigidbody2D>(),extents);extents=footprint.ReserveHalf;
+        var terrainExtents=native!=null?native.TerrainPlanningExtents(footprint.BroadHalf):footprint.BroadHalf;
+        var search=new GridRouteSearch(state,logical(from),logical(goal),terrainExtents.x/cell,terrainExtents.y/cell,native==null?null:p=>footprint.Occupy(terrain,world(p)),native==null?null:(a,b)=>footprint.Traverse(terrain,world(a),world(b)),native!=null&&footprint.Offset.sqrMagnitude>.0000000001f);
         Searches++;
-        var r=new Request{Owner=owner,OwnerId=owner.GetInstanceID(),Channel=channel,Started=Time.unscaledTime,LastTouched=Time.unscaledTime,Start=from,Goal=goal,Extents=extents,Search=search,Status=search.Status,Revision=state.Revision,RetryAt=Time.unscaledTime+.5f};
+        Stage64DRouteObservation.Trace("SearchCreated",owner,Stage64DRouteObservation.Id(this),Stage64DRouteObservation.Id(search),from,goal,extents,state.Revision,null);
+        var r=new Request{Owner=owner,OwnerId=owner.GetInstanceID(),Channel=channel,Started=Time.unscaledTime,LastTouched=Time.unscaledTime,Start=from,Goal=goal,Extents=extents,RequestedExtents=requestedExtents,Footprint=footprint,TerrainExtents=terrainExtents,Search=search,Status=search.Status,Revision=state.Revision,RetryAt=Time.unscaledTime+.5f};
         if(r.Status==GridRouteStatus.Unreachable)RecordLatency(r);
         owners[(owner.GetInstanceID(),channel)]=r;if(r.Status==GridRouteStatus.Pending)pending.Add(r);return r.Status;
     }
-    List<Vector2> Remaining(List<Vector2> full,Vector2 from,Vector2 extents)
+    List<Vector2> Remaining(List<Vector2> full,Vector2 from,TileMover.ActorFootprint footprint)
     {
         int best=-1;float distance=float.PositiveInfinity;
         for(int i=0;i<full.Count;i++)
@@ -85,14 +91,15 @@ public sealed class RegionRouteQueue : IDisposable
             float d=(full[i]-from).sqrMagnitude;
             if(d<distance){best=i;distance=d;}
         }
-        var result=new List<Vector2>();if(best<0||!TileMover.CanTraverseBox(terrain,from,full[best],extents))return result;
+        var result=new List<Vector2>();if(best<0||!footprint.Traverse(terrain,from,full[best]))return result;
         for(int i=best;i<full.Count;i++)result.Add(full[i]);return result;
     }
     public bool Accepts(ActorTerrainBinding owner,int revision)
-    =>!disposed&&owner!=null&&owners.TryGetValue((owner.GetInstanceID(),0),out var r)&&r.Revision==revision&&r.Status==GridRouteStatus.Succeeded&&(r.Extents-TileMover.GetMapClearanceExtents(owner.GetComponent<Rigidbody2D>(),owner.MinimumBodyRadius)).sqrMagnitude<.000001f;
+    =>!disposed&&owner!=null&&owners.TryGetValue((owner.GetInstanceID(),0),out var r)&&r.Revision==revision&&r.Status==GridRouteStatus.Succeeded&&r.Footprint.Same(TileMover.TerrainFootprint(owner.GetComponent<Rigidbody2D>(),r.RequestedExtents));
     public void Cancel(ActorTerrainBinding owner,int channel=0)
     {
         if(owner==null||!owners.TryGetValue((owner.GetInstanceID(),channel),out var r))return;
+        Stage64DRouteObservation.Trace("Canceled",owner,Stage64DRouteObservation.Id(this),Stage64DRouteObservation.Id(r.Search),r.Start,r.Goal,r.Extents,r.Revision,r.Path);
         r.Search.Cancel();r.Status=GridRouteStatus.Canceled;pending.Remove(r);owners.Remove((owner.GetInstanceID(),channel));
     }
     public int RouteRevision(ActorTerrainBinding owner,int channel=0)=>owner!=null&&owners.TryGetValue((owner.GetInstanceID(),channel),out var r)?r.Revision:-1;
@@ -127,13 +134,13 @@ public sealed class RegionRouteQueue : IDisposable
                 while(r.Published<end)
                 {
                     Vector2 next=world(r.Search.Path[r.Published++]);
-                    if(!TileMover.CanTraverseBox(terrain,r.Prior,next,r.Extents)){r.Status=GridRouteStatus.Unreachable;break;}
+                    if(!r.Footprint.Traverse(terrain,r.Prior,next)){r.Status=GridRouteStatus.Unreachable;break;}
                     r.Distance+=Vector2.Distance(r.Prior,next);AddCorridor(r,r.Prior,next);r.Path.Add(next);r.Prior=next;
                 }
                 if(r.Status==GridRouteStatus.Pending&&r.Published==r.Search.Path.Count)
                 {
-                    if(TileMover.CanTraverseBox(terrain,r.Prior,r.Goal,r.Extents))
-                    {r.Distance+=Vector2.Distance(r.Prior,r.Goal);AddCorridor(r,r.Prior,r.Goal);r.Path.Add(r.Goal);r.Status=GridRouteStatus.Succeeded;Completed++;}
+                    if(r.Footprint.Traverse(terrain,r.Prior,r.Goal))
+                    {r.Distance+=Vector2.Distance(r.Prior,r.Goal);AddCorridor(r,r.Prior,r.Goal);r.Path.Add(r.Goal);r.Status=GridRouteStatus.Succeeded;Completed++;Stage64DRouteObservation.Trace("Published",r.Owner,Stage64DRouteObservation.Id(this),Stage64DRouteObservation.Id(r.Search),r.Start,r.Goal,r.Extents,r.Revision,r.Path);}
                     else r.Status=GridRouteStatus.Unreachable;
                 }
             }
@@ -149,7 +156,7 @@ public sealed class RegionRouteQueue : IDisposable
     }
     void AddCorridor(Request r,Vector2 from,Vector2 to)
     {
-            Point2 prior=logical(from),p=logical(to);double hx=r.Extents.x/terrain.CellSize,hy=r.Extents.y/terrain.CellSize;
+            Point2 prior=logical(from),p=logical(to);double hx=r.TerrainExtents.x/terrain.CellSize,hy=r.TerrainExtents.y/terrain.CellSize;
             for(int y=(int)Math.Floor(Math.Min(prior.Y,p.Y)-hy);y<=(int)Math.Floor(Math.Max(prior.Y,p.Y)+hy);y++)
                 for(int x=(int)Math.Floor(Math.Min(prior.X,p.X)-hx);x<=(int)Math.Floor(Math.Max(prior.X,p.X)+hx);x++)
                     if(state.World.Contains(x,y))r.Corridor.Add(y*state.World.Width+x);

@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody2D))]
-public class BuddyFollow : MonoBehaviour
+public class BuddyFollow : MonoBehaviour, ITerrainMovementReserve
 {
     [Header("Brain")]
     public bool brainAllowsMovement = true;
@@ -25,6 +25,7 @@ public class BuddyFollow : MonoBehaviour
     public float waypointReachDistance = 0.85f;
     public bool usePathfinding = true;
     public float physicalBodyRadius = 0.28f;
+    public float TerrainMovementReserve => physicalBodyRadius;
 
     [Header("Gobbo Dance / Unstuck")]
     public bool useGobboDance = true;
@@ -49,8 +50,13 @@ public class BuddyFollow : MonoBehaviour
 
     private List<Vector2> currentPath = new List<Vector2>();
     private int pathIndex = 0;
+    readonly RouteWaypointPolicy.RejoinState routeRejoin=new RouteWaypointPolicy.RejoinState();
     public int RouteNodeCount=>currentPath.Count;
     public Vector2 RouteWaypoint=>pathIndex>=0&&pathIndex<currentPath.Count?currentPath[pathIndex]:rb!=null?rb.position:(Vector2)transform.position;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    public IReadOnlyList<Vector2> ObservedPath=>currentPath;
+    public int ObservedCursor=>pathIndex;
+#endif
     private float repathTimer = 0f;
     private Vector2 lastPathGoal;
 
@@ -118,6 +124,9 @@ public class BuddyFollow : MonoBehaviour
         if(terrainBinding!=null&&terrainBinding.ChooseDestination!=null)
         {bool staying=brain!=null&&brain.SquadScoped&&!brain.Following;var targetBody=staying?null:player.GetComponent<Rigidbody2D>();pointDestination=targetBody==null;targetPosition=terrainBinding.MovementGoal(staying?0:player.GetInstanceID(),targetPosition,pointDestination?Vector2.zero:TileMover.GetMapClearanceExtents(targetBody,.25f));}
         float destinationTolerance=pointDestination?Mathf.Min(stopDistance,terrainBinding.Terrain.CellSize*.12f):stopDistance;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        Stage64DReplayEvidence.FollowDecision(this,targetPosition,destinationTolerance,pointDestination);
+#endif
         if (Vector2.Distance(rb.position, targetPosition) <= destinationTolerance)
         {
             rb.linearVelocity = Vector2.zero;
@@ -126,7 +135,15 @@ public class BuddyFollow : MonoBehaviour
             return;
         }
 
-        CheckIfStuck(distanceToPlayer);
+        // The region owns cooperative waits. Legacy stuck-dance must not reset regional routes.
+        if(binding==null||binding.RequestRoute==null)CheckIfStuck(distanceToPlayer);
+        if(binding?.RequestRoute!=null&&currentPath.Count>0&&binding.AcceptsMovementRoute(boundRouteRevision))
+        {
+            int prior=pathIndex;pathIndex=RouteWaypointPolicy.Rejoin(currentPath,pathIndex,rb.position,binding,physicalBodyRadius,routeRejoin);
+            if(prior!=pathIndex)Stage64DRouteObservation.Trace("CursorRejoin",binding,0,0,rb.position,targetPosition,TileMover.GetMapClearanceExtents(rb,physicalBodyRadius),boundRouteRevision,currentPath,pathIndex);
+        }
+        if(binding?.Movement?.WaitingForPeer(binding,targetPosition)==true)
+        {ActorMotionIntent.Submit(this,rb,Vector2.zero,physicalBodyRadius,10);SetVisualState(GobboAnimationState.Idle);return;}
 
         Vector2 moveDir = GetFollowDirection(targetPosition);
         if(binding==null||binding.RequestRoute==null)moveDir = ApplyGobboDance(moveDir, targetPosition);
@@ -175,14 +192,20 @@ public class BuddyFollow : MonoBehaviour
         if (currentPath.Count == 0 || pathIndex >= currentPath.Count)
             return Vector2.zero;
 
+        pathIndex=RouteWaypointPolicy.Rejoin(currentPath,pathIndex,rb.position,binding,physicalBodyRadius,routeRejoin);
+        int observedPriorCursor=pathIndex;
         pathIndex=RouteWaypointPolicy.Advance(currentPath,pathIndex,rb.position,binding,physicalBodyRadius);
+        if(!RouteWaypointPolicy.RecoverTerrainEntry(currentPath,ref pathIndex,ref boundRouteRevision,rb.position,targetPosition,binding,physicalBodyRadius,routeRejoin))return Vector2.zero;
+        if(observedPriorCursor!=pathIndex){Stage64DRouteObservation.Trace("CursorBeforeAdvance",binding,0,0,rb.position,targetPosition,TileMover.GetMapClearanceExtents(rb,physicalBodyRadius),boundRouteRevision,currentPath,observedPriorCursor);Stage64DRouteObservation.Trace("CursorAdvance",binding,0,0,rb.position,targetPosition,TileMover.GetMapClearanceExtents(rb,physicalBodyRadius),boundRouteRevision,currentPath,pathIndex);}
         if(pathIndex>=currentPath.Count)return Vector2.zero;
         Vector2 waypoint = currentPath[pathIndex];
 
         float waypointTolerance=binding!=null&&binding.RequestRoute!=null?Mathf.Min(waypointReachDistance,binding.Terrain.CellSize*.12f):waypointReachDistance;
-        if (Vector2.Distance(rb.position, waypoint) <= waypointTolerance)
+        // Regional progression is owned by Advance; never discard a just-recovered entry here.
+        if ((binding==null||binding.RequestRoute==null)&&RouteWaypointPolicy.Reached(currentPath,pathIndex,rb.position,binding,physicalBodyRadius,waypointTolerance))
         {
             pathIndex++;
+            Stage64DRouteObservation.Trace("CursorTolerance",binding,0,0,rb.position,targetPosition,TileMover.GetMapClearanceExtents(rb,physicalBodyRadius),boundRouteRevision,currentPath,pathIndex);
 
             if (pathIndex >= currentPath.Count)
                 return Vector2.zero;
@@ -206,6 +229,7 @@ public class BuddyFollow : MonoBehaviour
             pathIndex = 0;
         else
             ClearPath();
+        Stage64DRouteObservation.Trace("FollowerDelivery",binding,0,0,rb.position,targetPosition,TileMover.GetMapClearanceExtents(rb,physicalBodyRadius),binding?.LastRouteRevision??-1,currentPath,pathIndex);
     }
 
     Vector2 ApplyGobboDance(Vector2 moveDir, Vector2 targetPosition)
@@ -334,6 +358,8 @@ public class BuddyFollow : MonoBehaviour
 
     void ClearPath()
     {
+        routeRejoin.Reset();
+        if(currentPath.Count>0)Stage64DRouteObservation.Trace("FollowerClear",GetComponent<ActorTerrainBinding>(),0,0,rb!=null?rb.position:(Vector2)transform.position,lastPathGoal,Vector2.zero,boundRouteRevision,currentPath,pathIndex);
         currentPath.Clear();
         pathIndex = 0;
     }
