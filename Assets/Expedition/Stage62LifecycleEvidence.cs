@@ -147,6 +147,54 @@ public sealed class Stage62LifecycleEvidence : MonoBehaviour
     static bool ExpeditionReady()=>SceneManager.GetActiveScene().name==GameSceneCatalog.CandidateExpedition&&Find<ExpeditionRegion>()!=null&&Find<ExpeditionRegion>().PresentationReady&&Find<ExpeditionRegion>().Player!=null;
     void Warp(ExpeditionRegion r,SporeGobbo.Geometry.Point2 p){var body=r.Player.GetComponent<Rigidbody2D>();body.position=r.World(p);body.linearVelocity=Vector2.zero;r.Player.transform.position=body.position;Physics2D.SyncTransforms();}
     void PickupDiagnostic(ExpeditionRegion r,MonoBehaviour item,string phase){if(item==null)return;var point=(Vector2)item.transform.position;File.AppendAllText(Path.Combine(directory,"pickup-diagnostics.txt"),phase+" / "+item.name+" distance="+Vector2.Distance(r.Player.transform.position,point)+" actor="+r.Player.transform.position+" item="+point+" ready="+r.PresentationReady+" context="+SporeInputReader.Instance.Context+" pointSight="+r.Player.GetComponent<ActorTerrainBinding>().InteractionSight(r.Player.transform.position,point)+" bodyExtent="+TileMover.GetMapClearanceExtents(r.Player.GetComponent<Rigidbody2D>(),.22f)+Environment.NewLine);}
+    // The traversal assertion needs a 2.4m clear lane. Select an existing suitable pickup;
+    // never mutate terrain, move a pickup, or weaken the actual traversal/interaction checks.
+    T TraversalPickup<T>(ExpeditionRegion region,Func<T,bool> filter=null) where T:MonoBehaviour
+    {
+        var extents=TileMover.GetMapClearanceExtents(region.Player.GetComponent<Rigidbody2D>(),.22f);
+        foreach(var pickup in UnityEngine.Object.FindObjectsByType<T>(FindObjectsSortMode.None)
+            .Where(p=>filter==null||filter(p)).OrderBy(p=>Vector2.Distance(p.transform.position,region.Player.transform.position)).ThenBy(p=>p.name,StringComparer.Ordinal))
+        {
+            var direction=PickupTraversalDirection(region,pickup.transform.position,extents);
+            File.AppendAllText(Path.Combine(directory,"pickup-fixture-selection.txt"),typeof(T).Name+" / "+pickup.name+" extent="+extents+" lane="+direction+Environment.NewLine);
+            if(direction!=Vector2.zero)return pickup;
+        }
+        throw new InvalidOperationException("No existing "+typeof(T).Name+" satisfies original pickup traversal precondition");
+    }
+    public static Vector2 PickupTraversalDirection(IDiggableTerrain terrain,Vector2 target,Vector2 extent)
+    {
+        foreach(var axis in new[]{Vector2.right,Vector2.up,Vector2.left,Vector2.down})
+        {
+            bool clear=true;
+            for(int step=-12;step<=12;step++)clear&=TileMover.CanOccupyBox(terrain,target+axis*(step*.1f),extent);
+            if(clear)return axis;
+        }
+        return Vector2.zero;
+    }
+    IEnumerator WalkAcrossLoosePickup(ExpeditionRegion r,MonoBehaviour pickup)
+    {
+        // Setup chooses an unobstructed straight lane; traversal uses actual keyboard movement and native physics.
+        var target=(Vector2)pickup.transform.position;
+        var body=r.Player.GetComponent<Rigidbody2D>();
+        var extent=TileMover.GetMapClearanceExtents(body,.22f);
+        Vector2 direction=PickupTraversalDirection(r,target,extent);
+        if(direction==Vector2.zero)throw new InvalidOperationException("No terrain-clear pickup traversal: "+pickup.name);
+        string label=pickup.name;
+        foreach(var collider in pickup.GetComponentsInChildren<Collider2D>())Check("loose resource trigger / "+label,collider.isTrigger);
+        int spores=r.Player.GetComponent<SporeInventory>().spores;
+        int shinies=CampResourceService.GetAmount(GameState.Instance,CampResourceType.Shinies);
+        int food=CampResourceService.GetAmount(GameState.Instance,CampResourceType.Mushrooms);
+        Warp(r,r.LogicalPosition(target-direction*1.2f));
+        yield return Wait(()=>r.PresentationReady,"pickup traversal view ready",10);
+        Key key=direction.x>0?Key.D:direction.x<0?Key.A:direction.y>0?Key.W:Key.S;
+        float deadline=Time.realtimeSinceStartup+8;
+        InputSystem.QueueStateEvent(keyboard,new KeyboardState(key));
+        while(Time.realtimeSinceStartup<deadline&&Vector2.Dot(body.position-target,direction)<1)yield return null;
+        InputSystem.QueueStateEvent(keyboard,new KeyboardState());
+        for(int i=0;i<4;i++)yield return null;
+        Check("actual movement crosses loose resource / "+label,Vector2.Dot(body.position-target,direction)>=1);
+        Check("walking does not collect loose resource / "+label,pickup!=null&&r.Player.GetComponent<SporeInventory>().spores==spores&&CampResourceService.GetAmount(GameState.Instance,CampResourceType.Shinies)==shinies&&CampResourceService.GetAmount(GameState.Instance,CampResourceType.Mushrooms)==food);
+    }
     void ApproachPickup(ExpeditionRegion r,MonoBehaviour pickup){var target=(Vector2)pickup.transform.position;var extent=TileMover.GetMapClearanceExtents(r.Player.GetComponent<Rigidbody2D>(),.22f);for(float radius=.75f;radius<=.95f;radius+=.1f)for(int direction=0;direction<16;direction++){float angle=direction*Mathf.PI/8;var candidate=target+new Vector2(Mathf.Cos(angle),Mathf.Sin(angle))*radius;if(!TileMover.CanOccupyBox(r,candidate,extent)||!r.RayClear(candidate,target))continue;Warp(r,r.LogicalPosition(candidate));return;}throw new InvalidOperationException("No fitting pickup approach: "+pickup.name);}
     IEnumerator ExpeditionProof()
     {
@@ -170,17 +218,18 @@ public sealed class Stage62LifecycleEvidence : MonoBehaviour
         Check("combat annex rapidly exposes tactical floor",hidden.Cells.Count(i=>discovery.Shown(i%144,i/144))>hiddenBefore);yield return Capture("combat-annex-fast-reveal");
         yield return NewRouteEnemyProof();if(finished)yield break;
         ExpeditionDevelopmentControls.SetGodMode(true);Warp(r,new SporeGobbo.Geometry.Point2(66.5,92.5));int attempts=ExpeditionDevelopmentControls.DamageAttempts;
+        Stage64DReplayEvidence.BeginCombat(gameObject,r,player);
         yield return Wait(()=>Find<TunnelWeevilEnemy>()!=null,"real Weevil instantiated on discovered floor",10);
         yield return Wait(()=>ExpeditionDevelopmentControls.DamageAttempts>attempts,"actual Weevil AI winds up and damages real leader",20);
-        Check("God Mode retains actual damage attempts and survival",ExpeditionDevelopmentControls.GodMode&&player.health>0&&ExpeditionDevelopmentControls.DamageAttempts>attempts);yield return Capture("real-weevil-god-mode");
+        Check("God Mode retains actual damage attempts and survival",ExpeditionDevelopmentControls.GodMode&&player.health>0&&ExpeditionDevelopmentControls.DamageAttempts>attempts);Stage64DReplayEvidence.EndCombat(directory);yield return Capture("real-weevil-god-mode");
         ownedMouse=InputSystem.AddDevice<Mouse>("Stage62 owned combat mouse");ownedMouse.MakeCurrent();var target=UnityEngine.Object.FindObjectsByType<TunnelWeevilEnemy>(FindObjectsSortMode.None).OrderBy(e=>Vector2.Distance(e.transform.position,player.transform.position)).First();int enemyHP=target.health;for(int i=0;i<150&&target!=null;i++){var screen=r.RegionCamera.WorldToScreenPoint(r.Render(target.transform.position));InputSystem.QueueStateEvent(ownedMouse,new MouseState{position=new Vector2(screen.x,screen.y),buttons=1});yield return null;}InputSystem.QueueStateEvent(ownedMouse,new MouseState());Check("real inverse-pointer melee input damages real Weevil",target==null||target.health<enemyHP);yield return Capture("real-player-melee");InputSystem.RemoveDevice(ownedMouse);ownedMouse=null;
         Warp(r,new SporeGobbo.Geometry.Point2(113.5,64.5));yield return Wait(()=>Find<BlobSpitterEnemy>()!=null,"real Blob instantiated",10);yield return Wait(()=>Find<EnemyProjectile>()!=null,"actual Blob fires actual projectile",15);yield return Capture("real-blob-projectile");
         // Real projectile prefab, deterministic launch at permanent pillar: setup adapter, actual swept flight.
         var blob=Find<BlobSpitterEnemy>();int terrainHits=EnemyProjectile.TerrainImpacts;var shot=Instantiate(blob.projectilePrefab,r.World(new SporeGobbo.Geometry.Point2(104.5,58.5)),Quaternion.identity);shot.speed=100;shot.Launch(Vector2.right,blob.transform);for(int i=0;i<12;i++)yield return null;Check("fast real projectile stops at permanent terrain",shot==null&&EnemyProjectile.TerrainImpacts>terrainHits);
         Warp(r,r.Definition.Anchors["nursery"]);yield return Capture("nursery-root-stone-overview");
-        var spore=UnityEngine.Object.FindObjectsByType<CollectibleSpore>(FindObjectsSortMode.None).OrderBy(c=>Vector2.Distance(c.transform.position,player.transform.position)).First();int spores=player.GetComponent<SporeInventory>().spores;ApproachPickup(r,spore);yield return Wait(()=>r.PresentationReady,"pickup view ready / spore",10);PickupDiagnostic(r,spore,"before F");yield return Press(Key.F,2);PickupDiagnostic(r,spore,"after F if still present");Check("routed F spore pickup uses actual inventory",player.GetComponent<SporeInventory>().spores>spores);
-        var shiny=Find<CollectibleShiny>();int shinies=CampResourceService.GetAmount(GameState.Instance,CampResourceType.Shinies);ApproachPickup(r,shiny);yield return Wait(()=>r.PresentationReady,"pickup view ready / shiny",10);PickupDiagnostic(r,shiny,"before F");yield return Press(Key.F,2);PickupDiagnostic(r,shiny,"after F if still present");Check("routed F shiny pickup updates canonical resources",CampResourceService.GetAmount(GameState.Instance,CampResourceType.Shinies)>shinies);
-        var food=UnityEngine.Object.FindObjectsByType<FoodItem>(FindObjectsSortMode.None).First(item=>item.name.StartsWith("food.",StringComparison.Ordinal));int mushrooms=CampResourceService.GetAmount(GameState.Instance,CampResourceType.Mushrooms);ApproachPickup(r,food);yield return Wait(()=>r.PresentationReady,"pickup view ready / food",10);PickupDiagnostic(r,food,"before F");yield return Press(Key.F,2);PickupDiagnostic(r,food,"after F if still present");Check("routed F food pickup preserves resource/XP service",CampResourceService.GetAmount(GameState.Instance,CampResourceType.Mushrooms)>mushrooms);
+        var spore=TraversalPickup<CollectibleSpore>(r);int spores=player.GetComponent<SporeInventory>().spores;yield return WalkAcrossLoosePickup(r,spore);ApproachPickup(r,spore);yield return Wait(()=>r.PresentationReady,"pickup view ready / spore",10);PickupDiagnostic(r,spore,"before F");yield return Press(Key.F,2);PickupDiagnostic(r,spore,"after F if still present");Check("routed F spore pickup uses actual inventory",player.GetComponent<SporeInventory>().spores>spores);
+        var shiny=TraversalPickup<CollectibleShiny>(r);int shinies=CampResourceService.GetAmount(GameState.Instance,CampResourceType.Shinies);yield return WalkAcrossLoosePickup(r,shiny);ApproachPickup(r,shiny);yield return Wait(()=>r.PresentationReady,"pickup view ready / shiny",10);PickupDiagnostic(r,shiny,"before F");yield return Press(Key.F,2);PickupDiagnostic(r,shiny,"after F if still present");Check("routed F shiny pickup updates canonical resources",CampResourceService.GetAmount(GameState.Instance,CampResourceType.Shinies)>shinies);
+        var food=TraversalPickup<FoodItem>(r,item=>item.name.StartsWith("food.",StringComparison.Ordinal));int mushrooms=CampResourceService.GetAmount(GameState.Instance,CampResourceType.Mushrooms);yield return WalkAcrossLoosePickup(r,food);ApproachPickup(r,food);yield return Wait(()=>r.PresentationReady,"pickup view ready / food",10);PickupDiagnostic(r,food,"before F");yield return Press(Key.F,2);PickupDiagnostic(r,food,"after F if still present");Check("routed F food pickup preserves resource/XP service",CampResourceService.GetAmount(GameState.Instance,CampResourceType.Mushrooms)>mushrooms);
         Warp(r,new SporeGobbo.Geometry.Point2(86.5,103.5));for(int i=0;i<4;i++)yield return null;int resisted=r.RejectedResistance;r.TestDigPower=1;r.DigCircle(r.World(new SporeGobbo.Geometry.Point2(86.5,106.5)),.35f);Check("L2 development fixture rejects power one",r.IsBlocked(new Vector2Int(86,106))&&r.RejectedResistance>resisted);r.TestDigPower=2;r.DigCircle(r.World(new SporeGobbo.Geometry.Point2(86.5,106.5)),.35f);Check("L2 development fixture accepts power two",!r.IsBlocked(new Vector2Int(86,106)));r.TestDigPower=3;r.DigCircle(r.World(new SporeGobbo.Geometry.Point2(91.5,106.5)),.35f);Check("L3 development fixture accepts power three",!r.IsBlocked(new Vector2Int(91,106)));r.TestDigPower=1;int protectedRevision=r.Revision;r.DigCircle(r.World(new SporeGobbo.Geometry.Point2(108.5,58.5)),.35f);Check("actual protected pillar rejects excavation",r.Revision==protectedRevision);yield return Capture("development-resistance-fixtures");
         // Stable no-screenshot performance interval, actual enemies remain active. Explicit God protection and warp setup.
         Warp(r,new SporeGobbo.Geometry.Point2(66.5,92.5));Stage61RuntimeMetrics.Mark("expedition combat warmup");yield return new WaitForSeconds(2);for(int window=0;window<3;window++){Stage61RuntimeMetrics.Mark("expedition steady real combat 60s / "+window);float until=Time.realtimeSinceStartup+60;while(Time.realtimeSinceStartup<until)yield return null;}
@@ -226,6 +275,67 @@ public sealed class Stage62LifecycleEvidence : MonoBehaviour
         Warp(r,new SporeGobbo.Geometry.Point2(52.5,44.5));var body=buddy.GetComponent<Rigidbody2D>();body.position=r.World(new SporeGobbo.Geometry.Point2(64.5,44.5));buddy.transform.position=body.position;body.linearVelocity=Vector2.zero;Physics2D.SyncTransforms();
         bool crossed=false;float until=Time.realtimeSinceStartup+20;while(buddy!=null&&Time.realtimeSinceStartup<until&&Vector2.Distance(buddy.transform.position,r.Player.transform.position)>1.7f){var c=r.WorldToCell(buddy.transform.position);if(c.x>=57&&c.x<=60&&c.y>=43&&c.y<=46)crossed=true;yield return null;}
         Check("real recruited Buddy follows through excavated passage",r.Revision>before&&crossed&&buddy!=null&&Vector2.Distance(buddy.transform.position,r.Player.transform.position)<=1.7f&&buddy.GetComponent<ActorTerrainBinding>()!=null);yield return Capture("recruit-follows-new-passage");
+        yield return LeaderCutPassageProof(r,buddy);
+    }
+    IEnumerator LeaderCutPassageProof(ExpeditionRegion r,BuddyUnit buddy)
+    {
+        Stage61RuntimeMetrics.Category("validation");
+        var paths=new List<SporeGobbo.Geometry.Point2[]>();
+        var straight=new List<SporeGobbo.Geometry.Point2>();var diagonal=new List<SporeGobbo.Geometry.Point2>();var turning=new List<SporeGobbo.Geometry.Point2>();
+        for(int i=0;i<=32;i++){straight.Add(new SporeGobbo.Geometry.Point2(60.5+i*.5,30.5));diagonal.Add(new SporeGobbo.Geometry.Point2(60.5+i*.5,30.5-i*.5));turning.Add(new SporeGobbo.Geometry.Point2(60.5-i*.5,30.5));}
+        for(int i=1;i<=32;i++)turning.Add(new SporeGobbo.Geometry.Point2(44.5,30.5-i*.5));
+        paths.Add(straight.ToArray());paths.Add(diagonal.ToArray());paths.Add(turning.ToArray());
+        var names=new[]{"straight","diagonal","turning"};var samples=new List<string>{"case,time,leaderX,leaderY,buddyX,buddyY,ready,revision"};float nextSample=0;
+        ownedMouse=InputSystem.AddDevice<Mouse>("Stage64D actual leader-cut passages");ownedMouse.MakeCurrent();
+        var diagonalObservation=Stage64DDiagonalEvidence.Begin(gameObject,r,r.Player,buddy,keyboard,ownedMouse);
+        Stage64DReplayEvidence.BeginBuddy(gameObject,r,r.Player,buddy);
+        try
+        {
+            for(int test=0;test<paths.Count;test++)
+            {
+                Stage64DReplayEvidence.SetCase(test);
+                var points=paths[test];var player=r.Player;var playerBody=player.GetComponent<Rigidbody2D>();var buddyBody=buddy.GetComponent<Rigidbody2D>();
+                // Owned positioning only. All excavation and subsequent traversal use actual game input/AI/physics.
+                Warp(r,points[0]);var forward=(r.World(points[1])-r.World(points[0])).normalized;
+                buddyBody.position=playerBody.position-forward*1.8f;buddy.transform.position=buddyBody.position;buddyBody.linearVelocity=Vector2.zero;
+                buddy.GetComponent<BuddyFollow>()?.ResetCommandMotion();
+                Physics2D.SyncTransforms();player.IssueBuddyCommand(BuddyCommand.Passive);player.IssueBuddyCommand(BuddyCommand.Follow);
+                int edits=r.Excavations,attempts=player.GetComponent<ActorTerrainBinding>().DigAttempts;int cursor=1;
+                bool bodyClear=true,crossedMiddle=false;var middle=r.World(points[points.Length/2]);float end=Time.realtimeSinceStartup+20;
+                var playerExtent=TileMover.GetMapClearanceExtents(playerBody,.25f);var buddyExtent=TileMover.GetMapClearanceExtents(buddyBody,.25f);
+                while(!finished&&cursor<points.Length&&Time.realtimeSinceStartup<end)
+                {
+                    Vector2 delta=r.World(points[cursor])-playerBody.position;
+                    if(delta.magnitude<.08f){cursor++;continue;}
+                    var keys=new List<Key>{Key.LeftShift};if(delta.x>.05f)keys.Add(Key.D);else if(delta.x<-.05f)keys.Add(Key.A);if(delta.y>.05f)keys.Add(Key.W);else if(delta.y<-.05f)keys.Add(Key.S);
+                    InputSystem.QueueStateEvent(keyboard,new KeyboardState(keys.ToArray()));
+                    var screen=r.RegionCamera.WorldToScreenPoint(r.Render(r.World(points[cursor])));InputSystem.QueueStateEvent(ownedMouse,new MouseState{position=new Vector2(screen.x,screen.y)});
+                    diagonalObservation.Queued(test,cursor,r.World(points[cursor]),keys,new Vector2(screen.x,screen.y));
+                    if(r.LogicalReady)bodyClear&=TileMover.CanOccupyBox(r,playerBody.position,playerExtent)&&TileMover.CanOccupyBox(r,buddyBody.position,buddyExtent);
+                    crossedMiddle|=Vector2.Distance(buddyBody.position,middle)<1.2f;
+                    if(Time.realtimeSinceStartup>=nextSample){nextSample=Time.realtimeSinceStartup+.1f;samples.Add(FormattableString.Invariant($"{names[test]},{Time.realtimeSinceStartup:R},{playerBody.position.x:R},{playerBody.position.y:R},{buddyBody.position.x:R},{buddyBody.position.y:R},{r.LogicalReady},{r.Revision}"));}
+                    if(samples.Count>=4000){Check("leader-cut samples remain bounded",false);Finish();yield break;}
+                    yield return null;
+                }
+                InputSystem.QueueStateEvent(keyboard,new KeyboardState());InputSystem.QueueStateEvent(ownedMouse,new MouseState());
+                Stage64DReplayEvidence.Passage(test,"Leader",cursor==points.Length,bodyClear,crossedMiddle,false);
+                Check("actual leader input excavates and traverses "+names[test]+" passage",cursor==points.Length&&r.Excavations>edits&&player.GetComponent<ActorTerrainBinding>().DigAttempts>attempts);
+                if(cursor!=points.Length){Finish();yield break;}
+                yield return Wait(()=>r.PresentationReady,"leader-cut "+names[test]+" collision and view publication",10);
+                bool usable=true;for(int i=1;i<points.Length;i++)usable&=TileMover.CanTraverseBox(r,r.World(points[i-1]),r.World(points[i]),buddyExtent);
+                Stage64DReplayEvidence.Passage(test,"Clearance",cursor==points.Length,bodyClear,crossedMiddle,usable);
+                Check("leader-cut "+names[test]+" passage fits actual Buddy body",usable);
+                if(!usable){Finish();yield break;} // Clearance rejection is not labelled a navigation failure.
+                end=Time.realtimeSinceStartup+20;
+                while(!finished&&Time.realtimeSinceStartup<end&&Vector2.Distance(buddyBody.position,playerBody.position)>1.7f)
+                {if(r.LogicalReady)bodyClear&=TileMover.CanOccupyBox(r,buddyBody.position,buddyExtent);crossedMiddle|=Vector2.Distance(buddyBody.position,middle)<1.2f;yield return null;}
+                Stage64DReplayEvidence.Passage(test,"Buddy",cursor==points.Length,bodyClear,crossedMiddle,usable);
+                Check("real Buddy follows leader-cut "+names[test]+" passage with physical clearance",bodyClear&&crossedMiddle&&Vector2.Distance(buddyBody.position,playerBody.position)<=1.7f);
+                if(!bodyClear||!crossedMiddle||Vector2.Distance(buddyBody.position,playerBody.position)>1.7f){Finish();yield break;}
+                yield return Capture("leader-cut-"+names[test]+"-passage");
+            }
+        }
+        finally{InputSystem.QueueStateEvent(keyboard,new KeyboardState());if(ownedMouse!=null){InputSystem.RemoveDevice(ownedMouse);ownedMouse=null;}File.WriteAllLines(Path.Combine(directory,"leader-cut-passage-samples.csv"),samples);diagonalObservation.Export(directory);Stage64DReplayEvidence.EndBuddy(directory);}
     }
     IEnumerator MushProof()
     {

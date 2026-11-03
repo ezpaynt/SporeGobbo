@@ -19,7 +19,9 @@ public sealed class ActorMotionIntent : MonoBehaviour
     public MovementResolutionState State { get; private set; }
     public Vector2 RequestedVelocity { get; private set; }
     public string ActiveTaskName { get; private set; } = "None";
+    public MonoBehaviour SelectedTask => owner;
     public bool MayYield => mayYield && priority < 100;
+    public string DiagnosticTaskName => owner != null && stamp == Time.fixedTimeAsDouble ? owner.GetType().Name : "None";
 
     void Awake()
     {
@@ -62,9 +64,10 @@ public sealed class ActorMotionIntent : MonoBehaviour
         if (lastApplied == tick || !isActiveAndEnabled) return;
         if (body == null) Awake(); lastApplied = tick;
         RequestedVelocity = preferred; ActiveTaskName = owner != null && stamp == tick ? owner.GetType().Name : "None";
-        State = state; WaitingForFriendlySpace = state == MovementResolutionState.QueuedForAccess || state == MovementResolutionState.Yielding || state == MovementResolutionState.Settling;
+        State = state; WaitingForFriendlySpace = state == MovementResolutionState.QueuedForAccess || state == MovementResolutionState.Yielding || state == MovementResolutionState.Settling || state == MovementResolutionState.WaitingForPeer || state == MovementResolutionState.NoLocalYieldPlan;
         if (preferred.sqrMagnitude > .000001f) FriendlyDelaySeconds += FriendlyDelayFraction(preferred, wanted) * Time.fixedDeltaTime;
         TileMover.Move(body, wanted, radius); Applications++;
+        if(state==MovementResolutionState.WaitingForPeer||state==MovementResolutionState.NoLocalYieldPlan)visual?.SetAnimationState(GobboAnimationState.Idle);
         if (wanted.sqrMagnitude > .0001f) visual?.SetDirection(wanted);
     }
     public static float FriendlyDelayFraction(Vector2 requested, Vector2 applied)

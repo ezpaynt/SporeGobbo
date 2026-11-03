@@ -10,6 +10,8 @@ namespace SporeGobbo.Geometry
     public sealed class GridRouteSearch
     {
         readonly RegionTerrainState terrain;
+        readonly bool nativeFitsIncludesLogicalOccupancy;
+        readonly Func<Point2,bool> nativeFits;readonly Func<Point2,Point2,bool> nativeConnector;
         int revision;
         readonly int width,goal;
         int minX=int.MaxValue,minY=int.MaxValue,maxX=int.MinValue,maxY=int.MinValue;
@@ -41,32 +43,35 @@ namespace SporeGobbo.Geometry
             long af=(long)a.G+a.H,bf=(long)b.G+b.H;
             return af<bf || af==bf && (a.H<b.H || a.H==b.H && a.Index<b.Index);
         }
-        public GridRouteSearch(RegionTerrainState terrain,Point2 start,Point2 end,double halfX,double halfY)
+        public GridRouteSearch(RegionTerrainState terrain,Point2 start,Point2 end,double halfX,double halfY,Func<Point2,bool> nativeFits=null,Func<Point2,Point2,bool> nativeConnector=null,bool nativeFitsIncludesLogicalOccupancy=false)
         {
             this.terrain=terrain ?? throw new ArgumentNullException(nameof(terrain));
             if(double.IsNaN(halfX)||double.IsNaN(halfY)||double.IsInfinity(halfX)||double.IsInfinity(halfY)||halfX<=0||halfY<=0)
                 throw new ArgumentOutOfRangeException(nameof(halfX));
-            this.halfX=halfX;this.halfY=halfY;revision=terrain.Revision;width=terrain.World.Width;
+            this.nativeFitsIncludesLogicalOccupancy=nativeFitsIncludesLogicalOccupancy;this.nativeFits=nativeFits;this.nativeConnector=nativeConnector;this.halfX=halfX;this.halfY=halfY;revision=terrain.Revision;width=terrain.World.Width;
             // Even-cell footprints use boundary-centred anchors; no forced odd-cell inflation.
             offsetX=((int)Math.Ceiling(halfX*2-.000001)%2)==0?0:.5;
             offsetY=((int)Math.Ceiling(halfY*2-.000001)%2)==0?0:.5;
-            if(!Finite(start)||!Finite(end)||!Fits(start)||!Fits(end)) { Status=GridRouteStatus.Unreachable;return; }
+            if(!Finite(start)||!Finite(end)||nativeConnector==null&&!Fits(start)||!Fits(end)) { Status=GridRouteStatus.Unreachable;return; }
             int sx=(int)Math.Floor(start.X-offsetX+.5),sy=(int)Math.Floor(start.Y-offsetY+.5),gx=(int)Math.Floor(end.X-offsetX+.5),gy=(int)Math.Floor(end.Y-offsetY+.5);
             if(!terrain.World.Contains(sx,sy)||!terrain.World.Contains(gx,gy)) { Status=GridRouteStatus.Unreachable;return; }
             int first=sy*width+sx;goal=gy*width+gx;
             // Search centres must also fit; exact endpoints are swept by the existing physical adapter.
-            if(!Fits(Center(first))||!Fits(Center(goal))) { Status=GridRouteStatus.Unreachable;return; }
+            if(!Fits(Center(first))||!Fits(Center(goal))||nativeConnector!=null&&!nativeConnector(start,Center(first))) { Status=GridRouteStatus.Unreachable;return; }
             Record(first,0,-1);Push(new Entry(first,0,Heuristic(first)));
         }
         static bool Finite(Point2 p)=>!double.IsNaN(p.X)&&!double.IsNaN(p.Y)&&!double.IsInfinity(p.X)&&!double.IsInfinity(p.Y);
         Point2 Center(int i)=>new Point2(i%width+offsetX,i/width+offsetY);
         bool Fits(Point2 p)
         {
+            // Offset actor coverage is decided by the existing full logical/native adapter,
+            // not by treating its broad-phase symmetric hull as another occupied shape.
+            if(nativeFitsIncludesLogicalOccupancy)return nativeFits!=null&&nativeFits(p);
             if(p.X-halfX<0||p.Y-halfY<0||p.X+halfX>terrain.World.Width||p.Y+halfY>terrain.World.Height)return false;
             for(int y=(int)Math.Floor(p.Y-halfY+.000001);y<=(int)Math.Floor(p.Y+halfY-.000001);y++)
                 for(int x=(int)Math.Floor(p.X-halfX+.000001);x<=(int)Math.Floor(p.X+halfX-.000001);x++)
                     if(terrain.World.IsSolid(x,y))return false;
-            return true;
+            return nativeFits?.Invoke(p)??true;
         }
         int Heuristic(int index)=>Math.Abs(index%width-goal%width)+Math.Abs(index/width-goal/width);
         void ReleaseScratch(){heap.Clear();records.Clear();}
@@ -116,7 +121,7 @@ namespace SporeGobbo.Geometry
                     int nx=x+(d==0?-1:d==1?1:0),ny=y+(d==2?-1:d==3?1:0);
                     if(!terrain.World.Contains(nx,ny))continue;
                     int next=ny*width+nx,cost=item.G+1;
-                    if(Cost(next,out int old)&&old<=cost||!Fits(Center(next)))continue;
+                    if(Cost(next,out int old)&&old<=cost||!Fits(Center(next))||nativeConnector!=null&&!nativeConnector(Center(item.Index),Center(next)))continue;
                     Record(next,cost,item.Index);Push(new Entry(next,cost,Heuristic(next)));
                 }
             }

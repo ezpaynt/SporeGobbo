@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody2D))]
-public class BuddyScavenger : MonoBehaviour
+public class BuddyScavenger : MonoBehaviour, ITerrainMovementReserve
 {
     [Header("Brain")]
     public bool brainAllowsMovement = false;
@@ -18,6 +18,7 @@ public class BuddyScavenger : MonoBehaviour
 
     [Header("Pathing")]
     public float bodyRadius = 0.28f;
+    public float TerrainMovementReserve => bodyRadius;
     public float repathTime = 0.35f;
     public float repathDistance = 0.8f;
     public float waypointReachDistance = 0.75f;
@@ -184,10 +185,12 @@ public class BuddyScavenger : MonoBehaviour
         if (currentPath.Count == 0 || pathIndex >= currentPath.Count) return Vector2.zero;
 
         pathIndex=RouteWaypointPolicy.Advance(currentPath,pathIndex,rb.position,binding,bodyRadius);
+        if(!RouteWaypointPolicy.RecoverTerrainEntry(currentPath,ref pathIndex,ref regionPathRevision,rb.position,targetPos,binding,bodyRadius))return Vector2.zero;
         if(pathIndex>=currentPath.Count)return Vector2.zero;
         Vector2 waypoint = currentPath[pathIndex];
         float waypointTolerance=binding!=null&&binding.RequestRoute!=null?Mathf.Min(waypointReachDistance,binding.Terrain.CellSize*.12f):waypointReachDistance;
-        if (Vector2.Distance(rb.position, waypoint) <= waypointTolerance)
+        // Regional progression is owned by Advance; never discard a just-recovered entry here.
+        if ((binding==null||binding.RequestRoute==null)&&RouteWaypointPolicy.Reached(currentPath,pathIndex,rb.position,binding,bodyRadius,waypointTolerance))
         {
             pathIndex++;
             if (pathIndex >= currentPath.Count) return Vector2.zero;

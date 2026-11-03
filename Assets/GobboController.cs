@@ -4,7 +4,7 @@ using UnityEngine;
 using SporeGobbo.Input;
 
 [RequireComponent(typeof(Rigidbody2D))]
-public class GobboController : MonoBehaviour
+public class GobboController : MonoBehaviour, ITerrainMovementReserve
 {
  static readonly Unity.Profiling.ProfilerMarker stage61InputProfile = new Unity.Profiling.ProfilerMarker("Spore.Stage61.Input");
 
@@ -43,6 +43,7 @@ public class GobboController : MonoBehaviour
     public float dashDuration = 0.12f;
     public float dashCooldown = 0.7f;
     public float bodyRadius = 0.32f;
+    public float TerrainMovementReserve => bodyRadius;
     public float wallContactPadding = 0.08f;
 
     [Header("Directional Sprites")]
@@ -223,6 +224,12 @@ public class GobboController : MonoBehaviour
         UpdateAimDirection();
         UpdateTimers();
         HandleActions();
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        Stage64DDiagonalEvidence.Consumed(this,moveInput,aimDirection,inputReader,SuppressTemporaryInput,digTimer);
+#if UNITY_EDITOR
+        Stage64DPlayerAttackObservation.UpdateEnd(this);
+#endif
+#endif
     }
 
     void OnDisable()
@@ -452,6 +459,9 @@ public class GobboController : MonoBehaviour
     {
         double now = Time.unscaledTimeAsDouble;
         bool buffered = inputReader.Buffer.IsBuffered(BufferedInputAction.PrimaryAttack, now);
+#if UNITY_EDITOR
+        Stage64DPlayerAttackObservation.Consumed(this,buffered,attackCooldownTimer);
+#endif
         if ((attackInput.IsHeld || buffered) && TryBasicAttack())
         {
             inputReader.Buffer.Consume(BufferedInputAction.PrimaryAttack, now);
@@ -489,9 +499,12 @@ public class GobboController : MonoBehaviour
         if (visualController != null)
             visualController.SetAnimationState(GobboAnimationState.Dig);
 
-        Vector2 digStart = transform.position;
+        Vector2 digStart = rb != null ? rb.position : (Vector2)transform.position;
         Vector2 digPoint = digStart + aimDirection.normalized * digRange;
         float effectiveDigRadius = GetEffectiveDigRadius();
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        Stage64DDiagonalEvidence.DigStarted(this,digStart,digPoint,effectiveDigRadius);
+#endif
 
         IDiggableTerrain terrain = ActorTerrainBinding.Resolve(gameObject);
         if (terrain != null)
@@ -516,6 +529,13 @@ public class GobboController : MonoBehaviour
     {
         if (terrain == null)
             return;
+
+        if (terrain is IPlayerDigTerrain region)
+        {
+            region.DigPlayerStroke(new PlayerDigFootprint(start,end,
+                TileMover.GetMapClearanceExtents(rb,GetCollisionBodyRadius()),radius));
+            return;
+        }
 
         float distance = Vector2.Distance(start, end);
         float step = GetDigSweepStepDistance(terrain);
@@ -580,6 +600,9 @@ public class GobboController : MonoBehaviour
     public int LastAcceptedBasicHits {get;private set;}
     bool TryBasicAttack()
     {
+#if UNITY_EDITOR
+        Stage64DPlayerAttackObservation.Attempt(this,attackCooldownTimer);
+#endif
         if (attackCooldownTimer > 0f || !CombatSessionBinding.AllowsActions(gameObject) || !EnemyDamage.Ready(gameObject))
             return false;
 
@@ -608,12 +631,18 @@ public class GobboController : MonoBehaviour
         foreach(var hit in MeleeAttackExecution.Footprint(attackPoint,attackRadius,enemyLayers))
         {
             var result=action.Commit(hit.gameObject,damage,sourceId);
+#if UNITY_EDITOR
+            Stage64DPlayerAttackObservation.Commit(this,hit,result);
+#endif
             if(!result.Accepted)continue;
             currentAttackTarget=result.Target!=null?result.Target.transform:null;
             TellBuddiesToAttack(currentAttackTarget);
             hitCount++;
         }
         LastAcceptedBasicHits=hitCount;
+#if UNITY_EDITOR
+        Stage64DPlayerAttackObservation.Complete(this,hitCount);
+#endif
         Debug.Log("Gobbo attack checked. Enemies hit: " + hitCount);
         return true;
     }

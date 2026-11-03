@@ -1,7 +1,7 @@
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody2D))]
-public class CampWander : MonoBehaviour
+public class CampWander : MonoBehaviour, ITerrainMovementReserve
 {
     [Header("Anchor")]
     public Transform anchor;
@@ -12,6 +12,7 @@ public class CampWander : MonoBehaviour
     public float wanderRadius = 1.5f;
     public float moveSpeed = 1.4f;
     public float bodyRadius = 0.25f;
+    public float TerrainMovementReserve => bodyRadius;
     public float reachDistance = 0.12f;
     public float idleMinTime = 0.5f;
     public float idleMaxTime = 2.0f;
@@ -100,7 +101,9 @@ public class CampWander : MonoBehaviour
         ActorMotionIntent.Submit(this,rb,moveDir*moveSpeed,bodyRadius,5);
         SetVisualState(GobboAnimationState.Walk, moveDir);
 
-        float moved = Vector2.Distance(rb.position, lastPosition);
+        var motion=GetComponent<ActorMotionIntent>();
+        if(motion?.WaitingForFriendlySpace==true){lastPosition=rb.position;return;}
+        float moved = Vector2.Dot(rb.position-lastPosition,toTarget.normalized);
         if (moved < 0.01f)
         {
             stuckTimer += Time.fixedDeltaTime;

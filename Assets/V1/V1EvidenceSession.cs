@@ -30,6 +30,7 @@ public sealed class V1EvidenceSession:MonoBehaviour
   if(scenario=="lifecycle")gameObject.AddComponent<Stage62CIntroEvidence>();
   else if(scenario.StartsWith("continue-",StringComparison.Ordinal))gameObject.AddComponent<Stage61ContinueEvidence>();
   else if(scenario=="normal")gameObject.AddComponent<V1NormalEvidence>();
+  else if(scenario=="calm-wait")gameObject.AddComponent<Stage64DCalmWaitEvidence>();
   else if(scenario=="movement")gameObject.AddComponent<Stage64DMovementEvidence>();
   else if(scenario=="performance"||scenario=="startup")gameObject.AddComponent<V1PerformanceEvidence>();
   else if(scenario=="occlusion")gameObject.AddComponent<V1VisualEvidence>();

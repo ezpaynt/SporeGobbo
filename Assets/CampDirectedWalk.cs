@@ -13,12 +13,13 @@ public enum CampDirectedWalkResult
 }
 
 [RequireComponent(typeof(Rigidbody2D))]
-public class CampDirectedWalk : MonoBehaviour
+public class CampDirectedWalk : MonoBehaviour, ITerrainMovementReserve
 {
     [Header("Directed Camp Walk")]
     public Transform target;
     public float moveSpeed = 1.6f;
     public float bodyRadius = 0.25f;
+    public float TerrainMovementReserve => bodyRadius;
     public float reachDistance = 0.18f;
     public bool destroyWhenDone = true;
     public bool enableWanderWhenDone = true;
@@ -132,7 +133,9 @@ public class CampDirectedWalk : MonoBehaviour
             Finish(CampDirectedWalkResult.Arrived);
             return;
         }
-        if (Vector2.Distance(physicsPosition, lastPhysicsPosition) > 0.001f)
+        bool coordinatedPause=GetComponent<ActorMotionIntent>()?.WaitingForFriendlySpace??false;
+        if(coordinatedPause) { /* The absolute walk deadline still advances. Yielding is not duty progress. */ }
+        else if (Vector2.Dot(physicsPosition-lastPhysicsPosition,toTarget.normalized) > 0.001f)
             noProgressElapsed = 0f;
         else
             noProgressElapsed += Time.fixedDeltaTime;
