@@ -1,0 +1,78 @@
+> **2026-11-03 local cutover VERIFIED:** D:/SporeGobbo/Project is the sole active development candidate; original Integration is frozen rollback and original live remains protected. V0-V6 completed: 43 synthetic checks, unchanged 412-case native regression, fresh Windows64 Development build and 40 ordered tools-OFF journey checks. All one-use execution permissions are consumed. No retry, publication, retirement, broader testing or Stage6.4D acceptance is authorized. Stage6.4D remains UNACCEPTED / UNINSTALLED.
+
+# Architecture and extension map
+
+**Installed approved documentation revision: 2026-11-02; gameplay acceptance remains separately gated.**
+
+**Verified source description for the base/overlay identity in CURRENT_WORK; not an accepted-runtime claim.** Approved intent is in GAMEPLAY_CONTRACTS; changing authority/lifetime or a major boundary requires DECISIONS change control. Source links below target the inspected candidate and must be rebased/checked if the candidate moves.
+
+## Runtime ownership
+
+```text
+Input / UI contexts / Buddy tasks / creature AI choose intent
+             | routes and destination requests
+ActorTerrainBinding -> RegionRouteQueue / GridRouteSearch
+             | route progress and local contact resolution
+RegionMovementSlots + RegionMovementCoordinator -> TileMover -> Unity physics
+             ^                         ^
+RegionTerrainState -> derived RegionTerrainPhysics / shared clearance
+             +------> discovery / projected terrain and actor presentation
+Attacks -> MeleeAttackExecution / projectiles -> EnemyDamage -> existing health owners
+Campaign facts/identity -> GameState -> detached save DTO -> SporeSaveManager
+                                                 -> atomic CampaignSnapshotStorage
+Scene/return/succession services orchestrate these owners; they do not duplicate them.
+```
+
+| Responsibility / sources | Inputs, state and consumers | Lifetime and extension boundary |
+|---|---|---|
+| [GameState](../Assets/GameState.cs); [BuddyUnit](../Assets/BuddyUnit.cs); progression services | Canonical leader/owned Gobbo IDs, squad, progression, resources/history; actors reference canonical data | Campaign survives scenes. Actor instance is not a second roster. Buddy type/age and leader scale formulas are implementation, not final design |
+| [RegionTerrainState](../Assets/Terrain/Geometry/Runtime/RegionTerrainState.cs); [StreamingWorld](../Assets/Terrain/Geometry/Runtime/StreamingWorld.cs) | One occupancy authority per region, transaction ownership, revisions/deltas; geometry, collision and discovery consume changes | Region creates state. Mutation through authorized transactions; no second obstacle map. Sparse deltas do not yet constitute persistent expedition storage |
+| [RegionTerrainPhysics](../Assets/RegionTerrainPhysics.cs) and [RegionTerrainClearance](../Assets/RegionTerrainClearance.cs) | Collision patches derived from occupancy; native boundary/support and body-aware occupancy/connectors; route queue/coordinator lazily bound | Region owns derived physics; Dispose cancels/disposes route/coordination and destroys owned collision root. Publish rebuilds affected patches and refreshes clearance; no global material change |
+| [TileMover](../Assets/TileMover.cs) and [ActorTerrainBinding](../Assets/Stage59/ActorTerrainBinding.cs) | Actual collider offset/coverage plus optional origin reserve; body movement and route requests | Binding caches supported collider/reserve sources. OnDisable cancels/deactivates; OnDestroy unregisters and clears delegates. New movement components added after binding need explicit reserve refresh |
+| [RegionRouteQueue](../Assets/RegionRouteQueue.cs); [GridRouteSearch](../Assets/Terrain/Geometry/Runtime/GridRouteSearch.cs) | Body-aware regional A*, queued work, caches/channels and local revision invalidation; actor bindings/AI consume results | Queue owns work and cancellation. [RouteWaypointPolicy](../Assets/RouteWaypointPolicy.cs) / [RegionRouteFollower](../Assets/RegionRouteFollower.cs) share progression; Buddy/enemy consumers still have some own cursors. Existing synchronous startup/legacy routes also remain; not every path uses the queue |
+| [RegionMovementCoordinator](../Assets/RegionMovementCoordinator.cs) and partials; [RegionMovementSlots](../Assets/RegionMovementSlots.cs); [ActorMotionIntent](../Assets/ActorMotionIntent.cs) | Destination claims separate from paths; tickets, retained yields, calm waits, contact roles/leases; Buddy tasks submit selected intent | Region owns local coordination. TileMover constrains external enemy movement too, but enemies can call it directly and intentionally stop for attacks; Buddy intent state is not universal enemy combat state. No species-local steering authority |
+| [MeleeAttackExecution](../Assets/MeleeAttackExecution.cs); [EnemyDamage](../Assets/EnemyDamage.cs); [EnemyProjectile](../Assets/EnemyProjectile.cs) | Caller-owned hit deduplication and actual damage receipts; projectile/terrain/actor collision; GobboController, BuddyUnit, Weevil, Blob/EnemyHealth retain health/death | AI/controller owns timing, recovery and selection. [CombatSessionBinding](../Assets/CombatSessionBinding.cs) supplies temporary eligibility/nonlethal policy, not health/roster. Current Alive/eligibility contain concrete types and Gobbo/non-Gobbo assumptions |
+| [RegionActorViews](../Assets/RegionActorViews.cs); [RunStartInitializer](../Assets/RunStartInitializer.cs); [RunSquadSpawner](../Assets/RunSquadSpawner.cs); [GobboRuntimeSpawnExtensions](../Assets/GobboRuntimeSpawnExtensions.cs); [CampPlayableSpawner](../Assets/CampPlayableSpawner.cs) | Context creates real instances. Shared binding validates physical spawn clearance, region/navigation and projected view; BindVisual handles visual-only objects | Context owns instance/population lifecycle; shared binder does not create campaign identity. Visual entries without valid Rigidbody are excluded from physical spawn checks. No general population replenishment/dormancy owner yet |
+| [GameSceneCatalog](../Assets/GameSceneCatalog.cs); [IntroRegion](../Assets/Intro/IntroRegion.cs); [SettlementCampRegion](../Assets/Stage61/SettlementCampRegion.cs); [ExpeditionRegion](../Assets/Expedition/ExpeditionRegion.cs) | MainMenu -> authored Intro -> Camp -> example expedition; each region creates terrain/presentation/actors and registers active terrain | OnDisable unregisters, teardown releases owned views/camera/materials/physics and subscriptions. Camp implements specialized interfaces; do not assume all regions implement IWorldRegion |
+| [CampRunPortal](../Assets/CampRunPortal.cs); [RunReturnService](../Assets/RunReturnService.cs); [PlayerDeathWatcher](../Assets/PlayerDeathWatcher.cs); [CampStartRoutineManager](../Assets/CampStartRoutineManager.cs) | Departure barrier/snapshots, real return accounting, suppression during scene changes, residential/arrival duties and succession | Existing services own run start/return exactly once. Save/scene transition failure is not permission to silently retry rewards or reconstruct campaigns. LoadScene calls are currently synchronous |
+| [SporeSaveManager](../Assets/SporeSaveManager.cs); [V1CampaignSnapshot](../Assets/V1CampaignSnapshot.cs); [CampaignSnapshotStorage](../Assets/CampaignSnapshotStorage.cs); [CampRegionSnapshot](../Assets/CampRegionSnapshot.cs) | Detached validated DTO, profile/generation/hash, atomic pending/backup/replace; Camp geometry references canonical IDs | Existing save owner handles durable commit/recovery. Active runs/Intro/pending lifecycle defer ordinary campaign commits. Camp snapshot is bounded; current expedition is recreated, not a persistent Area One |
+| [InventoryService](../Assets/InventoryService.cs); [WorldItemPickup](../Assets/WorldItemPickup.cs); [SporeGrow](../Assets/SporeGrow.cs); [BuddyCommandWheelController](../Assets/BuddyCommandWheelController.cs); [BuddyBrain](../Assets/BuddyBrain.cs) | Intentional interactions, inventory, recruitment and authorized commands; actual wheel modes currently Follow/Stay/Aggressive/Passive | UI does not own inventory/roster. Recruitment admits canonical data before active Buddy spawn. Open proposed commands are not existing controls |
+| [SporeInputReader](../Assets/Input/SporeInputReader.cs); [SporeInputContextRouter](../Assets/Input/SporeInputContextRouter.cs); [WorldRegionPresentation](../Assets/Terrain/Geometry/Preview/Runtime/WorldRegionPresentation.cs); [Stage59ActorView](../Assets/Stage59/Stage59ActorView.cs) | Semantic actions/modal contexts, projected camera/inverse aim, chunk presentation and actor feet/depth | Input owns cloned action lifecycle; UI/modal claims must release. Presentation owns generated meshes/resources, not occupancy. Preserve 0.6 cell scale and established projection |
+
+## Physical and query contract
+
+TileMover's footprint stores physical offset/half-extents and optional origin-centered reserve; BroadHalf is a broad-phase/search bound, not an occupied hull. Supported physical binding requires one enabled, nontrigger root BoxCollider2D or CircleCollider2D attached to the actor Rigidbody. Circle bounds are conservatively represented; arbitrary rotation/compound/child shapes are not automatically supported.
+
+Native Unity collision defines physical contact. Planning/spawn/motor voluntary admission must cover the physical body and declared reserve under their documented contracts. Native boundary support is derived, not a fixed universal centimetre margin. A contact push may leave a physically clear body outside optional reserve: evaluate subsequent motion from actual position, allow validated non-deepening escape, or legitimate bounded waiting/combat stop. Do not teleport, shrink bodies or require forced reserve reclamation.
+
+Keep walking, physical contact, attack obstruction, projectile sweep and discovery queries distinct. Current `EnemyDamage.AttackClear -> ActorTerrainBinding.HasSight -> Sight` uses body-aware walking clearance; that coupling is a confirmed extension gap, not a proven cause of the latest crowding stop. RegionQueries also contains concrete region dispatch and legacy fallbacks. A new region is not automatically supported by implementing one interface.
+
+## Region and actor lifecycle
+
+1. Region Awake constructs definition/state, derived collision/presentation, discovery where applicable; subscribe to Committed and register active terrain. Readiness covers published terrain revision; presentation readiness is separate.
+2. Context spawners create leader/Buddies/encounters. Bind actual body and current reserve, validate spawn, attach navigation/coordination and view. Do not allow unbound/not-ready actors to act; inspect actual bootstrap path rather than assuming Awake means fully ready.
+3. Goals request routes/claims. Queue budgets search; progression checks complete connectors; coordinator handles participating peer movement. Motor admits connectors; native solver determines actual displacement.
+4. Authorized dig stroke commits terrain. Region publisher updates collision/navigation/discovery/presentation before claiming the new revision ready. Discovery changes visibility, not occupancy.
+5. Removing/disabling actors cancels tasks/routes and releases claims/session state. Destroy clears callbacks/registrations; the owning context releases views/instances. Failed setup requires explicit cleanup, not reliance on normal completion alone.
+6. Pit/session end restores owned contact/UI/camera/routine settings; campaign capture/restore ends transient activity through existing interfaces. Region teardown unsubscribes, unregisters and disposes physics/routes/coordination/presentation. Save capture can happen before scene teardown (e.g. departure); this is not a fixed 'teardown then save' sequence.
+
+## Creature extension examples — proposals, not mechanics approval
+
+| Example | Reuse/configuration | New behavior / actual change seams | Required evidence |
+|---|---|---|---|
+| Protective Shroom | Supported body + binding/routes/motor; configure size/reserve/stats/timing; shared attacks/health | Defender/retaliation selection and chosen attack. Extend shared Alive/eligibility/target consumers before neutral/cross-faction combat; encounter context owns spawn. Future den/population is separate | Neutral/defensive triggers, terrain/attack obstruction, correct damage, multiple defenders, cleanup and world test; Pit only where representative |
+| Weevil Captain | Existing pursuit/corrected bite, collider/body contract, stats/presentation | Bounded rally/group behavior or temporary buff (undecided). Add a narrow Weevil seam if needed; no copied full AI, shared-asset mutation or permanent stat accumulation | Ordinary Weevil unchanged; alone/patrol difference, actual attack, buff expiry/removal, terrain and teardown |
+| Large Mushroom | Larger supported body, same route/motor/attacks and grounded presentation | Chosen headbutt/area move; transformation needs explicit old/new instance, identity/population accounting and safe new-body admission | Narrow-route rejection, wide/corner traversal, actual hit/obstruction, no duplicate drops/IDs; transformation remains future scope |
+| Wild Gobbo | Gobbo presentation/body and applicable shared attack/movement mechanics | Independent affiliation/AI/lifecycle. BuddyBrain and recruited spawner assume squad/canonical ownership; do not put a wild actor in owned roster merely to spawn it. Later recruitment is an explicit identity/ownership transition | Hostile targeting/contact, no squad commands before recruitment, preserved identity, no duplicate roster/actor, cleanup |
+
+Several files changing is normal for AI + encounter + presentation. Requiring terrain math, save selection and unrelated UI changes for every creature is a coupling warning. Do not add a universal AI/ability/spawn manager to avoid a few legitimate integration changes.
+
+## Known limits and planning boundaries
+
+- No final procedural generator, persistent expedition reconstruction, general relationships/retaliation, offscreen ecology or distance dormancy.
+- Body growth currently changes root scale in some paths; admitting a changed body and coordinating digging is not a finished growth design.
+- Queue search is budgeted; cached suffix scans/allocations, old full-map routing scratch and native query costs still require measurement.
+- Visual chunks stream; occupancy, discovery initialization and native collision construction inspect the whole region. Coordination has pairwise costs; all live AI is not distance-paused.
+- Camp save format and 16 MiB storage limit are not large-world guarantees. Full snapshot capture/validation/commit costs remain relevant.
+- Historical stage/Preview code is active dependency, not deletion permission. Old MapGenerator remains for legacy, but is not required as a dummy in replacement scenes.
+- Source review does not prove every teardown branch or eliminate intermittent stalls. Current failures/results belong in CURRENT_WORK.

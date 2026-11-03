@@ -1,3 +1,5 @@
+> **2026-11-03 local cutover VERIFIED:** D:/SporeGobbo/Project is the sole active development candidate; original Integration is frozen rollback and original live remains protected. V0-V6 completed: 43 synthetic checks, unchanged 412-case native regression, fresh Windows64 Development build and 40 ordered tools-OFF journey checks. All one-use execution permissions are consumed. No retry, publication, retirement, broader testing or Stage6.4D acceptance is authorized. Stage6.4D remains UNACCEPTED / UNINSTALLED.
+
 # Spore Gobbo V1 foundation candidate
 
 This separate repository is the normal V1 integration candidate. It is not the official production cutover. The preserved archive branch and historical root ARCHITECTURE.md describe older production systems; use this entry point for the current scene loop.
@@ -13,3 +15,8 @@ The current projected camera and 0.6 cell scale are preserved. ReferenceCameraSe
 F9 is the small development hub. Data/Journal remain read-only; God Mode defaults OFF; Camp synthetic-return controls use the existing fake builder and real return transaction. These are development-only capabilities, not campaign authorities. Controlled standalone launchers, approved safety tooling, exact recovery archives and detailed reports are delivered separately under the Stage6.3B work directory. Do not run broad legacy tests or open a disposable evidence project as your development project.
 
 Known scope limits include unfinished growth-choice presentation, arbitrary height-aware foreground occlusion, final art/audio, procedural generation and the historical ComputeBuffer shutdown warning. Current acceptance and measured limitations are documented in the Stage6.3B reports; source compilation alone is not acceptance. No push, main merge, legacy deletion or native save migration is part of this candidate.
+
+
+## Current engineering documentation — installed 2026-11-02
+
+Start candidate engineering work with [AGENTS](AGENTS.md) and [docs/README](docs/README.md); [docs/CURRENT_WORK](docs/CURRENT_WORK.md) identifies source/authorization. The preceding overview remains compatibility/context guidance; root ARCHITECTURE describes legacy systems. Documentation approval does not accept/install Stage6.4D gameplay, authorize tests, migrate saves or publish Git changes.

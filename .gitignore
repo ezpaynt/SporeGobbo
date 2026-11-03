@@ -73,3 +73,11 @@ crashlytics-build.properties
 # Temporary auto-generated Android Assets
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# Maintained workflow: machine state and evidence stay outside the public project
+/tools/validation/machine.json
+/tools/validation/__pycache__/
+/Operations/
+/Archive/
+/Validation/
+*.pyc

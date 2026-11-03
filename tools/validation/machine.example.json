@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "description": "Private Operations/machine.json required. Copying this example grants no execution.",
+  "requiredKeys": [
+    "additionalAllowanceBytes",
+    "archive",
+    "execution",
+    "live",
+    "minimumHeadroomBytes",
+    "operations",
+    "owner",
+    "preferenceBaseline",
+    "project",
+    "python",
+    "realData",
+    "registryRoots",
+    "retirementRoots",
+    "schema",
+    "unity",
+    "validation"
+  ],
+  "paths": "Absolute reviewed machine paths; Project/Validation/Operations/Archive roles are distinct",
+  "secrets": "No credentials; real data and preference baseline stay private",
+  "execution": "Fresh reviewed one-use execution directory"
+}

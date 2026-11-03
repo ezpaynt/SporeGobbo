@@ -1,0 +1,282 @@
+{
+  "schema": 1,
+  "unityVersion": "6000.4.7f1",
+  "phases": [
+    "tests",
+    "build"
+  ],
+  "messageContext": "Editor MonoManager reload only; exact Library/ScriptAssemblies path; never player runtime or player-script output",
+  "configFiles": {
+    "Packages/manifest.json": "5506e5e05cb6ede0725ab10c64dc2391f0efdd2a35955f9cf2e5671a04830076",
+    "Packages/packages-lock.json": "5455af56cf602efb8ac2fa28ebaad7ec7bdd0b57ddece9934fb701d3abb49d00",
+    "ProjectSettings/ProjectVersion.txt": "7682d5a612c24f8310ca7094cfe88140abc299dafb4a92293d3b405f524d6f8e",
+    "Assets/V1/Editor/Stage63Build.cs": "4e5513e4819676711c40ed22474d362dce9a4df1f069e636932fcedf297e96cc",
+    "Library/PackageCache/com.unity.timeline@8cd8509afae5/DocCodeExamples/DocCodeExamples.asmdef": "fda38afd6d65827c95eb8cb44423e84256cea1853e635dd1f60b68fbba5ca6d3",
+    "Library/PackageCache/com.unity.timeline@8cd8509afae5/package.json": "5454ac066b789dc0a11fc6ab0b12d723a73327bca664ded2ba230019e559530a",
+    "Library/PackageCache/com.unity.test-framework@76560ee600cb/Tests/TestNewCustomAssembly/TestNewCustomAssembly.asmdef": "df6d9074aeaec1b8b9842f581b19c31a295da7d5dc629f55c7f2655bcba14905",
+    "Library/PackageCache/com.unity.test-framework@76560ee600cb/package.json": "2795596b983a4f57ed97015567dfb5ba5ebf450984b37483eb4413354076111f",
+    "Library/PackageCache/com.unity.2d.animation@011d329ac58b/Tests/Editor/Unity.2D.Animation.EditorTests.asmdef": "06fd166a324d6b912b7b0d0315a643b019b8737bf0b5142f93504a00fb292995",
+    "Library/PackageCache/com.unity.2d.animation@011d329ac58b/package.json": "db7eafd51585472f8460a4f1ee65270f61a29c25efc101ac698eca45dbc7f96c",
+    "Library/PackageCache/com.unity.2d.aseprite@ccedfadacc51/Tests/Editor/Unity.2D.Aseprite.EditorTests.asmdef": "8153e1cc6a332b74b8e3a6b959df5326fd55f61b7f8a5b52edb62488ec510526",
+    "Library/PackageCache/com.unity.2d.aseprite@ccedfadacc51/package.json": "9dc2645679e45667bb94c5f0ef64c123d84bdf068cf7678931fac96e259c9edb",
+    "Library/PackageCache/com.unity.2d.common@edfe77495b67/Tests/Editor/Unity.2D.Common.EditorTests.asmdef": "16ee7307ddca5342da902283de700e3b67880ba955a3f5511ddf977b7b1619c5",
+    "Library/PackageCache/com.unity.2d.common@edfe77495b67/package.json": "fcbf4d02e7f743b354b9e1287aed11355d18517a9002b3ae4bdc10a995fa1718",
+    "Library/PackageCache/com.unity.2d.pixel-perfect@09d99455b901/Tests/Editor/Unity.2D.PixelPerfect.Editor.Tests.asmdef": "a0115e98b0287cd049dd17fbe39f592d703ffda52919236ed6c976946aacf30e",
+    "Library/PackageCache/com.unity.2d.pixel-perfect@09d99455b901/package.json": "b6ef5cd180530756cf79b71105f464ad005c6578259ad5e225c6b1142da68867",
+    "Library/PackageCache/com.unity.2d.psdimporter@e58d0a2c1d48/Tests/EditorTests/Unity.2D.Psdimporter.EditorTests.asmdef": "65d9cea928b69e19792c78dccba29bc78577567bfb1cace5ac4819ea655b28e3",
+    "Library/PackageCache/com.unity.2d.psdimporter@e58d0a2c1d48/package.json": "fed8cae4ae6d5eb0305070096d5f79efafbe5844cdef56c3c12eee98cc828465",
+    "Library/PackageCache/com.unity.2d.sprite@929df5adbb1f/Tests/Editor/Unity.2D.Sprite.Package.EditorTests.asmdef": "5f6f537232d6250f62f4b53aec6f323d9ce427ae014dab7bdbde776e493b6b76",
+    "Library/PackageCache/com.unity.2d.sprite@929df5adbb1f/package.json": "3ebfbf32f0f3c937c4f347a0646e45bc44fef0359c45fcfe5fb704e9011ea0f5",
+    "Library/PackageCache/com.unity.2d.spriteshape@da3647ffbbd7/Tests/Editor/Unity.2D.SpriteShape.EditorTests.asmdef": "116c035685b748e82f2734465606c2d8594ae8c044d98729a60c3e2015c44c6b",
+    "Library/PackageCache/com.unity.2d.spriteshape@da3647ffbbd7/package.json": "6ce8aa99cd4d3bb1ef4814c90a9015529b107bccccd26ea33c00edfe1451a77d",
+    "Library/PackageCache/com.unity.2d.tilemap@191c90975efd/Tests/Editor/Unity.2D.Tilemap.Package.EditorTests.asmdef": "b8bd7ad6ebfac1179456226713bc7e268c7e3a5d86a910264c481f92ec6eeea9",
+    "Library/PackageCache/com.unity.2d.tilemap@191c90975efd/package.json": "3074e97ef99b72f304ccbc442a317d3a5cd13866d687302c807d683f851ca8c7",
+    "Library/PackageCache/com.unity.collections@5b6ebd78ccc0/Unity.Collections.BurstCompatibilityGen/Unity.Collections.BurstCompatibilityGen.asmdef": "35348a9e480a18f5960ea70a91c05e27e2e7aa1e9284d50538f23ade4a1861d0",
+    "Library/PackageCache/com.unity.collections@5b6ebd78ccc0/package.json": "917411e5be936c0b520b1658d965a2133b45918fe921461313112b347c199228",
+    "Library/PackageCache/com.unity.collections@5b6ebd78ccc0/DocCodeSamples.Tests/DocCodeSamples.Tests.asmdef": "85d6740c2c2a0f2c756afa1f173b6a62ab9179f58928456b1a2a8538fcdb7dcb",
+    "Library/PackageCache/com.unity.collections@5b6ebd78ccc0/Unity.Collections.PerformanceTests/Unity.Collections.PerformanceTests.asmdef": "4eb3ac4d0b11975db144d8870fb5dc5318c1e88fda478932bfd6c92f9bd9871c",
+    "Library/PackageCache/com.unity.collections@5b6ebd78ccc0/Unity.Collections.Tests/Unity.Collections.Tests.asmdef": "81043c30ce9d864e2940574d4ad31deeedd3a52f4ea9f9d6297e9c7d3a1357e3",
+    "Library/PackageCache/com.unity.collections@5b6ebd78ccc0/Unity.Collections.Tests.Playmode/Unity.Collections.Tests.Playmode.asmdef": "faccf9ebb9c247a21eb8af5ed7dc11077c6f02bdb035ed28db196437bde55705",
+    "Library/PackageCache/com.unity.inputsystem@21a28c3a6c83/Tests/IntegrationTests/Unity.InputSystem.IntegrationTests.asmdef": "7974a2255f6aa18cf0ef3c0003b43fbc3452ad289486cc4bbe8bfe61a69d509e",
+    "Library/PackageCache/com.unity.inputsystem@21a28c3a6c83/package.json": "afd2a381031fe8b9bafa16e54a30e07b3abfdab394c8f9b5f3f2d2618051f5c0",
+    "Library/PackageCache/com.unity.mathematics@19a9377c4ffa/Tests/Unity.Mathematics.Tests.asmdef": "caf364863ee0d209de6924469bad1a128262da10d4f9562bd040d02d79d37b57",
+    "Library/PackageCache/com.unity.mathematics@19a9377c4ffa/package.json": "0b648adeed5de37436eb9aac3b36f9bfd4d55198f203b25d12d856c1bc3f16d6",
+    "Library/PackageCache/com.unity.multiplayer.center@f01f4ba8d00a/Tests/Editor/Unity.Multiplayer.Center.Editor.Tests.asmdef": "d591042b5bc30fa14420256fd04968744ffa31e0c65fe17a05c5cf502e260921",
+    "Library/PackageCache/com.unity.multiplayer.center@f01f4ba8d00a/package.json": "4a822b2c3e348c63886a8105250fa3407e2920a53995085d68598759fbc86314",
+    "Library/PackageCache/com.unity.multiplayer.center@f01f4ba8d00a/Tests/Runtime/Unity.Multiplayer.Center.Tests.asmdef": "c9dfe92ebb8ded8a9c0726056bf26708d6725c1b3e41fdb863e6bc9ffd55e6fe",
+    "Library/PackageCache/com.unity.nuget.mono-cecil@ecb9724e46ff/Tests/Editor/Unity.Nuget.Mono-Cecil.Editor.Tests.asmdef": "c57680241b5502ddde2edada012fc1be7591a7a7f803daa0a6feb8264bd205b2",
+    "Library/PackageCache/com.unity.nuget.mono-cecil@ecb9724e46ff/package.json": "36fad1b3680dfc0afd6c6a2a193959e7d4532dd15ddfc35016519d0cdf27cb25",
+    "Library/PackageCache/com.unity.ugui@4dc88464a83d/Tests/Editor/TMP/Unity.TextMeshPro.Editor.Tests.asmdef": "2658cd7d173acf6a438fe313c0fe7ddb4048978c7106abe416d2c53ec20d68f8",
+    "Library/PackageCache/com.unity.ugui@4dc88464a83d/package.json": "fefa7298a01e120d822d8f989b25148227b4f564bbec85865d96f6bda001ecaa",
+    "Library/PackageCache/com.unity.ugui@4dc88464a83d/Tests/Runtime/TMP/Unity.TextMeshPro.Tests.asmdef": "68df83703968e125ebe49d4a740aa2a68130f65e404ae38c3701023f500ef692",
+    "Library/PackageCache/com.unity.ugui@4dc88464a83d/Tests/Editor/Common/UnityEditor.UI.Common.Tests.asmdef": "0b9914fc368533d7175736b39370635240ad9091cc51a8f162b89a0d46555699",
+    "Library/PackageCache/com.unity.ugui@4dc88464a83d/Tests/Editor/UGUI/UnityEditor.UI.EditorTests.asmdef": "e23f3138beea6afb88295f96db573aef88c17cdb3e6fd1eed258cb1599f9a609",
+    "Library/PackageCache/com.unity.ugui@4dc88464a83d/Tests/Runtime/UGUI/UnityEngine.UI.Tests.asmdef": "1e85c6c496121adb729b966a69a28786cba6f92c37a7d61afa48ca739cbba859",
+    "Library/PackageCache/com.unity.test-framework@76560ee600cb/UnityEditor.TestRunner/TestRunner/Utils/EditorLoadedTestAssemblyProvider.cs": "283eb21e4b48339902c6bea53c9f6ecbda10e01c1b746cdb165517ca4543cb7a",
+    "Library/PackageCache/com.unity.visualscripting@8bed5ad90189/Editor/VisualScripting.Core/Reflection/Codebase.cs": "69ea8a0a1310d76c286996bfa414d7c2809cc09757f17abba959c4e2bbaad89f",
+    "Library/PackageCache/com.unity.visualscripting@8bed5ad90189/Editor/VisualScripting.Core/Plugin/BoltCoreConfiguration.cs": "fa8ecfb67de3ffee0003659cbcb0f139bc959688d5014fd8c7f28b7321ab8413"
+  },
+  "editorMetadata": "Library/Bee/1900b0aE-inputdata.json",
+  "editorGraphSHA256": "ef11f20d6e36e20026fc00127a4412faa2b22bac382216336ef171ba4438c5f7",
+  "editorRequired": [
+    "Assembly-CSharp",
+    "Assembly-CSharp-Editor",
+    "PsdPlugin",
+    "ScriptablePacker",
+    "SporeGobbo.CampCandidate",
+    "SporeGobbo.CampCandidate.Editor",
+    "SporeGobbo.CampCandidate.Preview",
+    "SporeGobbo.CampCandidate.Tests",
+    "SporeGobbo.CampLifecycle",
+    "SporeGobbo.Geometry",
+    "SporeGobbo.Geometry.EditModeTests",
+    "SporeGobbo.Geometry.Preview",
+    "SporeGobbo.Geometry.Preview.EditModeTests",
+    "SporeGobbo.Geometry.Preview.Editor",
+    "SporeGobbo.Input",
+    "SporeGobbo.Input.EditModeTests",
+    "SporeGobbo.Safety",
+    "Unity.2D.Animation.Editor",
+    "Unity.2D.Animation.Runtime",
+    "Unity.2D.Aseprite.Common",
+    "Unity.2D.Aseprite.Editor",
+    "Unity.2D.Common.Editor",
+    "Unity.2D.Common.Path.Editor",
+    "Unity.2D.Common.Runtime",
+    "Unity.2D.IK.Editor",
+    "Unity.2D.IK.Runtime",
+    "Unity.2D.PixelPerfect",
+    "Unity.2D.PixelPerfect.Editor",
+    "Unity.2D.Psdimporter.Editor",
+    "Unity.2D.Sprite.Editor",
+    "Unity.2D.SpriteShape.Editor",
+    "Unity.2D.SpriteShape.Runtime",
+    "Unity.2D.Tilemap.Editor",
+    "Unity.2D.Tilemap.Extras",
+    "Unity.2D.Tilemap.Extras.Editor",
+    "Unity.2D.Tooling.Editor",
+    "Unity.2D.Triangulation.Runtime",
+    "Unity.Burst",
+    "Unity.Burst.CodeGen",
+    "Unity.Burst.Editor",
+    "Unity.CollabProxy.Editor",
+    "Unity.Collections",
+    "Unity.Collections.CodeGen",
+    "Unity.Collections.Editor",
+    "Unity.InputSystem",
+    "Unity.InputSystem.DocCodeSamples",
+    "Unity.InputSystem.ForUI",
+    "Unity.InputSystem.TestFramework",
+    "Unity.InternalAPIEditorBridge.001",
+    "Unity.InternalAPIEngineBridge.001",
+    "Unity.InternalAPIEngineBridge.004",
+    "Unity.Mathematics",
+    "Unity.Mathematics.Editor",
+    "Unity.Multiplayer.Center.Common",
+    "Unity.Multiplayer.Center.Editor",
+    "Unity.PerformanceTesting",
+    "Unity.PerformanceTesting.Editor",
+    "Unity.PlasticSCM.Editor",
+    "Unity.PlasticSCM.Editor.Entities",
+    "Unity.Rider.Editor",
+    "Unity.TextMeshPro",
+    "Unity.TextMeshPro.Editor",
+    "Unity.Timeline",
+    "Unity.Timeline.Editor",
+    "Unity.VisualScripting.Core",
+    "Unity.VisualScripting.Core.Editor",
+    "Unity.VisualScripting.DocCodeExamples",
+    "Unity.VisualScripting.Flow",
+    "Unity.VisualScripting.Flow.Editor",
+    "Unity.VisualScripting.SettingsProvider.Editor",
+    "Unity.VisualScripting.Shared.Editor",
+    "Unity.VisualScripting.State",
+    "Unity.VisualScripting.State.Editor",
+    "Unity.VisualStudio.Editor",
+    "UnityEditor.TestRunner",
+    "UnityEditor.UI",
+    "UnityEditor.UI.Analytics",
+    "UnityEngine.TestRunner",
+    "UnityEngine.UI"
+  ],
+  "expected": {
+    "Assembly-CSharp-Editor-firstpass": {
+      "path": "Library/ScriptAssemblies/Assembly-CSharp-Editor-firstpass.dll",
+      "classification": "expected-not-built",
+      "reason": "No eligible C# source in firstpass special folders; no firstpass compile target in actual graph. Unity does not emit an empty predefined assembly."
+    },
+    "Assembly-CSharp-firstpass": {
+      "path": "Library/ScriptAssemblies/Assembly-CSharp-firstpass.dll",
+      "classification": "expected-not-built",
+      "reason": "No eligible C# source in firstpass special folders; no firstpass compile target in actual graph. Unity does not emit an empty predefined assembly."
+    },
+    "DocCodeExamples": {
+      "path": "Library/ScriptAssemblies/DocCodeExamples.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "TestNewCustomAssembly": {
+      "path": "Library/ScriptAssemblies/TestNewCustomAssembly.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "Unity.2D.Animation.EditorTests": {
+      "path": "Library/ScriptAssemblies/Unity.2D.Animation.EditorTests.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "Unity.2D.Aseprite.EditorTests": {
+      "path": "Library/ScriptAssemblies/Unity.2D.Aseprite.EditorTests.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "Unity.2D.Common.EditorTests": {
+      "path": "Library/ScriptAssemblies/Unity.2D.Common.EditorTests.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "Unity.2D.PixelPerfect.Editor.Tests": {
+      "path": "Library/ScriptAssemblies/Unity.2D.PixelPerfect.Editor.Tests.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "Unity.2D.Psdimporter.EditorTests": {
+      "path": "Library/ScriptAssemblies/Unity.2D.Psdimporter.EditorTests.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "Unity.2D.Sprite.Package.EditorTests": {
+      "path": "Library/ScriptAssemblies/Unity.2D.Sprite.Package.EditorTests.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "Unity.2D.SpriteShape.EditorTests": {
+      "path": "Library/ScriptAssemblies/Unity.2D.SpriteShape.EditorTests.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "Unity.2D.Tilemap.Package.EditorTests": {
+      "path": "Library/ScriptAssemblies/Unity.2D.Tilemap.Package.EditorTests.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "Unity.Collections.BurstCompatibilityGen": {
+      "path": "Library/ScriptAssemblies/Unity.Collections.BurstCompatibilityGen.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "Unity.Collections.DocCodeSamples": {
+      "path": "Library/ScriptAssemblies/Unity.Collections.DocCodeSamples.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "Unity.Collections.PerformanceTests": {
+      "path": "Library/ScriptAssemblies/Unity.Collections.PerformanceTests.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "Unity.Collections.Tests": {
+      "path": "Library/ScriptAssemblies/Unity.Collections.Tests.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "Unity.Collections.Tests.Playmode": {
+      "path": "Library/ScriptAssemblies/Unity.Collections.Tests.Playmode.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "Unity.InputSystem.IntegrationTests": {
+      "path": "Library/ScriptAssemblies/Unity.InputSystem.IntegrationTests.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "Unity.Mathematics.Tests": {
+      "path": "Library/ScriptAssemblies/Unity.Mathematics.Tests.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "Unity.Multiplayer.Center.Editor.Tests": {
+      "path": "Library/ScriptAssemblies/Unity.Multiplayer.Center.Editor.Tests.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "Unity.Multiplayer.Center.Tests": {
+      "path": "Library/ScriptAssemblies/Unity.Multiplayer.Center.Tests.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "Unity.Nuget.Mono-Cecil": {
+      "path": "Library/ScriptAssemblies/Unity.Nuget.Mono-Cecil.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "Unity.TextMeshPro.Editor.Tests": {
+      "path": "Library/ScriptAssemblies/Unity.TextMeshPro.Editor.Tests.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "Unity.TextMeshPro.Tests": {
+      "path": "Library/ScriptAssemblies/Unity.TextMeshPro.Tests.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "UnityEditor.UI.Common.Tests": {
+      "path": "Library/ScriptAssemblies/UnityEditor.UI.Common.Tests.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "UnityEditor.UI.EditorTests": {
+      "path": "Library/ScriptAssemblies/UnityEditor.UI.EditorTests.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    },
+    "UnityEngine.UI.Tests": {
+      "path": "Library/ScriptAssemblies/UnityEngine.UI.Tests.dll",
+      "classification": "expected-not-built",
+      "reason": "Registry or built-in package is not embedded or opted into manifest.testables. Effective UNITY_INCLUDE_TESTS constraint (including legacy TestAssemblies normalization) is rejected by CustomScriptAssembly.IsCompatibleWith when AssetPathMetaData.IsTestable is false. Applies in Editor even when general Editor defines contain UNITY_INCLUDE_TESTS."
+    }
+  },
+  "reviewEvidence": "AssemblyDiagnosticsWorkflow-20261102/classification.json",
+  "sourceMapSHA256": "2e29aad2ee0773e3c28f8ebbe9cf364ba87fe1edc7d52b33d3fe041f38a8e28a",
+  "buildSemantics": "Stage63Build.Build: StandaloneWindows64, BuildOptions.Development only, no IncludeTestAssemblies"
+}
