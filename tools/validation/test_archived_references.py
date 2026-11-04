@@ -173,15 +173,26 @@ class MigrationTests(unittest.TestCase):
             for root in retired:
                 with self.assertRaises(PermissionError):(root/'AGENTS.md').read_text()
             blocked.clear()
-            for scope in ('build','normal'):r.load_contract(scope)
+            # This is a no-historical-read guard, not permission to renew consumed pins.
+            for scope in ('build','normal'):
+                try:r.load_contract(scope)
+                except ValueError as error:
+                    if not str(error).startswith('Execution dependency changed: '):raise
+                entry=r.load(r.PROFILES/'execution-profiles.json')['enabled'][scope]
+                pin=r.load(safe.within(r.PROFILES,entry['pin']))
+                for name in pin['files']:
+                    path=safe.within(r.W,name)
+                    self.assertFalse(any(path==old or old in path.parents for old in retired))
+                    safe.digest(path)  # Read every declared dependency even after an intentional stale-pin rejection.
             refs.verify_references(r.REFERENCES)
-            plan=r.plan_phase('tests',uuid.uuid4().hex,{})
-            self.assertEqual(Path(plan['project']),r.ROOT/'Project')
+            self.assertEqual(r.ROOT/'Project',Path(safe.MACHINE['validation'])/'Project')
             self.assertEqual(blocked,[])
-            # Explicitly separate intentionally retained rollback protection from execution dependencies.
+            # Historical six-root retirement completed: protection now follows explicit current state.
             state=r.load(r.OPERATIONS/'protection-state.json')
-            with self.assertRaises(PermissionError):r.protection_roots(state)
-        self.assertTrue(any(str(retired[-1]) in name for name in blocked))
+            roots,facts=r.protection_roots(state)
+            self.assertFalse(any(root==old or old in root.parents for root in roots for old in retired))
+            self.assertEqual(blocked,[])
+        self.assertEqual(blocked,[])
 
     def test_guarded_archive_references_are_exactly_preserved(self):
         r=runner_module();facts=refs.verify_references(r.REFERENCES)
@@ -197,6 +208,26 @@ class MigrationTests(unittest.TestCase):
         actual=sorted(n.name for c in tree.body if isinstance(c,ast.ClassDef) for n in c.body if isinstance(n,ast.FunctionDef) and n.name.startswith('test_'))
         self.assertEqual(actual,contract['retainedGuardMethods']);self.assertEqual(len(actual),26)
 
+
+
+
+class RetiredImportTests(unittest.TestCase):
+    def test_historical_live_is_not_read_at_safety_import(self):
+        import io,os,builtins
+        old=Path(safe.MACHINE['live']);attempts=[]
+        def guard(fn):
+            def call(path,*args,**kwargs):
+                if isinstance(path,(str,bytes,os.PathLike)):
+                    p=Path(os.path.abspath(os.fsdecode(path)))
+                    if p==old or old in p.parents:
+                        attempts.append(str(p));raise PermissionError('Historical live denied')
+                return fn(path,*args,**kwargs)
+            return call
+        path=Path(__file__).parent/'safety.py'
+        text=path.read_text(encoding='utf-8-sig')
+        with mock.patch.object(builtins,'open',guard(builtins.open)),mock.patch.object(io,'open',guard(io.open)),mock.patch.object(os,'stat',guard(os.stat)),mock.patch.object(os,'scandir',guard(os.scandir)):
+            exec(compile(text,str(path),'exec'),{'__file__':str(path),'__name__':'retired_import_probe'})
+        self.assertEqual(attempts,[])
 
 if __name__=="__main__":
  unittest.main(verbosity=2)

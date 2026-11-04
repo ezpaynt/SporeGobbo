@@ -79,7 +79,10 @@ no_links(OPERATIONS/'machine.json')
 MACHINE=json.loads((OPERATIONS/'machine.json').read_text(encoding='utf-8-sig'))
 if MACHINE.get('schema')!=1 or Path(MACHINE['project'])!=PROJECT or Path(MACHINE['operations'])!=OPERATIONS or getpass.getuser().lower()!=MACHINE['owner'].lower():
  raise ValueError('Missing/wrong machine identity; no historical fallback')
-for key in ('project','validation','operations','archive','unity','python','live','realData'):
+# Historical LIVE ancestry is checked by run.protection_roots in dual mode.
+# Retired-reference mode must not read that retired path even during import.
+if not Path(MACHINE['live']).is_absolute():raise ValueError('Historical live identity must be absolute')
+for key in ('project','validation','operations','archive','unity','python','realData'):
  p=Path(MACHINE[key])
  if not p.is_absolute():raise ValueError('Machine path must be absolute: '+key)
  no_links(p)
