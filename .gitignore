@@ -81,3 +81,7 @@ crashlytics-build.properties
 /Archive/
 /Validation/
 *.pyc
+
+# Known generated root outputs only
+/SporeGobbo.slnx
+/TestResults-InteractionCleanup.xml

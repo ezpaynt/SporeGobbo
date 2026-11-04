@@ -1,14 +1,15 @@
-> **2026-11-03 local cutover VERIFIED:** D:/SporeGobbo/Project is the sole active development candidate; original Integration is frozen rollback and original live remains protected. V0-V6 completed: 43 synthetic checks, unchanged 412-case native regression, fresh Windows64 Development build and 40 ordered tools-OFF journey checks. All one-use execution permissions are consumed. No retry, publication, retirement, broader testing or Stage6.4D acceptance is authorized. Stage6.4D remains UNACCEPTED / UNINSTALLED.
-
 # Significant decisions and change control
 
 **Approved documentation record, installed 2026-11-02.** Approval of gameplay intent, review of source, native validation and owner acceptance are independent. Do not infer acceptance from a commit, test count or documentation installation.
 
 ## Provenance
 
+- **OWNER-WORKSPACE:** local cutover `e2c60a3c-b2f8-4623-a42b-62b27e895c71`; V7 `a260c160-8d0d-400f-b03b-6150ce021503`; V8 `cc181c2c-f311-4867-9b39-64a8c23ac702` and exact incident acknowledgment `775b2afb-250a-441b-90a4-e0b0ad2fd9e5`. Private receipts: Cutover-20261103, V7Publication-20261103, V8Resume-20261103. Remaining closeout request `4c243d4d-1db1-4d96-a46a-617ca8916814` permits preparation/preservation, not installed changes/deletion.
+
+
 - **OWNER-INSTALL:** “Install Approved Engineering Bible” approves the reconciled eight documents and two append-only pointers. “Resume Engineering Bible Installation After Reflog Review” permits verified handling of the exact observed same-commit remote-HEAD append, not Git writes or a general exemption. Documentation approval grants no gameplay/testing/Git/acceptance authority.
 
-- **OWNER-D3:** owner request titled “Engineering Bible Draft 3: Final Technical Review and Proposed Revision”, section 4; local supplied attachment: [request](/C:/Users/ezpay/.codex/attachments/5891c8f9-ed68-4321-85d1-2a4407291d93/Pasted%20text.txt). This explicitly reaffirms the nine listed gameplay directions. It authorizes proposed documentation only.
+- **OWNER-D3:** owner request titled “Engineering Bible Draft 3: Final Technical Review and Proposed Revision”, section 4; local supplied attachment: **request** (private key: `C:/Users/ezpay/.codex/attachments/5891c8f9-ed68-4321-85d1-2a4407291d93/Pasted text.txt`; see [evidence lookup](README.md#private-evidence)). This explicitly reaffirms the nine listed gameplay directions. It authorizes proposed documentation only.
 - **OWNER-MOVEMENT:** earlier owner messages approving bounded yielding/waiting and waypoint/clearance corrections, with unchanged deadlines and no-install boundaries. Full conversation is the approval record; engineering reports are implementation/evidence indexes, not substitutes for owner permission.
 - **OWNER-RESOURCES:** owner “scoped loose-spore trigger correction” message: nonblocking loose resources, intentional collection, living Mushroom physical presence; later creature behavior remains future context.
 - **OWNER-FOOTPRINT:** owner “shared creature-footprint and clearance-contract correction” message: physical collider authoritative, reserve voluntary, existing shared services, no teleport/geometry change. Acceptance remains pending.
@@ -29,7 +30,7 @@ Where conversation messages lack stable links, preserve the exact title/quoted s
 | ADR-07 | Body-aware authorized digging/travel; SG-04/05 | Approved intent, OWNER-D3/MOVEMENT. Larger bodies can need wider routes; protected terrain remains protected; deadlines and honest blocked outcomes remain |
 | ADR-08 | Loose resources versus living creatures; SG-10 | Approved intent, OWNER-RESOURCES. Nonblocking intentional pickups are not a policy for fleeing prey bodies |
 | ADR-09 | Architecture change control | Owner's review requests require approval before changing documented authority/boundaries/contracts. Documentation cannot retroactively legitimize code. Ordinary internal fixes/helpers within approved semantics may proceed under task authorization |
-| ADR-10 | One accepted source, one candidate, disposable experiments | Proposed workflow for approval. Commit/push/backup/archival/source consolidation and exact accepted designation remain separately gated. Backing up unaccepted development does not accept/install it |
+| ADR-10 | One maintained authoring checkout; controlled Validation, private Operations and Archive | Approved workspace direction: owner cutover/V7/V8, 2026-11-03. D:/SporeGobbo/Project is sole current source. Accepted history is recoverable reference, not permanently runnable peer projects. Remaining original-live retirement/closeout requires exact owner-approved proofs/manifests. Development publication does not accept/install Stage 6.4D |
 
 ## Open decisions / retained directions
 
@@ -38,7 +39,7 @@ Where conversation messages lack stable links, preserve the exact title/quoted s
 - Faction retaliation, kill attribution/drops, Weevil–Mushroom/offscreen outcomes, den/regeneration caps and transformation identity.
 - Queen/Giant behavior, permanent Pit consequences and intra-Camp conflict outside sessions.
 - Resident/streamed/passage-connected world architecture; benchmark 1024²/1200²/1500² only after approved workload/hardware/safety scope.
-- Future changes to approved documentation destinations/inheritance or house standards; source/Git remote-backup policy and naming migration remain separately gated.
+- Future changes to approved documentation destinations/inheritance or house standards; further naming migration remains separately gated. The approved development/upstream arrangement is recorded in CURRENT_WORK; commits/pushes still require applicable authorization.
 
 ## Change proposal and maintenance
 

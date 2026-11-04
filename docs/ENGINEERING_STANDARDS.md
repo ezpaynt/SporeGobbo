@@ -1,5 +1,3 @@
-> **2026-11-03 local cutover VERIFIED:** D:/SporeGobbo/Project is the sole active development candidate; original Integration is frozen rollback and original live remains protected. V0-V6 completed: 43 synthetic checks, unchanged 412-case native regression, fresh Windows64 Development build and 40 ordered tools-OFF journey checks. All one-use execution permissions are consumed. No retry, publication, retirement, broader testing or Stage6.4D acceptance is authorized. Stage6.4D remains UNACCEPTED / UNINSTALLED.
-
 # Engineering standards — approved documentation revision 2026-11-02
 
 These practices operate within approved architecture/contracts; they do not authorize source changes or migrate existing serialized data. Use the existing owner and composition before new infrastructure. A pure helper or subordinate class can improve cohesion without becoming another authority. Justify new retained state, caches, managers and lifecycle ownership; do not impose arbitrary class/method lengths or mandatory patterns.
@@ -67,3 +65,17 @@ Prefer bounded local terrain updates and time-budgeted work. Audit route publica
 5. Validate affected prefabs/scenes, saves, discovery/build/test inventories and teardown before acceptance.
 
 No asset move, namespace/assembly change, renaming, formatting campaign or source cleanup is authorized by these documents.
+
+## Workspace and artifact lifecycle
+
+Maintain one authoring checkout. Before creating another copy/output, record owner, exact location, purpose, required recovery inputs and removal condition in the task receipt. Reuse controlled Validation where identity/source/isolation are verified; each process still needs distinct owned output/storage. Extra checkouts need a concrete purpose.
+
+Put task receipts under Operations/Executions. Promote maintained runtime, tests, tools and docs into Project through reviewed scope. Machine configuration and synthetic/private campaigns stay outside public Git. Preserve necessary failures, exact reproduction inputs and decisions; do not automatically preserve every expanded project, build and cache.
+
+Distinguish **inactive**, **preserved** (verified recovery), **removal-approved** (exact owner scope/conditions), and **removed** (receipt/postflight). Age, passed tests and generated-looking names never grant deletion. Do not retire a live session's cwd/instruction root.
+
+At task completion classify artifacts: keep, promote, archive, or propose removal. Remove only under exact applicable approval with path/reparse/process/lock/recovery/protection checks. Preserve drift; never reset/clean it away. A harmless helper correction needs its error and corrected script, not another full backup.
+
+At meaningful completed boundaries review source, `.meta`, tests, tools, configuration and docs for cohesive commits. Report working-only, committed and remotely verified state separately. Publication needs inclusion/privacy/diff/remote checks; preserve main/backup history. Source backup is not gameplay acceptance.
+
+Keep CURRENT_WORK concise; durable rules belong in their guide, immutable receipts in Operations/Archive. No automatic cleanup, synchronization, scheduling or push authority is created. Protected-data changes, architecture changes, publication and deletion retain explicit approval boundaries.

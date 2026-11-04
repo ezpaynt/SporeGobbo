@@ -1,3 +1,5 @@
+> **Historical reference.** Preserve this record. Current responsibilities and status: [engineering guide](docs/README.md), [CURRENT_WORK](docs/CURRENT_WORK.md). Old commands/paths/acceptance statements do not authorize execution.
+
 # Architecture
 
 ## CampScene Hierarchy

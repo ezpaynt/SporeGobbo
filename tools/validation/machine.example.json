@@ -1,25 +1,37 @@
 {
   "schema": 1,
-  "description": "Private Operations/machine.json required. Copying this example grants no execution.",
-  "requiredKeys": [
-    "additionalAllowanceBytes",
-    "archive",
-    "execution",
-    "live",
-    "minimumHeadroomBytes",
-    "operations",
-    "owner",
-    "preferenceBaseline",
-    "project",
-    "python",
-    "realData",
-    "registryRoots",
-    "retirementRoots",
-    "schema",
-    "unity",
-    "validation"
+  "owner": "<verified Windows username>",
+  "project": "<absolute Project>",
+  "validation": "<absolute Validation>",
+  "operations": "<absolute Operations>",
+  "archive": "<absolute Archive>",
+  "unity": "<verified pinned Unity.exe>",
+  "python": "<verified Python.exe>",
+  "live": "<historical live path>",
+  "realData": "<verified real product storage; never fixture>",
+  "registryRoots": [
+    "<verified product key>"
   ],
-  "paths": "Absolute reviewed machine paths; Project/Validation/Operations/Archive roles are distinct",
-  "secrets": "No credentials; real data and preference baseline stay private",
-  "execution": "Fresh reviewed one-use execution directory"
+  "preferenceBaseline": {
+    "<same product key>": {
+      "values": [
+        {
+          "name": "<exact name>",
+          "type": 0,
+          "valueHash": "<verified SHA256 of repr(native value)>"
+        }
+      ]
+    }
+  },
+  "execution": "Executions/<fresh separately approved scope>",
+  "additionalAllowanceBytes": 0,
+  "minimumHeadroomBytes": 5368709120,
+  "retirementRoots": [],
+  "budgetRoots": [
+    {
+      "path": "<absolute reviewed budget root>",
+      "baselineBytes": 0
+    }
+  ],
+  "budgetEvidenceAllowanceBytes": 0
 }

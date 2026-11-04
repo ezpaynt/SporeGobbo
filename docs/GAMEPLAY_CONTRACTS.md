@@ -1,5 +1,3 @@
-> **2026-11-03 local cutover VERIFIED:** D:/SporeGobbo/Project is the sole active development candidate; original Integration is frozen rollback and original live remains protected. V0-V6 completed: 43 synthetic checks, unchanged 412-case native regression, fresh Windows64 Development build and 40 ordered tools-OFF journey checks. All one-use execution permissions are consumed. No retry, publication, retirement, broader testing or Stage6.4D acceptance is authorized. Stage6.4D remains UNACCEPTED / UNINSTALLED.
-
 # Gameplay contracts
 
 **Approved documentation record, installed 2026-11-02.** Approved requirements below are restated from OWNER-D3 in DECISIONS, not inferred from code. They do not claim current acceptance. Changes require owner approval; tests implement guarantees, not redefine them.
